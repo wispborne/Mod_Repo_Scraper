@@ -1,0 +1,723 @@
+// coverage:ignore-file
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format off
+// ignore_for_file: type=lint
+// ignore_for_file: invalid_use_of_protected_member
+// ignore_for_file: unused_element, unnecessary_cast, override_on_non_overriding_member
+// ignore_for_file: strict_raw_type, inference_failure_on_untyped_parameter
+
+part of 'scraped_mod.dart';
+
+class ModSourceMapper extends EnumMapper<ModSource> {
+  ModSourceMapper._();
+
+  static ModSourceMapper? _instance;
+  static ModSourceMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = ModSourceMapper._());
+    }
+    return _instance!;
+  }
+
+  static ModSource fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  ModSource decode(dynamic value) {
+    switch (value) {
+      case r'Index':
+        return ModSource.Index;
+      case r'ModdingSubforum':
+        return ModSource.ModdingSubforum;
+      case r'Discord':
+        return ModSource.Discord;
+      case r'NexusMods':
+        return ModSource.NexusMods;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(ModSource self) {
+    switch (self) {
+      case ModSource.Index:
+        return r'Index';
+      case ModSource.ModdingSubforum:
+        return r'ModdingSubforum';
+      case ModSource.Discord:
+        return r'Discord';
+      case ModSource.NexusMods:
+        return r'NexusMods';
+    }
+  }
+}
+
+extension ModSourceMapperExtension on ModSource {
+  String toValue() {
+    ModSourceMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<ModSource>(this) as String;
+  }
+}
+
+class ModUrlTypeMapper extends EnumMapper<ModUrlType> {
+  ModUrlTypeMapper._();
+
+  static ModUrlTypeMapper? _instance;
+  static ModUrlTypeMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = ModUrlTypeMapper._());
+    }
+    return _instance!;
+  }
+
+  static ModUrlType fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  ModUrlType decode(dynamic value) {
+    switch (value) {
+      case r'Forum':
+        return ModUrlType.Forum;
+      case r'Discord':
+        return ModUrlType.Discord;
+      case r'NexusMods':
+        return ModUrlType.NexusMods;
+      case r'DirectDownload':
+        return ModUrlType.DirectDownload;
+      case r'DownloadPage':
+        return ModUrlType.DownloadPage;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(ModUrlType self) {
+    switch (self) {
+      case ModUrlType.Forum:
+        return r'Forum';
+      case ModUrlType.Discord:
+        return r'Discord';
+      case ModUrlType.NexusMods:
+        return r'NexusMods';
+      case ModUrlType.DirectDownload:
+        return r'DirectDownload';
+      case ModUrlType.DownloadPage:
+        return r'DownloadPage';
+    }
+  }
+}
+
+extension ModUrlTypeMapperExtension on ModUrlType {
+  String toValue() {
+    ModUrlTypeMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<ModUrlType>(this) as String;
+  }
+}
+
+class ScrapedModsMapper extends ClassMapperBase<ScrapedMods> {
+  ScrapedModsMapper._();
+
+  static ScrapedModsMapper? _instance;
+  static ScrapedModsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = ScrapedModsMapper._());
+      ScrapedModMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'ScrapedMods';
+
+  static List<ScrapedMod> _$items(ScrapedMods v) => v.items;
+  static const Field<ScrapedMods, List<ScrapedMod>> _f$items = Field(
+    'items',
+    _$items,
+  );
+
+  @override
+  final MappableFields<ScrapedMods> fields = const {#items: _f$items};
+
+  static ScrapedMods _instantiate(DecodingData data) {
+    return ScrapedMods(items: data.dec(_f$items));
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static ScrapedMods fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<ScrapedMods>(map);
+  }
+
+  static ScrapedMods fromJson(String json) {
+    return ensureInitialized().decodeJson<ScrapedMods>(json);
+  }
+}
+
+mixin ScrapedModsMappable {
+  String toJson() {
+    return ScrapedModsMapper.ensureInitialized().encodeJson<ScrapedMods>(
+      this as ScrapedMods,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return ScrapedModsMapper.ensureInitialized().encodeMap<ScrapedMods>(
+      this as ScrapedMods,
+    );
+  }
+
+  ScrapedModsCopyWith<ScrapedMods, ScrapedMods, ScrapedMods> get copyWith =>
+      _ScrapedModsCopyWithImpl<ScrapedMods, ScrapedMods>(
+        this as ScrapedMods,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return ScrapedModsMapper.ensureInitialized().stringifyValue(
+      this as ScrapedMods,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return ScrapedModsMapper.ensureInitialized().equalsValue(
+      this as ScrapedMods,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return ScrapedModsMapper.ensureInitialized().hashValue(this as ScrapedMods);
+  }
+}
+
+extension ScrapedModsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, ScrapedMods, $Out> {
+  ScrapedModsCopyWith<$R, ScrapedMods, $Out> get $asScrapedMods =>
+      $base.as((v, t, t2) => _ScrapedModsCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class ScrapedModsCopyWith<$R, $In extends ScrapedMods, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<$R, ScrapedMod, ScrapedModCopyWith<$R, ScrapedMod, ScrapedMod>>
+  get items;
+  $R call({List<ScrapedMod>? items});
+  ScrapedModsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _ScrapedModsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, ScrapedMods, $Out>
+    implements ScrapedModsCopyWith<$R, ScrapedMods, $Out> {
+  _ScrapedModsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<ScrapedMods> $mapper =
+      ScrapedModsMapper.ensureInitialized();
+  @override
+  ListCopyWith<$R, ScrapedMod, ScrapedModCopyWith<$R, ScrapedMod, ScrapedMod>>
+  get items => ListCopyWith(
+    $value.items,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(items: v),
+  );
+  @override
+  $R call({List<ScrapedMod>? items}) =>
+      $apply(FieldCopyWithData({if (items != null) #items: items}));
+  @override
+  ScrapedMods $make(CopyWithData data) =>
+      ScrapedMods(items: data.get(#items, or: $value.items));
+
+  @override
+  ScrapedModsCopyWith<$R2, ScrapedMods, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _ScrapedModsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class ScrapedModMapper extends ClassMapperBase<ScrapedMod> {
+  ScrapedModMapper._();
+
+  static ScrapedModMapper? _instance;
+  static ScrapedModMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = ScrapedModMapper._());
+      ModUrlTypeMapper.ensureInitialized();
+      ModSourceMapper.ensureInitialized();
+      ImageMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'ScrapedMod';
+
+  static String _$name(ScrapedMod v) => v.name;
+  static const Field<ScrapedMod, String> _f$name = Field('name', _$name);
+  static String? _$summary(ScrapedMod v) => v.summary;
+  static const Field<ScrapedMod, String> _f$summary = Field(
+    'summary',
+    _$summary,
+    opt: true,
+  );
+  static String? _$description(ScrapedMod v) => v.description;
+  static const Field<ScrapedMod, String> _f$description = Field(
+    'description',
+    _$description,
+    opt: true,
+  );
+  static String? _$modVersion(ScrapedMod v) => v.modVersion;
+  static const Field<ScrapedMod, String> _f$modVersion = Field(
+    'modVersion',
+    _$modVersion,
+    opt: true,
+  );
+  static String? _$gameVersionReq(ScrapedMod v) => v.gameVersionReq;
+  static const Field<ScrapedMod, String> _f$gameVersionReq = Field(
+    'gameVersionReq',
+    _$gameVersionReq,
+    opt: true,
+  );
+  static List<String> _$authorsList(ScrapedMod v) => v.authorsList;
+  static const Field<ScrapedMod, List<String>> _f$authorsList = Field(
+    'authorsList',
+    _$authorsList,
+    opt: true,
+    def: const [],
+  );
+  static Map<ModUrlType, String>? _$urls(ScrapedMod v) => v.urls;
+  static const Field<ScrapedMod, Map<ModUrlType, String>> _f$urls = Field(
+    'urls',
+    _$urls,
+    opt: true,
+  );
+  static List<ModSource>? _$sources(ScrapedMod v) => v.sources;
+  static const Field<ScrapedMod, List<ModSource>> _f$sources = Field(
+    'sources',
+    _$sources,
+    opt: true,
+  );
+  static List<String>? _$categories(ScrapedMod v) => v.categories;
+  static const Field<ScrapedMod, List<String>> _f$categories = Field(
+    'categories',
+    _$categories,
+    opt: true,
+  );
+  static Map<String, Image>? _$images(ScrapedMod v) => v.images;
+  static const Field<ScrapedMod, Map<String, Image>> _f$images = Field(
+    'images',
+    _$images,
+    opt: true,
+  );
+  static DateTime? _$dateTimeCreated(ScrapedMod v) => v.dateTimeCreated;
+  static const Field<ScrapedMod, DateTime> _f$dateTimeCreated = Field(
+    'dateTimeCreated',
+    _$dateTimeCreated,
+    opt: true,
+  );
+  static DateTime? _$dateTimeEdited(ScrapedMod v) => v.dateTimeEdited;
+  static const Field<ScrapedMod, DateTime> _f$dateTimeEdited = Field(
+    'dateTimeEdited',
+    _$dateTimeEdited,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<ScrapedMod> fields = const {
+    #name: _f$name,
+    #summary: _f$summary,
+    #description: _f$description,
+    #modVersion: _f$modVersion,
+    #gameVersionReq: _f$gameVersionReq,
+    #authorsList: _f$authorsList,
+    #urls: _f$urls,
+    #sources: _f$sources,
+    #categories: _f$categories,
+    #images: _f$images,
+    #dateTimeCreated: _f$dateTimeCreated,
+    #dateTimeEdited: _f$dateTimeEdited,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static ScrapedMod _instantiate(DecodingData data) {
+    return ScrapedMod(
+      name: data.dec(_f$name),
+      summary: data.dec(_f$summary),
+      description: data.dec(_f$description),
+      modVersion: data.dec(_f$modVersion),
+      gameVersionReq: data.dec(_f$gameVersionReq),
+      authorsList: data.dec(_f$authorsList),
+      urls: data.dec(_f$urls),
+      sources: data.dec(_f$sources),
+      categories: data.dec(_f$categories),
+      images: data.dec(_f$images),
+      dateTimeCreated: data.dec(_f$dateTimeCreated),
+      dateTimeEdited: data.dec(_f$dateTimeEdited),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static ScrapedMod fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<ScrapedMod>(map);
+  }
+
+  static ScrapedMod fromJson(String json) {
+    return ensureInitialized().decodeJson<ScrapedMod>(json);
+  }
+}
+
+mixin ScrapedModMappable {
+  String toJson() {
+    return ScrapedModMapper.ensureInitialized().encodeJson<ScrapedMod>(
+      this as ScrapedMod,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return ScrapedModMapper.ensureInitialized().encodeMap<ScrapedMod>(
+      this as ScrapedMod,
+    );
+  }
+
+  ScrapedModCopyWith<ScrapedMod, ScrapedMod, ScrapedMod> get copyWith =>
+      _ScrapedModCopyWithImpl<ScrapedMod, ScrapedMod>(
+        this as ScrapedMod,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return ScrapedModMapper.ensureInitialized().stringifyValue(
+      this as ScrapedMod,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return ScrapedModMapper.ensureInitialized().equalsValue(
+      this as ScrapedMod,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return ScrapedModMapper.ensureInitialized().hashValue(this as ScrapedMod);
+  }
+}
+
+extension ScrapedModValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, ScrapedMod, $Out> {
+  ScrapedModCopyWith<$R, ScrapedMod, $Out> get $asScrapedMod =>
+      $base.as((v, t, t2) => _ScrapedModCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class ScrapedModCopyWith<$R, $In extends ScrapedMod, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get authorsList;
+  MapCopyWith<$R, ModUrlType, String, ObjectCopyWith<$R, String, String>>?
+  get urls;
+  ListCopyWith<$R, ModSource, ObjectCopyWith<$R, ModSource, ModSource>>?
+  get sources;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get categories;
+  MapCopyWith<$R, String, Image, ImageCopyWith<$R, Image, Image>>? get images;
+  $R call({
+    String? name,
+    String? summary,
+    String? description,
+    String? modVersion,
+    String? gameVersionReq,
+    List<String>? authorsList,
+    Map<ModUrlType, String>? urls,
+    List<ModSource>? sources,
+    List<String>? categories,
+    Map<String, Image>? images,
+    DateTime? dateTimeCreated,
+    DateTime? dateTimeEdited,
+  });
+  ScrapedModCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _ScrapedModCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, ScrapedMod, $Out>
+    implements ScrapedModCopyWith<$R, ScrapedMod, $Out> {
+  _ScrapedModCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<ScrapedMod> $mapper =
+      ScrapedModMapper.ensureInitialized();
+  @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get authorsList => ListCopyWith(
+    $value.authorsList,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(authorsList: v),
+  );
+  @override
+  MapCopyWith<$R, ModUrlType, String, ObjectCopyWith<$R, String, String>>?
+  get urls => $value.urls != null
+      ? MapCopyWith(
+          $value.urls!,
+          (v, t) => ObjectCopyWith(v, $identity, t),
+          (v) => call(urls: v),
+        )
+      : null;
+  @override
+  ListCopyWith<$R, ModSource, ObjectCopyWith<$R, ModSource, ModSource>>?
+  get sources => $value.sources != null
+      ? ListCopyWith(
+          $value.sources!,
+          (v, t) => ObjectCopyWith(v, $identity, t),
+          (v) => call(sources: v),
+        )
+      : null;
+  @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>?
+  get categories => $value.categories != null
+      ? ListCopyWith(
+          $value.categories!,
+          (v, t) => ObjectCopyWith(v, $identity, t),
+          (v) => call(categories: v),
+        )
+      : null;
+  @override
+  MapCopyWith<$R, String, Image, ImageCopyWith<$R, Image, Image>>? get images =>
+      $value.images != null
+      ? MapCopyWith(
+          $value.images!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(images: v),
+        )
+      : null;
+  @override
+  $R call({
+    String? name,
+    Object? summary = $none,
+    Object? description = $none,
+    Object? modVersion = $none,
+    Object? gameVersionReq = $none,
+    List<String>? authorsList,
+    Object? urls = $none,
+    Object? sources = $none,
+    Object? categories = $none,
+    Object? images = $none,
+    Object? dateTimeCreated = $none,
+    Object? dateTimeEdited = $none,
+  }) => $apply(
+    FieldCopyWithData({
+      if (name != null) #name: name,
+      if (summary != $none) #summary: summary,
+      if (description != $none) #description: description,
+      if (modVersion != $none) #modVersion: modVersion,
+      if (gameVersionReq != $none) #gameVersionReq: gameVersionReq,
+      if (authorsList != null) #authorsList: authorsList,
+      if (urls != $none) #urls: urls,
+      if (sources != $none) #sources: sources,
+      if (categories != $none) #categories: categories,
+      if (images != $none) #images: images,
+      if (dateTimeCreated != $none) #dateTimeCreated: dateTimeCreated,
+      if (dateTimeEdited != $none) #dateTimeEdited: dateTimeEdited,
+    }),
+  );
+  @override
+  ScrapedMod $make(CopyWithData data) => ScrapedMod(
+    name: data.get(#name, or: $value.name),
+    summary: data.get(#summary, or: $value.summary),
+    description: data.get(#description, or: $value.description),
+    modVersion: data.get(#modVersion, or: $value.modVersion),
+    gameVersionReq: data.get(#gameVersionReq, or: $value.gameVersionReq),
+    authorsList: data.get(#authorsList, or: $value.authorsList),
+    urls: data.get(#urls, or: $value.urls),
+    sources: data.get(#sources, or: $value.sources),
+    categories: data.get(#categories, or: $value.categories),
+    images: data.get(#images, or: $value.images),
+    dateTimeCreated: data.get(#dateTimeCreated, or: $value.dateTimeCreated),
+    dateTimeEdited: data.get(#dateTimeEdited, or: $value.dateTimeEdited),
+  );
+
+  @override
+  ScrapedModCopyWith<$R2, ScrapedMod, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _ScrapedModCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class ImageMapper extends ClassMapperBase<Image> {
+  ImageMapper._();
+
+  static ImageMapper? _instance;
+  static ImageMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = ImageMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'Image';
+
+  static String _$id(Image v) => v.id;
+  static const Field<Image, String> _f$id = Field('id', _$id);
+  static String? _$filename(Image v) => v.filename;
+  static const Field<Image, String> _f$filename = Field(
+    'filename',
+    _$filename,
+    opt: true,
+  );
+  static String? _$description(Image v) => v.description;
+  static const Field<Image, String> _f$description = Field(
+    'description',
+    _$description,
+    opt: true,
+  );
+  static String? _$contentType(Image v) => v.contentType;
+  static const Field<Image, String> _f$contentType = Field(
+    'contentType',
+    _$contentType,
+    opt: true,
+  );
+  static int? _$size(Image v) => v.size;
+  static const Field<Image, int> _f$size = Field('size', _$size, opt: true);
+  static String? _$url(Image v) => v.url;
+  static const Field<Image, String> _f$url = Field('url', _$url, opt: true);
+  static String? _$proxyUrl(Image v) => v.proxyUrl;
+  static const Field<Image, String> _f$proxyUrl = Field(
+    'proxyUrl',
+    _$proxyUrl,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<Image> fields = const {
+    #id: _f$id,
+    #filename: _f$filename,
+    #description: _f$description,
+    #contentType: _f$contentType,
+    #size: _f$size,
+    #url: _f$url,
+    #proxyUrl: _f$proxyUrl,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static Image _instantiate(DecodingData data) {
+    return Image(
+      id: data.dec(_f$id),
+      filename: data.dec(_f$filename),
+      description: data.dec(_f$description),
+      contentType: data.dec(_f$contentType),
+      size: data.dec(_f$size),
+      url: data.dec(_f$url),
+      proxyUrl: data.dec(_f$proxyUrl),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static Image fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<Image>(map);
+  }
+
+  static Image fromJson(String json) {
+    return ensureInitialized().decodeJson<Image>(json);
+  }
+}
+
+mixin ImageMappable {
+  String toJson() {
+    return ImageMapper.ensureInitialized().encodeJson<Image>(this as Image);
+  }
+
+  Map<String, dynamic> toMap() {
+    return ImageMapper.ensureInitialized().encodeMap<Image>(this as Image);
+  }
+
+  ImageCopyWith<Image, Image, Image> get copyWith =>
+      _ImageCopyWithImpl<Image, Image>(this as Image, $identity, $identity);
+  @override
+  String toString() {
+    return ImageMapper.ensureInitialized().stringifyValue(this as Image);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return ImageMapper.ensureInitialized().equalsValue(this as Image, other);
+  }
+
+  @override
+  int get hashCode {
+    return ImageMapper.ensureInitialized().hashValue(this as Image);
+  }
+}
+
+extension ImageValueCopy<$R, $Out> on ObjectCopyWith<$R, Image, $Out> {
+  ImageCopyWith<$R, Image, $Out> get $asImage =>
+      $base.as((v, t, t2) => _ImageCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class ImageCopyWith<$R, $In extends Image, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({
+    String? id,
+    String? filename,
+    String? description,
+    String? contentType,
+    int? size,
+    String? url,
+    String? proxyUrl,
+  });
+  ImageCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _ImageCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, Image, $Out>
+    implements ImageCopyWith<$R, Image, $Out> {
+  _ImageCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<Image> $mapper = ImageMapper.ensureInitialized();
+  @override
+  $R call({
+    String? id,
+    Object? filename = $none,
+    Object? description = $none,
+    Object? contentType = $none,
+    Object? size = $none,
+    Object? url = $none,
+    Object? proxyUrl = $none,
+  }) => $apply(
+    FieldCopyWithData({
+      if (id != null) #id: id,
+      if (filename != $none) #filename: filename,
+      if (description != $none) #description: description,
+      if (contentType != $none) #contentType: contentType,
+      if (size != $none) #size: size,
+      if (url != $none) #url: url,
+      if (proxyUrl != $none) #proxyUrl: proxyUrl,
+    }),
+  );
+  @override
+  Image $make(CopyWithData data) => Image(
+    id: data.get(#id, or: $value.id),
+    filename: data.get(#filename, or: $value.filename),
+    description: data.get(#description, or: $value.description),
+    contentType: data.get(#contentType, or: $value.contentType),
+    size: data.get(#size, or: $value.size),
+    url: data.get(#url, or: $value.url),
+    proxyUrl: data.get(#proxyUrl, or: $value.proxyUrl),
+  );
+
+  @override
+  ImageCopyWith<$R2, Image, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
+      _ImageCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+

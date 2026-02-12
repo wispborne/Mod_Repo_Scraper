@@ -1,0 +1,45 @@
+# =========================
+# Dart / pub / build outputs
+# =========================
+.dart_tool/
+.packages
+.pub/
+build/
+doc/api/
+
+# If you ever run Flutter tooling in this repo:
+.flutter-plugins
+.flutter-plugins-dependencies
+.fvm/
+.dart_tool/flutter_build/
+
+# =========================
+# IDEs / Editors
+# =========================
+.idea/
+*.iml
+*.ipr
+*.iws
+
+.vscode/
+*.swp
+*~
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Logs / caches / local data
+# =========================
+*.log
+
+# Local config (contains secrets)
+config.properties
+
+# Output data
+/*_cache.json
+ModRepo.json
