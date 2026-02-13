@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dart test:*)",
+      "Bash(dart run:*)",
+      "Bash(del \"F:\\\\Code\\\\Starsector\\\\Mod_Repo_Scraper\\\\test\\\\fuzzy_test.dart\")",
+      "Bash(dart analyze:*)"
+    ]
+  }
+}

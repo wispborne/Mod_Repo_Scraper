@@ -10,7 +10,6 @@
  * The full license is available from <https://www.gnu.org/licenses/gpl-3.0.txt>.
  */
 
-import 'package:synchronized/synchronized.dart';
 import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:usc_scraper/utilities/parallel_map.dart';
 
@@ -26,41 +25,104 @@ class ModMerger {
   }) async {
     final startTime = DateTime.now();
 
-    // Mods that are also listed from another, more preferable source.
-    final modsAlreadyAddedToAGroup = <ScrapedMod>[];
-    final lock = Lock();
     final summary = StringBuffer();
 
     final sortedMods = List<ScrapedMod>.from(mods)..sort((a, b) => a.name.compareTo(b.name));
     final preprocessedMods = _preprocessMods(sortedMods);
+    final dedupedInput = _removeDuplicateInputs(preprocessedMods);
+    timber.i(
+        message: () =>
+            "Pre-dedup: removed ${preprocessedMods.length - dedupedInput.length} duplicate inputs (${preprocessedMods.length} -> ${dedupedInput.length}).");
 
-    timber.i(message: () => "Grouping ${mods.length} mods by similarity...");
+    timber.i(message: () => "Grouping ${dedupedInput.length} mods by similarity...");
     var stepStartTime = DateTime.now();
 
-    // For each mod, look for all similar mods and return a group of similar mods
-    final groupedMods = <List<ScrapedMod>>[];
+    // Build indexes for fast candidate generation instead of O(n²) pairwise comparison.
+    final cleanedNames = <int, String?>{};
+    final forumTopicIds = <int, String?>{};
+    final topicBuckets = <String, List<int>>{};
+    final nameBuckets = <String, List<int>>{};
+    final trigramIndex = <String, Set<int>>{};
 
-    for (var index = 0; index < preprocessedMods.length; index++) {
-      final outerLoopMod = preprocessedMods[index];
+    for (var i = 0; i < dedupedInput.length; i++) {
+      final mod = dedupedInput[i];
 
-      if (modsAlreadyAddedToAGroup.contains(outerLoopMod)) {
-        continue;
+      final cleanName = _prepForMatching(mod.name);
+      cleanedNames[i] = cleanName;
+
+      final topicId = extractForumTopicId(mod.getUrls()[ModUrlType.Forum]);
+      forumTopicIds[i] = topicId;
+
+      if (topicId != null) {
+        topicBuckets.putIfAbsent(topicId, () => []).add(i);
       }
 
-      // Add the mod and then look for and add all similar ones, starting from location of the outer loop
-      final sublist = preprocessedMods.sublist(index);
-      final similarMods = await sublist.parallelMap((innerLoopMod) async {
-        // Skip comparing the mod to itself.
-        if (identical(innerLoopMod, outerLoopMod)) {
-          return (innerLoopMod, false);
-        }
+      if (cleanName != null) {
+        nameBuckets.putIfAbsent(cleanName, () => []).add(i);
 
-        final outer = _prepForMatching(outerLoopMod.name);
-        final inner = _prepForMatching(innerLoopMod.name);
-
-        if (outer == null || inner == null) {
-          return (innerLoopMod, false);
+        if (cleanName.length >= 3) {
+          for (var t = 0; t <= cleanName.length - 3; t++) {
+            final trigram = cleanName.substring(t, t + 3);
+            trigramIndex.putIfAbsent(trigram, () => {}).add(i);
+          }
         }
+      }
+    }
+
+    // For each mod, gather candidates from indexes and verify matches.
+    final groupedMods = <List<ScrapedMod>>[];
+    final alreadyGrouped = List<bool>.filled(dedupedInput.length, false);
+
+    for (var index = 0; index < dedupedInput.length; index++) {
+      if (alreadyGrouped[index]) continue;
+
+      final outerLoopMod = dedupedInput[index];
+      final outer = cleanedNames[index];
+      final outerTopicId = forumTopicIds[index];
+
+      // Gather candidate indices from indexes.
+      final candidates = <int>{};
+
+      // Candidates from forum topic bucket.
+      if (outerTopicId != null) {
+        candidates.addAll(topicBuckets[outerTopicId] ?? []);
+      }
+
+      // Candidates from exact name bucket.
+      if (outer != null) {
+        candidates.addAll(nameBuckets[outer] ?? []);
+
+        // Candidates from trigram overlap.
+        if (outer.length >= 3) {
+          final trigramHits = <int, int>{};
+          for (var t = 0; t <= outer.length - 3; t++) {
+            final trigram = outer.substring(t, t + 3);
+            for (final candidateIdx in trigramIndex[trigram] ?? <int>{}) {
+              trigramHits[candidateIdx] = (trigramHits[candidateIdx] ?? 0) + 1;
+            }
+          }
+          // Only consider candidates with >= 40% trigram overlap.
+          final minTrigrams = (outer.length - 2) * 0.4;
+          for (final entry in trigramHits.entries) {
+            if (entry.value >= minTrigrams) {
+              candidates.add(entry.key);
+            }
+          }
+        }
+      }
+
+      // Remove self and already-grouped items.
+      candidates.remove(index);
+      candidates.removeWhere((idx) => alreadyGrouped[idx]);
+
+      // Verify each candidate with the full matching logic.
+      final matchedMods = <ScrapedMod>[];
+
+      for (final candidateIdx in candidates) {
+        final innerLoopMod = dedupedInput[candidateIdx];
+        final inner = cleanedNames[candidateIdx];
+
+        if (outer == null || inner == null) continue;
 
         // Check the mod names.
         final bestNameResult = await ModRepoUtils.compareToFindBestMatch(
@@ -84,9 +146,14 @@ class ModMerger {
           rightList: innerAuthors,
         );
 
-        final outerUrl = outerLoopMod.getUrls()[ModUrlType.Forum];
-        final doForumLinksMatch = outerUrl != null && outerUrl == innerLoopMod.getUrls()[ModUrlType.Forum];
-        final doNameAndAuthorMatch = bestNameResult.isMatch && bestAuthorsResult.isMatch;
+        final innerTopicId = forumTopicIds[candidateIdx];
+        final doForumLinksMatch = outerTopicId != null && outerTopicId == innerTopicId;
+
+        // Guard against fuzzy subsequence false positives.
+        final shorterLength = outer.length < inner.length ? outer.length : inner.length;
+        final longerLength = outer.length > inner.length ? outer.length : inner.length;
+        final isNameLengthSimilar = shorterLength / longerLength >= 0.85;
+        final doNameAndAuthorMatch = bestNameResult.isMatch && isNameLengthSimilar && bestAuthorsResult.isMatch;
 
         final isMatch = doNameAndAuthorMatch || doForumLinksMatch;
 
@@ -95,20 +162,15 @@ class ModMerger {
         }
 
         if (doForumLinksMatch) {
-          timber.d(message: () => "Matching forum urls for ${outerLoopMod.name} and ${innerLoopMod.name}: $outerUrl.");
+          timber.d(message: () => "Matching forum topic id for ${outerLoopMod.name} and ${innerLoopMod.name}: $outerTopicId.");
         }
 
         if (isMatch) {
-          await lock.synchronized(() async {
-            modsAlreadyAddedToAGroup.add(innerLoopMod);
-          });
-          return (innerLoopMod, true);
-        } else {
-          return (innerLoopMod, false);
+          alreadyGrouped[candidateIdx] = true;
+          matchedMods.add(innerLoopMod);
         }
-      });
+      }
 
-      final matchedMods = similarMods.where((pair) => pair.$2).map((pair) => pair.$1).toList();
       groupedMods.add([outerLoopMod, ...matchedMods]);
     }
 
@@ -318,6 +380,21 @@ class ModMerger {
       // Mark all others from this source for removal.
       for (final mod in modsForSource) {
         if (!identical(mod, best)) {
+          // Safety: verify names are similar enough before discarding.
+          // Prevents data loss if different mods were incorrectly grouped.
+          final bestName = _prepForMatching(best.name);
+          final modName = _prepForMatching(mod.name);
+          if (bestName != null && modName != null) {
+            final shorter = bestName.length < modName.length ? bestName.length : modName.length;
+            final longer = bestName.length > modName.length ? bestName.length : modName.length;
+            if (shorter / longer < 0.70) {
+              timber.w(
+                  message: () =>
+                      "Dedup safety: NOT discarding '${mod.name}' in favor of '${best.name}' — names too different (${(shorter / longer * 100).toStringAsFixed(0)}% length ratio).");
+              continue;
+            }
+          }
+
           timber.d(
               message: () =>
                   "Dedup: discarding '${mod.name}' (${mod.gameVersionReq}) from ${entry.key} in favor of '${best.name}' (${best.gameVersionReq}).");
@@ -378,6 +455,59 @@ class ModMerger {
   String? _prepForMatching(String str) {
     final cleaned = str.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
     return cleaned.isEmpty ? null : cleaned;
+  }
+
+  /// Removes duplicate input entries that have the same cleaned name, source, and forum URL.
+  /// Keeps the entry with the most data (more URLs, has description, etc.).
+  List<ScrapedMod> _removeDuplicateInputs(List<ScrapedMod> mods) {
+    final seen = <String, ScrapedMod>{};
+    for (final mod in mods) {
+      final key = '${_prepForMatching(mod.name)}'
+          '|${mod.getSources().map((s) => s.name).join(",")}'
+          '|${extractForumTopicId(mod.getUrls()[ModUrlType.Forum]) ?? ""}';
+      final existing = seen[key];
+      if (existing == null) {
+        seen[key] = mod;
+      } else {
+        // Keep the one with more data, or higher game version as tiebreaker.
+        final existingRichness = _dataRichness(existing);
+        final modRichness = _dataRichness(mod);
+        if (modRichness > existingRichness) {
+          seen[key] = mod;
+        } else if (modRichness == existingRichness) {
+          // Tiebreaker: prefer the higher game version.
+          final existingVersion = existing.gameVersionReq;
+          final modVersion = mod.gameVersionReq;
+          if (existingVersion != null &&
+              modVersion != null &&
+              existingVersion.isNotEmpty &&
+              modVersion.isNotEmpty &&
+              Version.parse(modVersion) > Version.parse(existingVersion)) {
+            seen[key] = mod;
+          }
+        }
+      }
+    }
+    return seen.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  int _dataRichness(ScrapedMod mod) {
+    var score = 0;
+    if (mod.summary?.isNotEmpty == true) score++;
+    if (mod.description?.isNotEmpty == true) score++;
+    if (mod.modVersion?.isNotEmpty == true) score++;
+    if (mod.gameVersionReq?.isNotEmpty == true) score++;
+    score += mod.getUrls().length;
+    return score;
+  }
+
+  /// Extracts the topic ID from a Starsector forum URL for comparison.
+  /// Handles http/https differences and trailing `.0` variations.
+  /// Returns null if not a recognizable forum URL.
+  static String? extractForumTopicId(String? url) {
+    if (url == null || url.isEmpty) return null;
+    final match = RegExp(r'topic=(\d+)').firstMatch(url);
+    return match?.group(1);
   }
 }
 
