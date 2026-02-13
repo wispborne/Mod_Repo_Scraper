@@ -13,6 +13,8 @@
 import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:usc_scraper/utilities/parallel_map.dart';
 
+import 'debug/merge_debug_collector.dart';
+import 'debug/merge_debug_data.dart';
 import 'main_repo_scraper.dart';
 import 'mod_repo_utils.dart';
 import 'scraped_mod.dart';
@@ -22,6 +24,7 @@ class ModMerger {
   Future<List<ScrapedMod>> merge(
     List<ScrapedMod> mods, {
     bool keepAllGameVersionsFromSameSource = false,
+    MergeDebugCollector? debugCollector,
   }) async {
     final startTime = DateTime.now();
 
@@ -29,13 +32,18 @@ class ModMerger {
 
     final sortedMods = List<ScrapedMod>.from(mods)..sort((a, b) => a.name.compareTo(b.name));
     final preprocessedMods = _preprocessMods(sortedMods);
-    final dedupedInput = _removeDuplicateInputs(preprocessedMods);
+    debugCollector?.setInputCount(preprocessedMods.length);
+
+    var stepStartTime = DateTime.now();
+    final dedupedInput = _removeDuplicateInputs(preprocessedMods, debugCollector: debugCollector);
+    debugCollector?.addTiming('Pre-dedup', DateTime.now().difference(stepStartTime).inMilliseconds);
+    debugCollector?.setAfterPreDedupCount(dedupedInput.length);
     timber.i(
         message: () =>
             "Pre-dedup: removed ${preprocessedMods.length - dedupedInput.length} duplicate inputs (${preprocessedMods.length} -> ${dedupedInput.length}).");
 
     timber.i(message: () => "Grouping ${dedupedInput.length} mods by similarity...");
-    var stepStartTime = DateTime.now();
+    stepStartTime = DateTime.now();
 
     // Build indexes for fast candidate generation instead of O(n²) pairwise comparison.
     final cleanedNames = <int, String?>{};
@@ -117,6 +125,7 @@ class ModMerger {
 
       // Verify each candidate with the full matching logic.
       final matchedMods = <ScrapedMod>[];
+      final debugMatchEntries = debugCollector != null ? <GroupMatchEntry>[] : null;
 
       for (final candidateIdx in candidates) {
         final innerLoopMod = dedupedInput[candidateIdx];
@@ -168,15 +177,41 @@ class ModMerger {
         if (isMatch) {
           alreadyGrouped[candidateIdx] = true;
           matchedMods.add(innerLoopMod);
+
+          if (debugMatchEntries != null) {
+            final reasons = <GroupMatchReason>{};
+            if (doNameAndAuthorMatch) reasons.add(GroupMatchReason.nameAndAuthor);
+            if (doForumLinksMatch) reasons.add(GroupMatchReason.forumUrl);
+            debugMatchEntries.add(GroupMatchEntry(
+              outerMod: outerLoopMod,
+              innerMod: innerLoopMod,
+              reasons: reasons,
+              nameScore: bestNameResult.isMatch ? bestNameResult.score : null,
+              authorScore: bestAuthorsResult.isMatch ? bestAuthorsResult.score : null,
+              nameLengthRatio: shorterLength / longerLength,
+              matchedForumTopicId: doForumLinksMatch ? outerTopicId : null,
+            ));
+          }
         }
       }
 
-      groupedMods.add([outerLoopMod, ...matchedMods]);
+      final groupMembers = [outerLoopMod, ...matchedMods];
+      groupedMods.add(groupMembers);
+
+      if (debugMatchEntries != null) {
+        debugCollector!.recordGroup(DebugModGroup(
+          groupIndex: groupedMods.length - 1,
+          members: groupMembers,
+          matchEntries: debugMatchEntries,
+        ));
+      }
     }
 
     final msg = "Grouped ${mods.length} mods by similarity, created ${groupedMods.length} groups.";
     timber.i(message: () => msg);
     timber.i(message: () => "Grouping completed in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
+    debugCollector?.setGroupsCreated(groupedMods.length);
+    debugCollector?.addTiming('Grouping', DateTime.now().difference(stepStartTime).inMilliseconds);
     summary.writeln(msg);
 
     if (MainRepoScraper.verboseOutput) {
@@ -204,14 +239,28 @@ class ModMerger {
     stepStartTime = DateTime.now();
     final dedupedGroups = keepAllGameVersionsFromSameSource
         ? groupedMods
-        : groupedMods.map((group) => _deduplicateSameSourceByGameVersion(group)).toList();
+        : groupedMods.map((group) => _deduplicateSameSourceByGameVersion(group, debugCollector: debugCollector)).toList();
     timber.i(message: () => "Deduplication completed in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
+    debugCollector?.addTiming('Same-source dedup', DateTime.now().difference(stepStartTime).inMilliseconds);
 
     timber.i(message: () => "Merging ${mods.length} mods by similarity...");
     stepStartTime = DateTime.now();
     final nonEmptyGroups = dedupedGroups.where((group) => group.isNotEmpty).toList();
-    final mergedMods = await nonEmptyGroups.parallelMap((modGroup) async => _mergeSimilarMods(modGroup));
+
+    final List<ScrapedMod> mergedMods;
+    if (debugCollector != null) {
+      // Debug path: sequential to capture step-by-step merge decisions.
+      mergedMods = [];
+      for (var i = 0; i < nonEmptyGroups.length; i++) {
+        final (result, decision) = _mergeSimilarModsWithDebug(nonEmptyGroups[i], i);
+        mergedMods.add(result);
+        debugCollector.recordMergeDecision(decision);
+      }
+    } else {
+      mergedMods = await nonEmptyGroups.parallelMap((modGroup) async => _mergeSimilarMods(modGroup));
+    }
     timber.i(message: () => "Merging step completed in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
+    debugCollector?.addTiming('Merge', DateTime.now().difference(stepStartTime).inMilliseconds);
 
     final msg2 =
         "Merged ${mods.length} mods by similarity. ${mods.length - mergedMods.length} mods were duplicates, resulting in a total of ${mergedMods.length} merged mods.";
@@ -219,8 +268,9 @@ class ModMerger {
     summary.writeln(msg2);
 
     stepStartTime = DateTime.now();
-    final cleanedMods = _removeInvalidMods(mergedMods);
+    final cleanedMods = _removeInvalidMods(mergedMods, debugCollector: debugCollector);
     timber.i(message: () => "Validation completed (removed ${mergedMods.length - cleanedMods.length} invalid mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
+    debugCollector?.addTiming('Validation', DateTime.now().difference(stepStartTime).inMilliseconds);
 
     for (final mod in cleanedMods) {
       timber.v(message: () => mod.toString());
@@ -231,122 +281,166 @@ class ModMerger {
         message: () =>
             "Total time to merge ${mods.length} mods: ${DateTime.now().difference(startTime).inMilliseconds}ms.");
 
+    debugCollector?.setFinalCount(cleanedMods.length);
+    debugCollector?.setFinalOutput(cleanedMods);
+    debugCollector?.addTiming('Total', DateTime.now().difference(startTime).inMilliseconds);
+
     return cleanedMods;
+  }
+
+  /// Merges two mods, determining priority, and returns the result along with
+  /// the priority reason and direction.
+  (ScrapedMod, MergePriorityReason, bool) _mergeTwoMods(ScrapedMod mergedMod, ScrapedMod modToFoldIn) {
+    if (mergedMod == modToFoldIn) return (mergedMod, MergePriorityReason.fallback, false);
+
+    // Mods from the Index always have priority in case of conflicts.
+    final MergePriorityReason reason;
+    final bool doesNewModHavePriority;
+    if (mergedMod.getSources().contains(ModSource.Index)) {
+      timber.d(
+          message: () =>
+              "Merging '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' with higher priority '${mergedMod.name}' from '${mergedMod.getAuthors()}' because of Index source.");
+      doesNewModHavePriority = false;
+      reason = MergePriorityReason.indexSource;
+    } else if (modToFoldIn.getSources().contains(ModSource.Index)) {
+      timber.d(
+          message: () =>
+              "Merging '${mergedMod.name}' from '${mergedMod.getAuthors()}' with higher priority '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' because of Index source.");
+      doesNewModHavePriority = true;
+      reason = MergePriorityReason.indexSource;
+    } else if (modToFoldIn.gameVersionReq != null &&
+        mergedMod.gameVersionReq != null &&
+        modToFoldIn.gameVersionReq != mergedMod.gameVersionReq) {
+      final isFoldInHigher = Version.parse(modToFoldIn.gameVersionReq!) > Version.parse(mergedMod.gameVersionReq!);
+      if (isFoldInHigher) {
+        timber.d(
+            message: () =>
+                "Merging '${mergedMod.name}' from '${mergedMod.getAuthors()}' with higher priority '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' because of game version.");
+      } else {
+        timber.d(
+            message: () =>
+                "Merging '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' with higher priority '${mergedMod.name}' from '${mergedMod.getAuthors()}' because of game version.");
+      }
+      doesNewModHavePriority = isFoldInHigher;
+      reason = MergePriorityReason.higherGameVersion;
+    } else {
+      timber.d(
+          message: () =>
+              "Merging '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' with higher priority '${mergedMod.name}' from '${mergedMod.getAuthors()}' because of fallback.");
+      doesNewModHavePriority = false;
+      reason = MergePriorityReason.fallback;
+    }
+
+    final mergedAuthorsList = <String>{
+      ...mergedMod.getAuthors(),
+      ...modToFoldIn.getAuthors(),
+    }.map((a) => a.trim()).where((a) => a.isNotEmpty).toList()
+      ..sort();
+
+    final mergedUrls = Map<ModUrlType, String>.from(mergedMod.getUrls())..addAll(modToFoldIn.getUrls());
+
+    final mergedSources = <ModSource>{
+      ...modToFoldIn.getSources(),
+      ...mergedMod.getSources(),
+    }.toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+
+    final mergedCategories = <String>{
+      ...modToFoldIn.getCategories(),
+      ...mergedMod.getCategories(),
+    }.toList()
+      ..sort();
+
+    final mergedImages = <String, Image>{
+      ...modToFoldIn.getImages(),
+      ...mergedMod.getImages(),
+    };
+
+    final result = ScrapedMod(
+      name: _chooseBest(
+            left: mergedMod.name.trim().isEmpty ? null : mergedMod.name,
+            right: modToFoldIn.name.trim().isEmpty ? null : modToFoldIn.name,
+            doesRightHavePriority: doesNewModHavePriority,
+          ) ??
+          "",
+      summary: _chooseBest(
+        left: mergedMod.summary?.trim().isEmpty == true ? null : mergedMod.summary,
+        right: modToFoldIn.summary?.trim().isEmpty == true ? null : modToFoldIn.summary,
+        doesRightHavePriority: doesNewModHavePriority,
+      ),
+      description: _chooseBest(
+        left: mergedMod.description?.trim().isEmpty == true ? null : mergedMod.description,
+        right: modToFoldIn.description?.trim().isEmpty == true ? null : modToFoldIn.description,
+        doesRightHavePriority: doesNewModHavePriority,
+      ),
+      modVersion: _chooseBest(
+        left: mergedMod.modVersion?.trim().isEmpty == true ? null : mergedMod.modVersion,
+        right: modToFoldIn.modVersion?.trim().isEmpty == true ? null : modToFoldIn.modVersion,
+        doesRightHavePriority: doesNewModHavePriority,
+      ),
+      gameVersionReq: _chooseBest(
+        left: mergedMod.gameVersionReq?.trim().isEmpty == true ? null : mergedMod.gameVersionReq,
+        right: modToFoldIn.gameVersionReq?.trim().isEmpty == true ? null : modToFoldIn.gameVersionReq,
+        doesRightHavePriority: doesNewModHavePriority,
+      ),
+      authorsList: mergedAuthorsList,
+      urls: mergedUrls,
+      sources: mergedSources,
+      categories: mergedCategories,
+      images: mergedImages,
+      dateTimeCreated: _chooseBest(
+        left: mergedMod.dateTimeCreated,
+        right: modToFoldIn.dateTimeCreated,
+        doesRightHavePriority: doesNewModHavePriority,
+      ),
+      dateTimeEdited: _chooseBest(
+        left: mergedMod.dateTimeEdited,
+        right: modToFoldIn.dateTimeEdited,
+        doesRightHavePriority: doesNewModHavePriority,
+      ),
+    );
+
+    return (result, reason, doesNewModHavePriority);
   }
 
   ScrapedMod _mergeSimilarMods(List<ScrapedMod> mods) {
     return mods.reduce((mergedMod, modToFoldIn) {
-      if (mergedMod == modToFoldIn) return mergedMod;
-
-      // Mods from the Index always have priority in case of conflicts.
-      final bool doesNewModHavePriority;
-      if (mergedMod.getSources().contains(ModSource.Index)) {
-        timber.d(
-            message: () =>
-                "Merging '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' with higher priority '${mergedMod.name}' from '${mergedMod.getAuthors()}' because of Index source.");
-        doesNewModHavePriority = false;
-      } else if (modToFoldIn.getSources().contains(ModSource.Index)) {
-        timber.d(
-            message: () =>
-                "Merging '${mergedMod.name}' from '${mergedMod.getAuthors()}' with higher priority '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' because of Index source.");
-        doesNewModHavePriority = true;
-      } else if (modToFoldIn.gameVersionReq != null &&
-          mergedMod.gameVersionReq != null &&
-          modToFoldIn.gameVersionReq != mergedMod.gameVersionReq) {
-        // If the game version requirements are different, the one with the
-        // higher version is preferred.
-        final isFoldInHigher = Version.parse(modToFoldIn.gameVersionReq!) > Version.parse(mergedMod.gameVersionReq!);
-        if (isFoldInHigher) {
-          timber.d(
-              message: () =>
-                  "Merging '${mergedMod.name}' from '${mergedMod.getAuthors()}' with higher priority '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' because of game version.");
-        } else {
-          timber.d(
-              message: () =>
-                  "Merging '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' with higher priority '${mergedMod.name}' from '${mergedMod.getAuthors()}' because of game version.");
-        }
-        doesNewModHavePriority = isFoldInHigher;
-      } else {
-        timber.d(
-            message: () =>
-                "Merging '${modToFoldIn.name}' from '${modToFoldIn.getAuthors()}' with higher priority '${mergedMod.name}' from '${mergedMod.getAuthors()}' because of fallback.");
-        doesNewModHavePriority = false;
-      }
-
-      final mergedAuthorsList = <String>{
-        ...mergedMod.getAuthors(),
-        ...modToFoldIn.getAuthors(),
-      }.map((a) => a.trim()).where((a) => a.isNotEmpty).toList()
-        ..sort();
-
-      final mergedUrls = Map<ModUrlType, String>.from(mergedMod.getUrls())..addAll(modToFoldIn.getUrls());
-
-      final mergedSources = <ModSource>{
-        ...modToFoldIn.getSources(),
-        ...mergedMod.getSources(),
-      }.toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
-
-      final mergedCategories = <String>{
-        ...modToFoldIn.getCategories(),
-        ...mergedMod.getCategories(),
-      }.toList()
-        ..sort();
-
-      final mergedImages = <String, Image>{
-        ...modToFoldIn.getImages(),
-        ...mergedMod.getImages(),
-      };
-
-      return ScrapedMod(
-        name: _chooseBest(
-              left: mergedMod.name.trim().isEmpty ? null : mergedMod.name,
-              right: modToFoldIn.name.trim().isEmpty ? null : modToFoldIn.name,
-              doesRightHavePriority: doesNewModHavePriority,
-            ) ??
-            "",
-        summary: _chooseBest(
-          left: mergedMod.summary?.trim().isEmpty == true ? null : mergedMod.summary,
-          right: modToFoldIn.summary?.trim().isEmpty == true ? null : modToFoldIn.summary,
-          doesRightHavePriority: doesNewModHavePriority,
-        ),
-        description: _chooseBest(
-          left: mergedMod.description?.trim().isEmpty == true ? null : mergedMod.description,
-          right: modToFoldIn.description?.trim().isEmpty == true ? null : modToFoldIn.description,
-          doesRightHavePriority: doesNewModHavePriority,
-        ),
-        modVersion: _chooseBest(
-          left: mergedMod.modVersion?.trim().isEmpty == true ? null : mergedMod.modVersion,
-          right: modToFoldIn.modVersion?.trim().isEmpty == true ? null : modToFoldIn.modVersion,
-          doesRightHavePriority: doesNewModHavePriority,
-        ),
-        gameVersionReq: _chooseBest(
-          left: mergedMod.gameVersionReq?.trim().isEmpty == true ? null : mergedMod.gameVersionReq,
-          right: modToFoldIn.gameVersionReq?.trim().isEmpty == true ? null : modToFoldIn.gameVersionReq,
-          doesRightHavePriority: doesNewModHavePriority,
-        ),
-        authorsList: mergedAuthorsList,
-        urls: mergedUrls,
-        sources: mergedSources,
-        categories: mergedCategories,
-        images: mergedImages,
-        dateTimeCreated: _chooseBest(
-          left: mergedMod.dateTimeCreated,
-          right: modToFoldIn.dateTimeCreated,
-          doesRightHavePriority: doesNewModHavePriority,
-        ),
-        dateTimeEdited: _chooseBest(
-          left: mergedMod.dateTimeEdited,
-          right: modToFoldIn.dateTimeEdited,
-          doesRightHavePriority: doesNewModHavePriority,
-        ),
-      );
+      final (result, _, _) = _mergeTwoMods(mergedMod, modToFoldIn);
+      return result;
     });
+  }
+
+  (ScrapedMod, MergeDecision) _mergeSimilarModsWithDebug(List<ScrapedMod> mods, int groupIndex) {
+    final steps = <MergeStepEntry>[];
+    var accumulated = mods.first;
+    for (final mod in mods.skip(1)) {
+      final (result, reason, rightHasPriority) = _mergeTwoMods(accumulated, mod);
+      steps.add(MergeStepEntry(
+        left: accumulated,
+        right: mod,
+        reason: reason,
+        doesRightHavePriority: rightHasPriority,
+        result: result,
+      ));
+      accumulated = result;
+    }
+    return (
+      accumulated,
+      MergeDecision(
+        groupIndex: groupIndex,
+        inputMods: mods,
+        steps: steps,
+        finalResult: accumulated,
+      ),
+    );
   }
 
   /// Within a mod group, for each source that appears more than once, keep
   /// only the entry with the highest game version and discard the rest.
-  List<ScrapedMod> _deduplicateSameSourceByGameVersion(List<ScrapedMod> group) {
+  List<ScrapedMod> _deduplicateSameSourceByGameVersion(
+    List<ScrapedMod> group, {
+    MergeDebugCollector? debugCollector,
+  }) {
     if (group.length <= 1) return group;
 
     // Build a map of source -> list of mods from that source.
@@ -391,6 +485,15 @@ class ModMerger {
               timber.w(
                   message: () =>
                       "Dedup safety: NOT discarding '${mod.name}' in favor of '${best.name}' — names too different (${(shorter / longer * 100).toStringAsFixed(0)}% length ratio).");
+              debugCollector?.recordSameSourceDedup(SameSourceDedupEntry(
+                kept: best,
+                discarded: mod,
+                source: entry.key,
+                keptGameVersion: best.gameVersionReq,
+                discardedGameVersion: mod.gameVersionReq,
+                wasSafetyBlocked: true,
+                nameLengthRatio: shorter / longer,
+              ));
               continue;
             }
           }
@@ -398,6 +501,13 @@ class ModMerger {
           timber.d(
               message: () =>
                   "Dedup: discarding '${mod.name}' (${mod.gameVersionReq}) from ${entry.key} in favor of '${best.name}' (${best.gameVersionReq}).");
+          debugCollector?.recordSameSourceDedup(SameSourceDedupEntry(
+            kept: best,
+            discarded: mod,
+            source: entry.key,
+            keptGameVersion: best.gameVersionReq,
+            discardedGameVersion: mod.gameVersionReq,
+          ));
           modsToRemove.add(mod);
         }
       }
@@ -435,17 +545,22 @@ class ModMerger {
     }).toList();
   }
 
-  List<ScrapedMod> _removeInvalidMods(List<ScrapedMod> mods) {
+  List<ScrapedMod> _removeInvalidMods(
+    List<ScrapedMod> mods, {
+    MergeDebugCollector? debugCollector,
+  }) {
     return mods.where((mod) {
       final hasLink = mod.urls?.isNotEmpty == true;
       if (!hasLink) {
         timber.i(message: () => "Removing mod without any links: '${mod.name}' by '${mod.getAuthors()}'.");
+        debugCollector?.recordValidationRemoval(ValidationRemoval(mod: mod, reason: 'no URLs'));
       }
 
       final hasName = mod.name.trim().isNotEmpty;
       if (!hasName) {
         timber.i(
             message: () => "Removing mod without a name: mod by '${mod.getAuthors()}' with links ${mod.getUrls()}.");
+        debugCollector?.recordValidationRemoval(ValidationRemoval(mod: mod, reason: 'no name'));
       }
 
       return hasLink && hasName;
@@ -459,7 +574,10 @@ class ModMerger {
 
   /// Removes duplicate input entries that have the same cleaned name, source, and forum URL.
   /// Keeps the entry with the most data (more URLs, has description, etc.).
-  List<ScrapedMod> _removeDuplicateInputs(List<ScrapedMod> mods) {
+  List<ScrapedMod> _removeDuplicateInputs(
+    List<ScrapedMod> mods, {
+    MergeDebugCollector? debugCollector,
+  }) {
     final seen = <String, ScrapedMod>{};
     for (final mod in mods) {
       final key = '${_prepForMatching(mod.name)}'
@@ -474,6 +592,13 @@ class ModMerger {
         final modRichness = _dataRichness(mod);
         if (modRichness > existingRichness) {
           seen[key] = mod;
+          debugCollector?.recordPreDedupRemoval(PreDedupEntry(
+            kept: mod,
+            discarded: existing,
+            reason: 'higher data richness',
+            keptRichness: modRichness,
+            discardedRichness: existingRichness,
+          ));
         } else if (modRichness == existingRichness) {
           // Tiebreaker: prefer the higher game version.
           final existingVersion = existing.gameVersionReq;
@@ -484,7 +609,30 @@ class ModMerger {
               modVersion.isNotEmpty &&
               Version.parse(modVersion) > Version.parse(existingVersion)) {
             seen[key] = mod;
+            debugCollector?.recordPreDedupRemoval(PreDedupEntry(
+              kept: mod,
+              discarded: existing,
+              reason: 'higher game version (tiebreaker)',
+              keptRichness: modRichness,
+              discardedRichness: existingRichness,
+            ));
+          } else {
+            debugCollector?.recordPreDedupRemoval(PreDedupEntry(
+              kept: existing,
+              discarded: mod,
+              reason: 'existing kept (equal or better)',
+              keptRichness: existingRichness,
+              discardedRichness: modRichness,
+            ));
           }
+        } else {
+          debugCollector?.recordPreDedupRemoval(PreDedupEntry(
+            kept: existing,
+            discarded: mod,
+            reason: 'existing has higher data richness',
+            keptRichness: existingRichness,
+            discardedRichness: modRichness,
+          ));
         }
       }
     }

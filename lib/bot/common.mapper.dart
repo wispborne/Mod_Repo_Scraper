@@ -90,6 +90,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
         opt: true,
         def: false,
       );
+  static bool _$generateDebugHtml(BotConfig v) => v.generateDebugHtml;
+  static const Field<BotConfig, bool> _f$generateDebugHtml = Field(
+    'generateDebugHtml',
+    _$generateDebugHtml,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<BotConfig> fields = const {
@@ -105,6 +112,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #discordForumChannelIdsAndGameVersions:
         _f$discordForumChannelIdsAndGameVersions,
     #keepAllGameVersionsFromSameSource: _f$keepAllGameVersionsFromSameSource,
+    #generateDebugHtml: _f$generateDebugHtml,
   };
 
   static BotConfig _instantiate(DecodingData data) {
@@ -124,6 +132,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       keepAllGameVersionsFromSameSource: data.dec(
         _f$keepAllGameVersionsFromSameSource,
       ),
+      generateDebugHtml: data.dec(_f$generateDebugHtml),
     );
   }
 
@@ -200,6 +209,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     String? discordServerId,
     Map<String, String>? discordForumChannelIdsAndGameVersions,
     bool? keepAllGameVersionsFromSameSource,
+    bool? generateDebugHtml,
   });
   BotConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -235,6 +245,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     Object? discordServerId = $none,
     Object? discordForumChannelIdsAndGameVersions = $none,
     bool? keepAllGameVersionsFromSameSource,
+    bool? generateDebugHtml,
   }) => $apply(
     FieldCopyWithData({
       if (lessScraping != null) #lessScraping: lessScraping,
@@ -251,6 +262,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
             discordForumChannelIdsAndGameVersions,
       if (keepAllGameVersionsFromSameSource != null)
         #keepAllGameVersionsFromSameSource: keepAllGameVersionsFromSameSource,
+      if (generateDebugHtml != null) #generateDebugHtml: generateDebugHtml,
     }),
   );
   @override
@@ -271,6 +283,10 @@ class _BotConfigCopyWithImpl<$R, $Out>
     keepAllGameVersionsFromSameSource: data.get(
       #keepAllGameVersionsFromSameSource,
       or: $value.keepAllGameVersionsFromSameSource,
+    ),
+    generateDebugHtml: data.get(
+      #generateDebugHtml,
+      or: $value.generateDebugHtml,
     ),
   );
 

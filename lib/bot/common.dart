@@ -97,6 +97,7 @@ class Common {
             _parseForumChannelIds(properties['discord_forumChannelIdsAndGameVersions']),
         keepAllGameVersionsFromSameSource:
             properties['keep_all_game_versions_from_same_source']?.toLowerCase() == 'true',
+        generateDebugHtml: properties['generate_debug_html']?.toLowerCase() == 'true',
       );
     } catch (e) {
       stderr.writeln(e);
@@ -178,6 +179,7 @@ class BotConfig with BotConfigMappable {
   final String? discordServerId;
   final Map<String, String>? discordForumChannelIdsAndGameVersions;
   final bool keepAllGameVersionsFromSameSource;
+  final bool generateDebugHtml;
 
   const BotConfig({
     required this.lessScraping,
@@ -191,5 +193,6 @@ class BotConfig with BotConfigMappable {
     this.discordServerId,
     this.discordForumChannelIdsAndGameVersions,
     this.keepAllGameVersionsFromSameSource = false,
+    this.generateDebugHtml = false,
   });
 }

@@ -16,6 +16,8 @@ import 'package:usc_scraper/bot/common.dart';
 import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:usc_scraper/utilities/jsanity.dart';
 
+import 'debug/merge_debug_collector.dart';
+import 'debug/merge_debug_html_generator.dart';
 import 'discord_reader.dart';
 import 'forum_scraper.dart';
 import 'mod_merger.dart';
@@ -125,12 +127,21 @@ class MainRepoScraper {
             "Found ${forumMods.length} forum mods, ${discordMods.length} Discord mods, and ${nexusMods.length} Nexus mods.");
     timber.i(message: () => "Starting merge...");
 
+    final debugCollector = config.generateDebugHtml ? MergeDebugCollector() : null;
+
     final mergeStartTime = DateTime.now();
     final mergedMods = await ModMerger().merge(
       [...forumMods, ...discordMods, ...nexusMods],
       keepAllGameVersionsFromSameSource: config.keepAllGameVersionsFromSameSource,
+      debugCollector: debugCollector,
     );
     timber.i(message: () => "Merge completed in ${DateTime.now().difference(mergeStartTime).inMilliseconds}ms.");
+
+    if (debugCollector != null) {
+      timber.i(message: () => "Generating debug HTML report...");
+      await MergeDebugHtmlGenerator.generate(debugCollector.data, 'MergeDebug.html');
+      timber.i(message: () => "Debug HTML report written to MergeDebug.html.");
+    }
 
     timber.i(message: () => "Saving ${mergedMods.length} mods to ${ModRepoCache.location.absolute.path}...");
     final saveStartTime = DateTime.now();
