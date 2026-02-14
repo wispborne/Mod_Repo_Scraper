@@ -12,8 +12,10 @@
 
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
 import 'package:usc_scraper/bot/common.dart';
 import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:usc_scraper/utilities/caching_http_client.dart';
 import 'package:usc_scraper/utilities/jsanity.dart';
 
 import 'debug/merge_debug_collector.dart';
@@ -97,14 +99,43 @@ class MainRepoScraper {
               modForumPagesToScrape: config.lessScraping ? 3 : 12,
             ).timeout(const Duration(seconds: 60 * 2)));
 
-    final discordJob = _loadOrRun(
-      name: "Discord",
-      enabled: config.enableDiscord,
-      useCached: config.useCached,
-      jsanity: jsanity,
-      // isDownloadable takes forever, don't use a timeout.
-      run: () => DiscordReader.readAllMessages(config),
-    );
+    // Discord uses a caching HTTP client to cache raw API responses,
+    // allowing re-runs of the processing pipeline without hitting Discord.
+    final discordCacheFile = File('discord_raw_cache.json');
+    final discordJob = () async {
+      if (!config.enableDiscord) return <ScrapedMod>[];
+
+      final stepStartTime = DateTime.now();
+      final http.Client httpClient;
+
+      if (config.useCached && await discordCacheFile.exists()) {
+        timber.i(message: () => "Loading Discord raw HTTP cache...");
+        httpClient = await CachingClient.fromFile(discordCacheFile.path);
+      } else if (config.useCached) {
+        httpClient = CachingClient(http.Client());
+      } else {
+        // If useCached is false, don't generate a cache file.
+        // We don't want to be doing this on production.
+        httpClient = http.Client();
+      }
+
+      try {
+        final results = await DiscordReader.readAllMessages(config, httpClient: httpClient) ?? [];
+        timber.i(
+            message: () =>
+                "Discord scraping finished (${results.length} mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
+
+        if (httpClient is CachingClient && !httpClient.isReplaying) {
+          timber.i(message: () => "Saving Discord raw HTTP cache...");
+          await httpClient.saveToFile(discordCacheFile.path);
+        }
+
+        return results;
+      } catch (e) {
+        timber.e(message: () => "Error running Discord: $e");
+        return <ScrapedMod>[];
+      }
+    }();
 
     final nexusModsJob = _loadOrRun(
       name: "Nexus",

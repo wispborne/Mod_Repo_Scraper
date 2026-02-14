@@ -392,7 +392,7 @@ summary::marker { color: var(--primary); }
         buf.writeln('<li><span class="field-label">Categories:</span> <span class="field-value">${_esc(mod.getCategories().join(', '))}</span></li>');
       }
       if (mod.summary != null && mod.summary!.isNotEmpty) {
-        buf.writeln('<li><span class="field-label">Summary:</span> <span class="field-value">${_esc(_truncate(mod.summary!, 200))}</span></li>');
+        buf.writeln('<li><span class="field-label">Summary:</span> <span class="field-value">${_esc(mod.summary!)}</span></li>');
       }
       buf.writeln('</ul>');
       buf.writeln('</div>');

@@ -4,7 +4,13 @@
       "Bash(dart test:*)",
       "Bash(dart run:*)",
       "Bash(del \"F:\\\\Code\\\\Starsector\\\\Mod_Repo_Scraper\\\\test\\\\fuzzy_test.dart\")",
-      "Bash(dart analyze:*)"
+      "Bash(dart analyze:*)",
+      "Bash(python3:*)",
+      "Bash(iconv:*)",
+      "Bash(ls:*)",
+      "Bash(powershell -Command \"\\(Get-Content discord_raw_cache.json | Measure-Object -Line\\).Lines\")",
+      "Bash(powershell -Command \"\n# Look for patterns in the cache file where there are multiple messages with downloads\n$content = Get-Content discord_raw_cache.json | Select-Object -First 100 -Skip 9229\n$content | Where-Object { $_ -match ''github\\\\.com.*releases|dropbox|drive\\\\.google|mediafire|mega\\\\.nz'' } | Select-Object -First 10\n\")",
+      "Bash(node:*)"
     ]
   }
 }

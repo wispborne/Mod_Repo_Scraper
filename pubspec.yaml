@@ -28,6 +28,9 @@ dependencies:
   # Additional utilities
   collection: ^1.19.1
 
+  # Annotations
+  meta: ^1.16.0
+
   # Mutex/lock for synchronization
   synchronized: ^3.4.0
 

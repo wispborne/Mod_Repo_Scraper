@@ -14,25 +14,36 @@ import 'dart:convert';
 
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:meta/meta.dart';
+import 'package:usc_scraper/bot/common.dart';
 import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:usc_scraper/utilities/parallel_map.dart';
-import 'package:usc_scraper/bot/common.dart';
+
 import 'scraped_mod.dart';
 
 part 'discord_reader.mapper.dart';
 
 class DiscordReader {
   static const String baseUrl = "https://discord.com/api";
-  static const int delayBetweenRequestsMillis =
-      40; // Allowed to do 50 requests per second
+  static const int delayBetweenRequestsMillis = 40; // Allowed to do 50 requests per second
   static int _timestampOfLastHttpCall = 0;
-  static final RegExp _urlFinderRegex = RegExp(
-      r'(http|ftp|https):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])');
+  static final RegExp _urlFinderRegex =
+      RegExp(r'(http|ftp|https):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])');
+
+  /// Matches lines like "Forum Link:", "Forum Thread:", "Forum Post:", "Forum:", etc.
+  static final RegExp _forumLabelRegex = RegExp(r'forum\s*(link|thread|post|page)?\s*:', caseSensitive: false);
+
+  /// Matches markdown like [Forum Thread](url) or # [Forum Link](url).
+  static final RegExp _forumMarkdownRegex = RegExp(r'\[forum\s*(link|thread|post|page)?\]', caseSensitive: false);
+
+  /// Matches lines indicating a dependency, e.g. "Requires ModName:", "Dependencies:".
+  static final RegExp _dependencyLabelRegex =
+      RegExp(r'(^|\s)(requires|dependencies|dependency)\b', caseSensitive: false);
   static const String noscrapeReaction = "🕸️";
   static int apiCallsLastRun = 0;
 
-  static Future<List<ScrapedMod>?> readAllMessages(BotConfig botConfig) async {
+  static Future<List<ScrapedMod>?> readAllMessages(BotConfig botConfig, {http.Client? httpClient}) async {
+    final client = httpClient ?? http.Client();
     apiCallsLastRun = 0;
     final discordStartTime = DateTime.now();
 
@@ -50,14 +61,11 @@ class DiscordReader {
 
     final forumChannelIds = botConfig.discordForumChannelIdsAndGameVersions;
     if (forumChannelIds == null || forumChannelIds.isEmpty) {
-      timber.w(
-          message: () =>
-              "No discord_forumChannelIdsAndGameVersions found in config.");
+      timber.w(message: () => "No discord_forumChannelIdsAndGameVersions found in config.");
       return null;
     }
 
-    print(
-        "Scraping ${forumChannelIds.length} Discord #mod_updates channel(s)...");
+    timber.i(message: () => "Scraping ${forumChannelIds.length} Discord #mod_updates channel(s)...");
 
     final allMods = <ScrapedMod>[];
 
@@ -70,23 +78,24 @@ class DiscordReader {
         serverId: serverId,
         forumChannelId: channelId,
         authToken: authToken,
+        client: client,
       );
 
-      timber.i(message: () => "Discord channel $channelId scraped: ${channelMods.length} mods in ${DateTime.now().difference(channelStartTime).inMilliseconds}ms.");
+      timber.i(
+          message: () =>
+              "Discord channel $channelId scraped: ${channelMods.length} mods in ${DateTime.now().difference(channelStartTime).inMilliseconds}ms.");
 
       // If there's no game version requirement (which there won't be for
       // Discord mods), set it based on the mod_updates channel it's in.
       allMods.addAll(channelMods.map((mod) => mod.copyWith(
-            gameVersionReq: (mod.gameVersionReq?.isNotEmpty == true)
-                ? mod.gameVersionReq
-                : gameVersion,
+            gameVersionReq: (mod.gameVersionReq?.isNotEmpty == true) ? mod.gameVersionReq : gameVersion,
           )));
     }
 
+    timber.i(message: () => "Found ${allMods.length} Discord mods. API calls used: $apiCallsLastRun.");
     timber.i(
         message: () =>
-            "Found ${allMods.length} Discord mods. API calls used: $apiCallsLastRun.");
-    timber.i(message: () => "Discord scraping total: ${allMods.length} mods in ${DateTime.now().difference(discordStartTime).inMilliseconds}ms.");
+            "Discord scraping total: ${allMods.length} mods in ${DateTime.now().difference(discordStartTime).inMilliseconds}ms.");
 
     return allMods;
   }
@@ -95,11 +104,13 @@ class DiscordReader {
     required String serverId,
     required String forumChannelId,
     required String authToken,
+    required http.Client client,
   }) async {
     final modUpdatesChannel = await _getChannel(
       serverId: serverId,
       channelId: forumChannelId,
       authToken: authToken,
+      client: client,
     );
 
     final categoriesLookup = <String, String>{};
@@ -115,8 +126,11 @@ class DiscordReader {
       channelId: forumChannelId,
       authToken: authToken,
       getFullChannelInfo: true,
+      client: client,
     );
-    timber.i(message: () => "Fetched ${threads.length} threads in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
+    timber.i(
+        message: () =>
+            "Fetched ${threads.length} threads in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
 
     // Process threads sequentially to respect Discord rate limits.
     stepStartTime = DateTime.now();
@@ -127,15 +141,17 @@ class DiscordReader {
         channelName: thread.name,
         authToken: authToken,
         limit: 100,
+        client: client,
       );
       allMessages.add(
         messages.map((msg) => msg.copyWith(parentThread: thread)).toList(),
       );
     }
-    timber.i(message: () => "Fetched messages for ${threads.length} threads in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
-
     timber.i(
-        message: () => "Checking for mods with $noscrapeReaction reactions.");
+        message: () =>
+            "Fetched messages for ${threads.length} threads in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
+
+    timber.i(message: () => "Checking for mods with $noscrapeReaction reactions.");
     stepStartTime = DateTime.now();
 
     final filteredMessages = <List<Message>>[];
@@ -143,9 +159,7 @@ class DiscordReader {
       var shouldKeep = true;
 
       for (final msg in msgs) {
-        final hasNoscrapeReaction =
-            msg.reactions?.any((r) => r.emoji.name == noscrapeReaction) ??
-                false;
+        final hasNoscrapeReaction = msg.reactions?.any((r) => r.emoji.name == noscrapeReaction) ?? false;
 
         if (hasNoscrapeReaction) {
           final reacters = await _getReacters(
@@ -153,14 +167,13 @@ class DiscordReader {
             emoji: noscrapeReaction,
             channelId: msg.parentThread?.id ?? forumChannelId,
             messageId: msg.id,
+            client: client,
           );
 
           timber.i(
-              message: () =>
-                  "$noscrapeReaction reactor(s): ${reacters.map((r) => r.username ?? r.id).join(', ')}");
+              message: () => "$noscrapeReaction reactor(s): ${reacters.map((r) => r.username ?? r.id).join(', ')}");
 
-          final isReactionFromPostAuthor =
-              reacters.any((reacter) => reacter.id == msg.author?.id);
+          final isReactionFromPostAuthor = reacters.any((reacter) => reacter.id == msg.author?.id);
 
           if (isReactionFromPostAuthor) {
             timber.i(
@@ -181,58 +194,45 @@ class DiscordReader {
       }
     }
 
-    timber.i(message: () => "Reaction checking completed in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
+    timber.i(
+        message: () => "Reaction checking completed in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
 
     stepStartTime = DateTime.now();
     final mods = await filteredMessages.parallelMap((messages) async {
       if (messages.length == 1 && !messages.first.isInThread()) {
-        return _parseAsSingleMessage(serverId, forumChannelId, messages.first);
+        return parseAsSingleMessage(serverId, forumChannelId, messages.first);
       } else {
-        return _parseAsThread(serverId, messages, categoriesLookup);
+        return parseAsThread(serverId, messages, categoriesLookup);
       }
     });
 
-    final cleanedMods = mods
-        .whereType<ScrapedMod>()
-        .map((mod) => _cleanUpMod(mod))
-        .where((mod) => mod.name.isNotEmpty)
-        .toList();
+    final cleanedMods =
+        mods.whereType<ScrapedMod>().map((mod) => _cleanUpMod(mod)).where((mod) => mod.name.isNotEmpty).toList();
 
-    timber.i(message: () => "Message parsing completed (${cleanedMods.length} mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
     timber.i(
         message: () =>
-            "Found ${cleanedMods.length} Discord mods in channel $forumChannelId.");
+            "Message parsing completed (${cleanedMods.length} mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
+    timber.i(message: () => "Found ${cleanedMods.length} Discord mods in channel $forumChannelId.");
 
     return cleanedMods;
   }
 
-  static Future<ScrapedMod> _parseAsSingleMessage(
-      String serverId, String forumChannelId, Message message) async {
-    timber.i(
-        message: () =>
-            "Parsing message ${message.content?.split('\n').firstOrNull ?? ''}");
+  @visibleForTesting
+  static Future<ScrapedMod> parseAsSingleMessage(String serverId, String forumChannelId, Message message) async {
+    timber.i(message: () => "Parsing message ${message.content?.split('\n').firstOrNull ?? ''}");
 
     final lines = message.content?.split('\n') ?? [];
-    final name = lines
-        .skipWhile((line) => line.trim().isEmpty)
-        .firstOrNull
-        ?.let((it) => _removeMarkdownFromName(it));
+    final name = lines.skipWhile((line) => line.trim().isEmpty).firstOrNull?.let((it) => removeMarkdownFromName(it));
 
-    final messageLines = lines
-        .skipWhile((line) => line.trim().isEmpty)
-        .skip(1)
-        .skipWhile((line) => line.trim().isEmpty)
-        .toList();
+    final messageLines =
+        lines.skipWhile((line) => line.trim().isEmpty).skip(1).skipWhile((line) => line.trim().isEmpty).toList();
 
-    final (forumUrl, downloadArtifactUrl, downloadPageUrl) =
-        await _getUrlsFromMessage(messageLines);
+    final (forumUrl, downloadArtifactUrl, downloadPageUrl) = await getUrlsFromMessage(messageLines);
 
     final urls = <ModUrlType, String>{
       if (forumUrl != null) ModUrlType.Forum: forumUrl,
-      ModUrlType.Discord:
-          "https://discord.com/channels/$serverId/$forumChannelId/${message.id}",
-      if (downloadArtifactUrl != null)
-        ModUrlType.DirectDownload: downloadArtifactUrl,
+      ModUrlType.Discord: "https://discord.com/channels/$serverId/$forumChannelId/${message.id}",
+      if (downloadArtifactUrl != null) ModUrlType.DirectDownload: downloadArtifactUrl,
       if (downloadPageUrl != null) ModUrlType.DownloadPage: downloadPageUrl,
     };
 
@@ -242,9 +242,7 @@ class DiscordReader {
       description: messageLines.join('\n'),
       modVersion: null,
       gameVersionReq: "",
-      authorsList: message.author?.username != null
-          ? [message.author!.username!]
-          : const [],
+      authorsList: message.author?.username != null ? [message.author!.username!] : const [],
       urls: urls,
       sources: [ModSource.Discord],
       categories: [],
@@ -254,54 +252,60 @@ class DiscordReader {
     );
   }
 
-  static Future<ScrapedMod?> _parseAsThread(String serverId,
-      List<Message> messages, Map<String, String> categoriesLookup) async {
+  @visibleForTesting
+  static Future<ScrapedMod?> parseAsThread(
+      String serverId, List<Message> messages, Map<String, String> categoriesLookup) async {
     if (messages.isEmpty) return null;
 
     try {
       final messagesOrdered = messages.toList()
-        ..sort((a, b) =>
-            (a.timestamp ?? DateTime(0)).compareTo(b.timestamp ?? DateTime(0)));
+        ..sort((a, b) => (a.timestamp ?? DateTime(0)).compareTo(b.timestamp ?? DateTime(0)));
 
       final message = messagesOrdered.firstWhere(
         (msg) => msg.content?.isNotEmpty == true,
         orElse: () => messagesOrdered.first,
       );
 
-      timber.i(
-          message: () =>
-              "Parsing message ${message.content?.split('\n').firstOrNull ?? ''}");
+      timber.i(message: () => "Parsing message ${message.content?.split('\n').firstOrNull ?? ''}");
 
-      final name =
-          message.parentThread?.name?.let((it) => _removeMarkdownFromName(it));
+      final name = message.parentThread?.name?.let((it) => removeMarkdownFromName(it));
 
-      final messageLines = message.content
-              ?.split('\n')
-              .skipWhile((line) => line.trim().isEmpty)
-              .toList() ??
-          [];
+      final messageLines = message.content?.split('\n').skipWhile((line) => line.trim().isEmpty).toList() ?? [];
 
-      final allMessageLines = messagesOrdered
-          .expand((m) => m.content?.split('\n') ?? <String>[])
-          .skipWhile((line) => line.trim().isEmpty)
-          .toList();
+      // For URL extraction, prefer the first (OP) message since it has the
+      // definitive links. Fall back to all OP-author messages if the first
+      // message didn't have a download URL.
+      // Only OP-author messages are considered; replies from other users can
+      // contain URLs for unrelated mods (e.g. a dependency author posting
+      // updates in a dependent mod's thread).
+      final firstMsgLines = messageLines; // already parsed from `message` above
+      var (forumUrl, downloadArtifactUrl, downloadPageUrl) = await getUrlsFromMessage(firstMsgLines);
 
-      final (forumUrl, downloadArtifactUrl, downloadPageUrl) =
-          await _getUrlsFromMessage(allMessageLines);
+      if (downloadArtifactUrl == null && downloadPageUrl == null) {
+        // First message had no download links; check all OP-author messages.
+        final opAuthorId = message.author?.id;
+        final allOpLines = messagesOrdered
+            .where((m) => opAuthorId != null && m.author?.id == opAuthorId)
+            .expand((m) => m.content?.split('\n') ?? <String>[])
+            .skipWhile((line) => line.trim().isEmpty)
+            .toList();
+
+        final (fallbackForum, fallbackArtifact, fallbackPage) = await getUrlsFromMessage(allOpLines);
+        forumUrl ??= fallbackForum;
+        downloadArtifactUrl ??= fallbackArtifact;
+        downloadPageUrl ??= fallbackPage;
+      }
 
       final urls = <ModUrlType, String>{
         if (forumUrl != null) ModUrlType.Forum: forumUrl,
-        ModUrlType.Discord:
-            "https://discord.com/channels/$serverId/${message.parentThread?.id}/${message.id}",
-        if (downloadArtifactUrl != null)
-          ModUrlType.DirectDownload: downloadArtifactUrl,
+        ModUrlType.Discord: "https://discord.com/channels/$serverId/${message.parentThread?.id}/${message.id}",
+        if (downloadArtifactUrl != null) ModUrlType.DirectDownload: downloadArtifactUrl,
         if (downloadPageUrl != null) ModUrlType.DownloadPage: downloadPageUrl,
       };
 
       final allImages = messagesOrdered
           .map((m) => _getImagesFromMessage(m))
-          .fold<Map<String, Image>?>(
-              {}, (acc, images) => {...?acc, ...?images});
+          .fold<Map<String, Image>?>({}, (acc, images) => {...?acc, ...?images});
 
       return ScrapedMod(
         name: name ?? "",
@@ -309,16 +313,11 @@ class DiscordReader {
         description: messageLines.join('\n'),
         modVersion: null,
         gameVersionReq: "",
-        authorsList: message.author?.username != null
-            ? [message.author!.username!]
-            : const [],
+        authorsList: message.author?.username != null ? [message.author!.username!] : const [],
         urls: urls,
         sources: [ModSource.Discord],
-        categories: message.parentThread?.appliedTags
-                ?.map((tag) => categoriesLookup[tag])
-                .whereType<String>()
-                .toList() ??
-            [],
+        categories:
+            message.parentThread?.appliedTags?.map((tag) => categoriesLookup[tag]).whereType<String>().toList() ?? [],
         images: allImages,
         dateTimeCreated: message.timestamp,
         dateTimeEdited: message.editedTimestamp,
@@ -329,21 +328,16 @@ class DiscordReader {
     }
   }
 
-  static Future<(String?, String?, String?)> _getUrlsFromMessage(
-      List<String> messageLines) async {
-    final forumUrl = messageLines
-        .expand(
-            (line) => _urlFinderRegex.allMatches(line).map((m) => m.group(0)))
-        .whereType<String>()
-        .where((url) => url.contains("fractalsoftworks"))
-        .firstOrNull;
+  @visibleForTesting
+  static Future<(String?, String?, String?)> getUrlsFromMessage(List<String> messageLines) async {
+    final forumUrl = getForumUrlFromMessage(messageLines);
 
+    // Exclude URLs from lines labeled as dependencies (e.g. "Requires ModName: <url>").
     final downloadyUrls = messageLines
-        .expand(
-            (line) => _urlFinderRegex.allMatches(line).map((m) => m.group(0)))
+        .where((line) => !_dependencyLabelRegex.hasMatch(line))
+        .expand((line) => _urlFinderRegex.allMatches(line).map((m) => m.group(0)))
         .whereType<String>()
-        .where((url) =>
-            _thingsThatAreNotDownloady.every((bad) => !url.contains(bad)))
+        .where((url) => _thingsThatAreNotDownloady.every((bad) => !url.contains(bad)))
         .toList();
 
     final downloadyResults = await downloadyUrls.parallelMap((url) async {
@@ -369,10 +363,51 @@ class DiscordReader {
     return (forumUrl, downloadArtifactUrl, downloadPageUrl);
   }
 
+  /// Finds the forum URL that represents THIS mod, not a dependency.
+  ///
+  /// Classification per line:
+  /// 1. If the line has an explicit forum label ("Forum Link:", "Forum Thread:", etc.)
+  ///    → this is the mod's own forum URL.
+  /// 2. If the line has a dependency label ("Requires", "Dependencies", etc.)
+  ///    → this is a dependency URL, skip it.
+  /// 3. Otherwise, the URL is ambiguous.
+  ///
+  /// Priority: labeled own > last ambiguous > first ambiguous.
+  /// "Last ambiguous" is preferred because Discord messages typically list
+  /// dependency links first and the mod's own links at the bottom.
+  @visibleForTesting
+  static String? getForumUrlFromMessage(List<String> messageLines) {
+    String? labeledForumUrl;
+    String? lastAmbiguousForumUrl;
+
+    for (final line in messageLines) {
+      final forumUrls = _urlFinderRegex
+          .allMatches(line)
+          .map((m) => m.group(0))
+          .whereType<String>()
+          .where((url) => url.contains("fractalsoftworks"))
+          .toList();
+
+      if (forumUrls.isEmpty) continue;
+
+      final hasForumLabel = _forumLabelRegex.hasMatch(line) || _forumMarkdownRegex.hasMatch(line);
+      final hasDependencyLabel = _dependencyLabelRegex.hasMatch(line);
+
+      if (hasForumLabel && !hasDependencyLabel) {
+        // Explicitly labeled as this mod's forum link.
+        labeledForumUrl ??= forumUrls.first;
+      } else if (!hasDependencyLabel) {
+        // Ambiguous — keep updating so we end up with the last one.
+        lastAmbiguousForumUrl = forumUrls.last;
+      }
+      // If hasDependencyLabel && !hasForumLabel, skip entirely (it's a dependency).
+    }
+
+    return labeledForumUrl ?? lastAmbiguousForumUrl;
+  }
+
   static Map<String, Image>? _getImagesFromMessage(Message message) {
-    final imageAttachments = message.attachments
-        ?.where((a) => a.contentType?.startsWith("image/") ?? false)
-        .toList();
+    final imageAttachments = message.attachments?.where((a) => a.contentType?.startsWith("image/") ?? false).toList();
 
     if (imageAttachments == null || imageAttachments.isEmpty) return null;
 
@@ -402,8 +437,7 @@ class DiscordReader {
 
   static List<String> _getBestPossibleDownloadHost(List<String> urls) {
     return urls
-        .let((list) =>
-            _prefer(list, (url) => url.contains("/releases/download")))
+        .let((list) => _prefer(list, (url) => url.contains("/releases/download")))
         .let((list) => _prefer(list, (url) => url.contains("/releases")))
         .let((list) => _prefer(list, (url) => url.contains("dropbox")))
         .let((list) => _prefer(list, (url) => url.contains("drive.google")))
@@ -413,19 +447,18 @@ class DiscordReader {
         .let((list) => _prefer(list, (url) => url.contains("mediafire")));
   }
 
-  static List<String> _prefer(
-      List<String> list, bool Function(String) predicate) {
+  static List<String> _prefer(List<String> list, bool Function(String) predicate) {
     final preferred = list.where(predicate).toList();
     final rest = list.where((item) => !predicate(item)).toList();
     return [...preferred, ...rest];
   }
 
   static final List<String> _markdownStyleSymbols = ["_", "*", "~", "`"];
-  static final List<RegExp> _surroundingMarkdownRegexes = _markdownStyleSymbols
-      .map((symbol) => RegExp('(.*)[$symbol](.*)[$symbol](.*)'))
-      .toList();
+  static final List<RegExp> _surroundingMarkdownRegexes =
+      _markdownStyleSymbols.map((symbol) => RegExp('(.*)[$symbol](.*)[$symbol](.*)')).toList();
 
-  static String _removeMarkdownFromName(String str) {
+  @visibleForTesting
+  static String removeMarkdownFromName(String str) {
     while (true) {
       var replaced = str;
       for (final regex in _surroundingMarkdownRegexes) {
@@ -444,9 +477,10 @@ class DiscordReader {
     required String serverId,
     required String channelId,
     required String authToken,
+    required http.Client client,
   }) async {
-    final response = await _makeHttpRequestWithRateLimiting(() async {
-      final res = await http.get(
+    final response = await _makeHttpRequestWithRateLimiting(client, () async {
+      final res = await client.get(
         Uri.parse("$baseUrl/channels/$channelId"),
         headers: {
           "Authorization": "Bot $authToken",
@@ -468,10 +502,10 @@ class DiscordReader {
     required String authToken,
     bool getFullChannelInfo = false,
     bool includeArchived = true,
+    required http.Client client,
   }) async {
-    final activeThreadsResponse =
-        await _makeHttpRequestWithRateLimiting(() async {
-      final res = await http.get(
+    final activeThreadsResponse = await _makeHttpRequestWithRateLimiting(client, () async {
+      final res = await client.get(
         Uri.parse("$baseUrl/guilds/$serverId/threads/active"),
         headers: {
           "Authorization": "Bot $authToken",
@@ -482,32 +516,24 @@ class DiscordReader {
       return res;
     });
 
-    final activeThreads =
-        ThreadsMapper.fromMap(jsonDecode(activeThreadsResponse.body));
+    final activeThreads = ThreadsMapper.fromMap(jsonDecode(activeThreadsResponse.body));
 
     final archivedThreads = includeArchived
-        ? await _getArchivedThreads(channelId: channelId, authToken: authToken)
+        ? await _getArchivedThreads(channelId: channelId, authToken: authToken, client: client)
         : <Channel>[];
 
-    final allThreads = [...activeThreads.threads, ...archivedThreads]
-        .where((t) => t.parentId == channelId)
-        .toList()
-      ..sort((a, b) =>
-          (b.timestamp ?? DateTime(0)).compareTo(a.timestamp ?? DateTime(0)));
+    final allThreads = [...activeThreads.threads, ...archivedThreads].where((t) => t.parentId == channelId).toList()
+      ..sort((a, b) => (b.timestamp ?? DateTime(0)).compareTo(a.timestamp ?? DateTime(0)));
 
-    timber.i(
-        message: () =>
-            "Found ${allThreads.length} active and archived threads in Discord #mod_updates.");
+    timber.i(message: () => "Found ${allThreads.length} active and archived threads in Discord #mod_updates.");
 
     if (getFullChannelInfo) {
-      timber.i(
-          message: () =>
-              "Getting full channel info for ${allThreads.length} threads.");
+      timber.i(message: () => "Getting full channel info for ${allThreads.length} threads.");
       final channels = <Channel>[];
       for (final thread in allThreads) {
         try {
-          final channel = await _getChannel(
-              serverId: serverId, channelId: thread.id, authToken: authToken);
+          final channel =
+              await _getChannel(serverId: serverId, channelId: thread.id, authToken: authToken, client: client);
           channels.add(channel);
         } catch (e, stackTrace) {
           timber.w(t: e, message: () => "Error getting channel info");
@@ -522,6 +548,7 @@ class DiscordReader {
   static Future<List<Channel>> _getArchivedThreads({
     required String channelId,
     required String authToken,
+    required http.Client client,
   }) async {
     String? date;
     final archivedThreads = <Channel>[];
@@ -531,23 +558,19 @@ class DiscordReader {
     while (hasMore) {
       runs++;
       if (runs > 50) {
-        timber.e(
-            message: () =>
-                "Fetched 'more archives' 50 times, probably an error. Stopping.");
+        timber.e(message: () => "Fetched 'more archives' 50 times, probably an error. Stopping.");
         break;
       }
 
-      final uri =
-          Uri.parse("$baseUrl/channels/$channelId/threads/archived/public")
-              .replace(
+      final uri = Uri.parse("$baseUrl/channels/$channelId/threads/archived/public").replace(
         queryParameters: {
           "limit": "100",
           if (date != null) "before": date,
         },
       );
 
-      final response = await _makeHttpRequestWithRateLimiting(() async {
-        final res = await http.get(uri, headers: {
+      final response = await _makeHttpRequestWithRateLimiting(client, () async {
+        final res = await client.get(uri, headers: {
           "Authorization": "Bot $authToken",
           "Accept": "application/json",
         });
@@ -562,8 +585,7 @@ class DiscordReader {
       final minTimestamp = result.threads
           .map((t) => t.threadMetadata?.archiveTimestamp)
           .whereType<DateTime>()
-          .fold<DateTime?>(
-              null, (min, ts) => min == null || ts.isBefore(min) ? ts : min);
+          .fold<DateTime?>(null, (min, ts) => min == null || ts.isBefore(min) ? ts : min);
 
       date = minTimestamp?.toIso8601String();
     }
@@ -576,6 +598,7 @@ class DiscordReader {
     String? channelName,
     required String authToken,
     int limit = 999999999,
+    required http.Client client,
   }) async {
     final messages = <Message>[];
     var runs = 0;
@@ -590,8 +613,8 @@ class DiscordReader {
       );
 
       try {
-        final response = await _makeHttpRequestWithRateLimiting(() async {
-          final res = await http.get(uri, headers: {
+        final response = await _makeHttpRequestWithRateLimiting(client, () async {
+          final res = await client.get(uri, headers: {
             "Authorization": "Bot $authToken",
             "Accept": "application/json",
           });
@@ -607,27 +630,19 @@ class DiscordReader {
           break;
         }
 
-        final newMessages = decoded
-            .map((json) => MessageMapper.fromMap(json))
-            .toList()
-          ..sort((a, b) => (b.timestamp ?? DateTime(0))
-              .compareTo(a.timestamp ?? DateTime(0)));
+        final newMessages = decoded.map((json) => MessageMapper.fromMap(json)).toList()
+          ..sort((a, b) => (b.timestamp ?? DateTime(0)).compareTo(a.timestamp ?? DateTime(0)));
 
-        timber.i(
-            message: () =>
-                "Found ${newMessages.length} posts in Discord channel $channelName.");
+        timber.i(message: () => "Found ${newMessages.length} posts in Discord channel $channelName.");
         messages.addAll(newMessages);
         runs++;
 
         if (newMessages.isEmpty || newMessages.length < perRequestLimit) {
-          timber.i(
-              message: () =>
-                  "Found all ${messages.length} posts in channel $channelName.");
+          timber.i(message: () => "Found all ${messages.length} posts in channel $channelName.");
           break;
         }
       } catch (e) {
-        timber.w(
-            t: e, message: () => "Error getting messages for $uri, run $runs");
+        timber.w(t: e, message: () => "Error getting messages for $uri, run $runs");
         break;
       }
     }
@@ -640,16 +655,14 @@ class DiscordReader {
     required String emoji,
     required String channelId,
     required String messageId,
+    required http.Client client,
   }) async {
     try {
-      timber.i(
-          message: () =>
-              "Checking to see who reacted to message $messageId with 🕸️.");
+      timber.i(message: () => "Checking to see who reacted to message $messageId with 🕸️.");
 
-      final response = await _makeHttpRequestWithRateLimiting(() async {
-        return await http.get(
-          Uri.parse(
-              "$baseUrl/channels/$channelId/messages/$messageId/reactions/$emoji"),
+      final response = await _makeHttpRequestWithRateLimiting(client, () async {
+        return await client.get(
+          Uri.parse("$baseUrl/channels/$channelId/messages/$messageId/reactions/$emoji"),
           headers: {
             "Authorization": "Bot $authToken",
             "Accept": "application/json",
@@ -659,9 +672,7 @@ class DiscordReader {
 
       final decoded = jsonDecode(response.body);
       if (decoded is! List) {
-        timber.w(
-            message: () =>
-                "Expected List from Discord reactions API but got ${decoded.runtimeType}");
+        timber.w(message: () => "Expected List from Discord reactions API but got ${decoded.runtimeType}");
         return [];
       }
       return decoded.map((json) => UserMapper.fromMap(json)).toList();
@@ -672,15 +683,17 @@ class DiscordReader {
   }
 
   static Future<http.Response> _makeHttpRequestWithRateLimiting(
-      Future<http.Response> Function() call) async {
+      http.Client client, Future<http.Response> Function() call) async {
+    // If response is cached, don't rate limit.
+    // Edit: nvm, we don't know if the request is cached until making it, and this method doesn't have the url and headers to determine that,
+    // so just suffer the rate limit during debugging.
+
     const maxRetries = 5;
 
     for (var attempt = 0; attempt <= maxRetries; attempt++) {
       apiCallsLastRun++;
       final now = DateTime.now().millisecondsSinceEpoch;
-      final delay =
-          (_timestampOfLastHttpCall + delayBetweenRequestsMillis - now)
-              .clamp(0, 999999);
+      final delay = (_timestampOfLastHttpCall + delayBetweenRequestsMillis - now).clamp(0, 999999);
       if (delay > 0) {
         await Future.delayed(Duration(milliseconds: delay));
       }
@@ -694,8 +707,7 @@ class DiscordReader {
         timber.w(
             message: () =>
                 "Rate limited by Discord. Retrying after ${retryAfter}s (attempt ${attempt + 1}/$maxRetries).");
-        await Future.delayed(
-            Duration(milliseconds: (retryAfter * 1000).ceil()));
+        await Future.delayed(Duration(milliseconds: (retryAfter * 1000).ceil()));
         continue;
       }
 
@@ -712,9 +724,7 @@ class DiscordReader {
     return ScrapedMod(
       name: mod.name.replaceAll(_discordUnrecognizedEmojiRegex, '').trim(),
       summary: mod.summary,
-      description: mod.description
-          ?.replaceAll(_discordUnrecognizedEmojiRegex, '')
-          ?.trim(),
+      description: mod.description?.replaceAll(_discordUnrecognizedEmojiRegex, '')?.trim(),
       modVersion: mod.modVersion,
       gameVersionReq: mod.gameVersionReq,
       authorsList: mod.authorsList,
