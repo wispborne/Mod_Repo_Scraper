@@ -341,7 +341,7 @@ class DiscordReader {
         .toList();
 
     final downloadyResults = await downloadyUrls.parallelMap((url) async {
-      final isDownloadable = await Common.isDownloadable(url);
+      final isDownloadable = _isDefiniteDownloadLink(url) || await Common.isDownloadable(url);
       return (url, isDownloadable);
     });
 
@@ -444,7 +444,17 @@ class DiscordReader {
         .let((list) => _prefer(list, (url) => url.contains("patreon")))
         .let((list) => _prefer(list, (url) => url.contains("bitbucket")))
         .let((list) => _prefer(list, (url) => url.contains("github")))
-        .let((list) => _prefer(list, (url) => url.contains("mediafire")));
+        .let((list) => _prefer(list, (url) => url.contains("mediafire")))
+        .let((list) => _prefer(list, (url) => url.contains("mega.nz")));
+  }
+
+  static bool _isDefiniteDownloadLink(String url) {
+    return url.contains("drive.google.com") ||
+        url.contains("mega.nz") ||
+        url.contains("mediafire") ||
+        url.contains(".zip") ||
+        url.contains(".rar") ||
+        url.contains(".7z");
   }
 
   static List<String> _prefer(List<String> list, bool Function(String) predicate) {

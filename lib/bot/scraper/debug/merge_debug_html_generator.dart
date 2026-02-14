@@ -394,6 +394,10 @@ summary::marker { color: var(--primary); }
       if (mod.summary != null && mod.summary!.isNotEmpty) {
         buf.writeln('<li><span class="field-label">Summary:</span> <span class="field-value">${_esc(mod.summary!)}</span></li>');
       }
+      buf.writeln('<li><span class="field-label">Images:</span></li>');
+      for (final image in mod.getImages().entries) {
+        buf.writeln('<li>&nbsp;&nbsp;<span class="field-label">${_esc(image.key)}:</span> <img src="${image.value.url ?? ''}" alt="${_esc(image.value.description ?? '')}"></img></li>');
+      }
       buf.writeln('</ul>');
       buf.writeln('</div>');
       buf.writeln('</details>');
