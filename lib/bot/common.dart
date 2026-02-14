@@ -14,9 +14,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_mappable/dart_mappable.dart';
-import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
-import 'package:usc_scraper/timber/log_level.dart';
-import 'package:usc_scraper/timber/timber.dart' as timber_lib;
+import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:mod_repo_scraper/timber/log_level.dart';
+import 'package:mod_repo_scraper/timber/timber.dart' as timber_lib;
 
 part 'common.mapper.dart';
 

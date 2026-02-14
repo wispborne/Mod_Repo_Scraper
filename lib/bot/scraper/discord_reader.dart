@@ -15,9 +15,9 @@ import 'dart:convert';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
-import 'package:usc_scraper/bot/common.dart';
-import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
-import 'package:usc_scraper/utilities/parallel_map.dart';
+import 'package:mod_repo_scraper/bot/common.dart';
+import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
 import 'scraped_mod.dart';
 

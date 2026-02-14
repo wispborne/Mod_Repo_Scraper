@@ -13,10 +13,10 @@
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:usc_scraper/bot/common.dart';
-import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
-import 'package:usc_scraper/utilities/caching_http_client.dart';
-import 'package:usc_scraper/utilities/jsanity.dart';
+import 'package:mod_repo_scraper/bot/common.dart';
+import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:mod_repo_scraper/utilities/caching_http_client.dart';
+import 'package:mod_repo_scraper/utilities/jsanity.dart';
 
 import 'debug/merge_debug_collector.dart';
 import 'debug/merge_debug_html_generator.dart';

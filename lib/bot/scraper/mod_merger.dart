@@ -10,8 +10,8 @@
  * The full license is available from <https://www.gnu.org/licenses/gpl-3.0.txt>.
  */
 
-import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
-import 'package:usc_scraper/utilities/parallel_map.dart';
+import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
 import 'debug/merge_debug_collector.dart';
 import 'debug/merge_debug_data.dart';

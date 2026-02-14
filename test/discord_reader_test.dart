@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
-import 'package:usc_scraper/bot/scraper/discord_reader.dart';
-import 'package:usc_scraper/bot/scraper/scraped_mod.dart';
+import 'package:mod_repo_scraper/bot/scraper/discord_reader.dart';
+import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 
 void main() {
   // ---------------------------------------------------------------------------

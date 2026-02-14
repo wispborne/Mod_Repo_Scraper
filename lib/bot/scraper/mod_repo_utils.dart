@@ -10,7 +10,7 @@
  * The full license is available from <https://www.gnu.org/licenses/gpl-3.0.txt>.
  */
 
-import 'package:usc_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import '../../utilities/parallel_map.dart';
 import 'fuzzy/fuzzy.dart';
 
