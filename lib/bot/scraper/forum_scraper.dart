@@ -42,7 +42,7 @@ class ForumScraper {
       final response = await http.get(Uri.parse("https://fractalsoftworks.com/forum/index.php?topic=177.0"));
       final doc = html_parser.parse(response.body);
 
-      final categories = doc.querySelectorAll("ul.bbc_list");
+      final categories = doc.querySelectorAll("ul.bbc_list").where((el) => el.parent?.localName != 'li').toList();
 
       final mods = await Future.wait(categories.expand((categoryElement) {
         var category = "";

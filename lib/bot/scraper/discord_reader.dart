@@ -11,6 +11,7 @@
  */
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:http/http.dart' as http;
@@ -25,7 +26,7 @@ part 'discord_reader.mapper.dart';
 
 class DiscordReader {
   static const String baseUrl = "https://discord.com/api";
-  static const int delayBetweenRequestsMillis = 40; // Allowed to do 50 requests per second
+  static int delayBetweenRequestsMillis = 40; // Allowed to do 50 requests per second
   static int _timestampOfLastHttpCall = 0;
   static final RegExp _urlFinderRegex =
       RegExp(r'(http|ftp|https):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])');
@@ -63,6 +64,11 @@ class DiscordReader {
     if (forumChannelIds == null || forumChannelIds.isEmpty) {
       timber.w(message: () => "No discord_forumChannelIdsAndGameVersions found in config.");
       return null;
+    }
+
+    if (botConfig.useCached && File('discord_raw_cache.json').existsSync()) {
+      timber.i(message: () => "Using cache Discord data, disabling rate limiting.");
+      delayBetweenRequestsMillis = 0;
     }
 
     timber.i(message: () => "Scraping ${forumChannelIds.length} Discord #mod_updates channel(s)...");
