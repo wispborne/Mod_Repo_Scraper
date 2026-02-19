@@ -119,7 +119,7 @@ class ForumScraper {
     return uri.replace(queryParameters: params).toString();
   }
 
-  static final _versionRegex = RegExp(r'[\[{]([^]}]*?\d+?[^]}]*?)[]}]');
+  static final _versionRegex = RegExp(r'[\[{]([^\]}]*?\d+?[^\]}]*?)[\]}]');
 
   static Future<List<ScrapedMod>?> _scrapeSubforumLinks({
     required String forumBaseUrl,
@@ -175,7 +175,7 @@ class ForumScraper {
         timber.i(message: () => "Found ${filteredMods.length} mods on page ${page ~/ postsPerPage} of subforum $subforumNumber.");
         allMods.addAll(filteredMods);
 
-        await Future.delayed(Duration(milliseconds: 200));
+        await Future.delayed(const Duration(milliseconds: 200));
       }
 
       return allMods;
