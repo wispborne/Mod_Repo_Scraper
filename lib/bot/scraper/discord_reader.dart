@@ -40,6 +40,10 @@ class DiscordReader {
   /// Matches lines indicating a dependency, e.g. "Requires ModName:", "Dependencies:".
   static final RegExp _dependencyLabelRegex =
       RegExp(r'(^|\s)(requires|dependencies|dependency)\b', caseSensitive: false);
+
+  /// Matches lines indicating a changelog, e.g. "Changelog:", "Release Notes:".
+  static final RegExp _changelogLabelRegex =
+      RegExp(r'(^|\s)(changelog|change\s*log|release\s*notes?)\s*s?\s*:', caseSensitive: false);
   static const String noscrapeReaction = "🕸️";
   static int apiCallsLastRun = 0;
 
@@ -338,9 +342,24 @@ class DiscordReader {
   static Future<(String?, String?, String?)> getUrlsFromMessage(List<String> messageLines) async {
     final forumUrl = getForumUrlFromMessage(messageLines);
 
-    // Exclude URLs from lines labeled as dependencies (e.g. "Requires ModName: <url>").
-    final downloadyUrls = messageLines
-        .where((line) => !_dependencyLabelRegex.hasMatch(line))
+    // Merge label-only lines (no URL) with the next line so that split
+    // "Changelog:\n<url>" or "Requires:\n<url>" is treated as one logical line.
+    final mergedLines = <String>[];
+    for (var i = 0; i < messageLines.length; i++) {
+      final line = messageLines[i];
+      if (!_urlFinderRegex.hasMatch(line) &&
+          i + 1 < messageLines.length &&
+          (_changelogLabelRegex.hasMatch(line) || _dependencyLabelRegex.hasMatch(line))) {
+        mergedLines.add('$line ${messageLines[i + 1]}');
+        i++;
+      } else {
+        mergedLines.add(line);
+      }
+    }
+
+    // Exclude URLs from lines labeled as dependencies or changelogs.
+    final downloadyUrls = mergedLines
+        .where((line) => !_dependencyLabelRegex.hasMatch(line) && !_changelogLabelRegex.hasMatch(line))
         .expand((line) => _urlFinderRegex.allMatches(line).map((m) => m.group(0)))
         .whereType<String>()
         .where((url) => _thingsThatAreNotDownloady.every((bad) => !url.contains(bad)))

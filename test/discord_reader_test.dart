@@ -299,6 +299,89 @@ void main() {
       });
     });
 
+    group('real data: anchors, angle brackets, and unusual labels', () {
+      test('Mayasuran Navy: bare forum URL with message anchor (#msg)', () {
+        final lines = [
+          'https://fractalsoftworks.com/forum/index.php?topic=13239.msg459820#msg459820',
+          '',
+          'https://www.mediafire.com/file/fdxcpst57al2pun/Mayasuran_Navy_11.0.0_RC5.zip/file',
+          '',
+          '11.0.0 RC5',
+        ];
+
+        final result = DiscordReader.getForumUrlFromMessage(lines);
+        expect(result, contains('topic=13239'),
+            reason: 'Forum URL with #msg anchor should still be recognized');
+      });
+
+      test('Orky Sector: "Forum Post:" label with URL on next line', () {
+        // In getForumUrlFromMessage, each line is checked independently.
+        // "Forum Post:" on its own line has no URL, so the URL on the next line
+        // is treated as ambiguous (last wins).
+        final lines = [
+          '**Download Link:**',
+          'https://github.com/MycophobiaSC/Looted_Sector/releases/download/v0.52/Orky.Sector.-v0.52.zip',
+          '',
+          '**Dependencies:**',
+          'Lazy Lib https://fractalsoftworks.com/forum/index.php?topic=5444.0',
+          'Magic Lib https://fractalsoftworks.com/forum/index.php?topic=25868.0',
+          'Graphic Lib https://fractalsoftworks.com/forum/index.php?topic=10982.0',
+          '',
+          'Forum Post:',
+          'https://fractalsoftworks.com/forum/index.php?topic=29956.0',
+        ];
+
+        final result = DiscordReader.getForumUrlFromMessage(lines);
+        expect(result, contains('topic=29956'),
+            reason: 'URL on separate line after "Forum Post:" is ambiguous last; should still be picked');
+      });
+
+      test('Nexerelin: "Forum thread:" http URL with Nexus on separate line', () {
+        final lines = [
+          '4X in Starsector.',
+          '',
+          'Download: <https://github.com/Histidine91/Nexerelin/releases/download/v0.11.3c/Nexerelin_0.11.3c.zip>',
+          '',
+          'Changelog: <https://github.com/Histidine91/Nexerelin/wiki/Changelog>',
+          'Forum thread: http://fractalsoftworks.com/forum/index.php?topic=9175.0',
+          'Nexus: https://www.nexusmods.com/starsector/mods/28',
+          '',
+          'Ko-Fi: <https://ko-fi.com/R6R5Q52DU>',
+        ];
+
+        final result = DiscordReader.getForumUrlFromMessage(lines);
+        expect(result, contains('topic=9175'),
+            reason: 'Nexus URL should not interfere with labeled forum URL');
+      });
+
+      test('Big Pilum Energy: YouTube URL in [Forum Thread] markdown returns null', () {
+        final lines = [
+          '# [Give me money](https://www.patreon.com/join/SirHartley)',
+          '# [Download](https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.c/Big.Pilum.Energy1.0.c.zip)',
+          '# [Forum Thread](https://www.youtube.com/watch?v=dQw4w9WgXcQ)',
+        ];
+
+        final result = DiscordReader.getForumUrlFromMessage(lines);
+        expect(result, isNull,
+            reason: 'YouTube URL does not contain fractalsoftworks, should be null');
+      });
+
+      test('Nuevo Ship Pack: angle-bracket forum URL with bold label', () {
+        final lines = [
+          'A Vanilla+ Ship Pack.',
+          '',
+          '**Download:**',
+          '<https://drive.google.com/file/d/12Nljq0mE0WhokiZ5OGDCQU113vkR5MMv/view?usp=sharing>',
+          '**Forum Thread:**',
+          '<https://fractalsoftworks.com/forum/index.php?topic=30580.0>',
+        ];
+
+        final result = DiscordReader.getForumUrlFromMessage(lines);
+        expect(result, contains('topic=30580'),
+            reason: 'Forum URL inside angle brackets should be matched');
+      });
+    });
+
     group('edge cases', () {
       test('empty message returns null', () {
         final result = DiscordReader.getForumUrlFromMessage([]);
@@ -867,6 +950,270 @@ void main() {
       // The GitHub download link should be found.
       // (Whether it's directDl or dlPage depends on isDownloadable, which needs network,
       // but it should appear in one of them.)
+    });
+
+    test('changelog URL on separate line excluded, download URL selected', () async {
+      final lines = [
+        'A cool mod with weird ships.',
+        'Changelog:',
+        'https://drive.google.com/file/d/1CG8XQtDXwXBFKHhtTf-e2k39yTwFki44/view',
+        'Download:',
+        'https://drive.google.com/file/d/1McJcR45LpcfaWjAfrojZ_lTNC6sXLdNY/view',
+        'Forum Thread: https://fractalsoftworks.com/forum/index.php?topic=31076',
+      ];
+
+      final (forumUrl, directDl, dlPage) = await DiscordReader.getUrlsFromMessage(lines);
+
+      expect(forumUrl, contains('topic=31076'));
+      expect(directDl, contains('1McJcR45LpcfaWjAfrojZ_lTNC6sXLdNY'));
+      expect(directDl, isNot(contains('1CG8XQtDXwXBFKHhtTf-e2k39yTwFki44')));
+    });
+
+    test('changelog URL on same line excluded', () async {
+      final lines = [
+        'A cool mod.',
+        'Changelog: https://drive.google.com/file/d/CHANGELOG_ID/view',
+        'Download: https://drive.google.com/file/d/DOWNLOAD_ID/view',
+      ];
+
+      final (forumUrl, directDl, dlPage) = await DiscordReader.getUrlsFromMessage(lines);
+
+      expect(directDl, contains('DOWNLOAD_ID'));
+      expect(directDl, isNot(contains('CHANGELOG_ID')));
+    });
+
+    test('release notes label excluded', () async {
+      final lines = [
+        'Release Notes: https://drive.google.com/file/d/NOTES_ID/view',
+        'Download: https://drive.google.com/file/d/DOWNLOAD_ID/view',
+      ];
+
+      final (forumUrl, directDl, dlPage) = await DiscordReader.getUrlsFromMessage(lines);
+
+      expect(directDl, contains('DOWNLOAD_ID'));
+      expect(directDl, isNot(contains('NOTES_ID')));
+    });
+
+    test('Mayasuran Navy: MediaFire .zip URL picked as direct download', () async {
+      final lines = [
+        'https://fractalsoftworks.com/forum/index.php?topic=13239.msg459820#msg459820',
+        '',
+        'https://www.mediafire.com/file/fdxcpst57al2pun/Mayasuran_Navy_11.0.0_RC5.zip/file',
+        '',
+        '11.0.0 RC5',
+      ];
+
+      final (forumUrl, directDl, dlPage) = await DiscordReader.getUrlsFromMessage(lines);
+
+      expect(forumUrl, contains('topic=13239'));
+      // MediaFire URL contains ".zip", so _isDefiniteDownloadLink returns true.
+      expect(directDl, contains('mediafire'));
+    });
+
+    test('Bitbucket download from markdown link extracted', () async {
+      final lines = [
+        '`Indicators showing excess or shortage directly next to the commodity icon`',
+        '',
+        'This mod adds small icons.',
+        '# [Download](https://bitbucket.org/SirHartley/misc/downloads/Demand_Indicators1.0.c.zip)',
+        '# [Forum Thread](https://fractalsoftworks.com/forum/index.php?topic=31416.0)',
+        '# [Support my Efforts](https://www.patreon.com/join/SirHartley)',
+      ];
+
+      final (forumUrl, directDl, dlPage) = await DiscordReader.getUrlsFromMessage(lines);
+
+      expect(forumUrl, contains('topic=31416'));
+      // Bitbucket .zip URL is a definite download link.
+      expect(directDl, contains('bitbucket.org'));
+      expect(directDl, contains('Demand_Indicators'));
+      // Patreon /join/ URL should not be direct download (not a .zip etc.).
+      expect(directDl, isNot(contains('patreon')));
+      // Note: Patreon /join/ URL may appear as dlPage since it's not in
+      // _thingsThatAreNotDownloady (only /posts is filtered).
+    });
+
+    test('Nexerelin: changelog and Ko-Fi excluded, GitHub release selected', () async {
+      final lines = [
+        '4X in Starsector.',
+        '',
+        'Download: <https://github.com/Histidine91/Nexerelin/releases/download/v0.11.3c/Nexerelin_0.11.3c.zip>',
+        '',
+        'Changelog: <https://github.com/Histidine91/Nexerelin/wiki/Changelog>',
+        'Forum thread: http://fractalsoftworks.com/forum/index.php?topic=9175.0',
+        'Nexus: https://www.nexusmods.com/starsector/mods/28',
+        '',
+        'Ko-Fi: <https://ko-fi.com/R6R5Q52DU>',
+      ];
+
+      final (forumUrl, directDl, dlPage) = await DiscordReader.getUrlsFromMessage(lines);
+
+      expect(forumUrl, contains('topic=9175'));
+      // GitHub releases/download .zip should be picked as direct download.
+      expect(directDl, contains('Nexerelin_0.11.3c.zip'));
+      // Changelog wiki URL should be excluded.
+      expect(directDl, isNot(contains('wiki/Changelog')));
+      expect(dlPage, isNot(contains('wiki/Changelog')));
+      // Ko-Fi should not be a direct download.
+      expect(directDl, isNot(contains('ko-fi')));
+      // Note: Ko-Fi may appear as dlPage since it's not in _thingsThatAreNotDownloady.
+    });
+
+    test('Orky Sector: dependency forum URLs excluded, GitHub release selected', () async {
+      final lines = [
+        '**Download Link:**',
+        'https://github.com/MycophobiaSC/Looted_Sector/releases/download/v0.52/Orky.Sector.-v0.52.zip',
+        '',
+        '**Dependencies:**',
+        'Lazy Lib https://fractalsoftworks.com/forum/index.php?topic=5444.0',
+        'Magic Lib https://fractalsoftworks.com/forum/index.php?topic=25868.0',
+        'Graphic Lib https://fractalsoftworks.com/forum/index.php?topic=10982.0',
+        '',
+        'Forum Post:',
+        'https://fractalsoftworks.com/forum/index.php?topic=29956.0',
+      ];
+
+      final (forumUrl, directDl, dlPage) = await DiscordReader.getUrlsFromMessage(lines);
+
+      expect(forumUrl, contains('topic=29956'));
+      // GitHub releases/download .zip should be picked.
+      expect(directDl, contains('Looted_Sector'));
+      expect(directDl, contains('.zip'));
+    });
+
+    test('Nuevo Ship Pack: angle-bracket Google Drive URL is definite download', () async {
+      final lines = [
+        'A Vanilla+ Ship Pack.',
+        '',
+        '**Download:**',
+        '<https://drive.google.com/file/d/12Nljq0mE0WhokiZ5OGDCQU113vkR5MMv/view?usp=sharing>',
+        '**Forum Thread:**',
+        '<https://fractalsoftworks.com/forum/index.php?topic=30580.0>',
+      ];
+
+      final (forumUrl, directDl, dlPage) = await DiscordReader.getUrlsFromMessage(lines);
+
+      expect(forumUrl, contains('topic=30580'));
+      // drive.google.com is a definite download link.
+      expect(directDl, contains('drive.google.com'));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // parseAsThread — additional real-data end-to-end tests
+  // ---------------------------------------------------------------------------
+  group('parseAsThread real data', () {
+    const serverId = '187635036525166592';
+    const categoriesLookup = <String, String>{
+      '1354896158199255211': 'Portrait/Flag Pack',
+      '1203052542024622170': 'Library',
+      '1203052556364816444': 'Utility',
+      '1203052569572933642': 'Megamod',
+      '1203052581245423676': 'Faction',
+      '1203052594533236787': 'Ship Pack',
+      '1203052624694349905': 'Weapon/Fighter Pack',
+      '1203052663932067990': 'Colonies',
+      '1203052688103972934': 'Quests and Bars',
+      '1203052706713833482': 'Exploration',
+      '1203052739186393118': 'Misc. Campaign Mods',
+      '1203052812171477072': 'Quality of Life',
+      '1203052840314998784': 'Audio/Visual',
+      '1203052896116019210': 'Other/Misc.',
+    };
+
+    test('Demand Indicators: Bitbucket download, Forum Thread markdown, Patreon excluded', () async {
+      final thread = const Channel(
+        id: '1203465064804548688',
+        name: 'Demand Indicators 1.0.c',
+        ownerId: '378072735013797891',
+        appliedTags: ['1203052812171477072'],
+      );
+
+      final messages = [
+        Message(
+          id: '1203465064804548688',
+          author: const User(id: '378072735013797891', username: 'sirhartley'),
+          content:
+              '`Indicators showing excess or shortage directly next to the commodity icon`\n\nThis mod adds small icons.\n# [Download](https://bitbucket.org/SirHartley/misc/downloads/Demand_Indicators1.0.c.zip)\n# [Forum Thread](https://fractalsoftworks.com/forum/index.php?topic=31416.0)\n# [Support my Efforts](https://www.patreon.com/join/SirHartley)',
+          timestamp: DateTime(2024, 2, 2, 12, 0),
+          parentThread: thread,
+        ),
+      ];
+
+      final mod = await DiscordReader.parseAsThread(serverId, messages, categoriesLookup);
+
+      expect(mod, isNotNull);
+      expect(mod!.name, equals('Demand Indicators 1.0.c'));
+      expect(mod.authorsList, equals(['sirhartley']));
+      expect(mod.urls?[ModUrlType.Forum], contains('topic=31416'));
+      expect(mod.urls?[ModUrlType.DirectDownload], contains('bitbucket.org'));
+      expect(mod.urls?[ModUrlType.DirectDownload], isNot(contains('patreon')));
+      expect(mod.categories, equals(['Quality of Life']));
+    });
+
+    test('Nexerelin: changelog, Nexus, Ko-Fi all filtered from downloads', () async {
+      final thread = const Channel(
+        id: '1203249702712254505',
+        name: 'Nexerelin',
+        ownerId: '151483880009498625',
+        appliedTags: ['1203052569572933642'],
+      );
+
+      final messages = [
+        Message(
+          id: '1203249702712254505',
+          author: const User(id: '151483880009498625', username: 'histidine'),
+          content:
+              '4X in Starsector.\n\nDownload: <https://github.com/Histidine91/Nexerelin/releases/download/v0.11.3c/Nexerelin_0.11.3c.zip>\n\nChangelog: <https://github.com/Histidine91/Nexerelin/wiki/Changelog>\nForum thread: http://fractalsoftworks.com/forum/index.php?topic=9175.0\nNexus: https://www.nexusmods.com/starsector/mods/28\n\nKo-Fi: <https://ko-fi.com/R6R5Q52DU>',
+          timestamp: DateTime(2024, 2, 1, 12, 0),
+          parentThread: thread,
+        ),
+      ];
+
+      final mod = await DiscordReader.parseAsThread(serverId, messages, categoriesLookup);
+
+      expect(mod, isNotNull);
+      expect(mod!.name, equals('Nexerelin'));
+      expect(mod.authorsList, equals(['histidine']));
+      expect(mod.urls?[ModUrlType.Forum], contains('topic=9175'));
+      expect(mod.urls?[ModUrlType.DirectDownload], contains('Nexerelin_0.11.3c.zip'));
+      // Changelog wiki URL must not be a download.
+      expect(mod.urls?[ModUrlType.DirectDownload], isNot(contains('wiki/Changelog')));
+      expect(mod.urls?[ModUrlType.DirectDownload], isNot(contains('ko-fi')));
+      expect(mod.categories, equals(['Megamod']));
+    });
+
+    test('Orky Sector: Forum Post label, dependencies block, GitHub release', () async {
+      final thread = const Channel(
+        id: '1325617579032580227',
+        name: 'Orky Sector v0.52',
+        ownerId: '504494925515931648',
+        appliedTags: ['1203052581245423676'],
+      );
+
+      final messages = [
+        Message(
+          id: '1325617579032580227',
+          author: const User(id: '504494925515931648', username: 'mycophobia'),
+          content:
+              '*An orky starsector mod by Myco and Miko*\n\n**Download Link:**\nhttps://github.com/MycophobiaSC/Looted_Sector/releases/download/v0.52/Orky.Sector.-v0.52.zip\n\n**Dependencies:**\nLazy Lib https://fractalsoftworks.com/forum/index.php?topic=5444.0\nMagic Lib https://fractalsoftworks.com/forum/index.php?topic=25868.0\nGraphic Lib https://fractalsoftworks.com/forum/index.php?topic=10982.0\n\nForum Post:\nhttps://fractalsoftworks.com/forum/index.php?topic=29956.0',
+          timestamp: DateTime(2025, 1, 6, 12, 0),
+          parentThread: thread,
+        ),
+      ];
+
+      final mod = await DiscordReader.parseAsThread(serverId, messages, categoriesLookup);
+
+      expect(mod, isNotNull);
+      expect(mod!.name, equals('Orky Sector v0.52'));
+      expect(mod.authorsList, equals(['mycophobia']));
+      // Forum URL should be the mod's own (topic=29956), not a dependency.
+      expect(mod.urls?[ModUrlType.Forum], contains('topic=29956'));
+      // GitHub release should be picked as download.
+      expect(mod.urls?[ModUrlType.DirectDownload], contains('Looted_Sector'));
+      // Dependency forum URLs should not appear as downloads.
+      final directDl = mod.urls?[ModUrlType.DirectDownload] ?? '';
+      expect(directDl, isNot(contains('fractalsoftworks')));
+      expect(mod.categories, equals(['Faction']));
     });
   });
 }
