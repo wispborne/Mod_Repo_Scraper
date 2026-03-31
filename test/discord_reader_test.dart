@@ -170,12 +170,43 @@ void main() {
           'Graphic Lib https://fractalsoftworks.com/forum/index.php?topic=10982.0',
         ];
 
-        // "Dependencies:" is on its own line with no URL.
-        // The lib lines don't have "Requires" or "Dependencies" on them,
-        // so they'd be treated as ambiguous. The last one wins.
         final result = DiscordReader.getForumUrlFromMessage(lines);
-        expect(result, contains('topic=10982'),
-            reason: 'Lib lines without explicit "Requires" label are ambiguous; last one wins');
+        expect(result, isNull,
+            reason: 'All lib URLs under "Dependencies:" header should be excluded');
+      });
+
+      test('Traverser Design Bureau: dependency block does not steal forum URL', () {
+        final lines = [
+          'Updated Translation of Traverser Design Bureau by Hanliu',
+          '',
+          'Dependencies:',
+          'Lazy Lib https://fractalsoftworks.com/forum/index.php?topic=5444.0',
+          'Magic Lib https://fractalsoftworks.com/forum/index.php?topic=25868.0',
+          'Graphic Lib https://fractalsoftworks.com/forum/index.php?topic=10982.0',
+          '',
+          'Download :',
+          'https://github.com/MycophobiaSC/Traverser-Design-Bureau/releases/download/v0.2/TraverserDesignBureau.-.en.0.2.zip',
+        ];
+
+        final result = DiscordReader.getForumUrlFromMessage(lines);
+        expect(result, isNull,
+            reason: 'All fractalsoftworks URLs are under Dependencies, mod has no forum URL');
+      });
+
+      test('dependency block followed by own Forum Link picks correct URL', () {
+        final lines = [
+          'Updated Translation of Traverser Design Bureau',
+          'Dependencies:',
+          'Lazy Lib https://fractalsoftworks.com/forum/index.php?topic=5444.0',
+          'Magic Lib https://fractalsoftworks.com/forum/index.php?topic=25868.0',
+          'Graphic Lib https://fractalsoftworks.com/forum/index.php?topic=10982.0',
+          '',
+          'Forum Link: https://fractalsoftworks.com/forum/index.php?topic=77777.0',
+        ];
+
+        final result = DiscordReader.getForumUrlFromMessage(lines);
+        expect(result, contains('topic=77777'),
+            reason: 'Should pick the labeled Forum Link, not any dependency URL');
       });
 
       test('single "Requires" line followed by own forum link', () {

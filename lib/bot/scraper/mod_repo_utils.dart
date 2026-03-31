@@ -37,7 +37,7 @@ class ModRepoUtils {
     ["Tranquility", "tranquil_light"],
     ["FasterThanSleepyfish", "Sleepyfish"],
     ["Nerzhull_AI", "nerzhulai"],
-    ["theDrag", "iryx."],
+    ["theDragn", "iryx.gay"],
     ["Audax", "Audaxl"],
     ["Pogre", "noof"],
     ["lord_dalton", "Epta Consortium"],

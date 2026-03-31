@@ -44,6 +44,12 @@ class DiscordReader {
   /// Matches lines indicating a changelog, e.g. "Changelog:", "Release Notes:".
   static final RegExp _changelogLabelRegex =
       RegExp(r'(^|\s)(changelog|change\s*log|release\s*notes?)\s*s?\s*:', caseSensitive: false);
+
+  /// Matches lines that start a new labeled section, e.g. "Download:", "Thread:", "Forum Link:".
+  /// Used to break multi-line label merging so sections don't bleed into each other.
+  /// The negative lookahead `(?!\/)` avoids matching URL colons like "https://".
+  static final RegExp _anySectionLabelRegex =
+      RegExp(r'^\s*\*{0,2}\w[\w\s]{0,20}:(?!\/)', caseSensitive: false);
   static const String noscrapeReaction = "🕸️";
   static int apiCallsLastRun = 0;
 
@@ -338,24 +344,38 @@ class DiscordReader {
     }
   }
 
+  /// Merges label-only header lines (dependency/changelog) with ALL subsequent
+  /// lines that belong to the same section. A section ends at a blank line,
+  /// another label line, or end-of-input.
   @visibleForTesting
-  static Future<(String?, String?, String?)> getUrlsFromMessage(List<String> messageLines) async {
-    final forumUrl = getForumUrlFromMessage(messageLines);
-
-    // Merge label-only lines (no URL) with the next line so that split
-    // "Changelog:\n<url>" or "Requires:\n<url>" is treated as one logical line.
+  static List<String> mergeLabelSections(List<String> messageLines) {
     final mergedLines = <String>[];
     for (var i = 0; i < messageLines.length; i++) {
       final line = messageLines[i];
       if (!_urlFinderRegex.hasMatch(line) &&
           i + 1 < messageLines.length &&
           (_changelogLabelRegex.hasMatch(line) || _dependencyLabelRegex.hasMatch(line))) {
-        mergedLines.add('$line ${messageLines[i + 1]}');
-        i++;
+        var merged = line;
+        while (i + 1 < messageLines.length &&
+            messageLines[i + 1].trim().isNotEmpty &&
+            !_anySectionLabelRegex.hasMatch(messageLines[i + 1]) &&
+            !_forumMarkdownRegex.hasMatch(messageLines[i + 1])) {
+          i++;
+          merged += ' ${messageLines[i]}';
+        }
+        mergedLines.add(merged);
       } else {
         mergedLines.add(line);
       }
     }
+    return mergedLines;
+  }
+
+  @visibleForTesting
+  static Future<(String?, String?, String?)> getUrlsFromMessage(List<String> messageLines) async {
+    final forumUrl = getForumUrlFromMessage(messageLines);
+
+    final mergedLines = mergeLabelSections(messageLines);
 
     // Exclude URLs from lines labeled as dependencies or changelogs.
     final downloadyUrls = mergedLines
@@ -402,10 +422,11 @@ class DiscordReader {
   /// dependency links first and the mod's own links at the bottom.
   @visibleForTesting
   static String? getForumUrlFromMessage(List<String> messageLines) {
+    final mergedLines = mergeLabelSections(messageLines);
     String? labeledForumUrl;
     String? lastAmbiguousForumUrl;
 
-    for (final line in messageLines) {
+    for (final line in mergedLines) {
       final forumUrls = _urlFinderRegex
           .allMatches(line)
           .map((m) => m.group(0))
