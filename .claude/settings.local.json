@@ -10,7 +10,20 @@
       "Bash(ls:*)",
       "Bash(powershell -Command \"\\(Get-Content discord_raw_cache.json | Measure-Object -Line\\).Lines\")",
       "Bash(powershell -Command \"\n# Look for patterns in the cache file where there are multiple messages with downloads\n$content = Get-Content discord_raw_cache.json | Select-Object -First 100 -Skip 9229\n$content | Where-Object { $_ -match ''github\\\\.com.*releases|dropbox|drive\\\\.google|mediafire|mega\\\\.nz'' } | Select-Object -First 10\n\")",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Read(//f/Code/Starsector/QBMBAMM/**)",
+      "Bash(openspec status:*)",
+      "Bash(openspec instructions:*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); links=[l for l in d.get\\('links',[]\\) if l.get\\('isExternal'\\)]; [print\\(f\\\\\"{l['url']}  |  {l['text']}\\\\\"\\) for l in links[:10]]\")",
+      "Bash(mkdir -p openspec/specs/qb-download-resolution)",
+      "Bash(cp openspec/changes/qb-download-resolution/specs/qb-download-resolution/spec.md openspec/specs/qb-download-resolution/spec.md)",
+      "Bash(mkdir -p openspec/changes/archive)",
+      "Bash([ -d \"openspec/changes/archive/2026-04-16-qb-download-resolution\" ])",
+      "Bash(mv openspec/changes/qb-download-resolution openspec/changes/archive/2026-04-16-qb-download-resolution)",
+      "Bash(curl -sL \"https://github.com/theRoastSuckling/QBForumModData/raw/refs/heads/main/forum-data-bundle.json\")",
+      "Bash([ -d \"F:/Code/Starsector/Mod_Repo_Scraper/openspec/changes/archive/2026-04-16-qb-bundle-publishing\" ])",
+      "Bash(grep -E \"\\\\.\\(dart|yaml\\)$\")",
+      "Bash(openspec new *)"
     ]
   }
 }

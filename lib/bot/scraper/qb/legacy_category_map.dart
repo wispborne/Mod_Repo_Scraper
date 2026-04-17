@@ -1,0 +1,9 @@
+const Map<String, String> legacyCategoryMap = {
+  'Factions': 'Faction Mods',
+  'Miscellany': 'Miscellaneous Mods',
+  'Utility mods': 'Standalone Utilities',
+  'Add-On Mods': 'Content Expansions',
+  'Mission-only': 'Content Expansions',
+  'Compilations': 'Megamods',
+  'Total Conversions': 'Megamods',
+};

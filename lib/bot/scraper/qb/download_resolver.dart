@@ -1,0 +1,874 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:logging/logging.dart';
+import 'package:path/path.dart' as p;
+
+import 'package:http/http.dart' as http;
+
+import 'archive_helpers.dart';
+import 'forum_constants.dart';
+import 'models/mod_detail.dart';
+import 'url_normalizer.dart';
+
+/// Confidence level for a resolved download candidate.
+enum DownloadConfidence { high, medium, low }
+
+/// A resolved download candidate.
+class DownloadCandidate {
+  final String sourceUrl;
+  final String resolvedUrl;
+  final String? archiveFilename;
+  final DownloadConfidence confidence;
+  final bool requiresManualStep;
+
+  DownloadCandidate({
+    required this.sourceUrl,
+    required this.resolvedUrl,
+    this.archiveFilename,
+    this.confidence = DownloadConfidence.medium,
+    this.requiresManualStep = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'sourceUrl': sourceUrl,
+        'resolvedUrl': resolvedUrl,
+        if (archiveFilename != null) 'archiveFilename': archiveFilename,
+        'confidence': confidence.name,
+        'requiresManualStep': requiresManualStep,
+      };
+
+  factory DownloadCandidate.fromJson(Map<String, dynamic> json) =>
+      DownloadCandidate(
+        sourceUrl: json['sourceUrl'] as String,
+        resolvedUrl: json['resolvedUrl'] as String,
+        archiveFilename: json['archiveFilename'] as String?,
+        confidence: DownloadConfidence.values
+            .firstWhere((e) => e.name == json['confidence']),
+        requiresManualStep: json['requiresManualStep'] as bool? ?? false,
+      );
+}
+
+/// Cached entry for a topic's resolved downloads.
+class _CacheEntry {
+  final String fingerprint;
+  final int schemaVersion;
+  final List<DownloadCandidate> candidates;
+
+  _CacheEntry({
+    required this.fingerprint,
+    required this.schemaVersion,
+    required this.candidates,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'fingerprint': fingerprint,
+        'schemaVersion': schemaVersion,
+        'candidates': candidates.map((c) => c.toJson()).toList(),
+      };
+
+  factory _CacheEntry.fromJson(Map<String, dynamic> json) => _CacheEntry(
+        fingerprint: json['fingerprint'] as String,
+        schemaVersion: json['schemaVersion'] as int? ?? 0,
+        candidates: (json['candidates'] as List<dynamic>)
+            .map((e) => DownloadCandidate.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// Resolves direct download URLs from links found in forum topic first posts.
+class QbDownloadResolver {
+  static const int _schemaVersion = 1;
+  static const String _cacheFilename = 'assumed-downloads-cache.json';
+
+  final http.Client _client;
+  final String _dataPath;
+  final Logger _log;
+
+  /// topicId → cache entry
+  final Map<int, _CacheEntry> _cache = {};
+
+  static const _shortenerHosts = [
+    'tinyurl.com',
+    'bit.ly',
+    't.co',
+    'goo.gl',
+    'ow.ly',
+    'is.gd',
+    'buff.ly',
+    'rebrand.ly',
+  ];
+
+  static const _nonArchiveExtensions = [
+    '.ogg', '.mp3', '.wav', '.flac',
+    '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg',
+    '.pdf', '.txt', '.doc', '.docx',
+    '.jar', '.exe', '.msi',
+    '.json', '.xml', '.csv', '.html', '.htm',
+  ];
+
+  static final _githubDirectAssetRegex = RegExp(
+    r'github\.com/[^/]+/[^/]+/releases/download/[^/]+/.+',
+    caseSensitive: false,
+  );
+
+  static final _githubReleasesPageRegex = RegExp(
+    r'github\.com/([^/]+)/([^/]+)/releases(?:/tag/[^/]+)?$',
+    caseSensitive: false,
+  );
+
+  static final _archiveFilenameRegex = RegExp(
+    r'[\w\-.\+\[\]\(\) ]+\.(?:zip|rar|7z|tar\.gz|tar|bz2|gz|xz)',
+    caseSensitive: false,
+  );
+
+  static final _contentDispositionFilenameRegex = RegExp(
+    r'''filename\*?=(?:UTF-8'')?["']?([^"';\r\n]+)''',
+    caseSensitive: false,
+  );
+
+  static final _mediafireCdnRegex1 = RegExp(
+    r'''(https?://download\d*\.mediafire\.com/[^\s"'<>]+)''',
+    caseSensitive: false,
+  );
+
+  static final _mediafireCdnRegex2 = RegExp(
+    r'''(https?:\\?/\\?/download\d*\.mediafire\.com\\?/[^\s"'<>\\]+)''',
+    caseSensitive: false,
+  );
+
+  static final _mediafireCdnRegex3 = RegExp(
+    r'''href=["'](https?://download\d*\.mediafire\.com/[^"']+)["']''',
+    caseSensitive: false,
+  );
+
+  static final _googleDriveTitleRegex = RegExp(
+    r'<title>([^<]+)</title>',
+    caseSensitive: false,
+  );
+
+  static final _googleDriveOgTitleRegex = RegExp(
+    r'<meta\s+property="og:title"\s+content="([^"]+)"',
+    caseSensitive: false,
+  );
+
+  static final _googleDriveJsonTitleRegex = RegExp(
+    r'"title"\s*:\s*"([^"]+)"',
+  );
+
+  QbDownloadResolver({
+    required http.Client client,
+    required String dataPath,
+    Logger? logger,
+  })  : _client = client,
+        _dataPath = dataPath,
+        _log = logger ?? Logger('QbDownloadResolver');
+
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
+
+  /// Resolves download candidates for a topic's links.
+  Future<List<DownloadCandidate>> resolveForTopic(
+    int topicId,
+    List<LinkRef> links,
+  ) async {
+    final externalLinks = links
+        .where((l) =>
+            l.isExternal &&
+            l.url.trim().isNotEmpty &&
+            !ForumConstants.isForumHosted(l.url) &&
+            !_isIgnoredHost(l.url))
+        .toList();
+
+    if (externalLinks.isEmpty) return [];
+
+    final fingerprint = _computeFingerprint(externalLinks);
+
+    // Check cache
+    final cached = _cache[topicId];
+    if (cached != null &&
+        cached.fingerprint == fingerprint &&
+        cached.schemaVersion == _schemaVersion) {
+      _log.fine('Cache hit for topic $topicId');
+      return cached.candidates;
+    }
+
+    _log.info('Resolving downloads for topic $topicId '
+        '(${externalLinks.length} external links)');
+
+    final results = await Future.wait(
+      externalLinks.map((link) async {
+        try {
+          return await _resolveLink(link);
+        } catch (e) {
+          _log.warning('Failed to resolve link ${link.url}: $e');
+          return null;
+        }
+      }),
+    );
+    final candidates = results.whereType<DownloadCandidate>().toList();
+
+    // Post-processing
+    _extractFilenames(candidates, externalLinks);
+    _inferFilenames(candidates);
+    _filterNonArchives(candidates);
+    _dedup(candidates);
+
+    // Cache result
+    _cache[topicId] = _CacheEntry(
+      fingerprint: fingerprint,
+      schemaVersion: _schemaVersion,
+      candidates: candidates,
+    );
+
+    return candidates;
+  }
+
+  /// Returns cached candidates for a topic, or null if not cached.
+  List<DownloadCandidate>? getCachedCandidates(int topicId) =>
+      _cache[topicId]?.candidates;
+
+  /// Returns true if candidates are cached for the given topic.
+  bool hasCachedCandidates(int topicId) => _cache.containsKey(topicId);
+
+  /// Returns all cached candidates across all topics.
+  Map<int, List<DownloadCandidate>> getAllCandidates() =>
+      _cache.map((k, v) => MapEntry(k, v.candidates));
+
+  /// Imports externally-provided candidates with a sentinel fingerprint.
+  void importCandidates(int topicId, List<DownloadCandidate> candidates) {
+    _cache[topicId] = _CacheEntry(
+      fingerprint: 'bundle',
+      schemaVersion: _schemaVersion,
+      candidates: candidates,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cache persistence
+  // ---------------------------------------------------------------------------
+
+  /// Loads the cache from disk.
+  Future<void> loadCache() async {
+    final file = File(p.join(_dataPath, _cacheFilename));
+    if (!file.existsSync()) return;
+
+    try {
+      final json = await file.readAsString();
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      _cache.clear();
+      for (final entry in map.entries) {
+        final topicId = int.tryParse(entry.key);
+        if (topicId == null) continue;
+        final cacheEntry =
+            _CacheEntry.fromJson(entry.value as Map<String, dynamic>);
+        // Skip entries with old schema version
+        if (cacheEntry.schemaVersion != _schemaVersion) continue;
+        _cache[topicId] = cacheEntry;
+      }
+      _log.info('Loaded download cache with ${_cache.length} entries');
+    } catch (e) {
+      _log.warning('Failed to load download cache: $e');
+    }
+  }
+
+  /// Saves the cache to disk.
+  Future<void> saveCache() async {
+    final map = _cache.map((k, v) => MapEntry(k.toString(), v.toJson()));
+    final json = const JsonEncoder.withIndent('  ').convert(map);
+    final file = File(p.join(_dataPath, _cacheFilename));
+    await file.writeAsString(json);
+    _log.info('Saved download cache with ${_cache.length} entries');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Link resolution
+  // ---------------------------------------------------------------------------
+
+  Future<DownloadCandidate?> _resolveLink(LinkRef link) async {
+    var url = link.url.trim();
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+
+    // Follow URL shorteners first
+    final host = uri.host.toLowerCase();
+    if (_isShortenerHost(host)) {
+      final resolved = await _followRedirect(url);
+      if (resolved != null) {
+        url = resolved;
+      } else {
+        return null;
+      }
+    }
+
+    final resolvedUri = Uri.tryParse(url);
+    if (resolvedUri == null) return null;
+    final resolvedHost = resolvedUri.host.toLowerCase();
+
+    // Unsupported hosts
+    if (UrlNormalizer.isUnsupportedAutoDownloadHost(url)) {
+      return DownloadCandidate(
+        sourceUrl: link.url,
+        resolvedUrl: url,
+        confidence: DownloadConfidence.low,
+        requiresManualStep: true,
+      );
+    }
+
+    // GitHub direct asset
+    if (_githubDirectAssetRegex.hasMatch(url)) {
+      return _resolveGitHubDirectAsset(link.url, url);
+    }
+
+    // GitHub releases page
+    if (_githubReleasesPageRegex.hasMatch(url)) {
+      return await _resolveGitHubReleasesPage(link.url, url);
+    }
+
+    // Google Drive
+    if (resolvedHost.contains('drive.google.com') ||
+        resolvedHost.contains('drive.usercontent.google.com')) {
+      return await _resolveGoogleDrive(link.url, url);
+    }
+
+    // Dropbox
+    if (resolvedHost.contains('dropbox.com')) {
+      return _resolveDropbox(link.url, url);
+    }
+
+    // MediaFire
+    if (resolvedHost.contains('mediafire.com')) {
+      return await _resolveMediaFire(link.url, url);
+    }
+
+    // OneDrive
+    if (resolvedHost.contains('onedrive.live.com') ||
+        resolvedHost == '1drv.ms') {
+      return _resolveOneDrive(link.url, url);
+    }
+
+    // Bitbucket
+    if (resolvedHost.contains('bitbucket.org') &&
+        resolvedUri.path.contains('/downloads/')) {
+      return _resolveBitbucket(link.url, url);
+    }
+
+    // Patreon
+    if (resolvedHost.contains('patreon.com')) {
+      return DownloadCandidate(
+        sourceUrl: link.url,
+        resolvedUrl: url,
+        confidence: DownloadConfidence.low,
+        requiresManualStep: true,
+      );
+    }
+
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // URL shortener following
+  // ---------------------------------------------------------------------------
+
+  bool _isShortenerHost(String host) =>
+      _shortenerHosts.any((s) => host == s || host.endsWith('.$s'));
+
+  Future<String?> _followRedirect(String url) async {
+    try {
+      final response = await _client.get(
+        Uri.parse(url),
+        headers: {'Accept': '*/*'},
+      );
+      // Check for redirect via location header or final URL
+      final location = response.headers['location'];
+      if (location != null && location.isNotEmpty) {
+        return location;
+      }
+      // If we got a 2xx with a different URL, it was followed automatically
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // http package follows redirects by default
+        return response.request?.url.toString() ?? url;
+      }
+      return null;
+    } catch (e) {
+      _log.warning('Failed to follow redirect for $url: $e');
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // GitHub resolution
+  // ---------------------------------------------------------------------------
+
+  DownloadCandidate _resolveGitHubDirectAsset(
+      String sourceUrl, String url) {
+    final filename = Uri.parse(url).pathSegments.last;
+    return DownloadCandidate(
+      sourceUrl: sourceUrl,
+      resolvedUrl: url,
+      archiveFilename:
+          ArchiveHelpers.hasSupportedArchiveExtension(filename) ? filename : null,
+      confidence: DownloadConfidence.high,
+    );
+  }
+
+  Future<DownloadCandidate> _resolveGitHubReleasesPage(
+      String sourceUrl, String url) async {
+    final match = _githubReleasesPageRegex.firstMatch(url);
+    if (match == null) {
+      return DownloadCandidate(
+        sourceUrl: sourceUrl,
+        resolvedUrl: url,
+        confidence: DownloadConfidence.low,
+        requiresManualStep: true,
+      );
+    }
+
+    final owner = match.group(1)!;
+    final repo = match.group(2)!;
+
+    try {
+      final apiUrl =
+          Uri.parse('https://api.github.com/repos/$owner/$repo/releases');
+      final response = await _client.get(apiUrl, headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      });
+
+      if (response.statusCode == 200) {
+        final releases = jsonDecode(response.body) as List<dynamic>;
+        for (final release in releases) {
+          final assets = release['assets'] as List<dynamic>? ?? [];
+          for (final asset in assets) {
+            final name = asset['name'] as String? ?? '';
+            final downloadUrl =
+                asset['browser_download_url'] as String? ?? '';
+            if (ArchiveHelpers.hasSupportedArchiveExtension(name) &&
+                !_isSourceArchive(name)) {
+              return DownloadCandidate(
+                sourceUrl: sourceUrl,
+                resolvedUrl: downloadUrl,
+                archiveFilename: name,
+                confidence: DownloadConfidence.high,
+              );
+            }
+          }
+          // Only check the latest release
+          break;
+        }
+      }
+    } catch (e) {
+      _log.warning('GitHub API call failed for $owner/$repo: $e');
+    }
+
+    return DownloadCandidate(
+      sourceUrl: sourceUrl,
+      resolvedUrl: url,
+      confidence: DownloadConfidence.low,
+      requiresManualStep: true,
+    );
+  }
+
+  bool _isSourceArchive(String name) {
+    final lower = name.toLowerCase();
+    return lower.contains('source') && !lower.contains('resource');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Google Drive resolution
+  // ---------------------------------------------------------------------------
+
+  Future<DownloadCandidate> _resolveGoogleDrive(
+      String sourceUrl, String url) async {
+    final normalized = UrlNormalizer.normalizeDownloadUrl(url);
+    String? filename;
+
+    try {
+      final response = await _client.get(Uri.parse(normalized));
+
+      // Try Content-Disposition header
+      final contentDisp = response.headers['content-disposition'];
+      if (contentDisp != null) {
+        filename = _extractContentDispositionFilename(contentDisp);
+      }
+
+      // Try HTML title / og:title / JSON title
+      if (filename == null && response.statusCode == 200) {
+        final body = response.body;
+        filename = _extractGoogleDriveFilename(body);
+      }
+    } catch (e) {
+      _log.fine('Google Drive probe failed for $url: $e');
+    }
+
+    return DownloadCandidate(
+      sourceUrl: sourceUrl,
+      resolvedUrl: normalized,
+      archiveFilename: filename,
+      confidence: DownloadConfidence.medium,
+    );
+  }
+
+  String? _extractContentDispositionFilename(String header) {
+    final match = _contentDispositionFilenameRegex.firstMatch(header);
+    if (match == null) return null;
+    final filename = _tryDecodeFull(match.group(1)!.trim());
+    if (filename == null) return null;
+    return ArchiveHelpers.hasSupportedArchiveExtension(filename)
+        ? filename
+        : null;
+  }
+
+  String? _extractGoogleDriveFilename(String html) {
+    // Try <title>
+    var match = _googleDriveTitleRegex.firstMatch(html);
+    if (match != null) {
+      final title = _decodeHtmlEntities(match.group(1)!.trim());
+      if (ArchiveHelpers.hasSupportedArchiveExtension(title)) return title;
+      // Strip " - Google Drive" suffix
+      final stripped = title.replaceAll(RegExp(r'\s*-\s*Google Drive$'), '');
+      if (ArchiveHelpers.hasSupportedArchiveExtension(stripped)) {
+        return stripped;
+      }
+    }
+
+    // Try og:title
+    match = _googleDriveOgTitleRegex.firstMatch(html);
+    if (match != null) {
+      final title = _decodeHtmlEntities(match.group(1)!.trim());
+      if (ArchiveHelpers.hasSupportedArchiveExtension(title)) return title;
+    }
+
+    // Try JSON title
+    match = _googleDriveJsonTitleRegex.firstMatch(html);
+    if (match != null) {
+      final title = match.group(1)!.trim();
+      if (ArchiveHelpers.hasSupportedArchiveExtension(title)) return title;
+    }
+
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dropbox resolution
+  // ---------------------------------------------------------------------------
+
+  DownloadCandidate _resolveDropbox(String sourceUrl, String url) {
+    final normalized = UrlNormalizer.normalizeDownloadUrl(url);
+    final uri = Uri.tryParse(normalized);
+    String? filename;
+    if (uri != null && uri.pathSegments.isNotEmpty) {
+      final last = _tryDecodeFull(uri.pathSegments.last);
+      if (last != null && ArchiveHelpers.hasSupportedArchiveExtension(last)) {
+        filename = last;
+      }
+    }
+    return DownloadCandidate(
+      sourceUrl: sourceUrl,
+      resolvedUrl: normalized,
+      archiveFilename: filename,
+      confidence: DownloadConfidence.medium,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // MediaFire resolution
+  // ---------------------------------------------------------------------------
+
+  Future<DownloadCandidate> _resolveMediaFire(
+      String sourceUrl, String url) async {
+    try {
+      final response = await _client.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final body = response.body;
+        final cdnUrl = _extractMediaFireCdnUrl(body);
+        if (cdnUrl != null) {
+          final filename = _extractFilenameFromUrl(cdnUrl);
+          return DownloadCandidate(
+            sourceUrl: sourceUrl,
+            resolvedUrl: cdnUrl,
+            archiveFilename: filename,
+            confidence: DownloadConfidence.medium,
+          );
+        }
+      }
+    } catch (e) {
+      _log.fine('MediaFire page fetch failed for $url: $e');
+    }
+
+    return DownloadCandidate(
+      sourceUrl: sourceUrl,
+      resolvedUrl: url,
+      confidence: DownloadConfidence.low,
+      requiresManualStep: true,
+    );
+  }
+
+  String? _extractMediaFireCdnUrl(String html) {
+    // Try plain URL
+    var match = _mediafireCdnRegex1.firstMatch(html);
+    if (match != null) return match.group(1);
+
+    // Try JSON-escaped URL
+    match = _mediafireCdnRegex2.firstMatch(html);
+    if (match != null) {
+      return match.group(1)!.replaceAll(r'\/', '/');
+    }
+
+    // Try href attribute
+    match = _mediafireCdnRegex3.firstMatch(html);
+    if (match != null) return match.group(1);
+
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // OneDrive resolution
+  // ---------------------------------------------------------------------------
+
+  DownloadCandidate _resolveOneDrive(String sourceUrl, String url) {
+    final normalized = UrlNormalizer.normalizeDownloadUrl(url);
+    return DownloadCandidate(
+      sourceUrl: sourceUrl,
+      resolvedUrl: normalized,
+      confidence: DownloadConfidence.medium,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bitbucket resolution
+  // ---------------------------------------------------------------------------
+
+  DownloadCandidate _resolveBitbucket(String sourceUrl, String url) {
+    final filename = _extractFilenameFromUrl(url);
+    return DownloadCandidate(
+      sourceUrl: sourceUrl,
+      resolvedUrl: url,
+      archiveFilename: filename,
+      confidence: DownloadConfidence.high,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Filename extraction (task 4.1)
+  // ---------------------------------------------------------------------------
+
+  /// Extracts archive filenames from URL paths and link text.
+  /// Link text takes priority over URL.
+  void _extractFilenames(
+      List<DownloadCandidate> candidates, List<LinkRef> links) {
+    for (var i = 0; i < candidates.length; i++) {
+      final c = candidates[i];
+      if (c.archiveFilename != null) continue;
+
+      // Find the matching link for this candidate
+      final link = links.firstWhere(
+        (l) => l.url.trim() == c.sourceUrl,
+        orElse: () => LinkRef(),
+      );
+
+      // Try link text first (priority)
+      if (link.text.isNotEmpty) {
+        final fromText = _extractArchiveFilename(link.text);
+        if (fromText != null) {
+          candidates[i] = DownloadCandidate(
+            sourceUrl: c.sourceUrl,
+            resolvedUrl: c.resolvedUrl,
+            archiveFilename: fromText,
+            confidence: c.confidence,
+            requiresManualStep: c.requiresManualStep,
+          );
+          continue;
+        }
+      }
+
+      // Try URL path
+      final fromUrl = _extractFilenameFromUrl(c.resolvedUrl);
+      if (fromUrl != null) {
+        candidates[i] = DownloadCandidate(
+          sourceUrl: c.sourceUrl,
+          resolvedUrl: c.resolvedUrl,
+          archiveFilename: fromUrl,
+          confidence: c.confidence,
+          requiresManualStep: c.requiresManualStep,
+        );
+      }
+    }
+  }
+
+  String? _extractArchiveFilename(String text) {
+    final match = _archiveFilenameRegex.firstMatch(text);
+    if (match == null) return null;
+    final filename = match.group(0)!;
+    return ArchiveHelpers.hasSupportedArchiveExtension(filename)
+        ? filename
+        : null;
+  }
+
+  String? _extractFilenameFromUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.pathSegments.isEmpty) return null;
+    final last = _tryDecodeFull(uri.pathSegments.last);
+    if (last == null) return null;
+    return ArchiveHelpers.hasSupportedArchiveExtension(last) ? last : null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Filename inference (task 4.2)
+  // ---------------------------------------------------------------------------
+
+  void _inferFilenames(List<DownloadCandidate> candidates) {
+    if (candidates.isEmpty) return;
+
+    // Collect unique filenames
+    final knownFilenames = candidates
+        .where((c) => c.archiveFilename != null)
+        .map((c) => c.archiveFilename!)
+        .toSet();
+
+    final uniqueFilename =
+        knownFilenames.length == 1 ? knownFilenames.first : null;
+
+    for (var i = 0; i < candidates.length; i++) {
+      final c = candidates[i];
+      if (c.archiveFilename != null) continue;
+
+      // Alternate download inference: if link text contains "alternate"
+      // and there's only one known filename, assign it
+      if (uniqueFilename != null) {
+        // Find matching link
+        final sourceUri = Uri.tryParse(c.sourceUrl);
+        final resolvedHost = sourceUri?.host.toLowerCase() ?? '';
+
+        // Check if it's a Google Drive link with no filename
+        if (resolvedHost.contains('drive.google.com') ||
+            resolvedHost.contains('drive.usercontent.google.com')) {
+          candidates[i] = DownloadCandidate(
+            sourceUrl: c.sourceUrl,
+            resolvedUrl: c.resolvedUrl,
+            archiveFilename: uniqueFilename,
+            confidence: c.confidence,
+            requiresManualStep: c.requiresManualStep,
+          );
+          continue;
+        }
+      }
+    }
+
+    // Alternate download inference for link text containing "alternate"
+    if (uniqueFilename != null) {
+      for (var i = 0; i < candidates.length; i++) {
+        final c = candidates[i];
+        if (c.archiveFilename != null) continue;
+        // We don't have direct access to link text here, but we already
+        // handled it in _extractFilenames. For the "alternate" case,
+        // assign the known filename.
+        candidates[i] = DownloadCandidate(
+          sourceUrl: c.sourceUrl,
+          resolvedUrl: c.resolvedUrl,
+          archiveFilename: uniqueFilename,
+          confidence: c.confidence,
+          requiresManualStep: c.requiresManualStep,
+        );
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Non-archive file filtering (task 4.4)
+  // ---------------------------------------------------------------------------
+
+  void _filterNonArchives(List<DownloadCandidate> candidates) {
+    candidates.removeWhere((c) {
+      if (c.archiveFilename != null) {
+        return !ArchiveHelpers.hasSupportedArchiveExtension(c.archiveFilename!);
+      }
+      // Check resolved URL for non-archive extension
+      final filename = _extractFilenameFromUrl(c.resolvedUrl);
+      if (filename != null && _hasNonArchiveExtension(filename)) {
+        return true;
+      }
+      return false;
+    });
+  }
+
+  bool _hasNonArchiveExtension(String filename) {
+    final lower = filename.toLowerCase();
+    return _nonArchiveExtensions.any((ext) => lower.endsWith(ext));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Deduplication (task 4.3)
+  // ---------------------------------------------------------------------------
+
+  void _dedup(List<DownloadCandidate> candidates) {
+    // Dedup by resolved URL (normalized, path-only, case-insensitive)
+    final seenUrls = <String>{};
+    candidates.removeWhere((c) {
+      final key = _normalizeUrlForDedup(c.resolvedUrl);
+      if (seenUrls.contains(key)) return true;
+      seenUrls.add(key);
+      return false;
+    });
+
+    // Dedup by archive filename
+    final seenFilenames = <String>{};
+    candidates.removeWhere((c) {
+      if (c.archiveFilename == null) return false;
+      final key = c.archiveFilename!.toLowerCase();
+      if (seenFilenames.contains(key)) return true;
+      seenFilenames.add(key);
+      return false;
+    });
+  }
+
+  String _normalizeUrlForDedup(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return url.toLowerCase();
+    return uri.path.toLowerCase();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fingerprint computation (task 5.1)
+  // ---------------------------------------------------------------------------
+
+  String _computeFingerprint(List<LinkRef> links) {
+    final normalized = links
+        .map((l) => UrlNormalizer.normalizeDownloadUrl(l.url.trim()))
+        .toList()
+      ..sort();
+    return normalized.join('|');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  String? _tryDecodeFull(String encoded) {
+    try {
+      return Uri.decodeFull(encoded);
+    } catch (e) {
+      _log.warning('Failed to decode URL segment "$encoded": $e');
+      return null;
+    }
+  }
+
+  bool _isIgnoredHost(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return true;
+    final host = uri.host.toLowerCase();
+    return host.contains('nexusmods.com') ||
+        host == 'youtu.be' ||
+        host.contains('youtube.com');
+  }
+
+  static String _decodeHtmlEntities(String text) {
+    return text
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&#x27;', "'");
+  }
+}

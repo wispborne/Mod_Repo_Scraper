@@ -81,6 +81,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     _$discordForumChannelIdsAndGameVersions,
     opt: true,
   );
+  static bool _$enableModRepo(BotConfig v) => v.enableModRepo;
+  static const Field<BotConfig, bool> _f$enableModRepo = Field(
+    'enableModRepo',
+    _$enableModRepo,
+    opt: true,
+    def: true,
+  );
   static bool _$keepAllGameVersionsFromSameSource(BotConfig v) =>
       v.keepAllGameVersionsFromSameSource;
   static const Field<BotConfig, bool> _f$keepAllGameVersionsFromSameSource =
@@ -97,6 +104,54 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: false,
   );
+  static bool _$enableQb(BotConfig v) => v.enableQb;
+  static const Field<BotConfig, bool> _f$enableQb = Field(
+    'enableQb',
+    _$enableQb,
+    opt: true,
+    def: false,
+  );
+  static String _$qbDataPath(BotConfig v) => v.qbDataPath;
+  static const Field<BotConfig, String> _f$qbDataPath = Field(
+    'qbDataPath',
+    _$qbDataPath,
+    opt: true,
+    def: 'qb_data',
+  );
+  static String _$qbScope(BotConfig v) => v.qbScope;
+  static const Field<BotConfig, String> _f$qbScope = Field(
+    'qbScope',
+    _$qbScope,
+    opt: true,
+    def: 'newData',
+  );
+  static Set<String> _$qbBoards(BotConfig v) => v.qbBoards;
+  static const Field<BotConfig, Set<String>> _f$qbBoards = Field(
+    'qbBoards',
+    _$qbBoards,
+    opt: true,
+    def: const {'main', 'libraries'},
+  );
+  static int _$qbDelayMs(BotConfig v) => v.qbDelayMs;
+  static const Field<BotConfig, int> _f$qbDelayMs = Field(
+    'qbDelayMs',
+    _$qbDelayMs,
+    opt: true,
+    def: 1500,
+  );
+  static String? _$qbRepoPath(BotConfig v) => v.qbRepoPath;
+  static const Field<BotConfig, String> _f$qbRepoPath = Field(
+    'qbRepoPath',
+    _$qbRepoPath,
+    opt: true,
+  );
+  static int _$qbLesserBoardMaxPages(BotConfig v) => v.qbLesserBoardMaxPages;
+  static const Field<BotConfig, int> _f$qbLesserBoardMaxPages = Field(
+    'qbLesserBoardMaxPages',
+    _$qbLesserBoardMaxPages,
+    opt: true,
+    def: 20,
+  );
 
   @override
   final MappableFields<BotConfig> fields = const {
@@ -111,8 +166,16 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #discordServerId: _f$discordServerId,
     #discordForumChannelIdsAndGameVersions:
         _f$discordForumChannelIdsAndGameVersions,
+    #enableModRepo: _f$enableModRepo,
     #keepAllGameVersionsFromSameSource: _f$keepAllGameVersionsFromSameSource,
     #generateDebugHtml: _f$generateDebugHtml,
+    #enableQb: _f$enableQb,
+    #qbDataPath: _f$qbDataPath,
+    #qbScope: _f$qbScope,
+    #qbBoards: _f$qbBoards,
+    #qbDelayMs: _f$qbDelayMs,
+    #qbRepoPath: _f$qbRepoPath,
+    #qbLesserBoardMaxPages: _f$qbLesserBoardMaxPages,
   };
 
   static BotConfig _instantiate(DecodingData data) {
@@ -129,10 +192,18 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       discordForumChannelIdsAndGameVersions: data.dec(
         _f$discordForumChannelIdsAndGameVersions,
       ),
+      enableModRepo: data.dec(_f$enableModRepo),
       keepAllGameVersionsFromSameSource: data.dec(
         _f$keepAllGameVersionsFromSameSource,
       ),
       generateDebugHtml: data.dec(_f$generateDebugHtml),
+      enableQb: data.dec(_f$enableQb),
+      qbDataPath: data.dec(_f$qbDataPath),
+      qbScope: data.dec(_f$qbScope),
+      qbBoards: data.dec(_f$qbBoards),
+      qbDelayMs: data.dec(_f$qbDelayMs),
+      qbRepoPath: data.dec(_f$qbRepoPath),
+      qbLesserBoardMaxPages: data.dec(_f$qbLesserBoardMaxPages),
     );
   }
 
@@ -208,8 +279,16 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     String? nexusApiToken,
     String? discordServerId,
     Map<String, String>? discordForumChannelIdsAndGameVersions,
+    bool? enableModRepo,
     bool? keepAllGameVersionsFromSameSource,
     bool? generateDebugHtml,
+    bool? enableQb,
+    String? qbDataPath,
+    String? qbScope,
+    Set<String>? qbBoards,
+    int? qbDelayMs,
+    String? qbRepoPath,
+    int? qbLesserBoardMaxPages,
   });
   BotConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -244,8 +323,16 @@ class _BotConfigCopyWithImpl<$R, $Out>
     Object? nexusApiToken = $none,
     Object? discordServerId = $none,
     Object? discordForumChannelIdsAndGameVersions = $none,
+    bool? enableModRepo,
     bool? keepAllGameVersionsFromSameSource,
     bool? generateDebugHtml,
+    bool? enableQb,
+    String? qbDataPath,
+    String? qbScope,
+    Set<String>? qbBoards,
+    int? qbDelayMs,
+    Object? qbRepoPath = $none,
+    int? qbLesserBoardMaxPages,
   }) => $apply(
     FieldCopyWithData({
       if (lessScraping != null) #lessScraping: lessScraping,
@@ -260,9 +347,18 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (discordForumChannelIdsAndGameVersions != $none)
         #discordForumChannelIdsAndGameVersions:
             discordForumChannelIdsAndGameVersions,
+      if (enableModRepo != null) #enableModRepo: enableModRepo,
       if (keepAllGameVersionsFromSameSource != null)
         #keepAllGameVersionsFromSameSource: keepAllGameVersionsFromSameSource,
       if (generateDebugHtml != null) #generateDebugHtml: generateDebugHtml,
+      if (enableQb != null) #enableQb: enableQb,
+      if (qbDataPath != null) #qbDataPath: qbDataPath,
+      if (qbScope != null) #qbScope: qbScope,
+      if (qbBoards != null) #qbBoards: qbBoards,
+      if (qbDelayMs != null) #qbDelayMs: qbDelayMs,
+      if (qbRepoPath != $none) #qbRepoPath: qbRepoPath,
+      if (qbLesserBoardMaxPages != null)
+        #qbLesserBoardMaxPages: qbLesserBoardMaxPages,
     }),
   );
   @override
@@ -280,6 +376,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
       #discordForumChannelIdsAndGameVersions,
       or: $value.discordForumChannelIdsAndGameVersions,
     ),
+    enableModRepo: data.get(#enableModRepo, or: $value.enableModRepo),
     keepAllGameVersionsFromSameSource: data.get(
       #keepAllGameVersionsFromSameSource,
       or: $value.keepAllGameVersionsFromSameSource,
@@ -287,6 +384,16 @@ class _BotConfigCopyWithImpl<$R, $Out>
     generateDebugHtml: data.get(
       #generateDebugHtml,
       or: $value.generateDebugHtml,
+    ),
+    enableQb: data.get(#enableQb, or: $value.enableQb),
+    qbDataPath: data.get(#qbDataPath, or: $value.qbDataPath),
+    qbScope: data.get(#qbScope, or: $value.qbScope),
+    qbBoards: data.get(#qbBoards, or: $value.qbBoards),
+    qbDelayMs: data.get(#qbDelayMs, or: $value.qbDelayMs),
+    qbRepoPath: data.get(#qbRepoPath, or: $value.qbRepoPath),
+    qbLesserBoardMaxPages: data.get(
+      #qbLesserBoardMaxPages,
+      or: $value.qbLesserBoardMaxPages,
     ),
   );
 

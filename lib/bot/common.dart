@@ -95,14 +95,35 @@ class Common {
         discordServerId: properties['discord_serverId'],
         discordForumChannelIdsAndGameVersions:
             _parseForumChannelIds(properties['discord_forumChannelIdsAndGameVersions']),
+        enableModRepo: properties['enable_mod_repo']?.toLowerCase() != 'false',
         keepAllGameVersionsFromSameSource:
             properties['keep_all_game_versions_from_same_source']?.toLowerCase() == 'true',
         generateDebugHtml: properties['generate_debug_html']?.toLowerCase() == 'true',
+        enableQb: properties['enable_qb']?.toLowerCase() == 'true',
+        qbDataPath: _trimOrDefault(properties['qb_data_path'], 'qb_data')!,
+        qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
+        qbBoards: _parseQbBoards(properties['qb_boards']),
+        qbDelayMs: int.tryParse(properties['qb_delay_ms'] ?? '') ?? 1500,
+        qbRepoPath: _trimOrDefault(properties['qb_repo_path'], null),
+        qbLesserBoardMaxPages:
+            int.tryParse(properties['qb_lesser_board_max_pages'] ?? '') ?? 20,
       );
     } catch (e) {
       stderr.writeln(e);
       return null;
     }
+  }
+
+  /// Returns [value] trimmed, or [defaultValue] if blank/null.
+  static String? _trimOrDefault(String? value, String? defaultValue) {
+    final trimmed = value?.trim();
+    return (trimmed != null && trimmed.isNotEmpty) ? trimmed : defaultValue;
+  }
+
+  /// Parses "main,libraries,lesser" into a Set of board names.
+  static Set<String> _parseQbBoards(String? value) {
+    if (value == null || value.trim().isEmpty) return {'main', 'libraries', 'lesser'};
+    return value.split(',').map((s) => s.trim().toLowerCase()).where((s) => s.isNotEmpty).toSet();
   }
 
   /// Parses "channelId1:gameVersion1,channelId2:gameVersion2" into a Map.
@@ -178,8 +199,16 @@ class BotConfig with BotConfigMappable {
   final String? nexusApiToken;
   final String? discordServerId;
   final Map<String, String>? discordForumChannelIdsAndGameVersions;
+  final bool enableModRepo;
   final bool keepAllGameVersionsFromSameSource;
   final bool generateDebugHtml;
+  final bool enableQb;
+  final String qbDataPath;
+  final String qbScope;
+  final Set<String> qbBoards;
+  final int qbDelayMs;
+  final String? qbRepoPath;
+  final int qbLesserBoardMaxPages;
 
   const BotConfig({
     required this.lessScraping,
@@ -192,7 +221,15 @@ class BotConfig with BotConfigMappable {
     this.nexusApiToken,
     this.discordServerId,
     this.discordForumChannelIdsAndGameVersions,
+    this.enableModRepo = true,
     this.keepAllGameVersionsFromSameSource = false,
     this.generateDebugHtml = false,
+    this.enableQb = false,
+    this.qbDataPath = 'qb_data',
+    this.qbScope = 'newData',
+    this.qbBoards = const {'main', 'libraries'},
+    this.qbDelayMs = 1500,
+    this.qbRepoPath,
+    this.qbLesserBoardMaxPages = 20,
   });
 }
