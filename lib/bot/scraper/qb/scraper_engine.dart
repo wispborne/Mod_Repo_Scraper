@@ -89,9 +89,15 @@ class QbScraperEngine {
       }
 
       if (modIndex.unknownLegacyCategories.isNotEmpty) {
+        final deduped = modIndex.unknownLegacyCategories
+            .map((s) => s.toLowerCase())
+            .toSet()
+            .toList()
+          ..sort();
+        // QbModIndexScraper.scrape() already logged the warning; just surface
+        // it on the job status.
         currentJob.errorMessage =
-            'Unmapped legacy categories: ${modIndex.unknownLegacyCategories.toSet().join(', ')}';
-        _log.warning(currentJob.errorMessage!);
+            'Unmapped legacy categories (update lib/bot/scraper/qb/legacy_category_map.dart): ${deduped.join(', ')}';
       }
 
       // --- Board Scraping ---

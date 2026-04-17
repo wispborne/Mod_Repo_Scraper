@@ -12,7 +12,7 @@ class ForumConstants {
   static const int lesserBoardMaxPages = 20;
   static const String libraryBoardUrl =
       'https://$forumHost/forum/index.php?board=9.';
-  static const String libraryCategory = 'libraries';
+  static const String libraryCategory = 'Libraries';
 
   static String topicUrl(int topicId) =>
       'https://$forumHost/forum/index.php?topic=$topicId.0';
@@ -22,16 +22,10 @@ class ForumConstants {
       boardBaseUrl.isNotEmpty &&
       boardBaseUrl.toLowerCase().startsWith(libraryBoardUrl.toLowerCase());
 
-  static bool isLibraryThreadTitle(String? title) {
-    if (title == null || title.isEmpty) return false;
-    final t = title.trimLeft();
-    if (t.length < 2 || t[0] != '[') return false;
-    var i = 1;
-    while (i < t.length && t[i] == ' ') {
-      i++;
-    }
-    return i < t.length && _isDigit(t[i]);
-  }
+  static final RegExp _libraryTitlePrefix = RegExp(r'^\[\s*\d');
+
+  static bool isLibraryThreadTitle(String? title) =>
+      title != null && _libraryTitlePrefix.hasMatch(title.trimLeft());
 
   static bool isLibraryCategoryName(String? category) {
     if (category == null || category.trim().isEmpty) return false;
@@ -91,9 +85,9 @@ class ForumConstants {
 
   static String guessCategoryFromTitle(String title) {
     final lower = title.toLowerCase();
-    if (lower.contains('faction')) return 'factions';
-    if (lower.contains('portrait')) return 'portraits';
-    if (lower.contains('flag')) return 'flags';
+    if (lower.contains('faction')) return 'Faction Mods';
+    if (lower.contains('portrait')) return 'Portrait Packs';
+    if (lower.contains('flag')) return 'Flag Packs';
     return uncategorizedCategory;
   }
 
@@ -118,7 +112,4 @@ class ForumConstants {
         host.endsWith('.youtube.com') ||
         host == 'youtube.com';
   }
-
-  static bool _isDigit(String ch) =>
-      ch.codeUnitAt(0) >= 48 && ch.codeUnitAt(0) <= 57;
 }

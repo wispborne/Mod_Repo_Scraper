@@ -1,5 +1,7 @@
+import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 import 'forum_constants.dart';
 import 'legacy_category_map.dart';
@@ -9,6 +11,7 @@ class ModIndexCategoriesResult {
   Map<int, String> mainTopicCategoryMap = {};
   Map<int, String> archivedTopicCategoryMap = {};
   Set<String> mainCategories = {};
+  Set<String> mainCategoriesLower = {};
   List<String> unknownLegacyCategories = [];
 }
 
@@ -51,15 +54,16 @@ class QbModIndexScraper {
         return result;
       }
 
-      final mainMap = _extractTopicCategoriesFromPost(allPosts[0]);
+      final mainMap = extractTopicCategoriesFromPost(allPosts[0]);
       result.mainTopicCategoryMap = mainMap;
-      result.mainCategories =
-          mainMap.values.map((v) => v.toLowerCase()).toSet();
+      result.mainCategories = mainMap.values.toSet();
+      result.mainCategoriesLower =
+          result.mainCategories.map((v) => v.toLowerCase()).toSet();
 
       for (var i = 1; i < allPosts.length; i++) {
         Map<int, String> archivedMap;
         try {
-          archivedMap = _extractTopicCategoriesFromPost(allPosts[i]);
+          archivedMap = extractTopicCategoriesFromPost(allPosts[i]);
         } catch (e) {
           _log.warning('Failed to extract categories from post $i: $e');
           continue;
@@ -68,11 +72,12 @@ class QbModIndexScraper {
           if (mainMap.containsKey(entry.key)) continue;
 
           var normalized = _normalizeCategory(entry.value);
-          if (!result.mainCategories.contains(normalized.toLowerCase())) {
+          if (!result.mainCategoriesLower.contains(normalized.toLowerCase())) {
             // Try legacy map (case-insensitive lookup)
             final legacyMapped = _lookupLegacy(normalized);
             if (legacyMapped != null &&
-                result.mainCategories.contains(legacyMapped.toLowerCase())) {
+                result.mainCategoriesLower
+                    .contains(legacyMapped.toLowerCase())) {
               normalized = legacyMapped;
             } else {
               result.unknownLegacyCategories.add(normalized);
@@ -88,9 +93,26 @@ class QbModIndexScraper {
           'Parsed ${result.mainTopicCategoryMap.length} main-post topic categories');
       _log.info(
           'Parsed ${result.archivedTopicCategoryMap.length} archived-only topic categories');
+
+      final distinctCategories = result.mainCategories.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      _log.info(
+          'Mod index distinct categories: ${distinctCategories.join(', ')}');
+
+      final sampleEntries = result.mainTopicCategoryMap.entries
+          .take(10)
+          .map((e) => '${e.key}:${e.value}')
+          .join('; ');
+      _log.info('Mod index sample topic-category mappings: $sampleEntries');
+
       if (result.unknownLegacyCategories.isNotEmpty) {
+        final deduped = result.unknownLegacyCategories
+            .map((s) => s.toLowerCase())
+            .toSet()
+            .toList()
+          ..sort();
         _log.warning(
-            'Unmapped legacy categories: ${result.unknownLegacyCategories.toSet().join(', ')}');
+            'Unmapped legacy categories (update lib/bot/scraper/qb/legacy_category_map.dart): ${deduped.join(', ')}');
       }
 
       return result;
@@ -123,46 +145,35 @@ class QbModIndexScraper {
     return null;
   }
 
-  Map<int, String> _extractTopicCategoriesFromPost(dynamic postRoot) {
+  @visibleForTesting
+  static Map<int, String> extractTopicCategoriesFromPost(Element postRoot) {
     final parsed = <int, String>{};
 
     // Find table.bbc_table > tbody > tr > td > strong (category headers)
     final categoryNodes = postRoot.querySelectorAll(
-        'table.bbc_table tbody tr td strong');
+        'table.bbc_table > tbody > tr > td > strong');
 
     for (final categoryNode in categoryNodes) {
       final categoryRaw = categoryNode.text.trim();
       final category =
-          _normalizeCategory(categoryRaw.replaceAll(RegExp(r':$'), '').trim());
+          _normalizeCategory(categoryRaw.replaceAll(RegExp(r':+$'), '').trim());
       if (category.isEmpty) continue;
 
-      // Find the next sibling ul.bbc_list
-      var sibling = categoryNode.nextElementSibling;
-      // Walk up to the td if needed, then look for next ul
-      if (sibling == null) {
-        final parentTd = categoryNode.parent;
-        if (parentTd != null) {
-          // Look through children of td for a ul.bbc_list after this strong
-          var foundStrong = false;
-          for (final child in parentTd.children) {
-            if (child == categoryNode) {
-              foundStrong = true;
-              continue;
-            }
-            if (foundStrong &&
-                child.localName == 'ul' &&
-                (child.classes.contains('bbc_list'))) {
-              sibling = child;
-              break;
-            }
-          }
+      // Walk following siblings for the first ul.bbc_list.
+      Element? sibling;
+      for (Element? node = categoryNode.nextElementSibling;
+          node != null;
+          node = node.nextElementSibling) {
+        if (node.localName == 'ul' && node.classes.contains('bbc_list')) {
+          sibling = node;
+          break;
         }
       }
 
       if (sibling == null) continue;
-      if (sibling.localName != 'ul') continue;
 
-      final topicLinks = sibling.querySelectorAll('a');
+      final topicLinks = sibling.querySelectorAll(
+          "a[href*='topic='], a[href*='topic,'], a[href*='topic/']");
       for (final link in topicLinks) {
         final href = link.attributes['href'];
         final topicId = ForumConstants.tryExtractTopicId(href);

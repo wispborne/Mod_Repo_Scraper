@@ -23,7 +23,8 @@
       "Bash(curl -sL \"https://github.com/theRoastSuckling/QBForumModData/raw/refs/heads/main/forum-data-bundle.json\")",
       "Bash([ -d \"F:/Code/Starsector/Mod_Repo_Scraper/openspec/changes/archive/2026-04-16-qb-bundle-publishing\" ])",
       "Bash(grep -E \"\\\\.\\(dart|yaml\\)$\")",
-      "Bash(openspec new *)"
+      "Bash(openspec new *)",
+      "Bash(openspec list *)"
     ]
   }
 }

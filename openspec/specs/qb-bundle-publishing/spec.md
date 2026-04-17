@@ -8,7 +8,7 @@ The system SHALL define a `ForumDataBundle` with: `updatedAt` (DateTime), `index
 - **THEN** the output SHALL use indented formatting, camelCase keys, omit nulls, and use string keys for maps
 
 ### Requirement: Bundle assembly
-The system SHALL assemble a `ForumDataBundle` from the scraped data store and resolved download candidates.
+The system SHALL assemble a `ForumDataBundle` from the scraped data store and resolved download candidates. When emitting each detail into `bundle.details`, the system SHALL backfill a null `detail.category` from the matching `summary.category` in the index, so every detail record in the published bundle carries a category value whenever the index has one.
 
 #### Scenario: Create bundle
 - **WHEN** bundle creation is triggered
@@ -21,6 +21,14 @@ The system SHALL assemble a `ForumDataBundle` from the scraped data store and re
 #### Scenario: Strip local image paths
 - **WHEN** assembling the bundle
 - **THEN** all `ImageRef.localPath` values SHALL be empty string
+
+#### Scenario: Backfill detail category from summary
+- **WHEN** a detail being emitted into the bundle has `category == null` and the matching summary has a non-empty category (for example "Faction Mods")
+- **THEN** the emitted `QbModDetail.category` SHALL be set to the summary's category value
+
+#### Scenario: Respect detail category when already set
+- **WHEN** a detail being emitted into the bundle already has a non-null `category`
+- **THEN** the emitted detail SHALL retain that value and SHALL NOT be overwritten by the summary's category
 
 ### Requirement: Git publishing
 The system SHALL optionally publish the bundle to a local git repo clone.

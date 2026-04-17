@@ -56,7 +56,7 @@ class BundlePublisher {
       details[summary.topicId.toString()] = QbModDetail(
         topicId: detail.topicId,
         title: detail.title,
-        category: detail.category,
+        category: detail.category ?? summary.category,
         gameVersion: detail.gameVersion,
         author: detail.author,
         authorTitle: detail.authorTitle,

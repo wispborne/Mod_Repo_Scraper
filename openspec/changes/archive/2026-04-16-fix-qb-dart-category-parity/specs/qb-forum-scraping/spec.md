@@ -44,7 +44,7 @@ The system SHALL scrape topic 177 to build topicId-to-category mappings. It SHAL
 - **THEN** the logged set SHALL be deduplicated case-insensitively
 
 ### Requirement: Forum constants
-The system SHALL provide constants and helpers: board URLs for boards 8, 3, 9; `topicUrl(int)` builder; `topicIdRegex` matching `topic[=,/](\d+)`; `gameVersionRegex` matching `\[(\d+\.\d+[\w.\-]*)...\]`; `isForumHosted(String)` URI check; `tryExtractTopicId(String?)` returning int?; `isWipTitle(String?)` checking for "WIP"; `isLesserBoardTopicTitle(String?)` requiring version tag and no "MOVED"; `isLibraryThreadTitle(String?)` requiring bracketed version start and tolerating any Unicode whitespace between the `[` and the digit; `guessCategoryFromTitle(String)` for faction/portrait/flag keywords; `hasFileHostingLinks(List<LinkRef>)` excluding forum/Nexus/YouTube.
+The system SHALL provide constants and helpers: board URLs for boards 8, 3, 9; `topicUrl(int)` builder; `topicIdRegex` matching `topic[=,/](\d+)`; `gameVersionRegex` matching `\[(\d+\.\d+[\w.\-]*)...\]`; `isForumHosted(String)` URI check; `tryExtractTopicId(String?)` returning int?; `isWipTitle(String?)` checking for "WIP"; `isLesserBoardTopicTitle(String?)` requiring version tag and no "MOVED"; `isLibraryThreadTitle(String?)` requiring bracketed version start and tolerating any Unicode whitespace between the `[` and the digit; `libraryCategory` constant holding the display-cased value `"Libraries"`; `guessCategoryFromTitle(String)` returning the same display-cased bucket names the mod-index scraper emits (`"Faction Mods"`, `"Portrait Packs"`, `"Flag Packs"`, or `uncategorizedCategory`) for faction/portrait/flag keywords; `hasFileHostingLinks(List<LinkRef>)` excluding forum/Nexus/YouTube.
 
 #### Scenario: Extract topic ID from URL
 - **WHEN** `tryExtractTopicId` is called with `"https://fractalsoftworks.com/forum/index.php?topic=177.0"`
@@ -53,3 +53,11 @@ The system SHALL provide constants and helpers: board URLs for boards 8, 3, 9; `
 #### Scenario: Library title with non-ASCII whitespace
 - **WHEN** `isLibraryThreadTitle` is called with a title beginning with `[` followed by a tab or non-breaking space before the first digit (for example `"[\t0.98a] Foo"`)
 - **THEN** it SHALL return `true`
+
+#### Scenario: Library display-cased constant
+- **WHEN** `libraryCategory` is read
+- **THEN** its value SHALL be the display-cased string `"Libraries"` so that the library override and the mod-index normalization produce the same bucket name the UI displays
+
+#### Scenario: Title-guess display-name parity
+- **WHEN** `guessCategoryFromTitle` is called with a title containing the substring `"faction"`, `"portrait"`, or `"flag"` (case-insensitively)
+- **THEN** it SHALL return `"Faction Mods"`, `"Portrait Packs"`, or `"Flag Packs"` respectively — the same display-cased names the mod-index scraper emits for those categories — and SHALL return `uncategorizedCategory` otherwise

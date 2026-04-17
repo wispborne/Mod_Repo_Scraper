@@ -13,6 +13,7 @@ The Dart QB migration silently drops category data and publishes nulls where the
 - Add the parity-missing diagnostic logs: "Mod index distinct categories", "Mod index sample topic-category mappings" (first 10 entries), and include the legacy-map source file path in the unknown-legacy warning for both `QbModIndexScraper` and `QbScraperEngine`.
 - Case-insensitively dedupe `unknownLegacyCategories` at log time, matching C# `OrdinalIgnoreCase` distinct.
 - Pre-filter the topic-link anchor query to `a[href*='topic='], a[href*='topic,'], a[href*='topic/']` for parity with C# (cosmetic; already filtered by regex downstream).
+- Align the library display name and title-guess bucket names with the post-commit-378df5a C# values, so the library override and the board-3 title-guess fallback both produce the same display strings the mod index emits: `libraryCategory` becomes `"Libraries"` (capital L), and `guessCategoryFromTitle` returns `"Faction Mods"` / `"Portrait Packs"` / `"Flag Packs"` instead of the lowercased plurals.
 - Add regression tests covering each fixed parsing/backfill behavior plus the pre-existing cascade (library override, title-guess fallback, legacy mapping).
 
 The pre-existing shared bug where `guessCategoryFromTitle` overrides the library-only category for non-indexed library-board topics is **not** in scope — it is present in both the Dart and C# implementations, so addressing it is not a parity concern.

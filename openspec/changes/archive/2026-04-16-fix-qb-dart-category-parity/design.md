@@ -130,14 +130,21 @@ Two new test files:
 
 To expose `_extractTopicCategoriesFromPost` for testing, prefer making it package-private (remove leading underscore → `extractTopicCategoriesFromPost`) and marking it `@visibleForTesting`, rather than building a parallel test-only entry point. The method has no I/O so it's safe to expose.
 
-### D11. Ordering of fixes
+### D11. Library + title-guess display names
+
+C# commit `378df5a` changed `ForumConstants.LibraryCategory` from `"libraries"` to `"Libraries"`, and retargeted `GuessCategoryFromTitle` from `"factions"/"portraits"/"flags"` to `"Faction Mods"/"Portrait Packs"/"Flag Packs"` — the same strings the mod-index scraper emits for those categories. The motivation in the commit message ("fixed categories name mismatch") is to collapse two separate casing buckets in the UI into one. The Dart port must follow verbatim.
+
+No downstream consumer in this repo case-sensitively matches on the old strings — `ForumConstants.isLibraryCategoryName` already does a `toLowerCase()` comparison, so mod-index payloads with "Libraries" still route through the normalization path unchanged.
+
+### D12. Ordering of fixes
 
 Apply fixes in severity order so the first commit already restores correctness even if later commits slip:
 1. Sibling-walk fix (BUG 1)
 2. Bundle backfill (BUG 2)
 3. Selector + colon strip + casing + whitespace (BUGS 3, 4, 5, 7) — cluster cosmetic-but-correct fixes
 4. Logging + dedupe + anchor filter (BUGS 6, 8, 9, 10) — purely diagnostic
-5. Tests — written alongside the relevant fix, but the whole suite is landed and green before merge
+5. Display-name alignment (D11) — trailing update once the parse pipeline is sound
+6. Tests — written alongside the relevant fix, but the whole suite is landed and green before merge
 
 ## Risks / Trade-offs
 
