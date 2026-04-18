@@ -21,12 +21,11 @@ class QbModIndexScraper {
 
   static final RegExp _spaceRegex = RegExp(r'\s+');
 
-  QbModIndexScraper(this._client, {Logger? logger})
-      : _log = logger ?? Logger('QbModIndexScraper');
+  QbModIndexScraper(this._client, {Logger? logger}) : _log = logger ?? Logger('QbModIndexScraper');
 
   Future<ModIndexCategoriesResult> scrape() async {
     final result = ModIndexCategoriesResult();
-    const url = 'https://fractalsoftworks.com/forum/index.php?topic=177.0';
+    const url = ForumConstants.modIndexUrl;
 
     try {
       var response = await _client.get(Uri.parse(url));
@@ -35,19 +34,20 @@ class QbModIndexScraper {
         return result;
       }
 
-      var topicLinks = _countTopicLinks(response.body);
+      var doc = html_parser.parse(response.body);
+      var topicLinks = _countTopicLinks(doc);
       _log.info('Mod index initial topic-link count: $topicLinks');
 
       if (topicLinks < 20) {
         final allUrl = '$url;all';
         response = await _client.get(Uri.parse(allUrl));
         if (response.statusCode == 200) {
-          topicLinks = _countTopicLinks(response.body);
+          doc = html_parser.parse(response.body);
+          topicLinks = _countTopicLinks(doc);
           _log.info("Mod index ';all' topic-link count: $topicLinks");
         }
       }
 
-      final doc = html_parser.parse(response.body);
       final allPosts = doc.querySelectorAll('#forumposts .post .inner');
       if (allPosts.isEmpty) {
         _log.warning('Mod index: no post bodies found');
@@ -57,8 +57,7 @@ class QbModIndexScraper {
       final mainMap = extractTopicCategoriesFromPost(allPosts[0]);
       result.mainTopicCategoryMap = mainMap;
       result.mainCategories = mainMap.values.toSet();
-      result.mainCategoriesLower =
-          result.mainCategories.map((v) => v.toLowerCase()).toSet();
+      result.mainCategoriesLower = result.mainCategories.map((v) => v.toLowerCase()).toSet();
 
       for (var i = 1; i < allPosts.length; i++) {
         Map<int, String> archivedMap;
@@ -75,9 +74,7 @@ class QbModIndexScraper {
           if (!result.mainCategoriesLower.contains(normalized.toLowerCase())) {
             // Try legacy map (case-insensitive lookup)
             final legacyMapped = _lookupLegacy(normalized);
-            if (legacyMapped != null &&
-                result.mainCategoriesLower
-                    .contains(legacyMapped.toLowerCase())) {
+            if (legacyMapped != null && result.mainCategoriesLower.contains(legacyMapped.toLowerCase())) {
               normalized = legacyMapped;
             } else {
               result.unknownLegacyCategories.add(normalized);
@@ -89,28 +86,18 @@ class QbModIndexScraper {
         }
       }
 
-      _log.info(
-          'Parsed ${result.mainTopicCategoryMap.length} main-post topic categories');
-      _log.info(
-          'Parsed ${result.archivedTopicCategoryMap.length} archived-only topic categories');
+      _log.info('Parsed ${result.mainTopicCategoryMap.length} main-post topic categories');
+      _log.info('Parsed ${result.archivedTopicCategoryMap.length} archived-only topic categories');
 
       final distinctCategories = result.mainCategories.toList()
         ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-      _log.info(
-          'Mod index distinct categories: ${distinctCategories.join(', ')}');
+      _log.info('Mod index distinct categories: ${distinctCategories.join(', ')}');
 
-      final sampleEntries = result.mainTopicCategoryMap.entries
-          .take(10)
-          .map((e) => '${e.key}:${e.value}')
-          .join('; ');
+      final sampleEntries = result.mainTopicCategoryMap.entries.take(10).map((e) => '${e.key}:${e.value}').join('; ');
       _log.info('Mod index sample topic-category mappings: $sampleEntries');
 
       if (result.unknownLegacyCategories.isNotEmpty) {
-        final deduped = result.unknownLegacyCategories
-            .map((s) => s.toLowerCase())
-            .toSet()
-            .toList()
-          ..sort();
+        final deduped = result.unknownLegacyCategories.map((s) => s.toLowerCase()).toSet().toList()..sort();
         _log.warning(
             'Unmapped legacy categories (update lib/bot/scraper/qb/legacy_category_map.dart): ${deduped.join(', ')}');
       }
@@ -126,9 +113,7 @@ class QbModIndexScraper {
     if (raw == null || raw.trim().isEmpty) {
       return ForumConstants.uncategorizedCategory;
     }
-    final cleaned = _spaceRegex.hasMatch(raw.trim())
-        ? raw.trim().replaceAll(_spaceRegex, ' ')
-        : raw.trim();
+    final cleaned = _spaceRegex.hasMatch(raw.trim()) ? raw.trim().replaceAll(_spaceRegex, ' ') : raw.trim();
     if (cleaned.isEmpty) return ForumConstants.uncategorizedCategory;
     if (ForumConstants.isLibraryCategoryName(cleaned)) {
       return ForumConstants.libraryCategory;
@@ -150,20 +135,16 @@ class QbModIndexScraper {
     final parsed = <int, String>{};
 
     // Find table.bbc_table > tbody > tr > td > strong (category headers)
-    final categoryNodes = postRoot.querySelectorAll(
-        'table.bbc_table > tbody > tr > td > strong');
+    final categoryNodes = postRoot.querySelectorAll('table.bbc_table > tbody > tr > td > strong');
 
     for (final categoryNode in categoryNodes) {
       final categoryRaw = categoryNode.text.trim();
-      final category =
-          _normalizeCategory(categoryRaw.replaceAll(RegExp(r':+$'), '').trim());
+      final category = _normalizeCategory(categoryRaw.replaceAll(RegExp(r':+$'), '').trim());
       if (category.isEmpty) continue;
 
       // Walk following siblings for the first ul.bbc_list.
       Element? sibling;
-      for (Element? node = categoryNode.nextElementSibling;
-          node != null;
-          node = node.nextElementSibling) {
+      for (Element? node = categoryNode.nextElementSibling; node != null; node = node.nextElementSibling) {
         if (node.localName == 'ul' && node.classes.contains('bbc_list')) {
           sibling = node;
           break;
@@ -172,8 +153,7 @@ class QbModIndexScraper {
 
       if (sibling == null) continue;
 
-      final topicLinks = sibling.querySelectorAll(
-          "a[href*='topic='], a[href*='topic,'], a[href*='topic/']");
+      final topicLinks = sibling.querySelectorAll("a[href*='topic='], a[href*='topic,'], a[href*='topic/']");
       for (final link in topicLinks) {
         final href = link.attributes['href'];
         final topicId = ForumConstants.tryExtractTopicId(href);
@@ -185,8 +165,7 @@ class QbModIndexScraper {
     return parsed;
   }
 
-  int _countTopicLinks(String html) {
-    final doc = html_parser.parse(html);
+  int _countTopicLinks(Document doc) {
     final eqLinks = doc.querySelectorAll("a[href*='topic=']");
     final commaLinks = doc.querySelectorAll("a[href*='topic,']");
     return eqLinks.length + commaLinks.length;

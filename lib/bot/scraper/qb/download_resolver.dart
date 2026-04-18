@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:http/http.dart' as http;
-
 import 'archive_helpers.dart';
 import 'forum_constants.dart';
+import 'html_processor.dart';
 import 'models/mod_detail.dart';
 import 'url_normalizer.dart';
 
@@ -38,13 +38,11 @@ class DownloadCandidate {
         'requiresManualStep': requiresManualStep,
       };
 
-  factory DownloadCandidate.fromJson(Map<String, dynamic> json) =>
-      DownloadCandidate(
+  factory DownloadCandidate.fromJson(Map<String, dynamic> json) => DownloadCandidate(
         sourceUrl: json['sourceUrl'] as String,
         resolvedUrl: json['resolvedUrl'] as String,
         archiveFilename: json['archiveFilename'] as String?,
-        confidence: DownloadConfidence.values
-            .firstWhere((e) => e.name == json['confidence']),
+        confidence: DownloadConfidence.values.firstWhere((e) => e.name == json['confidence']),
         requiresManualStep: json['requiresManualStep'] as bool? ?? false,
       );
 }
@@ -100,11 +98,29 @@ class QbDownloadResolver {
   ];
 
   static const _nonArchiveExtensions = [
-    '.ogg', '.mp3', '.wav', '.flac',
-    '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg',
-    '.pdf', '.txt', '.doc', '.docx',
-    '.jar', '.exe', '.msi',
-    '.json', '.xml', '.csv', '.html', '.htm',
+    '.ogg',
+    '.mp3',
+    '.wav',
+    '.flac',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.bmp',
+    '.webp',
+    '.svg',
+    '.pdf',
+    '.txt',
+    '.doc',
+    '.docx',
+    '.jar',
+    '.exe',
+    '.msi',
+    '.json',
+    '.xml',
+    '.csv',
+    '.html',
+    '.htm',
   ];
 
   static final _githubDirectAssetRegex = RegExp(
@@ -175,10 +191,7 @@ class QbDownloadResolver {
   ) async {
     final externalLinks = links
         .where((l) =>
-            l.isExternal &&
-            l.url.trim().isNotEmpty &&
-            !ForumConstants.isForumHosted(l.url) &&
-            !_isIgnoredHost(l.url))
+            l.isExternal && l.url.trim().isNotEmpty && !ForumConstants.isForumHosted(l.url) && !_isIgnoredHost(l.url))
         .toList();
 
     if (externalLinks.isEmpty) return [];
@@ -187,9 +200,7 @@ class QbDownloadResolver {
 
     // Check cache
     final cached = _cache[topicId];
-    if (cached != null &&
-        cached.fingerprint == fingerprint &&
-        cached.schemaVersion == _schemaVersion) {
+    if (cached != null && cached.fingerprint == fingerprint && cached.schemaVersion == _schemaVersion) {
       _log.fine('Cache hit for topic $topicId');
       return cached.candidates;
     }
@@ -226,15 +237,13 @@ class QbDownloadResolver {
   }
 
   /// Returns cached candidates for a topic, or null if not cached.
-  List<DownloadCandidate>? getCachedCandidates(int topicId) =>
-      _cache[topicId]?.candidates;
+  List<DownloadCandidate>? getCachedCandidates(int topicId) => _cache[topicId]?.candidates;
 
   /// Returns true if candidates are cached for the given topic.
   bool hasCachedCandidates(int topicId) => _cache.containsKey(topicId);
 
   /// Returns all cached candidates across all topics.
-  Map<int, List<DownloadCandidate>> getAllCandidates() =>
-      _cache.map((k, v) => MapEntry(k, v.candidates));
+  Map<int, List<DownloadCandidate>> getAllCandidates() => _cache.map((k, v) => MapEntry(k, v.candidates));
 
   /// Imports externally-provided candidates with a sentinel fingerprint.
   void importCandidates(int topicId, List<DownloadCandidate> candidates) {
@@ -261,8 +270,7 @@ class QbDownloadResolver {
       for (final entry in map.entries) {
         final topicId = int.tryParse(entry.key);
         if (topicId == null) continue;
-        final cacheEntry =
-            _CacheEntry.fromJson(entry.value as Map<String, dynamic>);
+        final cacheEntry = _CacheEntry.fromJson(entry.value as Map<String, dynamic>);
         // Skip entries with old schema version
         if (cacheEntry.schemaVersion != _schemaVersion) continue;
         _cache[topicId] = cacheEntry;
@@ -327,8 +335,7 @@ class QbDownloadResolver {
     }
 
     // Google Drive
-    if (resolvedHost.contains('drive.google.com') ||
-        resolvedHost.contains('drive.usercontent.google.com')) {
+    if (resolvedHost.contains('drive.google.com') || resolvedHost.contains('drive.usercontent.google.com')) {
       return await _resolveGoogleDrive(link.url, url);
     }
 
@@ -343,14 +350,12 @@ class QbDownloadResolver {
     }
 
     // OneDrive
-    if (resolvedHost.contains('onedrive.live.com') ||
-        resolvedHost == '1drv.ms') {
+    if (resolvedHost.contains('onedrive.live.com') || resolvedHost == '1drv.ms') {
       return _resolveOneDrive(link.url, url);
     }
 
     // Bitbucket
-    if (resolvedHost.contains('bitbucket.org') &&
-        resolvedUri.path.contains('/downloads/')) {
+    if (resolvedHost.contains('bitbucket.org') && resolvedUri.path.contains('/downloads/')) {
       return _resolveBitbucket(link.url, url);
     }
 
@@ -371,8 +376,7 @@ class QbDownloadResolver {
   // URL shortener following
   // ---------------------------------------------------------------------------
 
-  bool _isShortenerHost(String host) =>
-      _shortenerHosts.any((s) => host == s || host.endsWith('.$s'));
+  bool _isShortenerHost(String host) => _shortenerHosts.any((s) => host == s || host.endsWith('.$s'));
 
   Future<String?> _followRedirect(String url) async {
     try {
@@ -401,20 +405,17 @@ class QbDownloadResolver {
   // GitHub resolution
   // ---------------------------------------------------------------------------
 
-  DownloadCandidate _resolveGitHubDirectAsset(
-      String sourceUrl, String url) {
+  DownloadCandidate _resolveGitHubDirectAsset(String sourceUrl, String url) {
     final filename = Uri.parse(url).pathSegments.last;
     return DownloadCandidate(
       sourceUrl: sourceUrl,
       resolvedUrl: url,
-      archiveFilename:
-          ArchiveHelpers.hasSupportedArchiveExtension(filename) ? filename : null,
+      archiveFilename: ArchiveHelpers.hasSupportedArchiveExtension(filename) ? filename : null,
       confidence: DownloadConfidence.high,
     );
   }
 
-  Future<DownloadCandidate> _resolveGitHubReleasesPage(
-      String sourceUrl, String url) async {
+  Future<DownloadCandidate> _resolveGitHubReleasesPage(String sourceUrl, String url) async {
     final match = _githubReleasesPageRegex.firstMatch(url);
     if (match == null) {
       return DownloadCandidate(
@@ -429,8 +430,7 @@ class QbDownloadResolver {
     final repo = match.group(2)!;
 
     try {
-      final apiUrl =
-          Uri.parse('https://api.github.com/repos/$owner/$repo/releases');
+      final apiUrl = Uri.parse('https://api.github.com/repos/$owner/$repo/releases');
       final response = await _client.get(apiUrl, headers: {
         'Accept': 'application/vnd.github.v3+json',
       });
@@ -441,10 +441,8 @@ class QbDownloadResolver {
           final assets = release['assets'] as List<dynamic>? ?? [];
           for (final asset in assets) {
             final name = asset['name'] as String? ?? '';
-            final downloadUrl =
-                asset['browser_download_url'] as String? ?? '';
-            if (ArchiveHelpers.hasSupportedArchiveExtension(name) &&
-                !_isSourceArchive(name)) {
+            final downloadUrl = asset['browser_download_url'] as String? ?? '';
+            if (ArchiveHelpers.hasSupportedArchiveExtension(name) && !_isSourceArchive(name)) {
               return DownloadCandidate(
                 sourceUrl: sourceUrl,
                 resolvedUrl: downloadUrl,
@@ -478,8 +476,7 @@ class QbDownloadResolver {
   // Google Drive resolution
   // ---------------------------------------------------------------------------
 
-  Future<DownloadCandidate> _resolveGoogleDrive(
-      String sourceUrl, String url) async {
+  Future<DownloadCandidate> _resolveGoogleDrive(String sourceUrl, String url) async {
     final normalized = UrlNormalizer.normalizeDownloadUrl(url);
     String? filename;
 
@@ -514,16 +511,14 @@ class QbDownloadResolver {
     if (match == null) return null;
     final filename = _tryDecodeFull(match.group(1)!.trim());
     if (filename == null) return null;
-    return ArchiveHelpers.hasSupportedArchiveExtension(filename)
-        ? filename
-        : null;
+    return ArchiveHelpers.hasSupportedArchiveExtension(filename) ? filename : null;
   }
 
   String? _extractGoogleDriveFilename(String html) {
     // Try <title>
     var match = _googleDriveTitleRegex.firstMatch(html);
     if (match != null) {
-      final title = _decodeHtmlEntities(match.group(1)!.trim());
+      final title = HtmlProcessor.decodeEntities(match.group(1)!.trim());
       if (ArchiveHelpers.hasSupportedArchiveExtension(title)) return title;
       // Strip " - Google Drive" suffix
       final stripped = title.replaceAll(RegExp(r'\s*-\s*Google Drive$'), '');
@@ -535,7 +530,7 @@ class QbDownloadResolver {
     // Try og:title
     match = _googleDriveOgTitleRegex.firstMatch(html);
     if (match != null) {
-      final title = _decodeHtmlEntities(match.group(1)!.trim());
+      final title = HtmlProcessor.decodeEntities(match.group(1)!.trim());
       if (ArchiveHelpers.hasSupportedArchiveExtension(title)) return title;
     }
 
@@ -575,8 +570,7 @@ class QbDownloadResolver {
   // MediaFire resolution
   // ---------------------------------------------------------------------------
 
-  Future<DownloadCandidate> _resolveMediaFire(
-      String sourceUrl, String url) async {
+  Future<DownloadCandidate> _resolveMediaFire(String sourceUrl, String url) async {
     try {
       final response = await _client.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -655,8 +649,7 @@ class QbDownloadResolver {
 
   /// Extracts archive filenames from URL paths and link text.
   /// Link text takes priority over URL.
-  void _extractFilenames(
-      List<DownloadCandidate> candidates, List<LinkRef> links) {
+  void _extractFilenames(List<DownloadCandidate> candidates, List<LinkRef> links) {
     for (var i = 0; i < candidates.length; i++) {
       final c = candidates[i];
       if (c.archiveFilename != null) continue;
@@ -700,9 +693,7 @@ class QbDownloadResolver {
     final match = _archiveFilenameRegex.firstMatch(text);
     if (match == null) return null;
     final filename = match.group(0)!;
-    return ArchiveHelpers.hasSupportedArchiveExtension(filename)
-        ? filename
-        : null;
+    return ArchiveHelpers.hasSupportedArchiveExtension(filename) ? filename : null;
   }
 
   String? _extractFilenameFromUrl(String url) {
@@ -721,48 +712,18 @@ class QbDownloadResolver {
     if (candidates.isEmpty) return;
 
     // Collect unique filenames
-    final knownFilenames = candidates
-        .where((c) => c.archiveFilename != null)
-        .map((c) => c.archiveFilename!)
-        .toSet();
+    final knownFilenames = candidates.where((c) => c.archiveFilename != null).map((c) => c.archiveFilename!).toSet();
 
-    final uniqueFilename =
-        knownFilenames.length == 1 ? knownFilenames.first : null;
+    final uniqueFilename = knownFilenames.length == 1 ? knownFilenames.first : null;
+
+    if (uniqueFilename == null) return;
 
     for (var i = 0; i < candidates.length; i++) {
       final c = candidates[i];
       if (c.archiveFilename != null) continue;
 
-      // Alternate download inference: if link text contains "alternate"
-      // and there's only one known filename, assign it
-      if (uniqueFilename != null) {
-        // Find matching link
-        final sourceUri = Uri.tryParse(c.sourceUrl);
-        final resolvedHost = sourceUri?.host.toLowerCase() ?? '';
-
-        // Check if it's a Google Drive link with no filename
-        if (resolvedHost.contains('drive.google.com') ||
-            resolvedHost.contains('drive.usercontent.google.com')) {
-          candidates[i] = DownloadCandidate(
-            sourceUrl: c.sourceUrl,
-            resolvedUrl: c.resolvedUrl,
-            archiveFilename: uniqueFilename,
-            confidence: c.confidence,
-            requiresManualStep: c.requiresManualStep,
-          );
-          continue;
-        }
-      }
-    }
-
-    // Alternate download inference for link text containing "alternate"
-    if (uniqueFilename != null) {
-      for (var i = 0; i < candidates.length; i++) {
-        final c = candidates[i];
-        if (c.archiveFilename != null) continue;
-        // We don't have direct access to link text here, but we already
-        // handled it in _extractFilenames. For the "alternate" case,
-        // assign the known filename.
+      final host = Uri.tryParse(c.sourceUrl)?.host.toLowerCase() ?? '';
+      if (host.contains('drive.google.com') || host.contains('drive.usercontent.google.com')) {
         candidates[i] = DownloadCandidate(
           sourceUrl: c.sourceUrl,
           resolvedUrl: c.resolvedUrl,
@@ -833,10 +794,7 @@ class QbDownloadResolver {
   // ---------------------------------------------------------------------------
 
   String _computeFingerprint(List<LinkRef> links) {
-    final normalized = links
-        .map((l) => UrlNormalizer.normalizeDownloadUrl(l.url.trim()))
-        .toList()
-      ..sort();
+    final normalized = links.map((l) => UrlNormalizer.normalizeDownloadUrl(l.url.trim())).toList()..sort();
     return normalized.join('|');
   }
 
@@ -857,18 +815,6 @@ class QbDownloadResolver {
     final uri = Uri.tryParse(url);
     if (uri == null) return true;
     final host = uri.host.toLowerCase();
-    return host.contains('nexusmods.com') ||
-        host == 'youtu.be' ||
-        host.contains('youtube.com');
-  }
-
-  static String _decodeHtmlEntities(String text) {
-    return text
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#39;', "'")
-        .replaceAll('&#x27;', "'");
+    return host.contains('nexusmods.com') || host == 'youtu.be' || host.contains('youtube.com');
   }
 }

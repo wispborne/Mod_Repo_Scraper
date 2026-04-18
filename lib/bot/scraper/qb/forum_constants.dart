@@ -13,6 +13,8 @@ class ForumConstants {
   static const String libraryBoardUrl =
       'https://$forumHost/forum/index.php?board=9.';
   static const String libraryCategory = 'Libraries';
+  static const String modIndexUrl =
+      'https://$forumHost/forum/index.php?topic=177.0';
 
   static String topicUrl(int topicId) =>
       'https://$forumHost/forum/index.php?topic=$topicId.0';

@@ -42,7 +42,7 @@ config.properties
 
 # Output data
 /*_cache.json
-ModRepo.json
+outputs/
 /MergeDebug.html
 
 nul

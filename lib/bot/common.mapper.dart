@@ -139,12 +139,6 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: 1500,
   );
-  static String? _$qbRepoPath(BotConfig v) => v.qbRepoPath;
-  static const Field<BotConfig, String> _f$qbRepoPath = Field(
-    'qbRepoPath',
-    _$qbRepoPath,
-    opt: true,
-  );
   static int _$qbLesserBoardMaxPages(BotConfig v) => v.qbLesserBoardMaxPages;
   static const Field<BotConfig, int> _f$qbLesserBoardMaxPages = Field(
     'qbLesserBoardMaxPages',
@@ -174,7 +168,6 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #qbScope: _f$qbScope,
     #qbBoards: _f$qbBoards,
     #qbDelayMs: _f$qbDelayMs,
-    #qbRepoPath: _f$qbRepoPath,
     #qbLesserBoardMaxPages: _f$qbLesserBoardMaxPages,
   };
 
@@ -202,7 +195,6 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       qbScope: data.dec(_f$qbScope),
       qbBoards: data.dec(_f$qbBoards),
       qbDelayMs: data.dec(_f$qbDelayMs),
-      qbRepoPath: data.dec(_f$qbRepoPath),
       qbLesserBoardMaxPages: data.dec(_f$qbLesserBoardMaxPages),
     );
   }
@@ -287,7 +279,6 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     String? qbScope,
     Set<String>? qbBoards,
     int? qbDelayMs,
-    String? qbRepoPath,
     int? qbLesserBoardMaxPages,
   });
   BotConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
@@ -331,7 +322,6 @@ class _BotConfigCopyWithImpl<$R, $Out>
     String? qbScope,
     Set<String>? qbBoards,
     int? qbDelayMs,
-    Object? qbRepoPath = $none,
     int? qbLesserBoardMaxPages,
   }) => $apply(
     FieldCopyWithData({
@@ -356,7 +346,6 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (qbScope != null) #qbScope: qbScope,
       if (qbBoards != null) #qbBoards: qbBoards,
       if (qbDelayMs != null) #qbDelayMs: qbDelayMs,
-      if (qbRepoPath != $none) #qbRepoPath: qbRepoPath,
       if (qbLesserBoardMaxPages != null)
         #qbLesserBoardMaxPages: qbLesserBoardMaxPages,
     }),
@@ -390,7 +379,6 @@ class _BotConfigCopyWithImpl<$R, $Out>
     qbScope: data.get(#qbScope, or: $value.qbScope),
     qbBoards: data.get(#qbBoards, or: $value.qbBoards),
     qbDelayMs: data.get(#qbDelayMs, or: $value.qbDelayMs),
-    qbRepoPath: data.get(#qbRepoPath, or: $value.qbRepoPath),
     qbLesserBoardMaxPages: data.get(
       #qbLesserBoardMaxPages,
       or: $value.qbLesserBoardMaxPages,

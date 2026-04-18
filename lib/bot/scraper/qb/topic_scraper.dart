@@ -3,12 +3,37 @@ import 'package:html/dom.dart';
 import 'package:logging/logging.dart';
 
 import 'forum_constants.dart';
+import 'html_processor.dart';
 import 'models/mod_detail.dart';
 import 'throttled_client.dart';
 
 class QbTopicScraper {
   final Logger _log;
   final ThrottledClient _client;
+
+  static final RegExp _lazyImageAltRegex = RegExp(
+    r'^https?://.+\.(png|jpg|jpeg|gif|webp|bmp|svg)',
+    caseSensitive: false,
+  );
+  static final RegExp _postCountDigits = RegExp(r'[\d,]+');
+  static final RegExp _postDateRegex =
+      RegExp(r'on:\s*(.+?)\s*(?:\u00ab|\u00bb|Â»|»)');
+  static final RegExp _lastEditRegex = RegExp(
+    r'Last\s+Edit:\s*(.+?)(?:\s*(?:Â»|»|&raquo;)|$)',
+    caseSensitive: false,
+  );
+  static final RegExp _htmlTagStrip = RegExp(r'<[^>]+>');
+  static final RegExp _imgSrcRegex =
+      RegExp(r'<img[^>]+src="([^"]+)"[^>]*/?>', caseSensitive: false);
+  static final RegExp _altAttrRegex =
+      RegExp(r'alt="([^"]*)"', caseSensitive: false);
+  static final RegExp _linkRegex = RegExp(
+    r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>',
+    caseSensitive: false,
+    dotAll: true,
+  );
+  static final RegExp _divTagRegex =
+      RegExp(r'</?div\b[^>]*>', caseSensitive: false, dotAll: true);
 
   QbTopicScraper(this._client, {Logger? logger})
       : _log = logger ?? Logger('QbTopicScraper');
@@ -85,9 +110,7 @@ class QbTopicScraper {
       }
 
       final alt = img.attributes['alt'] ?? '';
-      if (RegExp(r'^https?://.+\.(png|jpg|jpeg|gif|webp|bmp|svg)',
-              caseSensitive: false)
-          .hasMatch(alt)) {
+      if (_lazyImageAltRegex.hasMatch(alt)) {
         img.attributes['src'] = alt;
         img.attributes['alt'] = '';
       }
@@ -133,7 +156,7 @@ class QbTopicScraper {
         }
 
         if (text.toLowerCase().startsWith('posts:')) {
-          final numMatch = RegExp(r'[\d,]+').firstMatch(text);
+          final numMatch = _postCountDigits.firstMatch(text);
           if (numMatch != null) {
             postCount =
                 int.tryParse(numMatch.group(0)!.replaceAll(',', '')) ?? 0;
@@ -155,8 +178,7 @@ class QbTopicScraper {
     final dateEl = firstPost.querySelector('.keyinfo .smalltext');
     if (dateEl != null) {
       final raw = dateEl.text;
-      final dateMatch =
-          RegExp(r'on:\s*(.+?)\s*(?:\u00ab|\u00bb|Â»|»)').firstMatch(raw);
+      final dateMatch = _postDateRegex.firstMatch(raw);
       if (dateMatch != null) return dateMatch.group(1)!.trim();
       return raw.trim();
     }
@@ -176,13 +198,9 @@ class QbTopicScraper {
   String? _extractLastEditDate(Element firstPost, String contentHtml) {
     String? parseLastEdit(String source) {
       if (source.trim().isEmpty) return null;
-      final match = RegExp(
-        r'Last\s+Edit:\s*(.+?)(?:\s*(?:Â»|»|&raquo;)|$)',
-        caseSensitive: false,
-      ).firstMatch(source);
+      final match = _lastEditRegex.firstMatch(source);
       if (match == null) return null;
-      final value =
-          match.group(1)!.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+      final value = match.group(1)!.replaceAll(_htmlTagStrip, '').trim();
       return value.isEmpty ? null : value;
     }
 
@@ -204,12 +222,9 @@ class QbTopicScraper {
 
   static List<ImageRef> _extractImageUrls(String html) {
     final images = <ImageRef>[];
-    final imgRegex =
-        RegExp(r'<img[^>]+src="([^"]+)"[^>]*/?>',
-            caseSensitive: false);
     final seen = <String>{};
 
-    for (final m in imgRegex.allMatches(html)) {
+    for (final m in _imgSrcRegex.allMatches(html)) {
       final src = ForumConstants.stripPhpSessId(m.group(1)!);
       if (src.isEmpty || src.startsWith('data:')) continue;
       if (src.toLowerCase().contains('/smileys/') ||
@@ -219,13 +234,12 @@ class QbTopicScraper {
       }
       if (!seen.add(src)) continue;
 
-      String? alt;
-      final altMatch =
-          RegExp(r'alt="([^"]*)"', caseSensitive: false)
-              .firstMatch(m.group(0)!);
-      if (altMatch != null) alt = altMatch.group(1);
-
-      images.add(ImageRef(originalUrl: src, localPath: '', alt: alt));
+      final altMatch = _altAttrRegex.firstMatch(m.group(0)!);
+      images.add(ImageRef(
+        originalUrl: src,
+        localPath: '',
+        alt: altMatch?.group(1),
+      ));
     }
 
     return images;
@@ -234,22 +248,17 @@ class QbTopicScraper {
   static List<LinkRef> _extractLinks(String html) {
     final links = <LinkRef>[];
     final spoilerRanges = _findSpoilerRanges(html);
-    final linkRegex = RegExp(
-      r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>',
-      caseSensitive: false,
-      dotAll: true,
-    );
     final seen = <String>{};
 
-    for (final m in linkRegex.allMatches(html)) {
+    for (final m in _linkRegex.allMatches(html)) {
       if (spoilerRanges
           .any((r) => m.start >= r.start && m.start < r.end)) {
         continue;
       }
 
-      final href =
-          ForumConstants.stripPhpSessId(_htmlDecode(m.group(1)!).trim());
-      final text = m.group(2)!.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+      final href = ForumConstants.stripPhpSessId(
+          HtmlProcessor.decodeEntities(m.group(1)!).trim());
+      final text = m.group(2)!.replaceAll(_htmlTagStrip, '').trim();
 
       if (href.isEmpty || href.startsWith('#') || href.startsWith('javascript:')) {
         continue;
@@ -267,12 +276,10 @@ class QbTopicScraper {
     final ranges = <_Range>[];
     if (html.isEmpty) return ranges;
 
-    final tagRegex =
-        RegExp(r'</?div\b[^>]*>', caseSensitive: false, dotAll: true);
     var spoilerStart = -1;
     var depth = 0;
 
-    for (final m in tagRegex.allMatches(html)) {
+    for (final m in _divTagRegex.allMatches(html)) {
       final tag = m.group(0)!;
       final isClose = tag.toLowerCase().startsWith('</div');
 
@@ -299,15 +306,6 @@ class QbTopicScraper {
     return ranges;
   }
 
-  static String _htmlDecode(String text) {
-    return text
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#39;', "'")
-        .replaceAll('&apos;', "'");
-  }
 }
 
 class _AuthorInfo {

@@ -68,7 +68,6 @@ class QbScraperEngine {
       final boardScraper = QbBoardScraper(_client, logger: _log);
       final topicScraper = QbTopicScraper(_client, logger: _log);
       final modIndexScraper = QbModIndexScraper(_client, logger: _log);
-      final htmlProcessor = HtmlProcessor();
 
       final existingIndex = await _store.loadIndex();
       final indexMap = <int, QbModSummary>{
@@ -124,9 +123,10 @@ class QbScraperEngine {
           boardBaseUrl: ForumConstants.libraryBoardUrl,
           topicTitleFilter: ForumConstants.isLibraryThreadTitle,
         );
-        for (final m in modSummaries) {
+        for (var i = 0; i < modSummaries.length; i++) {
+          final m = modSummaries[i];
           libraryTopicIds.add(m.topicId);
-          modSummaries[modSummaries.indexOf(m)] = m.copyWith(sourceBoard: 9);
+          modSummaries[i] = m.copyWith(sourceBoard: 9);
         }
       } else {
         final maxPages =
@@ -230,8 +230,17 @@ class QbScraperEngine {
       currentJob.currentPhase = null;
 
       // --- Topic Scraping (pipelined) ---
+      // ThrottledClient serializes network calls; this buffer only overlaps
+      // in-memory work (parse, regex, disk write) with the next request's wait.
       const maxPending = 3;
-      final pending = <Future<void>>[];
+      final pending = <Future<void>>{};
+
+      Future<void> track(Future<void> f) {
+        late Future<void> wrapped;
+        wrapped = f.whenComplete(() => pending.remove(wrapped));
+        pending.add(wrapped);
+        return wrapped;
+      }
 
       for (var i = 0; i < modSummaries.length; i++) {
         var summary = modSummaries[i];
@@ -257,16 +266,14 @@ class QbScraperEngine {
         try {
           final detail = await topicScraper.scrapeTopic(summary.topicId);
 
-          final future = _processTopicDetail(
+          track(_processTopicDetail(
             detail: detail,
             summary: summary,
-            htmlProcessor: htmlProcessor,
             indexMap: indexMap,
             preScrapeSnapshot: preScrapeSnapshot,
             meaningfullyChangedIds: meaningfullyChangedIds,
             onTopicSaved: onTopicSaved,
-          );
-          pending.add(future);
+          ));
         } catch (e) {
           _log.warning(
               'Failed to process topic ${summary.topicId}: $e');
@@ -275,13 +282,14 @@ class QbScraperEngine {
         }
 
         if (pending.length >= maxPending) {
-          await pending.removeAt(0);
+          await Future.any(pending);
         }
       }
 
-      for (final future in pending) {
+      // Drain remaining futures.
+      while (pending.isNotEmpty) {
         try {
-          await future;
+          await Future.any(pending);
         } catch (e) {
           _log.warning('Pending topic future failed: $e');
           currentJob.errors++;
@@ -317,7 +325,6 @@ class QbScraperEngine {
   Future<void> _processTopicDetail({
     required QbModDetail? detail,
     required QbModSummary summary,
-    required HtmlProcessor htmlProcessor,
     required Map<int, QbModSummary> indexMap,
     required Map<int, _MeaningfulSnapshot> preScrapeSnapshot,
     required List<int> meaningfullyChangedIds,
@@ -347,8 +354,7 @@ class QbScraperEngine {
         scrapedAt: DateTime.now().toUtc(),
       );
 
-      final processedHtml =
-          htmlProcessor.processHtml(detail.contentHtml, detail.topicId);
+      final processedHtml = HtmlProcessor.processHtml(detail.contentHtml);
       final processedDetail = QbModDetail(
         topicId: detail.topicId,
         title: detail.title,

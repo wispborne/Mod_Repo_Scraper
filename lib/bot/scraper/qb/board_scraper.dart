@@ -38,9 +38,10 @@ class QbBoardScraper {
         break;
       }
 
+      final doc = html_parser.parse(response.body);
       final skipStickyTopics = !ForumConstants.isLibraryBoardBase(baseUrl);
       final mods = _extractTopicsFromPage(
-        response.body,
+        doc,
         topicTitleFilter,
         skipStickyTopics,
       );
@@ -74,10 +75,7 @@ class QbBoardScraper {
         break;
       }
 
-      // Check for next page links
-      final doc = html_parser.parse(response.body);
-      final navPages = doc.querySelectorAll('a.navPages');
-      if (navPages.isEmpty) {
+      if (doc.querySelectorAll('a.navPages').isEmpty) {
         _log.info('No more pages after page $pageIndex');
         break;
       }
@@ -89,11 +87,10 @@ class QbBoardScraper {
   }
 
   List<QbModSummary> _extractTopicsFromPage(
-    String html,
+    Document doc,
     bool Function(String)? topicTitleFilter,
     bool skipStickyTopics,
   ) {
-    final doc = html_parser.parse(html);
     final mods = <QbModSummary>[];
 
     // Each topic row contains a span[id^='msg_'] with the topic link

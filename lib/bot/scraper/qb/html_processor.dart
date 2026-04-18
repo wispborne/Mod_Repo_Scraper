@@ -1,30 +1,54 @@
 import 'forum_constants.dart';
 
 class HtmlProcessor {
-  HtmlProcessor();
+  HtmlProcessor._();
 
-  String processHtml(String html, int topicId) {
-    var processed = html;
+  static final RegExp _externalLinkRegex = RegExp(
+    r'<a\s+([^>]*?)href="(https?://(?!' +
+        RegExp.escape(ForumConstants.forumHost) +
+        r')[^"]+)"([^>]*?)>',
+    caseSensitive: false,
+    dotAll: true,
+  );
 
-    // Add target="_blank" to external links
-    processed = _addTargetBlankToExternalLinks(processed);
+  static final RegExp _smfEditGuillemetsAmp = RegExp(
+    r'<span class="smalltext">\s*&laquo;.*?&raquo;\s*</span>',
+    dotAll: true,
+    caseSensitive: false,
+  );
 
-    // Strip SMF artifacts
+  static final RegExp _smfEditGuillemetsUnicode = RegExp(
+    r'<span class="smalltext">\s*\u00ab.*?\u00bb\s*</span>',
+    dotAll: true,
+    caseSensitive: false,
+  );
+
+  static final RegExp _smfSmileyImg = RegExp(
+    r'<img\s+[^>]*?src="[^"]*?/Smileys/[^"]*"[^>]*?>',
+    caseSensitive: false,
+    dotAll: true,
+  );
+
+  static final RegExp _altAttr =
+      RegExp(r'alt="([^"]*?)"', caseSensitive: false);
+
+  static String processHtml(String html) {
+    var processed = _addTargetBlankToExternalLinks(html);
     processed = _stripSmfArtifacts(processed);
-
     return processed;
   }
 
-  static String _addTargetBlankToExternalLinks(String html) {
-    final pattern = RegExp(
-      r'<a\s+([^>]*?)href="(https?://(?!' +
-          RegExp.escape(ForumConstants.forumHost) +
-          r')[^"]+)"([^>]*?)>',
-      caseSensitive: false,
-      dotAll: true,
-    );
+  static String decodeEntities(String text) => text
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&#x27;', "'")
+      .replaceAll('&apos;', "'");
 
-    return html.replaceAllMapped(pattern, (match) {
+  static String _addTargetBlankToExternalLinks(String html) {
+    return html.replaceAllMapped(_externalLinkRegex, (match) {
       final before = match.group(1)!;
       final href = match.group(2)!;
       final after = match.group(3)!;
@@ -39,40 +63,12 @@ class HtmlProcessor {
   }
 
   static String _stripSmfArtifacts(String html) {
-    // Remove edit timestamps
-    var result = html.replaceAll(
-      RegExp(
-        r'<span class="smalltext">\s*&laquo;.*?&raquo;\s*</span>',
-        dotAll: true,
-        caseSensitive: false,
-      ),
-      '',
-    );
-
-    // Also handle Unicode guillemets
-    result = result.replaceAll(
-      RegExp(
-        r'<span class="smalltext">\s*\u00ab.*?\u00bb\s*</span>',
-        dotAll: true,
-        caseSensitive: false,
-      ),
-      '',
-    );
-
-    // Replace smiley imgs with alt text
-    result = result.replaceAllMapped(
-      RegExp(
-        r'<img\s+[^>]*?src="[^"]*?/Smileys/[^"]*"[^>]*?>',
-        caseSensitive: false,
-        dotAll: true,
-      ),
-      (match) {
-        final altMatch = RegExp(r'alt="([^"]*?)"', caseSensitive: false)
-            .firstMatch(match.group(0)!);
-        return altMatch != null ? altMatch.group(1)! : '';
-      },
-    );
-
+    var result = html.replaceAll(_smfEditGuillemetsAmp, '');
+    result = result.replaceAll(_smfEditGuillemetsUnicode, '');
+    result = result.replaceAllMapped(_smfSmileyImg, (match) {
+      final altMatch = _altAttr.firstMatch(match.group(0)!);
+      return altMatch != null ? altMatch.group(1)! : '';
+    });
     return result;
   }
 }

@@ -16,7 +16,7 @@ import 'dart:io';
 import 'scraped_mod.dart';
 
 class ModRepoCache {
-  static final File location = File("ModRepo.json");
+  static final File location = File("outputs/ModRepo.json");
   late Map<String, dynamic> _data;
 
   ModRepoCache() {

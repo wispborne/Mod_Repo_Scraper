@@ -104,7 +104,6 @@ class Common {
         qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
         qbBoards: _parseQbBoards(properties['qb_boards']),
         qbDelayMs: int.tryParse(properties['qb_delay_ms'] ?? '') ?? 1500,
-        qbRepoPath: _trimOrDefault(properties['qb_repo_path'], null),
         qbLesserBoardMaxPages:
             int.tryParse(properties['qb_lesser_board_max_pages'] ?? '') ?? 20,
       );
@@ -207,7 +206,6 @@ class BotConfig with BotConfigMappable {
   final String qbScope;
   final Set<String> qbBoards;
   final int qbDelayMs;
-  final String? qbRepoPath;
   final int qbLesserBoardMaxPages;
 
   const BotConfig({
@@ -229,7 +227,6 @@ class BotConfig with BotConfigMappable {
     this.qbScope = 'newData',
     this.qbBoards = const {'main', 'libraries'},
     this.qbDelayMs = 1500,
-    this.qbRepoPath,
     this.qbLesserBoardMaxPages = 20,
   });
 }

@@ -11,6 +11,7 @@ class JsonDataStore {
   final String basePath;
   final Logger _log;
   List<QbModSummary>? _indexCache;
+  String? _lastSavedIndexJson;
 
   JsonDataStore(this.basePath, {Logger? logger})
       : _log = logger ?? Logger('JsonDataStore') {
@@ -27,6 +28,7 @@ class JsonDataStore {
     if (!file.existsSync()) return [];
 
     final json = await file.readAsString();
+    _lastSavedIndexJson = json;
     final list = jsonDecode(json) as List<dynamic>;
     _indexCache =
         list.map((e) => QbModSummaryMapper.fromMap(e as Map<String, dynamic>)).toList();
@@ -37,8 +39,13 @@ class JsonDataStore {
     final path = p.join(basePath, 'mods-index.json');
     final json = const JsonEncoder.withIndent('  ')
         .convert(mods.map((m) => m.toMap()).toList());
-    await File(path).writeAsString(json);
     _indexCache = mods;
+    if (json == _lastSavedIndexJson) {
+      _log.info('Mods index unchanged; skipping write (${mods.length} entries)');
+      return;
+    }
+    await File(path).writeAsString(json);
+    _lastSavedIndexJson = json;
     _log.info('Saved mods index with ${mods.length} entries');
   }
 

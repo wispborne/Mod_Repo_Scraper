@@ -35,7 +35,7 @@ void main() async {
   final publisher = BundlePublisher(
     store: store,
     resolver: resolver,
-    dataPath: 'qb_data',
+    outputPath: 'qb_data',
     logger: log,
   );
 

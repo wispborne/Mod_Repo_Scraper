@@ -32,7 +32,7 @@ Future<BundlePublisher> _makePublisherWith({
   return BundlePublisher(
     store: store,
     resolver: resolver,
-    dataPath: dataPath,
+    outputPath: dataPath,
   );
 }
 

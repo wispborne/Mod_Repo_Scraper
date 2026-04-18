@@ -156,7 +156,8 @@ class MainRepoScraper {
       final forumMods = await forumJob;
       timber.i(message: () => "Forum scraping completed in ${DateTime.now().difference(startTime).inMilliseconds}ms.");
       final discordMods = await discordJob;
-      timber.i(message: () => "Discord scraping completed in ${DateTime.now().difference(startTime).inMilliseconds}ms.");
+      timber.i(
+          message: () => "Discord scraping completed in ${DateTime.now().difference(startTime).inMilliseconds}ms.");
       final nexusMods = await nexusModsJob;
       timber.i(message: () => "Nexus scraping completed in ${DateTime.now().difference(startTime).inMilliseconds}ms.");
       timber.i(message: () => "All scraping completed in ${DateTime.now().difference(startTime).inMilliseconds}ms.");
@@ -219,18 +220,16 @@ class MainRepoScraper {
           orElse: () => ScopeType.newData,
         );
 
-        final boards = config.qbBoards
-            .map((name) {
-              final board = ScrapeBoard.values.firstWhere(
-                (b) => b.name == name,
-                orElse: () {
-                  timber.w(message: () => "Unknown QB board name: '$name', defaulting to 'main'");
-                  return ScrapeBoard.main;
-                },
-              );
-              return board;
-            })
-            .toSet();
+        final boards = config.qbBoards.map((name) {
+          final board = ScrapeBoard.values.firstWhere(
+            (b) => b.name == name,
+            orElse: () {
+              timber.w(message: () => "Unknown QB board name: '$name', defaulting to 'main'");
+              return ScrapeBoard.main;
+            },
+          );
+          return board;
+        }).toSet();
 
         final scope = ScrapeScope(
           type: scopeType,
@@ -256,25 +255,20 @@ class MainRepoScraper {
         await qbResolver.saveCache();
 
         timber.i(
-            message: () =>
-                "QB scrape completed: ${qbResult.modsScraped} mods, "
+            message: () => "QB scrape completed: ${qbResult.modsScraped} mods, "
                 "${qbResult.errors} errors, "
                 "${DateTime.now().difference(qbStartTime).inSeconds}s.");
 
         final publisher = BundlePublisher(
           store: qbStore,
           resolver: qbResolver,
-          dataPath: config.qbDataPath,
-          repoPath: config.qbRepoPath,
+          outputPath: 'outputs',
         );
 
-        final bundle = await publisher.createBundle();
+        final bundle = await publisher.createBundle(scrapeResult: qbResult);
         await publisher.writeLocal(bundle);
-        await publisher.publish(bundle);
 
-        timber.i(
-            message: () =>
-                "QB pipeline completed in ${DateTime.now().difference(qbStartTime).inSeconds}s.");
+        timber.i(message: () => "QB pipeline completed in ${DateTime.now().difference(qbStartTime).inSeconds}s.");
       } catch (e, st) {
         timber.e(message: () => "QB pipeline failed: $e\n$st");
       } finally {

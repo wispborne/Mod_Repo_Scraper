@@ -15,6 +15,7 @@ class ForumDataBundleMapper extends ClassMapperBase<ForumDataBundle> {
   static ForumDataBundleMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = ForumDataBundleMapper._());
+      BundleMetaMapper.ensureInitialized();
       QbModSummaryMapper.ensureInitialized();
       QbModDetailMapper.ensureInitialized();
       AssumedDownloadCandidateMapper.ensureInitialized();
@@ -29,6 +30,12 @@ class ForumDataBundleMapper extends ClassMapperBase<ForumDataBundle> {
   static const Field<ForumDataBundle, DateTime> _f$updatedAt = Field(
     'updatedAt',
     _$updatedAt,
+  );
+  static BundleMeta? _$meta(ForumDataBundle v) => v.meta;
+  static const Field<ForumDataBundle, BundleMeta> _f$meta = Field(
+    'meta',
+    _$meta,
+    opt: true,
   );
   static List<QbModSummary> _$index(ForumDataBundle v) => v.index;
   static const Field<ForumDataBundle, List<QbModSummary>> _f$index = Field(
@@ -57,6 +64,7 @@ class ForumDataBundleMapper extends ClassMapperBase<ForumDataBundle> {
   @override
   final MappableFields<ForumDataBundle> fields = const {
     #updatedAt: _f$updatedAt,
+    #meta: _f$meta,
     #index: _f$index,
     #details: _f$details,
     #assumedDownloads: _f$assumedDownloads,
@@ -67,6 +75,7 @@ class ForumDataBundleMapper extends ClassMapperBase<ForumDataBundle> {
   static ForumDataBundle _instantiate(DecodingData data) {
     return ForumDataBundle(
       updatedAt: data.dec(_f$updatedAt),
+      meta: data.dec(_f$meta),
       index: data.dec(_f$index),
       details: data.dec(_f$details),
       assumedDownloads: data.dec(_f$assumedDownloads),
@@ -135,6 +144,7 @@ extension ForumDataBundleValueCopy<$R, $Out>
 
 abstract class ForumDataBundleCopyWith<$R, $In extends ForumDataBundle, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  BundleMetaCopyWith<$R, BundleMeta, BundleMeta>? get meta;
   ListCopyWith<
     $R,
     QbModSummary,
@@ -161,6 +171,7 @@ abstract class ForumDataBundleCopyWith<$R, $In extends ForumDataBundle, $Out>
   get assumedDownloads;
   $R call({
     DateTime? updatedAt,
+    BundleMeta? meta,
     List<QbModSummary>? index,
     Map<String, QbModDetail>? details,
     Map<String, List<AssumedDownloadCandidate>>? assumedDownloads,
@@ -178,6 +189,9 @@ class _ForumDataBundleCopyWithImpl<$R, $Out>
   @override
   late final ClassMapperBase<ForumDataBundle> $mapper =
       ForumDataBundleMapper.ensureInitialized();
+  @override
+  BundleMetaCopyWith<$R, BundleMeta, BundleMeta>? get meta =>
+      $value.meta?.copyWith.$chain((v) => call(meta: v));
   @override
   ListCopyWith<
     $R,
@@ -220,12 +234,14 @@ class _ForumDataBundleCopyWithImpl<$R, $Out>
   @override
   $R call({
     DateTime? updatedAt,
+    Object? meta = $none,
     List<QbModSummary>? index,
     Map<String, QbModDetail>? details,
     Map<String, List<AssumedDownloadCandidate>>? assumedDownloads,
   }) => $apply(
     FieldCopyWithData({
       if (updatedAt != null) #updatedAt: updatedAt,
+      if (meta != $none) #meta: meta,
       if (index != null) #index: index,
       if (details != null) #details: details,
       if (assumedDownloads != null) #assumedDownloads: assumedDownloads,
@@ -234,6 +250,7 @@ class _ForumDataBundleCopyWithImpl<$R, $Out>
   @override
   ForumDataBundle $make(CopyWithData data) => ForumDataBundle(
     updatedAt: data.get(#updatedAt, or: $value.updatedAt),
+    meta: data.get(#meta, or: $value.meta),
     index: data.get(#index, or: $value.index),
     details: data.get(#details, or: $value.details),
     assumedDownloads: data.get(#assumedDownloads, or: $value.assumedDownloads),
