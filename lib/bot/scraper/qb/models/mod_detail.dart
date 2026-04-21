@@ -57,10 +57,12 @@ class LinkRef with LinkRefMappable {
   final String url;
   final String text;
   final bool isExternal;
+  final bool isDownloadable;
 
   LinkRef({
     this.url = '',
     this.text = '',
     this.isExternal = false,
+    this.isDownloadable = false,
   });
 }

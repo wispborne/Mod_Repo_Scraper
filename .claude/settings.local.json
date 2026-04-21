@@ -24,7 +24,8 @@
       "Bash([ -d \"F:/Code/Starsector/Mod_Repo_Scraper/openspec/changes/archive/2026-04-16-qb-bundle-publishing\" ])",
       "Bash(grep -E \"\\\\.\\(dart|yaml\\)$\")",
       "Bash(openspec new *)",
-      "Bash(openspec list *)"
+      "Bash(openspec list *)",
+      "Bash(openspec --version)"
     ]
   }
 }

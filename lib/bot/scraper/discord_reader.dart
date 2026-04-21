@@ -17,6 +17,7 @@ import 'package:dart_mappable/dart_mappable.dart';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 import 'package:mod_repo_scraper/bot/common.dart';
+import 'package:mod_repo_scraper/bot/scraper/download_link_detector.dart';
 import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
@@ -386,7 +387,7 @@ class DiscordReader {
         .toList();
 
     final downloadyResults = await downloadyUrls.parallelMap((url) async {
-      final isDownloadable = _isDefiniteDownloadLink(url) || await Common.isDownloadable(url);
+      final isDownloadable = await isDownloadableUrl(url);
       return (url, isDownloadable);
     });
 
@@ -492,15 +493,6 @@ class DiscordReader {
         .let((list) => _prefer(list, (url) => url.contains("github")))
         .let((list) => _prefer(list, (url) => url.contains("mediafire")))
         .let((list) => _prefer(list, (url) => url.contains("mega.nz")));
-  }
-
-  static bool _isDefiniteDownloadLink(String url) {
-    return url.contains("drive.google.com") ||
-        url.contains("mega.nz") ||
-        url.contains("mediafire") ||
-        url.contains(".zip") ||
-        url.contains(".rar") ||
-        url.contains(".7z");
   }
 
   static List<String> _prefer(List<String> list, bool Function(String) predicate) {

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
+import '../download_link_detector.dart';
 import 'models/mod_detail.dart';
 import 'models/mod_summary.dart';
 
@@ -57,8 +58,22 @@ class JsonDataStore {
     if (!file.existsSync()) return null;
 
     final json = await file.readAsString();
-    return QbModDetailMapper.fromMap(
+    final detail = QbModDetailMapper.fromMap(
         jsonDecode(json) as Map<String, dynamic>);
+    return _backfillDownloadableFlags(detail);
+  }
+
+  /// Lets cached detail files written before `isDownloadable` existed surface
+  /// obvious download links without a re-scrape. Strictly additive — `true`
+  /// values are never downgraded.
+  static QbModDetail _backfillDownloadableFlags(QbModDetail detail) {
+    bool needsUpgrade(LinkRef l) =>
+        !l.isDownloadable && isLikelyModDownloadUrl(l.url);
+    if (!detail.links.any(needsUpgrade)) return detail;
+    return detail.copyWith(links: [
+      for (final l in detail.links)
+        needsUpgrade(l) ? l.copyWith(isDownloadable: true) : l,
+    ]);
   }
 
   Future<void> saveDetail(QbModDetail detail) async {

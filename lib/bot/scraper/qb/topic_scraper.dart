@@ -1,7 +1,10 @@
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart';
+import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
+import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
+import '../download_link_detector.dart';
 import 'forum_constants.dart';
 import 'html_processor.dart';
 import 'models/mod_detail.dart';
@@ -10,6 +13,8 @@ import 'throttled_client.dart';
 class QbTopicScraper {
   final Logger _log;
   final ThrottledClient _client;
+  final http.Client? _externalClient;
+  final Duration _probeTimeout;
 
   static final RegExp _lazyImageAltRegex = RegExp(
     r'^https?://.+\.(png|jpg|jpeg|gif|webp|bmp|svg)',
@@ -35,8 +40,14 @@ class QbTopicScraper {
   static final RegExp _divTagRegex =
       RegExp(r'</?div\b[^>]*>', caseSensitive: false, dotAll: true);
 
-  QbTopicScraper(this._client, {Logger? logger})
-      : _log = logger ?? Logger('QbTopicScraper');
+  QbTopicScraper(
+    this._client, {
+    Logger? logger,
+    http.Client? externalClient,
+    Duration probeTimeout = const Duration(seconds: 10),
+  })  : _externalClient = externalClient,
+        _probeTimeout = probeTimeout,
+        _log = logger ?? Logger('QbTopicScraper');
 
   Future<QbModDetail?> scrapeTopic(int topicId) async {
     final url = ForumConstants.topicUrl(topicId);
@@ -70,7 +81,8 @@ class QbTopicScraper {
       final contentHtml = _extractContentHtml(firstPost);
       final lastEditDate = _extractLastEditDate(firstPost, contentHtml);
       final images = _extractImageUrls(contentHtml);
-      final links = _extractLinks(contentHtml);
+      final rawLinks = _extractLinks(contentHtml);
+      final links = await _classifyDownloadableLinks(rawLinks);
 
       return QbModDetail(
         topicId: topicId,
@@ -243,6 +255,17 @@ class QbTopicScraper {
     }
 
     return images;
+  }
+
+  Future<List<LinkRef>> _classifyDownloadableLinks(List<LinkRef> links) async {
+    if (links.isEmpty) return links;
+    return links.parallelMap((l) async => l.copyWith(
+          isDownloadable: await isDownloadableUrl(
+            l.url,
+            client: _externalClient,
+            timeout: _probeTimeout,
+          ),
+        ));
   }
 
   static List<LinkRef> _extractLinks(String html) {

@@ -18,10 +18,23 @@ void main() async {
   });
 
   final log = Logger('QbSmokeTest');
+
+  // Smoke test runs against a fresh temp directory so results reflect only
+  // this run's scrape, not leftover cache from prior runs or prior code
+  // versions. The persistent `qb_data/` used by production is left alone.
+  final tmpDir = Directory.systemTemp.createTempSync('qb_smoke_');
+  log.info('Smoke test data path: ${tmpDir.path}');
+
   final client = ThrottledClient(delayMs: 1500);
-  final store = JsonDataStore('qb_data', logger: log);
+  final store = JsonDataStore(tmpDir.path, logger: log);
   final boardScraper = QbBoardScraper(client, logger: log);
-  final topicScraper = QbTopicScraper(client, logger: log);
+  final topicScraper = QbTopicScraper(
+    client,
+    logger: log,
+    externalClient: IOClient(
+      HttpClient()..connectionTimeout = const Duration(seconds: 30),
+    ),
+  );
   final modIndexScraper = QbModIndexScraper(client, logger: log);
 
   final http.Client downloadClient = IOClient(
@@ -29,13 +42,13 @@ void main() async {
   );
   final resolver = QbDownloadResolver(
     client: downloadClient,
-    dataPath: 'qb_data',
+    dataPath: tmpDir.path,
     logger: log,
   );
   final publisher = BundlePublisher(
     store: store,
     resolver: resolver,
-    outputPath: 'qb_data',
+    outputPath: tmpDir.path,
     logger: log,
   );
 
@@ -87,7 +100,7 @@ void main() async {
     log.info('Saved mods-index.json');
 
     // Verify files exist
-    final indexFile = File('qb_data/mods-index.json');
+    final indexFile = File('${tmpDir.path}/mods-index.json');
     if (indexFile.existsSync()) {
       log.info('mods-index.json exists (${indexFile.lengthSync()} bytes)');
     } else {
@@ -97,7 +110,7 @@ void main() async {
 
     for (final mod in toScrape) {
       final detailFile =
-          File('qb_data/mods/${mod.topicId}/detail.json');
+          File('${tmpDir.path}/mods/${mod.topicId}/detail.json');
       if (detailFile.existsSync()) {
         log.info(
             'detail.json for topic ${mod.topicId} exists (${detailFile.lengthSync()} bytes)');
@@ -111,7 +124,7 @@ void main() async {
     final bundle = await publisher.createBundle();
     await publisher.writeLocal(bundle);
 
-    final bundleFile = File('qb_data/forum-data-bundle.json');
+    final bundleFile = File('${tmpDir.path}/forum-data-bundle.json');
     if (bundleFile.existsSync()) {
       log.info('forum-data-bundle.json exists (${bundleFile.lengthSync()} bytes)');
     } else {
@@ -141,6 +154,8 @@ void main() async {
         '$matchingCats match index, $nullCats still null');
 
     log.info('Smoke test passed!');
+    log.info('Bundle left at ${tmpDir.path} for inspection; '
+        'delete manually when done.');
   } finally {
     client.close();
     downloadClient.close();

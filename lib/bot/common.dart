@@ -14,7 +14,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_mappable/dart_mappable.dart';
-import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:mod_repo_scraper/timber/log_level.dart';
 import 'package:mod_repo_scraper/timber/timber.dart' as timber_lib;
 
@@ -22,41 +21,6 @@ part 'common.mapper.dart';
 
 class Common {
   static const String serverId = "187635036525166592";
-
-  /// Whether a url has a downloadable file on the other side.
-  /// Requires Internet.
-  static Future<bool> isDownloadable(String? url) async {
-    if (url == null) return false;
-
-    try {
-      timber.d(message: () => 'Checking to see if $url is downloadable by opening a connection.');
-      final client = HttpClient();
-      final request = await client.getUrl(Uri.parse(url));
-      final response = await request.close();
-
-      final contentDisposition = response.headers.value('content-disposition');
-      final hasAttachment = contentDisposition != null && contentDisposition.toLowerCase().startsWith('attachment');
-
-      final contentType = response.headers.contentType;
-      final downloadableContentTypes = [
-        'application/octet-stream',
-        'application/zip',
-      ];
-      final hasDownloadableContentType = contentType != null &&
-          downloadableContentTypes.any((type) => contentType.mimeType.toLowerCase() == type.toLowerCase());
-
-      final isDownloadable = hasAttachment || hasDownloadableContentType;
-
-      timber.d(
-          message: () =>
-              'Url \'$url\': HasAttachment: $hasAttachment, HasDownloadableContentType: $hasDownloadableContentType.');
-
-      return isDownloadable;
-    } catch (e) {
-      timber.d(t: e, message: () => 'Error checking if downloadable');
-      return false;
-    }
-  }
 
   static BotConfig? readConfig() {
     final configFilePath = 'config.properties';

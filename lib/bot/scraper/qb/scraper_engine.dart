@@ -20,6 +20,7 @@ class QbScraperEngine {
   final Logger _log;
   final JsonDataStore _store;
   final ThrottledClient _client;
+  final http.Client _downloadClient;
   final QbDownloadResolver downloadResolver;
   final ScrapeJob currentJob = ScrapeJob();
 
@@ -46,6 +47,7 @@ class QbScraperEngine {
     Logger? logger,
   })  : _store = store,
         _client = client,
+        _downloadClient = downloadClient,
         downloadResolver = QbDownloadResolver(
           client: downloadClient,
           dataPath: store.basePath,
@@ -66,7 +68,11 @@ class QbScraperEngine {
       _log.info('Starting scrape job with scope ${scope.type}');
 
       final boardScraper = QbBoardScraper(_client, logger: _log);
-      final topicScraper = QbTopicScraper(_client, logger: _log);
+      final topicScraper = QbTopicScraper(
+        _client,
+        logger: _log,
+        externalClient: _downloadClient,
+      );
       final modIndexScraper = QbModIndexScraper(_client, logger: _log);
 
       final existingIndex = await _store.loadIndex();

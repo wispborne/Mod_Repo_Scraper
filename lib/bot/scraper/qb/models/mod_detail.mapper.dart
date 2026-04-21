@@ -503,12 +503,20 @@ class LinkRefMapper extends ClassMapperBase<LinkRef> {
     opt: true,
     def: false,
   );
+  static bool _$isDownloadable(LinkRef v) => v.isDownloadable;
+  static const Field<LinkRef, bool> _f$isDownloadable = Field(
+    'isDownloadable',
+    _$isDownloadable,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<LinkRef> fields = const {
     #url: _f$url,
     #text: _f$text,
     #isExternal: _f$isExternal,
+    #isDownloadable: _f$isDownloadable,
   };
   @override
   final bool ignoreNull = true;
@@ -518,6 +526,7 @@ class LinkRefMapper extends ClassMapperBase<LinkRef> {
       url: data.dec(_f$url),
       text: data.dec(_f$text),
       isExternal: data.dec(_f$isExternal),
+      isDownloadable: data.dec(_f$isDownloadable),
     );
   }
 
@@ -578,7 +587,7 @@ extension LinkRefValueCopy<$R, $Out> on ObjectCopyWith<$R, LinkRef, $Out> {
 
 abstract class LinkRefCopyWith<$R, $In extends LinkRef, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? url, String? text, bool? isExternal});
+  $R call({String? url, String? text, bool? isExternal, bool? isDownloadable});
   LinkRefCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
 
@@ -591,11 +600,17 @@ class _LinkRefCopyWithImpl<$R, $Out>
   late final ClassMapperBase<LinkRef> $mapper =
       LinkRefMapper.ensureInitialized();
   @override
-  $R call({String? url, String? text, bool? isExternal}) => $apply(
+  $R call({
+    String? url,
+    String? text,
+    bool? isExternal,
+    bool? isDownloadable,
+  }) => $apply(
     FieldCopyWithData({
       if (url != null) #url: url,
       if (text != null) #text: text,
       if (isExternal != null) #isExternal: isExternal,
+      if (isDownloadable != null) #isDownloadable: isDownloadable,
     }),
   );
   @override
@@ -603,6 +618,7 @@ class _LinkRefCopyWithImpl<$R, $Out>
     url: data.get(#url, or: $value.url),
     text: data.get(#text, or: $value.text),
     isExternal: data.get(#isExternal, or: $value.isExternal),
+    isDownloadable: data.get(#isDownloadable, or: $value.isDownloadable),
   );
 
   @override
