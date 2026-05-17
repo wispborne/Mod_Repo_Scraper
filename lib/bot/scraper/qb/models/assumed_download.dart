@@ -12,7 +12,7 @@ class AssumedDownloadCandidate with AssumedDownloadCandidateMappable {
   final String? fileName;
   final String confidence;
   final bool requiresManualStep;
-  final String? linkText;
+  final String linkText;
 
   AssumedDownloadCandidate({
     this.originalUrl = '',
@@ -21,14 +21,13 @@ class AssumedDownloadCandidate with AssumedDownloadCandidateMappable {
     this.fileName,
     this.confidence = 'medium',
     this.requiresManualStep = false,
-    this.linkText,
+    this.linkText = '',
   });
 
   /// Converts a [DownloadCandidate] from the resolver into the bundle format.
   factory AssumedDownloadCandidate.fromDownloadCandidate(
-    DownloadCandidate candidate, {
-    String? linkText,
-  }) {
+    DownloadCandidate candidate,
+  ) {
     return AssumedDownloadCandidate(
       originalUrl: candidate.sourceUrl,
       resolvedDirectUrl: candidate.resolvedUrl,
@@ -36,7 +35,7 @@ class AssumedDownloadCandidate with AssumedDownloadCandidateMappable {
       fileName: candidate.archiveFilename,
       confidence: candidate.confidence.name,
       requiresManualStep: candidate.requiresManualStep,
-      linkText: linkText,
+      linkText: candidate.linkText,
     );
   }
 

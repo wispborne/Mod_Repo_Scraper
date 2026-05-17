@@ -60,11 +60,12 @@ class AssumedDownloadCandidateMapper
       v.requiresManualStep;
   static const Field<AssumedDownloadCandidate, bool> _f$requiresManualStep =
       Field('requiresManualStep', _$requiresManualStep, opt: true, def: false);
-  static String? _$linkText(AssumedDownloadCandidate v) => v.linkText;
+  static String _$linkText(AssumedDownloadCandidate v) => v.linkText;
   static const Field<AssumedDownloadCandidate, String> _f$linkText = Field(
     'linkText',
     _$linkText,
     opt: true,
+    def: '',
   );
 
   @override
@@ -193,7 +194,7 @@ class _AssumedDownloadCandidateCopyWithImpl<$R, $Out>
     Object? fileName = $none,
     String? confidence,
     bool? requiresManualStep,
-    Object? linkText = $none,
+    String? linkText,
   }) => $apply(
     FieldCopyWithData({
       if (originalUrl != null) #originalUrl: originalUrl,
@@ -202,7 +203,7 @@ class _AssumedDownloadCandidateCopyWithImpl<$R, $Out>
       if (fileName != $none) #fileName: fileName,
       if (confidence != null) #confidence: confidence,
       if (requiresManualStep != null) #requiresManualStep: requiresManualStep,
-      if (linkText != $none) #linkText: linkText,
+      if (linkText != null) #linkText: linkText,
     }),
   );
   @override

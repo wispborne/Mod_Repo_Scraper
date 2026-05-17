@@ -21,6 +21,7 @@ class DownloadCandidate {
   final String? archiveFilename;
   final DownloadConfidence confidence;
   final bool requiresManualStep;
+  final String linkText;
 
   DownloadCandidate({
     required this.sourceUrl,
@@ -28,6 +29,7 @@ class DownloadCandidate {
     this.archiveFilename,
     this.confidence = DownloadConfidence.medium,
     this.requiresManualStep = false,
+    this.linkText = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -36,6 +38,7 @@ class DownloadCandidate {
         if (archiveFilename != null) 'archiveFilename': archiveFilename,
         'confidence': confidence.name,
         'requiresManualStep': requiresManualStep,
+        if (linkText.isNotEmpty) 'linkText': linkText,
       };
 
   factory DownloadCandidate.fromJson(Map<String, dynamic> json) => DownloadCandidate(
@@ -44,6 +47,7 @@ class DownloadCandidate {
         archiveFilename: json['archiveFilename'] as String?,
         confidence: DownloadConfidence.values.firstWhere((e) => e.name == json['confidence']),
         requiresManualStep: json['requiresManualStep'] as bool? ?? false,
+        linkText: json['linkText'] as String? ?? '',
       );
 }
 
@@ -76,7 +80,7 @@ class _CacheEntry {
 
 /// Resolves direct download URLs from links found in forum topic first posts.
 class QbDownloadResolver {
-  static const int _schemaVersion = 1;
+  static const int _schemaVersion = 2;
   static const String _cacheFilename = 'assumed-downloads-cache.json';
 
   final http.Client _client;
@@ -138,11 +142,6 @@ class QbDownloadResolver {
     caseSensitive: false,
   );
 
-  static final _contentDispositionFilenameRegex = RegExp(
-    r'''filename\*?=(?:UTF-8'')?["']?([^"';\r\n]+)''',
-    caseSensitive: false,
-  );
-
   static final _mediafireCdnRegex1 = RegExp(
     r'''(https?://download\d*\.mediafire\.com/[^\s"'<>]+)''',
     caseSensitive: false,
@@ -159,17 +158,34 @@ class QbDownloadResolver {
   );
 
   static final _googleDriveTitleRegex = RegExp(
-    r'<title>([^<]+)</title>',
+    r'<title>\s*(.*?)\s*(?:-\s*Google Drive)?\s*</title>',
     caseSensitive: false,
+    dotAll: true,
   );
 
   static final _googleDriveOgTitleRegex = RegExp(
-    r'<meta\s+property="og:title"\s+content="([^"]+)"',
+    r'''property\s*=\s*["']og:title["'][^>]*content\s*=\s*["']([^"']+)["']''',
+    caseSensitive: false,
+  );
+
+  static final _googleDriveOgTitleAltRegex = RegExp(
+    r'''content\s*=\s*["']([^"']+)["'][^>]{0,240}?property\s*=\s*["']og:title["']''',
     caseSensitive: false,
   );
 
   static final _googleDriveJsonTitleRegex = RegExp(
-    r'"title"\s*:\s*"([^"]+)"',
+    r'"title"\s*:\s*"([^"]+\.(?:zip|rar|7z|tar\.gz|tar|bz2))"',
+    caseSensitive: false,
+  );
+
+  static final _gdriveDispositionUtf8StarRegex = RegExp(
+    r"filename\*=UTF-8''([^;\s""']+)",
+    caseSensitive: false,
+  );
+
+  static final _gdriveDispositionQuotedRegex = RegExp(
+    r'filename\s*=\s*"([^"]+)"',
+    caseSensitive: false,
   );
 
   QbDownloadResolver({
@@ -211,7 +227,18 @@ class QbDownloadResolver {
     final results = await Future.wait(
       externalLinks.map((link) async {
         try {
-          return await _resolveLink(link);
+          final candidate = await _resolveLink(link);
+          if (candidate != null) {
+            return DownloadCandidate(
+              sourceUrl: candidate.sourceUrl,
+              resolvedUrl: candidate.resolvedUrl,
+              archiveFilename: candidate.archiveFilename,
+              confidence: candidate.confidence,
+              requiresManualStep: candidate.requiresManualStep,
+              linkText: link.text,
+            );
+          }
+          return null;
         } catch (e) {
           _log.warning('Failed to resolve link ${link.url}: $e');
           return null;
@@ -481,18 +508,14 @@ class QbDownloadResolver {
     String? filename;
 
     try {
-      final response = await _client.get(Uri.parse(normalized));
-
-      // Try Content-Disposition header
-      final contentDisp = response.headers['content-disposition'];
-      if (contentDisp != null) {
-        filename = _extractContentDispositionFilename(contentDisp);
-      }
-
-      // Try HTML title / og:title / JSON title
-      if (filename == null && response.statusCode == 200) {
-        final body = response.body;
-        filename = _extractGoogleDriveFilename(body);
+      // Probe the uc download URL first (Content-Disposition + HTML).
+      filename = await _tryGoogleDriveNameFromUc(normalized);
+      // Fall back to the original view/share URL's HTML metadata.
+      if (filename == null) {
+        final viewHtml = await _client.get(Uri.parse(url));
+        if (viewHtml.statusCode == 200) {
+          filename = _parseDriveHtml(viewHtml.body);
+        }
       }
     } catch (e) {
       _log.fine('Google Drive probe failed for $url: $e');
@@ -506,42 +529,76 @@ class QbDownloadResolver {
     );
   }
 
-  String? _extractContentDispositionFilename(String header) {
-    final match = _contentDispositionFilenameRegex.firstMatch(header);
-    if (match == null) return null;
-    final filename = _tryDecodeFull(match.group(1)!.trim());
-    if (filename == null) return null;
-    return ArchiveHelpers.hasSupportedArchiveExtension(filename) ? filename : null;
+  Future<String?> _tryGoogleDriveNameFromUc(String downloadUrl) async {
+    try {
+      final response = await _client.get(Uri.parse(downloadUrl));
+
+      // Try Content-Disposition header.
+      final contentDisp = response.headers['content-disposition'];
+      if (contentDisp != null) {
+        final name = _sanitizeDriveArchiveName(
+            _rawContentDispositionFileName(contentDisp));
+        if (name != null) return name;
+      }
+
+      // If the response is HTML (virus-scan interstitial), parse it.
+      final contentType = response.headers['content-type'] ?? '';
+      if (!contentType.contains('text/html')) return null;
+      return _parseDriveHtml(response.body);
+    } catch (e) {
+      _log.fine('Google Drive uc download probe failed for $downloadUrl: $e');
+      return null;
+    }
   }
 
-  String? _extractGoogleDriveFilename(String html) {
-    // Try <title>
-    var match = _googleDriveTitleRegex.firstMatch(html);
-    if (match != null) {
-      final title = HtmlProcessor.decodeEntities(match.group(1)!.trim());
-      if (ArchiveHelpers.hasSupportedArchiveExtension(title)) return title;
-      // Strip " - Google Drive" suffix
-      final stripped = title.replaceAll(RegExp(r'\s*-\s*Google Drive$'), '');
-      if (ArchiveHelpers.hasSupportedArchiveExtension(stripped)) {
-        return stripped;
+  String? _rawContentDispositionFileName(String header) {
+    var m = _gdriveDispositionUtf8StarRegex.firstMatch(header);
+    if (m != null) return _tryDecodeFull(m.group(1)!);
+    m = _gdriveDispositionQuotedRegex.firstMatch(header);
+    return m?.group(1);
+  }
+
+  String? _sanitizeDriveArchiveName(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final hint = _extractArchiveFilename(raw) ?? raw.trim().replaceAll('"', '');
+    if (hint.isEmpty) return null;
+    return ArchiveHelpers.hasSupportedArchiveExtension(hint) ? hint : null;
+  }
+
+  String? _parseDriveHtml(String html) {
+    // Try <title>, og:title, og:title (reversed attr order)
+    for (final regex in [
+      _googleDriveTitleRegex,
+      _googleDriveOgTitleRegex,
+      _googleDriveOgTitleAltRegex,
+    ]) {
+      final m = regex.firstMatch(html);
+      if (m != null) {
+        final name = _sanitizeDriveArchiveName(
+            HtmlProcessor.decodeEntities(m.group(1)!.trim()));
+        if (name != null) return name;
       }
     }
 
-    // Try og:title
-    match = _googleDriveOgTitleRegex.firstMatch(html);
-    if (match != null) {
-      final title = HtmlProcessor.decodeEntities(match.group(1)!.trim());
-      if (ArchiveHelpers.hasSupportedArchiveExtension(title)) return title;
+    // Try Content-Disposition patterns embedded in HTML (virus-scan page)
+    for (final m in _gdriveDispositionUtf8StarRegex.allMatches(html)) {
+      final name = _sanitizeDriveArchiveName(
+          _tryDecodeFull(m.group(1)!));
+      if (name != null) return name;
+    }
+    for (final m in _gdriveDispositionQuotedRegex.allMatches(html)) {
+      final name = _sanitizeDriveArchiveName(m.group(1));
+      if (name != null) return name;
     }
 
     // Try JSON title
-    match = _googleDriveJsonTitleRegex.firstMatch(html);
-    if (match != null) {
-      final title = match.group(1)!.trim();
-      if (ArchiveHelpers.hasSupportedArchiveExtension(title)) return title;
+    for (final m in _googleDriveJsonTitleRegex.allMatches(html)) {
+      final name = _sanitizeDriveArchiveName(m.group(1));
+      if (name != null) return name;
     }
 
-    return null;
+    // Last resort: scan entire HTML for archive filename pattern
+    return _sanitizeDriveArchiveName(_extractArchiveFilename(html));
   }
 
   // ---------------------------------------------------------------------------
@@ -670,6 +727,7 @@ class QbDownloadResolver {
             archiveFilename: fromText,
             confidence: c.confidence,
             requiresManualStep: c.requiresManualStep,
+            linkText: c.linkText,
           );
           continue;
         }
@@ -684,6 +742,7 @@ class QbDownloadResolver {
           archiveFilename: fromUrl,
           confidence: c.confidence,
           requiresManualStep: c.requiresManualStep,
+          linkText: c.linkText,
         );
       }
     }
@@ -730,6 +789,7 @@ class QbDownloadResolver {
           archiveFilename: uniqueFilename,
           confidence: c.confidence,
           requiresManualStep: c.requiresManualStep,
+          linkText: c.linkText,
         );
       }
     }

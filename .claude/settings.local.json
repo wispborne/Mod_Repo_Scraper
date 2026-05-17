@@ -25,7 +25,10 @@
       "Bash(grep -E \"\\\\.\\(dart|yaml\\)$\")",
       "Bash(openspec new *)",
       "Bash(openspec list *)",
-      "Bash(openspec --version)"
+      "Bash(openspec --version)",
+      "Bash(Get-ChildItem -Path \"F:\\\\Code\\\\Starsector\\\\QBMBAMM\" -Recurse -Filter \"*.cs\")",
+      "Bash(Select-Object FullName)",
+      "PowerShell(openspec new change \"qb-use-cached\" 2>&1)"
     ]
   }
 }

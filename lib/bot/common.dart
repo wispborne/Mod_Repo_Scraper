@@ -64,6 +64,7 @@ class Common {
             properties['keep_all_game_versions_from_same_source']?.toLowerCase() == 'true',
         generateDebugHtml: properties['generate_debug_html']?.toLowerCase() == 'true',
         enableQb: properties['enable_qb']?.toLowerCase() == 'true',
+        qbUseCached: properties['qb_use_cached']?.toLowerCase() == 'true',
         qbDataPath: _trimOrDefault(properties['qb_data_path'], 'qb_data')!,
         qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
         qbBoards: _parseQbBoards(properties['qb_boards']),
@@ -166,6 +167,7 @@ class BotConfig with BotConfigMappable {
   final bool keepAllGameVersionsFromSameSource;
   final bool generateDebugHtml;
   final bool enableQb;
+  final bool qbUseCached;
   final String qbDataPath;
   final String qbScope;
   final Set<String> qbBoards;
@@ -187,6 +189,7 @@ class BotConfig with BotConfigMappable {
     this.keepAllGameVersionsFromSameSource = false,
     this.generateDebugHtml = false,
     this.enableQb = false,
+    this.qbUseCached = false,
     this.qbDataPath = 'qb_data',
     this.qbScope = 'newData',
     this.qbBoards = const {'main', 'libraries'},
