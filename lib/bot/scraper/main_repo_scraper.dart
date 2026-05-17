@@ -208,8 +208,19 @@ class MainRepoScraper {
         }
       });
 
+      final qbCacheFile = File('${config.qbDataPath}/qb_raw_cache.json');
+      final CachingClient? qbCachingClient;
+
+      if (config.qbUseCached && await qbCacheFile.exists()) {
+        timber.i(message: () => "Loading QB raw HTTP cache...");
+        qbCachingClient = await CachingClient.fromFile(qbCacheFile.path);
+      } else {
+        qbCachingClient = CachingClient(http.Client());
+      }
+
       final qbClient = ThrottledClient(
-        delayMs: config.qbDelayMs,
+        client: qbCachingClient,
+        delayMs: qbCachingClient.isReplaying ? 0 : config.qbDelayMs,
       );
       try {
         timber.i(message: () => "Starting QB pipeline...");
@@ -253,6 +264,13 @@ class MainRepoScraper {
         );
 
         await qbResolver.saveCache();
+
+        if (!qbCachingClient.isReplaying) {
+          timber.i(message: () => "Saving QB raw HTTP cache...");
+          await qbCachingClient.saveToFile(qbCacheFile.path);
+        } else {
+          timber.i(message: () => "QB ran from cache; skipping cache save.");
+        }
 
         timber.i(
             message: () => "QB scrape completed: ${qbResult.modsScraped} mods, "

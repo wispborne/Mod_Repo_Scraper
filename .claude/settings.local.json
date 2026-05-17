@@ -28,7 +28,8 @@
       "Bash(openspec --version)",
       "Bash(Get-ChildItem -Path \"F:\\\\Code\\\\Starsector\\\\QBMBAMM\" -Recurse -Filter \"*.cs\")",
       "Bash(Select-Object FullName)",
-      "PowerShell(openspec new change \"qb-use-cached\" 2>&1)"
+      "PowerShell(openspec new change \"qb-use-cached\" 2>&1)",
+      "PowerShell($target = \"openspec/changes/archive/2026-05-17-qb-use-cached\"; if \\(Test-Path $target\\) { Write-Error \"Target archive directory already exists: $target\" } else { New-Item -ItemType Directory -Path \"openspec/changes/archive\" -Force | Out-Null; Move-Item \"openspec/changes/qb-use-cached\" $target; \"Archived to $target\" })"
     ]
   }
 }
