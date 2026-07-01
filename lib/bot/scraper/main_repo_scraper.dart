@@ -245,6 +245,9 @@ class MainRepoScraper {
         final scope = ScrapeScope(
           type: scopeType,
           boards: boards,
+          maxPagesMain: config.qbMaxPagesMain,
+          maxPagesLesser: config.qbLesserBoardMaxPages,
+          maxPagesLibraries: config.qbMaxPagesLibraries,
         );
 
         final qbStore = JsonDataStore(config.qbDataPath);

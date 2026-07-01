@@ -69,8 +69,11 @@ class Common {
         qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
         qbBoards: _parseQbBoards(properties['qb_boards']),
         qbDelayMs: int.tryParse(properties['qb_delay_ms'] ?? '') ?? 1500,
+        qbMaxPagesMain: int.tryParse(properties['qb_max_pages_main'] ?? ''),
         qbLesserBoardMaxPages:
             int.tryParse(properties['qb_lesser_board_max_pages'] ?? '') ?? 20,
+        qbMaxPagesLibraries:
+            int.tryParse(properties['qb_max_pages_libraries'] ?? ''),
       );
     } catch (e) {
       stderr.writeln(e);
@@ -172,7 +175,12 @@ class BotConfig with BotConfigMappable {
   final String qbScope;
   final Set<String> qbBoards;
   final int qbDelayMs;
+  // Per-board page limits for the QB scraper; applied only when qbScope == 'pages'.
+  // null means scrape all pages for that board. The lesser board is additionally
+  // hard-capped at ForumConstants.lesserBoardMaxPages.
+  final int? qbMaxPagesMain;
   final int qbLesserBoardMaxPages;
+  final int? qbMaxPagesLibraries;
 
   const BotConfig({
     required this.lessScraping,
@@ -194,6 +202,8 @@ class BotConfig with BotConfigMappable {
     this.qbScope = 'newData',
     this.qbBoards = const {'main', 'libraries'},
     this.qbDelayMs = 1500,
+    this.qbMaxPagesMain,
     this.qbLesserBoardMaxPages = 20,
+    this.qbMaxPagesLibraries,
   });
 }

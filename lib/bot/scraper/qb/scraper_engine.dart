@@ -135,8 +135,7 @@ class QbScraperEngine {
           modSummaries[i] = m.copyWith(sourceBoard: 9);
         }
       } else {
-        final maxPages =
-            scope.type == ScopeType.pages ? scope.maxPages : null;
+        final isPages = scope.type == ScopeType.pages;
         final isNewData = scope.type == ScopeType.newData;
 
         var mainList = <QbModSummary>[];
@@ -150,9 +149,10 @@ class QbScraperEngine {
                 pageMods.any((m) => _isNewOrLastPostChanged(m, indexMap));
           }
 
+          final maxPagesMain = isPages ? scope.maxPagesMain : null;
           currentJob.currentPhase = 'Mods board (8)';
           mainList = await boardScraper.scrapeAllPages(
-            maxPages: maxPages,
+            maxPages: maxPagesMain,
             shouldContinueAfterPage: shouldContinueMain,
             sortByLastPostDesc: isNewData,
           );
@@ -167,7 +167,7 @@ class QbScraperEngine {
 
         if (scope.boards.contains(ScrapeBoard.lesser)) {
           final lesserMax = _min(
-            scope.maxPages ?? ForumConstants.lesserBoardMaxPages,
+            scope.maxPagesLesser ?? ForumConstants.lesserBoardMaxPages,
             ForumConstants.lesserBoardMaxPages,
           );
 
@@ -208,10 +208,11 @@ class QbScraperEngine {
             };
           }
 
+          final maxPagesLibraries = isPages ? scope.maxPagesLibraries : null;
           _log.info('Scraping library board (board 9)');
           currentJob.currentPhase = 'Library board (9)';
           libraryList = await boardScraper.scrapeAllPages(
-            maxPages: maxPages,
+            maxPages: maxPagesLibraries,
             shouldContinueAfterPage: shouldContinueLibrary,
             sortByLastPostDesc: true,
             boardBaseUrl: ForumConstants.libraryBoardUrl,

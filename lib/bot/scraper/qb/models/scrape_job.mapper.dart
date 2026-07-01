@@ -197,10 +197,22 @@ class ScrapeScopeMapper extends ClassMapperBase<ScrapeScope> {
     opt: true,
     def: ScopeType.all,
   );
-  static int? _$maxPages(ScrapeScope v) => v.maxPages;
-  static const Field<ScrapeScope, int> _f$maxPages = Field(
-    'maxPages',
-    _$maxPages,
+  static int? _$maxPagesMain(ScrapeScope v) => v.maxPagesMain;
+  static const Field<ScrapeScope, int> _f$maxPagesMain = Field(
+    'maxPagesMain',
+    _$maxPagesMain,
+    opt: true,
+  );
+  static int? _$maxPagesLesser(ScrapeScope v) => v.maxPagesLesser;
+  static const Field<ScrapeScope, int> _f$maxPagesLesser = Field(
+    'maxPagesLesser',
+    _$maxPagesLesser,
+    opt: true,
+  );
+  static int? _$maxPagesLibraries(ScrapeScope v) => v.maxPagesLibraries;
+  static const Field<ScrapeScope, int> _f$maxPagesLibraries = Field(
+    'maxPagesLibraries',
+    _$maxPagesLibraries,
     opt: true,
   );
   static List<int>? _$topicIds(ScrapeScope v) => v.topicIds;
@@ -219,7 +231,9 @@ class ScrapeScopeMapper extends ClassMapperBase<ScrapeScope> {
   @override
   final MappableFields<ScrapeScope> fields = const {
     #type: _f$type,
-    #maxPages: _f$maxPages,
+    #maxPagesMain: _f$maxPagesMain,
+    #maxPagesLesser: _f$maxPagesLesser,
+    #maxPagesLibraries: _f$maxPagesLibraries,
     #topicIds: _f$topicIds,
     #boards: _f$boards,
   };
@@ -227,7 +241,9 @@ class ScrapeScopeMapper extends ClassMapperBase<ScrapeScope> {
   static ScrapeScope _instantiate(DecodingData data) {
     return ScrapeScope(
       type: data.dec(_f$type),
-      maxPages: data.dec(_f$maxPages),
+      maxPagesMain: data.dec(_f$maxPagesMain),
+      maxPagesLesser: data.dec(_f$maxPagesLesser),
+      maxPagesLibraries: data.dec(_f$maxPagesLibraries),
       topicIds: data.dec(_f$topicIds),
       boards: data.dec(_f$boards),
     );
@@ -296,7 +312,9 @@ abstract class ScrapeScopeCopyWith<$R, $In extends ScrapeScope, $Out>
   ListCopyWith<$R, int, ObjectCopyWith<$R, int, int>>? get topicIds;
   $R call({
     ScopeType? type,
-    int? maxPages,
+    int? maxPagesMain,
+    int? maxPagesLesser,
+    int? maxPagesLibraries,
     List<int>? topicIds,
     Set<ScrapeBoard>? boards,
   });
@@ -323,13 +341,17 @@ class _ScrapeScopeCopyWithImpl<$R, $Out>
   @override
   $R call({
     ScopeType? type,
-    Object? maxPages = $none,
+    Object? maxPagesMain = $none,
+    Object? maxPagesLesser = $none,
+    Object? maxPagesLibraries = $none,
     Object? topicIds = $none,
     Object? boards = $none,
   }) => $apply(
     FieldCopyWithData({
       if (type != null) #type: type,
-      if (maxPages != $none) #maxPages: maxPages,
+      if (maxPagesMain != $none) #maxPagesMain: maxPagesMain,
+      if (maxPagesLesser != $none) #maxPagesLesser: maxPagesLesser,
+      if (maxPagesLibraries != $none) #maxPagesLibraries: maxPagesLibraries,
       if (topicIds != $none) #topicIds: topicIds,
       if (boards != $none) #boards: boards,
     }),
@@ -337,7 +359,12 @@ class _ScrapeScopeCopyWithImpl<$R, $Out>
   @override
   ScrapeScope $make(CopyWithData data) => ScrapeScope(
     type: data.get(#type, or: $value.type),
-    maxPages: data.get(#maxPages, or: $value.maxPages),
+    maxPagesMain: data.get(#maxPagesMain, or: $value.maxPagesMain),
+    maxPagesLesser: data.get(#maxPagesLesser, or: $value.maxPagesLesser),
+    maxPagesLibraries: data.get(
+      #maxPagesLibraries,
+      or: $value.maxPagesLibraries,
+    ),
     topicIds: data.get(#topicIds, or: $value.topicIds),
     boards: data.get(#boards, or: $value.boards),
   );

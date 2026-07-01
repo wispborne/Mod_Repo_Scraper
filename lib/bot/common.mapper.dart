@@ -111,6 +111,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: false,
   );
+  static bool _$qbUseCached(BotConfig v) => v.qbUseCached;
+  static const Field<BotConfig, bool> _f$qbUseCached = Field(
+    'qbUseCached',
+    _$qbUseCached,
+    opt: true,
+    def: false,
+  );
   static String _$qbDataPath(BotConfig v) => v.qbDataPath;
   static const Field<BotConfig, String> _f$qbDataPath = Field(
     'qbDataPath',
@@ -139,12 +146,24 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: 1500,
   );
+  static int? _$qbMaxPagesMain(BotConfig v) => v.qbMaxPagesMain;
+  static const Field<BotConfig, int> _f$qbMaxPagesMain = Field(
+    'qbMaxPagesMain',
+    _$qbMaxPagesMain,
+    opt: true,
+  );
   static int _$qbLesserBoardMaxPages(BotConfig v) => v.qbLesserBoardMaxPages;
   static const Field<BotConfig, int> _f$qbLesserBoardMaxPages = Field(
     'qbLesserBoardMaxPages',
     _$qbLesserBoardMaxPages,
     opt: true,
     def: 20,
+  );
+  static int? _$qbMaxPagesLibraries(BotConfig v) => v.qbMaxPagesLibraries;
+  static const Field<BotConfig, int> _f$qbMaxPagesLibraries = Field(
+    'qbMaxPagesLibraries',
+    _$qbMaxPagesLibraries,
+    opt: true,
   );
 
   @override
@@ -164,11 +183,14 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #keepAllGameVersionsFromSameSource: _f$keepAllGameVersionsFromSameSource,
     #generateDebugHtml: _f$generateDebugHtml,
     #enableQb: _f$enableQb,
+    #qbUseCached: _f$qbUseCached,
     #qbDataPath: _f$qbDataPath,
     #qbScope: _f$qbScope,
     #qbBoards: _f$qbBoards,
     #qbDelayMs: _f$qbDelayMs,
+    #qbMaxPagesMain: _f$qbMaxPagesMain,
     #qbLesserBoardMaxPages: _f$qbLesserBoardMaxPages,
+    #qbMaxPagesLibraries: _f$qbMaxPagesLibraries,
   };
 
   static BotConfig _instantiate(DecodingData data) {
@@ -191,11 +213,14 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       ),
       generateDebugHtml: data.dec(_f$generateDebugHtml),
       enableQb: data.dec(_f$enableQb),
+      qbUseCached: data.dec(_f$qbUseCached),
       qbDataPath: data.dec(_f$qbDataPath),
       qbScope: data.dec(_f$qbScope),
       qbBoards: data.dec(_f$qbBoards),
       qbDelayMs: data.dec(_f$qbDelayMs),
+      qbMaxPagesMain: data.dec(_f$qbMaxPagesMain),
       qbLesserBoardMaxPages: data.dec(_f$qbLesserBoardMaxPages),
+      qbMaxPagesLibraries: data.dec(_f$qbMaxPagesLibraries),
     );
   }
 
@@ -275,11 +300,14 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     bool? keepAllGameVersionsFromSameSource,
     bool? generateDebugHtml,
     bool? enableQb,
+    bool? qbUseCached,
     String? qbDataPath,
     String? qbScope,
     Set<String>? qbBoards,
     int? qbDelayMs,
+    int? qbMaxPagesMain,
     int? qbLesserBoardMaxPages,
+    int? qbMaxPagesLibraries,
   });
   BotConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -318,11 +346,14 @@ class _BotConfigCopyWithImpl<$R, $Out>
     bool? keepAllGameVersionsFromSameSource,
     bool? generateDebugHtml,
     bool? enableQb,
+    bool? qbUseCached,
     String? qbDataPath,
     String? qbScope,
     Set<String>? qbBoards,
     int? qbDelayMs,
+    Object? qbMaxPagesMain = $none,
     int? qbLesserBoardMaxPages,
+    Object? qbMaxPagesLibraries = $none,
   }) => $apply(
     FieldCopyWithData({
       if (lessScraping != null) #lessScraping: lessScraping,
@@ -342,12 +373,16 @@ class _BotConfigCopyWithImpl<$R, $Out>
         #keepAllGameVersionsFromSameSource: keepAllGameVersionsFromSameSource,
       if (generateDebugHtml != null) #generateDebugHtml: generateDebugHtml,
       if (enableQb != null) #enableQb: enableQb,
+      if (qbUseCached != null) #qbUseCached: qbUseCached,
       if (qbDataPath != null) #qbDataPath: qbDataPath,
       if (qbScope != null) #qbScope: qbScope,
       if (qbBoards != null) #qbBoards: qbBoards,
       if (qbDelayMs != null) #qbDelayMs: qbDelayMs,
+      if (qbMaxPagesMain != $none) #qbMaxPagesMain: qbMaxPagesMain,
       if (qbLesserBoardMaxPages != null)
         #qbLesserBoardMaxPages: qbLesserBoardMaxPages,
+      if (qbMaxPagesLibraries != $none)
+        #qbMaxPagesLibraries: qbMaxPagesLibraries,
     }),
   );
   @override
@@ -375,13 +410,19 @@ class _BotConfigCopyWithImpl<$R, $Out>
       or: $value.generateDebugHtml,
     ),
     enableQb: data.get(#enableQb, or: $value.enableQb),
+    qbUseCached: data.get(#qbUseCached, or: $value.qbUseCached),
     qbDataPath: data.get(#qbDataPath, or: $value.qbDataPath),
     qbScope: data.get(#qbScope, or: $value.qbScope),
     qbBoards: data.get(#qbBoards, or: $value.qbBoards),
     qbDelayMs: data.get(#qbDelayMs, or: $value.qbDelayMs),
+    qbMaxPagesMain: data.get(#qbMaxPagesMain, or: $value.qbMaxPagesMain),
     qbLesserBoardMaxPages: data.get(
       #qbLesserBoardMaxPages,
       or: $value.qbLesserBoardMaxPages,
+    ),
+    qbMaxPagesLibraries: data.get(
+      #qbMaxPagesLibraries,
+      or: $value.qbMaxPagesLibraries,
     ),
   );
 

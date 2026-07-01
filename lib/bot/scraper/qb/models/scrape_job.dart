@@ -18,13 +18,20 @@ enum ScrapeBoard {
 @MappableClass()
 class ScrapeScope with ScrapeScopeMappable {
   final ScopeType type;
-  final int? maxPages;
+  // Per-board page limits used when type == ScopeType.pages; null means scrape
+  // all pages for that board. The lesser board is always additionally capped at
+  // ForumConstants.lesserBoardMaxPages regardless of scope type.
+  final int? maxPagesMain; // board 8
+  final int? maxPagesLesser; // board 3
+  final int? maxPagesLibraries; // board 9
   final List<int>? topicIds;
   final Set<ScrapeBoard> boards;
 
   ScrapeScope({
     this.type = ScopeType.all,
-    this.maxPages,
+    this.maxPagesMain,
+    this.maxPagesLesser,
+    this.maxPagesLibraries,
     this.topicIds,
     Set<ScrapeBoard>? boards,
   }) : boards = boards ?? {ScrapeBoard.main, ScrapeBoard.libraries};
