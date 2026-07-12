@@ -415,6 +415,14 @@ class DebugTree extends Tree {
   final StreamController<void> _logController = StreamController<void>();
   final Zone _logZone = Zone.current;
 
+  /// Optional hooks run around each console (stdout/stderr) write, inside the
+  /// logging zone. A sticky console progress bar sets these so it can erase
+  /// itself before a log line prints and redraw itself afterwards, keeping the
+  /// bar and the log lines from overwriting each other. These never affect
+  /// [appenders], so they never change what is written to the log file.
+  static void Function()? beforeConsoleWrite;
+  static void Function()? afterConsoleWrite;
+
   DebugTree({
     required this.minLogLevelToShow,
     this.appenders = const [],
@@ -468,11 +476,13 @@ class DebugTree extends Tree {
     try {
       _logZone.run(() {
         final formattedMsg = formatLogString(priority, thread, tag, message);
+        beforeConsoleWrite?.call();
         if (priority < LogLevel.warn) {
           stdout.writeln(formattedMsg);
         } else {
           stderr.writeln(formattedMsg);
         }
+        afterConsoleWrite?.call();
 
         for (var appender in appenders) {
           appender(priority, formattedMsg);

@@ -97,10 +97,10 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
         opt: true,
         def: false,
       );
-  static bool _$generateDebugHtml(BotConfig v) => v.generateDebugHtml;
-  static const Field<BotConfig, bool> _f$generateDebugHtml = Field(
-    'generateDebugHtml',
-    _$generateDebugHtml,
+  static bool _$generateMergeDebug(BotConfig v) => v.generateMergeDebug;
+  static const Field<BotConfig, bool> _f$generateMergeDebug = Field(
+    'generateMergeDebug',
+    _$generateMergeDebug,
     opt: true,
     def: false,
   );
@@ -165,6 +165,134 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     _$qbMaxPagesLibraries,
     opt: true,
   );
+  static bool _$enableLlm(BotConfig v) => v.enableLlm;
+  static const Field<BotConfig, bool> _f$enableLlm = Field(
+    'enableLlm',
+    _$enableLlm,
+    opt: true,
+    def: false,
+  );
+  static String? _$llmApiToken(BotConfig v) => v.llmApiToken;
+  static const Field<BotConfig, String> _f$llmApiToken = Field(
+    'llmApiToken',
+    _$llmApiToken,
+    opt: true,
+  );
+  static String _$llmModel(BotConfig v) => v.llmModel;
+  static const Field<BotConfig, String> _f$llmModel = Field(
+    'llmModel',
+    _$llmModel,
+    opt: true,
+    def: 'deepseek/deepseek-chat',
+  );
+  static String _$llmBaseUrl(BotConfig v) => v.llmBaseUrl;
+  static const Field<BotConfig, String> _f$llmBaseUrl = Field(
+    'llmBaseUrl',
+    _$llmBaseUrl,
+    opt: true,
+    def: 'https://openrouter.ai/api/v1/chat/completions',
+  );
+  static int _$llmMaxConsecutiveFailures(BotConfig v) =>
+      v.llmMaxConsecutiveFailures;
+  static const Field<BotConfig, int> _f$llmMaxConsecutiveFailures = Field(
+    'llmMaxConsecutiveFailures',
+    _$llmMaxConsecutiveFailures,
+    opt: true,
+    def: 10,
+  );
+  static int _$llmTimeoutSeconds(BotConfig v) => v.llmTimeoutSeconds;
+  static const Field<BotConfig, int> _f$llmTimeoutSeconds = Field(
+    'llmTimeoutSeconds',
+    _$llmTimeoutSeconds,
+    opt: true,
+    def: 120,
+  );
+  static int? _$llmMaxTopics(BotConfig v) => v.llmMaxTopics;
+  static const Field<BotConfig, int> _f$llmMaxTopics = Field(
+    'llmMaxTopics',
+    _$llmMaxTopics,
+    opt: true,
+  );
+  static int? _$llmMaxTokens(BotConfig v) => v.llmMaxTokens;
+  static const Field<BotConfig, int> _f$llmMaxTokens = Field(
+    'llmMaxTokens',
+    _$llmMaxTokens,
+    opt: true,
+  );
+  static int? _$llmMaxInputChars(BotConfig v) => v.llmMaxInputChars;
+  static const Field<BotConfig, int> _f$llmMaxInputChars = Field(
+    'llmMaxInputChars',
+    _$llmMaxInputChars,
+    opt: true,
+  );
+  static bool _$llmDisableThinking(BotConfig v) => v.llmDisableThinking;
+  static const Field<BotConfig, bool> _f$llmDisableThinking = Field(
+    'llmDisableThinking',
+    _$llmDisableThinking,
+    opt: true,
+    def: false,
+  );
+  static bool _$enableLlmSummaries(BotConfig v) => v.enableLlmSummaries;
+  static const Field<BotConfig, bool> _f$enableLlmSummaries = Field(
+    'enableLlmSummaries',
+    _$enableLlmSummaries,
+    opt: true,
+    def: false,
+  );
+  static bool _$llmSkipScrapeReprocessOnly(BotConfig v) =>
+      v.llmSkipScrapeReprocessOnly;
+  static const Field<BotConfig, bool> _f$llmSkipScrapeReprocessOnly = Field(
+    'llmSkipScrapeReprocessOnly',
+    _$llmSkipScrapeReprocessOnly,
+    opt: true,
+    def: false,
+  );
+  static bool _$llmTestMode(BotConfig v) => v.llmTestMode;
+  static const Field<BotConfig, bool> _f$llmTestMode = Field(
+    'llmTestMode',
+    _$llmTestMode,
+    opt: true,
+    def: false,
+  );
+  static int _$llmTestLimit(BotConfig v) => v.llmTestLimit;
+  static const Field<BotConfig, int> _f$llmTestLimit = Field(
+    'llmTestLimit',
+    _$llmTestLimit,
+    opt: true,
+    def: 5,
+  );
+  static Set<int>? _$llmTestTopicIds(BotConfig v) => v.llmTestTopicIds;
+  static const Field<BotConfig, Set<int>> _f$llmTestTopicIds = Field(
+    'llmTestTopicIds',
+    _$llmTestTopicIds,
+    opt: true,
+  );
+  static String? _$llmFallbackBaseUrl(BotConfig v) => v.llmFallbackBaseUrl;
+  static const Field<BotConfig, String> _f$llmFallbackBaseUrl = Field(
+    'llmFallbackBaseUrl',
+    _$llmFallbackBaseUrl,
+    opt: true,
+  );
+  static String? _$llmFallbackModel(BotConfig v) => v.llmFallbackModel;
+  static const Field<BotConfig, String> _f$llmFallbackModel = Field(
+    'llmFallbackModel',
+    _$llmFallbackModel,
+    opt: true,
+  );
+  static String? _$llmFallbackApiToken(BotConfig v) => v.llmFallbackApiToken;
+  static const Field<BotConfig, String> _f$llmFallbackApiToken = Field(
+    'llmFallbackApiToken',
+    _$llmFallbackApiToken,
+    opt: true,
+  );
+  static bool _$llmFallbackDisableThinking(BotConfig v) =>
+      v.llmFallbackDisableThinking;
+  static const Field<BotConfig, bool> _f$llmFallbackDisableThinking = Field(
+    'llmFallbackDisableThinking',
+    _$llmFallbackDisableThinking,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<BotConfig> fields = const {
@@ -181,7 +309,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
         _f$discordForumChannelIdsAndGameVersions,
     #enableModRepo: _f$enableModRepo,
     #keepAllGameVersionsFromSameSource: _f$keepAllGameVersionsFromSameSource,
-    #generateDebugHtml: _f$generateDebugHtml,
+    #generateMergeDebug: _f$generateMergeDebug,
     #enableQb: _f$enableQb,
     #qbUseCached: _f$qbUseCached,
     #qbDataPath: _f$qbDataPath,
@@ -191,6 +319,25 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #qbMaxPagesMain: _f$qbMaxPagesMain,
     #qbLesserBoardMaxPages: _f$qbLesserBoardMaxPages,
     #qbMaxPagesLibraries: _f$qbMaxPagesLibraries,
+    #enableLlm: _f$enableLlm,
+    #llmApiToken: _f$llmApiToken,
+    #llmModel: _f$llmModel,
+    #llmBaseUrl: _f$llmBaseUrl,
+    #llmMaxConsecutiveFailures: _f$llmMaxConsecutiveFailures,
+    #llmTimeoutSeconds: _f$llmTimeoutSeconds,
+    #llmMaxTopics: _f$llmMaxTopics,
+    #llmMaxTokens: _f$llmMaxTokens,
+    #llmMaxInputChars: _f$llmMaxInputChars,
+    #llmDisableThinking: _f$llmDisableThinking,
+    #enableLlmSummaries: _f$enableLlmSummaries,
+    #llmSkipScrapeReprocessOnly: _f$llmSkipScrapeReprocessOnly,
+    #llmTestMode: _f$llmTestMode,
+    #llmTestLimit: _f$llmTestLimit,
+    #llmTestTopicIds: _f$llmTestTopicIds,
+    #llmFallbackBaseUrl: _f$llmFallbackBaseUrl,
+    #llmFallbackModel: _f$llmFallbackModel,
+    #llmFallbackApiToken: _f$llmFallbackApiToken,
+    #llmFallbackDisableThinking: _f$llmFallbackDisableThinking,
   };
 
   static BotConfig _instantiate(DecodingData data) {
@@ -211,7 +358,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       keepAllGameVersionsFromSameSource: data.dec(
         _f$keepAllGameVersionsFromSameSource,
       ),
-      generateDebugHtml: data.dec(_f$generateDebugHtml),
+      generateMergeDebug: data.dec(_f$generateMergeDebug),
       enableQb: data.dec(_f$enableQb),
       qbUseCached: data.dec(_f$qbUseCached),
       qbDataPath: data.dec(_f$qbDataPath),
@@ -221,6 +368,25 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       qbMaxPagesMain: data.dec(_f$qbMaxPagesMain),
       qbLesserBoardMaxPages: data.dec(_f$qbLesserBoardMaxPages),
       qbMaxPagesLibraries: data.dec(_f$qbMaxPagesLibraries),
+      enableLlm: data.dec(_f$enableLlm),
+      llmApiToken: data.dec(_f$llmApiToken),
+      llmModel: data.dec(_f$llmModel),
+      llmBaseUrl: data.dec(_f$llmBaseUrl),
+      llmMaxConsecutiveFailures: data.dec(_f$llmMaxConsecutiveFailures),
+      llmTimeoutSeconds: data.dec(_f$llmTimeoutSeconds),
+      llmMaxTopics: data.dec(_f$llmMaxTopics),
+      llmMaxTokens: data.dec(_f$llmMaxTokens),
+      llmMaxInputChars: data.dec(_f$llmMaxInputChars),
+      llmDisableThinking: data.dec(_f$llmDisableThinking),
+      enableLlmSummaries: data.dec(_f$enableLlmSummaries),
+      llmSkipScrapeReprocessOnly: data.dec(_f$llmSkipScrapeReprocessOnly),
+      llmTestMode: data.dec(_f$llmTestMode),
+      llmTestLimit: data.dec(_f$llmTestLimit),
+      llmTestTopicIds: data.dec(_f$llmTestTopicIds),
+      llmFallbackBaseUrl: data.dec(_f$llmFallbackBaseUrl),
+      llmFallbackModel: data.dec(_f$llmFallbackModel),
+      llmFallbackApiToken: data.dec(_f$llmFallbackApiToken),
+      llmFallbackDisableThinking: data.dec(_f$llmFallbackDisableThinking),
     );
   }
 
@@ -298,7 +464,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     Map<String, String>? discordForumChannelIdsAndGameVersions,
     bool? enableModRepo,
     bool? keepAllGameVersionsFromSameSource,
-    bool? generateDebugHtml,
+    bool? generateMergeDebug,
     bool? enableQb,
     bool? qbUseCached,
     String? qbDataPath,
@@ -308,6 +474,25 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     int? qbMaxPagesMain,
     int? qbLesserBoardMaxPages,
     int? qbMaxPagesLibraries,
+    bool? enableLlm,
+    String? llmApiToken,
+    String? llmModel,
+    String? llmBaseUrl,
+    int? llmMaxConsecutiveFailures,
+    int? llmTimeoutSeconds,
+    int? llmMaxTopics,
+    int? llmMaxTokens,
+    int? llmMaxInputChars,
+    bool? llmDisableThinking,
+    bool? enableLlmSummaries,
+    bool? llmSkipScrapeReprocessOnly,
+    bool? llmTestMode,
+    int? llmTestLimit,
+    Set<int>? llmTestTopicIds,
+    String? llmFallbackBaseUrl,
+    String? llmFallbackModel,
+    String? llmFallbackApiToken,
+    bool? llmFallbackDisableThinking,
   });
   BotConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -344,7 +529,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     Object? discordForumChannelIdsAndGameVersions = $none,
     bool? enableModRepo,
     bool? keepAllGameVersionsFromSameSource,
-    bool? generateDebugHtml,
+    bool? generateMergeDebug,
     bool? enableQb,
     bool? qbUseCached,
     String? qbDataPath,
@@ -354,6 +539,25 @@ class _BotConfigCopyWithImpl<$R, $Out>
     Object? qbMaxPagesMain = $none,
     int? qbLesserBoardMaxPages,
     Object? qbMaxPagesLibraries = $none,
+    bool? enableLlm,
+    Object? llmApiToken = $none,
+    String? llmModel,
+    String? llmBaseUrl,
+    int? llmMaxConsecutiveFailures,
+    int? llmTimeoutSeconds,
+    Object? llmMaxTopics = $none,
+    Object? llmMaxTokens = $none,
+    Object? llmMaxInputChars = $none,
+    bool? llmDisableThinking,
+    bool? enableLlmSummaries,
+    bool? llmSkipScrapeReprocessOnly,
+    bool? llmTestMode,
+    int? llmTestLimit,
+    Object? llmTestTopicIds = $none,
+    Object? llmFallbackBaseUrl = $none,
+    Object? llmFallbackModel = $none,
+    Object? llmFallbackApiToken = $none,
+    bool? llmFallbackDisableThinking,
   }) => $apply(
     FieldCopyWithData({
       if (lessScraping != null) #lessScraping: lessScraping,
@@ -371,7 +575,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (enableModRepo != null) #enableModRepo: enableModRepo,
       if (keepAllGameVersionsFromSameSource != null)
         #keepAllGameVersionsFromSameSource: keepAllGameVersionsFromSameSource,
-      if (generateDebugHtml != null) #generateDebugHtml: generateDebugHtml,
+      if (generateMergeDebug != null) #generateMergeDebug: generateMergeDebug,
       if (enableQb != null) #enableQb: enableQb,
       if (qbUseCached != null) #qbUseCached: qbUseCached,
       if (qbDataPath != null) #qbDataPath: qbDataPath,
@@ -383,6 +587,29 @@ class _BotConfigCopyWithImpl<$R, $Out>
         #qbLesserBoardMaxPages: qbLesserBoardMaxPages,
       if (qbMaxPagesLibraries != $none)
         #qbMaxPagesLibraries: qbMaxPagesLibraries,
+      if (enableLlm != null) #enableLlm: enableLlm,
+      if (llmApiToken != $none) #llmApiToken: llmApiToken,
+      if (llmModel != null) #llmModel: llmModel,
+      if (llmBaseUrl != null) #llmBaseUrl: llmBaseUrl,
+      if (llmMaxConsecutiveFailures != null)
+        #llmMaxConsecutiveFailures: llmMaxConsecutiveFailures,
+      if (llmTimeoutSeconds != null) #llmTimeoutSeconds: llmTimeoutSeconds,
+      if (llmMaxTopics != $none) #llmMaxTopics: llmMaxTopics,
+      if (llmMaxTokens != $none) #llmMaxTokens: llmMaxTokens,
+      if (llmMaxInputChars != $none) #llmMaxInputChars: llmMaxInputChars,
+      if (llmDisableThinking != null) #llmDisableThinking: llmDisableThinking,
+      if (enableLlmSummaries != null) #enableLlmSummaries: enableLlmSummaries,
+      if (llmSkipScrapeReprocessOnly != null)
+        #llmSkipScrapeReprocessOnly: llmSkipScrapeReprocessOnly,
+      if (llmTestMode != null) #llmTestMode: llmTestMode,
+      if (llmTestLimit != null) #llmTestLimit: llmTestLimit,
+      if (llmTestTopicIds != $none) #llmTestTopicIds: llmTestTopicIds,
+      if (llmFallbackBaseUrl != $none) #llmFallbackBaseUrl: llmFallbackBaseUrl,
+      if (llmFallbackModel != $none) #llmFallbackModel: llmFallbackModel,
+      if (llmFallbackApiToken != $none)
+        #llmFallbackApiToken: llmFallbackApiToken,
+      if (llmFallbackDisableThinking != null)
+        #llmFallbackDisableThinking: llmFallbackDisableThinking,
     }),
   );
   @override
@@ -405,9 +632,9 @@ class _BotConfigCopyWithImpl<$R, $Out>
       #keepAllGameVersionsFromSameSource,
       or: $value.keepAllGameVersionsFromSameSource,
     ),
-    generateDebugHtml: data.get(
-      #generateDebugHtml,
-      or: $value.generateDebugHtml,
+    generateMergeDebug: data.get(
+      #generateMergeDebug,
+      or: $value.generateMergeDebug,
     ),
     enableQb: data.get(#enableQb, or: $value.enableQb),
     qbUseCached: data.get(#qbUseCached, or: $value.qbUseCached),
@@ -423,6 +650,49 @@ class _BotConfigCopyWithImpl<$R, $Out>
     qbMaxPagesLibraries: data.get(
       #qbMaxPagesLibraries,
       or: $value.qbMaxPagesLibraries,
+    ),
+    enableLlm: data.get(#enableLlm, or: $value.enableLlm),
+    llmApiToken: data.get(#llmApiToken, or: $value.llmApiToken),
+    llmModel: data.get(#llmModel, or: $value.llmModel),
+    llmBaseUrl: data.get(#llmBaseUrl, or: $value.llmBaseUrl),
+    llmMaxConsecutiveFailures: data.get(
+      #llmMaxConsecutiveFailures,
+      or: $value.llmMaxConsecutiveFailures,
+    ),
+    llmTimeoutSeconds: data.get(
+      #llmTimeoutSeconds,
+      or: $value.llmTimeoutSeconds,
+    ),
+    llmMaxTopics: data.get(#llmMaxTopics, or: $value.llmMaxTopics),
+    llmMaxTokens: data.get(#llmMaxTokens, or: $value.llmMaxTokens),
+    llmMaxInputChars: data.get(#llmMaxInputChars, or: $value.llmMaxInputChars),
+    llmDisableThinking: data.get(
+      #llmDisableThinking,
+      or: $value.llmDisableThinking,
+    ),
+    enableLlmSummaries: data.get(
+      #enableLlmSummaries,
+      or: $value.enableLlmSummaries,
+    ),
+    llmSkipScrapeReprocessOnly: data.get(
+      #llmSkipScrapeReprocessOnly,
+      or: $value.llmSkipScrapeReprocessOnly,
+    ),
+    llmTestMode: data.get(#llmTestMode, or: $value.llmTestMode),
+    llmTestLimit: data.get(#llmTestLimit, or: $value.llmTestLimit),
+    llmTestTopicIds: data.get(#llmTestTopicIds, or: $value.llmTestTopicIds),
+    llmFallbackBaseUrl: data.get(
+      #llmFallbackBaseUrl,
+      or: $value.llmFallbackBaseUrl,
+    ),
+    llmFallbackModel: data.get(#llmFallbackModel, or: $value.llmFallbackModel),
+    llmFallbackApiToken: data.get(
+      #llmFallbackApiToken,
+      or: $value.llmFallbackApiToken,
+    ),
+    llmFallbackDisableThinking: data.get(
+      #llmFallbackDisableThinking,
+      or: $value.llmFallbackDisableThinking,
     ),
   );
 

@@ -16,6 +16,7 @@ import 'package:dart_mappable/dart_mappable.dart';
 import 'package:http/http.dart' as http;
 
 import '../../timber/ktx/timber_kt.dart' as timber;
+import '../../utilities/console_progress_bar.dart';
 import '../common.dart';
 import 'scraped_mod.dart';
 
@@ -44,23 +45,32 @@ class NexusReader {
     final mods = <ScrapedMod>[];
     // Once there are over 1000 mods on NexusMods, update this lol.
     // Rate limit is 2,500 requests per 24 hours.
-    for (var modId = 1; modId < 1000; modId++) {
-      try {
-        final mod = await _getModById(
-          modId: modId,
-          categories: gameInfo?.categories ?? [],
-          authToken: authToken,
-        );
+    // The scan stops at the first gap, so the bar's ceiling is the scan range
+    // (999), not the eventual mod count; it fills partway and then finishes.
+    const scanCeiling = 999;
+    final progressBar = ConsoleProgressBar.start('Nexus mods', scanCeiling);
+    try {
+      for (var modId = 1; modId < 1000; modId++) {
+        progressBar.update(modId, item: '${mods.length} found');
+        try {
+          final mod = await _getModById(
+            modId: modId,
+            categories: gameInfo?.categories ?? [],
+            authToken: authToken,
+          );
 
-        if (mod != null) {
-          mods.add(mod);
-          timber.i(message: () => "NexusMods #$modId: ${mod.name}");
-          timber.v(message: () => mod.toString());
+          if (mod != null) {
+            mods.add(mod);
+            timber.i(message: () => "NexusMods #$modId: ${mod.name}");
+            timber.v(message: () => mod.toString());
+          }
+        } catch (e, stackTrace) {
+          timber.w(t: e, message: () => "Error getting mod $modId");
+          break;
         }
-      } catch (e, stackTrace) {
-        timber.w(t: e, message: () => "Error getting mod $modId");
-        break;
       }
+    } finally {
+      progressBar.finish();
     }
 
     timber.i(message: () => "NexusMods scraping total: ${mods.length} mods in ${DateTime.now().difference(nexusStartTime).inMilliseconds}ms.");

@@ -13,6 +13,10 @@ class ForumDataBundle with ForumDataBundleMappable {
   final BundleMeta? meta;
   final List<QbModSummary> index;
   final Map<String, QbModDetail> details;
+
+  /// The rules-only download list, keyed by topicId. This is what a client shows
+  /// when LLM data is turned off; the LLM never writes into it. The LLM's own
+  /// output lives on each `index` item's `llm` field instead.
   final Map<String, List<AssumedDownloadCandidate>> assumedDownloads;
 
   ForumDataBundle({

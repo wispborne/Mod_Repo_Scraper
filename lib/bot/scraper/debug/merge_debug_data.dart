@@ -1,7 +1,12 @@
+import 'package:dart_mappable/dart_mappable.dart';
+
 import '../scraped_mod.dart';
 
+part 'merge_debug_data.mapper.dart';
+
 /// Timing information for a merge phase.
-class PhaseTiming {
+@MappableClass()
+class PhaseTiming with PhaseTimingMappable {
   final String phaseName;
   final int durationMs;
 
@@ -9,7 +14,8 @@ class PhaseTiming {
 }
 
 /// A single pre-dedup removal decision.
-class PreDedupEntry {
+@MappableClass()
+class PreDedupEntry with PreDedupEntryMappable {
   final ScrapedMod kept;
   final ScrapedMod discarded;
   final String reason;
@@ -26,10 +32,12 @@ class PreDedupEntry {
 }
 
 /// Why two mods were matched during grouping.
+@MappableEnum()
 enum GroupMatchReason { nameAndAuthor, forumUrl }
 
 /// A single match decision within a group.
-class GroupMatchEntry {
+@MappableClass()
+class GroupMatchEntry with GroupMatchEntryMappable {
   final ScrapedMod outerMod;
   final ScrapedMod innerMod;
   final Set<GroupMatchReason> reasons;
@@ -50,7 +58,8 @@ class GroupMatchEntry {
 }
 
 /// A complete mod group with its match explanations.
-class DebugModGroup {
+@MappableClass()
+class DebugModGroup with DebugModGroupMappable {
   final int groupIndex;
   final List<ScrapedMod> members;
   final List<GroupMatchEntry> matchEntries;
@@ -63,7 +72,8 @@ class DebugModGroup {
 }
 
 /// A same-source dedup decision.
-class SameSourceDedupEntry {
+@MappableClass()
+class SameSourceDedupEntry with SameSourceDedupEntryMappable {
   final ScrapedMod kept;
   final ScrapedMod discarded;
   final ModSource source;
@@ -84,10 +94,12 @@ class SameSourceDedupEntry {
 }
 
 /// Priority reasoning for a merge step.
+@MappableEnum()
 enum MergePriorityReason { indexSource, higherGameVersion, fallback }
 
 /// A single reduce step during merge.
-class MergeStepEntry {
+@MappableClass()
+class MergeStepEntry with MergeStepEntryMappable {
   final ScrapedMod left;
   final ScrapedMod right;
   final MergePriorityReason reason;
@@ -104,7 +116,8 @@ class MergeStepEntry {
 }
 
 /// Full merge decision for a group.
-class MergeDecision {
+@MappableClass()
+class MergeDecision with MergeDecisionMappable {
   final int groupIndex;
   final List<ScrapedMod> inputMods;
   final List<MergeStepEntry> steps;
@@ -119,7 +132,8 @@ class MergeDecision {
 }
 
 /// A validation removal.
-class ValidationRemoval {
+@MappableClass()
+class ValidationRemoval with ValidationRemovalMappable {
   final ScrapedMod mod;
   final String reason;
 
@@ -127,17 +141,38 @@ class ValidationRemoval {
 }
 
 /// Top-level container for all debug data collected during a merge run.
-class MergeDebugData {
-  int inputCount = 0;
-  int afterPreDedupCount = 0;
-  int groupsCreated = 0;
-  int finalCount = 0;
+@MappableClass()
+class MergeDebugData with MergeDebugDataMappable {
+  int inputCount;
+  int afterPreDedupCount;
+  int groupsCreated;
+  int finalCount;
 
-  final List<PhaseTiming> timings = [];
-  final List<PreDedupEntry> preDedupEntries = [];
-  final List<DebugModGroup> groups = [];
-  final List<SameSourceDedupEntry> sameSourceDedupEntries = [];
-  final List<MergeDecision> mergeDecisions = [];
-  final List<ValidationRemoval> validationRemovalEntries = [];
-  final List<ScrapedMod> finalOutput = [];
+  final List<PhaseTiming> timings;
+  final List<PreDedupEntry> preDedupEntries;
+  final List<DebugModGroup> groups;
+  final List<SameSourceDedupEntry> sameSourceDedupEntries;
+  final List<MergeDecision> mergeDecisions;
+  final List<ValidationRemoval> validationRemovalEntries;
+  final List<ScrapedMod> finalOutput;
+
+  MergeDebugData({
+    this.inputCount = 0,
+    this.afterPreDedupCount = 0,
+    this.groupsCreated = 0,
+    this.finalCount = 0,
+    List<PhaseTiming>? timings,
+    List<PreDedupEntry>? preDedupEntries,
+    List<DebugModGroup>? groups,
+    List<SameSourceDedupEntry>? sameSourceDedupEntries,
+    List<MergeDecision>? mergeDecisions,
+    List<ValidationRemoval>? validationRemovalEntries,
+    List<ScrapedMod>? finalOutput,
+  })  : timings = timings ?? [],
+        preDedupEntries = preDedupEntries ?? [],
+        groups = groups ?? [],
+        sameSourceDedupEntries = sameSourceDedupEntries ?? [],
+        mergeDecisions = mergeDecisions ?? [],
+        validationRemovalEntries = validationRemovalEntries ?? [],
+        finalOutput = finalOutput ?? [];
 }

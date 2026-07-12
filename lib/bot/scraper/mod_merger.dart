@@ -11,6 +11,7 @@
  */
 
 import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:mod_repo_scraper/utilities/console_progress_bar.dart';
 import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
 import 'debug/merge_debug_collector.dart';
@@ -81,7 +82,10 @@ class ModMerger {
     final groupedMods = <List<ScrapedMod>>[];
     final alreadyGrouped = List<bool>.filled(dedupedInput.length, false);
 
+    final groupingBar =
+        ConsoleProgressBar.start('Merging mods', dedupedInput.length);
     for (var index = 0; index < dedupedInput.length; index++) {
+      groupingBar.update(index + 1);
       if (alreadyGrouped[index]) continue;
 
       final outerLoopMod = dedupedInput[index];
@@ -206,6 +210,8 @@ class ModMerger {
         ));
       }
     }
+
+    groupingBar.finish();
 
     final msg = "Grouped ${mods.length} mods by similarity, created ${groupedMods.length} groups.";
     timber.i(message: () => msg);

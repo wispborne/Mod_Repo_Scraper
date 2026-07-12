@@ -1,8 +1,11 @@
+import 'package:logging/logging.dart';
+
 import 'models/mod_detail.dart';
 
 class ForumConstants {
   ForumConstants._();
 
+  static Logger _logger = Logger('ForumConstants');
   static const String forumHost = 'fractalsoftworks.com';
   static const String uncategorizedCategory = 'uncategorized';
   static const String boardUrl =
@@ -82,7 +85,11 @@ class ForumConstants {
   static bool isLesserBoardTopicTitle(String? title) {
     if (title == null || title.trim().isEmpty) return false;
     if (title.toLowerCase().contains('moved')) return false;
-    return gameVersionRegex.hasMatch(title);
+    if (!gameVersionRegex.hasMatch(title)) {
+      _logger.info('Title does not match game version regex, scraping anyway: $title');
+    }
+
+    return true;
   }
 
   static String guessCategoryFromTitle(String title) {

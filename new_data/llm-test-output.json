@@ -1,0 +1,320 @@
+{
+  "generatedAt": "2026-07-11T18:02:51.230721Z",
+  "promptVersion": 9,
+  "callCount": 3,
+  "topics": [
+    {
+      "topicId": 18751,
+      "title": "[0.98a] Arma Armatura v3.2.5 - Content/Story Mod [8/30/25]",
+      "inputSent": "=== MOD TITLE ===\n[0.98a] Arma Armatura v3.2.5 - Content/Story Mod [8/30/25]\n\n=== POST TEXT (spoiler boxes included) ===\nDownload for 0.98 - NOT save compatible with versions of ArmaA prior to v3.1\n\n Support me on Ko-Fi\n Changelog\n\nMod Requirements:\n LazyLib\n MagicLib\n\n By Government Monkey\n Recommended :\n GraphicsLib\n Machina Void Shipyards - for more strikecraft\n PAGSM\n Other mods featuring Strikecraft :\n Gundam UC Mod - Outdated[?]\n DIABLE ARMAAONICS\n UNSC Strikecraft\n\n I. Summary :\n\n Adds several quests and unique missions,&nbsp; over a dozen ships with unique gameplay mechanics, such as being able to fly/fire over enemy ships and repair/rearm at carriers, a hullmod that enables the use of ace strikecraft squadrons, and a minor faction. It does -NOT-make any fighter playable. If you are looking for that functionality, i'd reccommend RAT\n\n STRIKECRAFT\nStrikecraft blur the line between frigates and fighters. Generally glass cannons, they possess many of the advantages fighters have, while benefiting from skills that affect frigates. However, they are extremely vulnerable to enemy interceptors as well as point defenses, have poor shielding(if any), and rely on carriers to be used effectively.\n\n WINGS WITH ~PERSONALITY~\n\nThe WINGCOM Suite allows you to build an elite squadron of strikecraft pilots serving under an officer that improve and gain skills over time.\n\nEventually, they can even be promotoed into fully-fledged Officers!\n\nThese squadrons are highly customizable . Squadron names, character portraits, and even callsigns can all be modified!\n\nRadio chatter appears from them in combat, and they will even chat amongst themselves.\n\n Multiple fighter wings with that yield a Ground Support Bonus when equipped to carriers\n Fourteen pilotable mechs, and three pilotable fighters\n One new star system + market\n\n PAQ - Potentially Asked Questions\n Spoiler\n ship_data.csv:\n-What does the fake_fighter tag do?\n This tag is mostly for modder use. It's purpose is if modders want to distinguish actual fighters from the ones this mod adds for weapon effect/AI purposes\n\n-What does the independent_of_carrier tag do?\n Some ships had this tag for testing purposes, but it's a fighter wing only tag that has no effect\n\n-What does the no_wingcom_docking tag do?\n This tag isn't used currently\n\n-What does the strikecraft_medium tag do?\n This tag prevents strikecraft from landing on destroyers.\n\n-What does the strikecraft_large tag do?\n This tag prevents strikecraft from landing on destroyers and cruisers.\n\n-What does the armaa_traveldrive do?\n This simulates the \"travel drive\" of base fighters, with a reduced max speed. It's main purpose is simulating strikecraft launching from ships directly when applicable.\n\n.ship stuffs:\n-What's Landing Override?\n This was used initially to manually enable landing before targeting was an option. It's only still around for save compat\n\n-What's the difference between armaa_strikeCraftFrig and strikeCraft?\n armaa_strikeCraftFrig changes hullsize to frigate, while strikeCraft hullmod contains the core functionality for strikecraft (in other words, strikeCraftFrig is just an addon combined with strikeCraft that changes hullsize)\n\n-How do I make built-in fighters land/do not land on the strikecraft?\n Fighters will never land on strikecraft, and there currently isnt anyway for them to be able to.\n\nGeneral:\n-How do I make my strikecraft be able/not be able to land on carriers?\n Strikecraft can always land on at least one form of ship with a bay by either targetting a valid ship or activating autopilot,&nbsp; depending on the tags used. There currently isnt any way to prevent them from landing completely.\n\n-How do I make my strikecraft always/never deploy from carriers?\n Strikecraft will always try to deploy from a carrier if using armaa_travelDrive. To have them never deploy, use the standard travel drive.\n [close]\n\n Mod Compatibility\n Spoiler\n - If you are one of the nerds that has a HullSize for any combat effects, you can easily avert any NPEs by checking the hullsize of the variant instead of the ship itself. This is the approach vanilla uses, so the mod operates under that assumption. You can also use this if you need to distinguish the ships from actual fighters for any reason.\n- For edge cases, Einhänder uses a fake_fighter tag to identify it's nature. This idea was devised by MesoTroniK to resolve some targeting and fuze logic bugs with several THI scripted weapons and how they interact with frigates that setHullSize to fighter via script at all times, instead of most of the time, for the future THI update. If you want to ensure certain abilities and weapons affect Einhander or any ship like it properly, you can simply add a condition checking for this tag. For that reason, if you do make a ship similar to it, it'd be a good idea to add the \"fake_fighter\" tag to the pertinent vessels in ship_data.csv! Here is an example snippet of how you'd use it:)\n\n Code\n &nbsp; &nbsp; public static boolean isFighterOrDrone(ShipAPI ship)\n&nbsp; &nbsp; {\n&nbsp; &nbsp; &nbsp; &nbsp; return ship.isFighter() || ship.isDrone() || isFakeFighter(ship);\n\n&nbsp; &nbsp; }\n\n&nbsp; &nbsp; public static boolean isFakeFighter(ShipAPI ship)\n&nbsp; &nbsp; {\n&nbsp; &nbsp; &nbsp; &nbsp; return ship.getHullSpec().hasTag(\"fake_fighter\");\n&nbsp; &nbsp; }\n\n [close]\n\n Known Issues:\n\n What's Next:\n\n- idk lol\n\n Credits\n maritumix - Campaign Music, Battle Music\n BONESAW - Battle Music\n HzDev, Mycophobia, Zeta04, zaz168 - CN Translation\n MesoTroniK Consult, some SFX\n Tartiflette - Initial mech script\n Harupea - Initial Docking System\n Nia Tahl - Scripting, trail patterns\n Dark.Revenant - Scripting\n Avanitia, Randall, Phantasia, Karleen, Finn, Unit9461,TheSoldier,Caymon Joestar, Selkie - Feedback / Testing\n This mod contains AI generated portraits using DALL-E3, and some modified AI generated voices from ElevenLabs.\nSome of these may be modifications of the original work.\n\n=== LINKS IN THE POST ===\n- https://github.com/gomarz/SS-armaa/releases/download/v3.2.5/SS-armaa-3.2.5.zip  \"Download for 0.98 - NOT save compatible with versions of ArmaA prior to v3.1\" [flagged downloadable]\n- https://ko-fi.com/shoi76832  \"Support me on Ko-Fi\"\n- https://raw.githubusercontent.com/gomarz/SS-armaa/refs/heads/master/changelog.md  \"Changelog\"\n- http://fractalsoftworks.com/forum/index.php?topic=5444.0  \"LazyLib\"\n- http://fractalsoftworks.com/forum/index.php?topic=13718.0  \"MagicLib\"\n- http://fractalsoftworks.com/forum/index.php?topic=10982.0  \"GraphicsLib\"\n- https://fractalsoftworks.com/forum/index.php?PHPSESSID=59bce91a600c481dbfd1f3594b172462&topic=21113.0  \"Machina Void Shipyards\"\n- https://fractalsoftworks.com/forum/index.php?PHPSESSID=59bce91a600c481dbfd1f3594b172462&topic=24215.90  \"PAGSM\"\n- https://fractalsoftworks.com/forum/index.php?PHPSESSID=59bce91a600c481dbfd1f3594b172462&topic=24162.0  \"Gundam UC Mod - Outdated[?]\"\n- https://fractalsoftworks.com/forum/index.php?PHPSESSID=59bce91a600c481dbfd1f3594b172462&topic=26984.0  \"DIABLE ARMAAONICS\"\n- https://fractalsoftworks.com/forum/index.php?PHPSESSID=59bce91a600c481dbfd1f3594b172462&topic=25555.0  \"UNSC Strikecraft\"\n- https://maritumix.fanbox.cc/  \"maritumix\"\n- http://patreon.com/SHOGUNNED  \"BONESAW\"\n\n=== LINKS THE SCRAPER AUTO-DETECTED AS DOWNLOADS ===\n- https://github.com/gomarz/SS-armaa/releases/download/v3.2.5/SS-armaa-3.2.5.zip\n- http://patreon.com/SHOGUNNED\n\n=== IMAGES IN THE POST (use only these URLs for \"image\") ===\n- https://i.imgur.com/zYciRZg.png\n- https://i.imgur.com/4AkyObh.png\n- https://i.imgur.com/9bJQG8d.png\n- https://i.imgur.com/k1cBYHg.gif\n- https://i.imgur.com/Yfyo9O2.png\n- https://i.imgur.com/fYYG8pc.png\n- https://i.imgur.com/f1p780A.png\n- https://i.imgur.com/LkOeqB7.png\n- https://i.imgur.com/0qhJtBb.png\n- https://i.imgur.com/IOJbAN7.png\n- https://i.imgur.com/QiGScBT.png\n\n=== GAME VERSION (do NOT report as the mod version) ===\n0.98a\n",
+      "rawAnswer": "{\n  \"isMod\": true,\n  \"mods\": [\n    {\n      \"name\": \"Arma Armatura\",\n      \"role\": \"main\",\n      \"requires\": null,\n      \"downloads\": [\n        {\n          \"url\": \"https://github.com/gomarz/SS-armaa/releases/download/v3.2.5/SS-armaa-3.2.5.zip\",\n          \"label\": \"Download for 0.98 - NOT save compatible with versions of ArmaA prior to v3.1\",\n          \"kind\": \"direct\"\n        }\n      ],\n      \"image\": null,\n      \"changelog\": {\n        \"link\": \"https://raw.githubusercontent.com/gomarz/SS-armaa/refs/heads/master/changelog.md\",\n        \"entries\": null\n      },\n      \"version\": \"3.2.5\",\n      \"supportLinks\": [\n        \"https://ko-fi.com/shoi76832\"\n      ],\n      \"license\": null,\n      \"saveCompatibility\": \"NOT save compatible with versions of ArmaA prior to v3.1\",\n      \"summary\": {\n        \"sentence\": \"Adds quests, unique missions, over a dozen ships with strikecraft mechanics, a hullmod for ace strikecraft squadrons, and a minor faction.\",\n        \"paragraph\": \"Introduces strikecraft that blend frigate and fighter traits, featuring a WingCOM suite for building elite pilot squadrons with customizable names, portraits, and radio chatter. Includes fourteen pilotable mechs, three pilotable fighters, and a new star system with markets. Does not make standard fighters playable.\"\n      }\n    }\n  ]\n}",
+      "tokenUsage": "prompt=4371 completion=376 total=4747 read=5998.8 tok/s write=168.1 tok/s",
+      "isMod": true,
+      "parsedGrounded": {
+        "mods": [
+          {
+            "name": "Arma Armatura",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/gomarz/SS-armaa/releases/download/v3.2.5/SS-armaa-3.2.5.zip",
+                "label": "Download for 0.98 - NOT save compatible with versions of ArmaA prior to v3.1",
+                "kind": "direct",
+                "resolvedDirectUrl": "https://github.com/gomarz/SS-armaa/releases/download/v3.2.5/SS-armaa-3.2.5.zip",
+                "sourceHost": "GitHub",
+                "fileName": "SS-armaa-3.2.5.zip",
+                "confidence": "high",
+                "requiresManualStep": false
+              }
+            ],
+            "extras": {
+              "version": "3.2.5",
+              "changelog": {
+                "link": "https://raw.githubusercontent.com/gomarz/SS-armaa/refs/heads/master/changelog.md"
+              },
+              "supportLinks": [
+                {
+                  "url": "https://ko-fi.com/shoi76832",
+                  "type": "kofi"
+                }
+              ],
+              "saveCompatibility": "NOT save compatible with versions of ArmaA prior to v3.1",
+              "summary": {
+                "sentence": "Adds quests, unique missions, over a dozen ships with strikecraft mechanics, a hullmod for ace strikecraft squadrons, and a minor faction.",
+                "paragraph": "Introduces strikecraft that blend frigate and fighter traits, featuring a WingCOM suite for building elite pilot squadrons with customizable names, portraits, and radio chatter. Includes fourteen pilotable mechs, three pilotable fighters, and a new star system with markets. Does not make standard fighters playable."
+              }
+            }
+          }
+        ]
+      },
+      "dropped": {
+        "downloads": 0,
+        "mods": 0
+      },
+      "rulesVsLlm": {
+        "ruleLinks": [
+          "https://github.com/gomarz/SS-armaa/releases/download/v3.2.5/SS-armaa-3.2.5.zip",
+          "http://patreon.com/SHOGUNNED"
+        ],
+        "llmMods": [
+          {
+            "name": "Arma Armatura",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/gomarz/SS-armaa/releases/download/v3.2.5/SS-armaa-3.2.5.zip",
+                "label": "Download for 0.98 - NOT save compatible with versions of ArmaA prior to v3.1",
+                "kind": "direct"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "topicId": 5814,
+      "title": "The Utopian Empire (0.5 released)",
+      "inputSent": "=== MOD TITLE ===\nThe Utopian Empire (0.5 released)\n\n=== POST TEXT (spoiler boxes included) ===\nproject on hiatus for the moment being (for personal reason)\n\n Message of the moment : Utopian Empire 0.5 is out ! includes 4 ships, 9 weapons and a mission to try them out !\n Current starsector compatible version : Currently coding for 0.54.1a compatibility.\n\n a new power approaches...\n\n ---Download---\n http://www.mediafire.com/?xevk7qs2361ebnj#!\n\nThe Utopian Empire approaches.\n\nCome closer to discover the information that Hegemony spies have uncovered on the mysterious and powerful power that is approaching corvus...\n\n---Lore---\nThe Utopian are a race of perfectly sentient synthetical beings with full mental freedom that evolved from a highly evolved prototype that was created eons ago, when such technology was still in its infancy.\nThe Utopian, having evolved from a synthetic being that was created with open-ended moral and cultural guidelines, have evolved over the milleniums into a superpower with high moral standards and great comprehension and acceptance of the unknown. This allowed them to bypass any cultural bias that could have slowed down theire technological development and as such, they are gifted with great technological skills.\nStarting off the philosophy that injustice should always be punished, the Utopian Empire consider itself a sort of \"galactic police force\" sending probes across the galaxy to find where theire Pacification fleet would be most useful. Altho what they send there fleet to \"pacificate\" &nbsp;is entirely up to theire own definition, which mean sometime, some solar systems arent very happy to see a Utopian Pacification fleet come in theire system to say the least.\n\n---Current situation in corvus---\nFor now, the Utopian Fleet has setted-up an outpost around corvus, content enough to simply hunt pirates and leave the Hegemony and Tri-tachyon alones. The two powers do keep a watchful and suspicious eye on the newcomers.\n\n---Ships---(4)\n Spoiler\n Explorator-class frigate\n\n The Basic ship of the Utopian fleet. We havent found much information on it yet other than its name and the obvious heavy armament it sports. My colleague thinks the elongated pods might hide powerful engines, which would further add speed to what seems an already deadly combination\n\nNegociator-class destroyer\n\n Report from HSS Thor. Our mission failed and we were detected by a Utopian Negociator-class destroyer. Captain Toren from the HSS Loki suggested we headed for the nearest asteroid field where the lumbering ship would have trouble following us. I watched in horror as this heavily equipped ship started to suddenly move around in constantly shifting vectors, avoiding the asteroid that were coming at it, simply destroying the smaller ones. I must report the loss of the HSS Loki as it tried to delay the Utopian destroyer so that we could reach HQ.\n\nPacificator-class cruiser\n\n This is what seems to be a Utopian assault cruiser. We havent been able to find much about it but rumors that it carries a special system to empower its weaponry even further. I shudder to think of this monster performing frontal assaults...\n\nExterminator-class battlecruiser\n\n We were spying on a utopian battlecruiser today. These things are monstrous. But what surprised us most was when a pirate fleet approached it and started firing. We were amazed to see the massive ship disapear and quickly reappear right behind the pirate fleet, torching almost all of theire engines before they could even move. I cannot even fathom how utopian managed to get such a massive ship to teleport like that... [close]\n\n---Weapons---(9)\n Spoiler\n -Fusion Bolter (small)\n\n This seems to be the smallest gun that uses fusion technology. We know that it is a quick firing weapon that retains decent firepower despite its size.\n\n-Fusion Cycler (small)\n\n Our spies today observed a strange weapon during a mission. Hidden, they launched missiles at an utopian frigate to test its defense. small cannons on the frigate hull started firing at them. there plasma bolt seemed weak enough compared to usual fusion technology, but the incredible firing speed still made short work of our missile.\n\n-Fusion Cannon (medium)\n\n The staple of the Utopian fleet from what we've seen, even theire basic frigate sports one of these. It is a twin-linked weapon with frightening power.\n\n-Fusion Mortar\n\n Excerp from a salvaged utopian log. \"Admiral, the mortar testing have been successful, we estimate the power of the weapon to be stronger than the impaler, but with a longer range and a smaller mount. However, to reached the commissioned range, the magnetic containment field had to be strenghten, which heavily impaired travel and firing speed\".\n\n-Fusion Impaler (Large)\n\n The biggest application of fusion weaponry as far as we are aware, my colleagues have compared it to a bastard child between our heavy autocannon and the tri-tachyon's plasma cannon. I am afraid however that the technology at work here is much more efficient than what the tri-tach bookworms can do.\n\n-Fusion Lance (large)\n\n This is what seems to be the best weapon the Utopian have equippe dtheire ship with. It seems to be shooting a long and thick stream of plasma not unlike a huge spear that crashes against ship's shields and hulls. I have seen firsthand the damage this configuration can deal and it is utterly terrifying\n\n-Micro Drone Pod (small)\n\n The smallest drone technology we got our hands on. The carrying capacity is enormous along with an impressive tracking AI and powerful vernier. The warhead is strangely small but i feel like it this weapon is meant for more than just brute force...\n\n-Drone Launcher (medium)\n\n The middleline of drone technology. I would be temoted to compare it to our harpoon missile, but that would be dismissing this drone's incredible agility and speed.\n\n-Heavy Drone Catapult (large)\n\n Commander, i must report that the destroyer HSS Tarkad was lost yesterday during testing. The testing procedure went well but as the heavy drone fired forward, it then sharply veered toward us and punched a huge hole in the ship's hull. It seems every single Utopian drone system sports the exagerated precision and agility we have seen until now [close]\n\n---Technology---\n Very few is known about Utopian technology but here is what we have found about them so far.\n-Cannon technology : It seems that the Utopians are using a magnetic containment system in theire weapon to generate small fusion reactions that are then propelled throught space toward targets. Of course the magnetic field cannot be sustained forever and the bolts of plasma simply dissipate after a certain distance\n-Missile technology : Judging from the specimens we were able to get our hands on, it seems the Utopian uses missiles they call \"drone\" due to the smart AI and powerful engines they mount. As we used our sample to test theire abilities, we were frightened further by the impressive fusion warheads they contain\n\n ---Work Log---\n13/03/2013\ncurrently having pelhamds sprite the first batch of ship and weapons\n17/03/2013\ncoding has started, 3 of the initial 12 weapons are ready and 2 of the 4 ship sprite have been received\n22/03/2013\ncoding of material is done, about to jump the debugging hoop to get things working. when thats done we'll have a mission to play with ! campaign compatibility will soon follow\n\n ---Changelog---\n Spoiler\n 14/03/2013\nchanged the name of the faction to avoid obvious confusion [close]\n\n ---Notes---\n-Author's note here and ill start by saying that this is a joint project between me and pelhamds. while i started the whole idea, my lack of skills would have putted this whole thing in jeopardy if it wasent for Pelhamds generously accepting to sprite for me. He has also confirmed he wishes to stick around which mean content update after the first patch are guaranteed.\n-I'd like to add that this is my very first mod, and im very excited about it. i will make sure to constantly work on it and keep it up to date\n-I must also mention that since my playtime in starsector is almost only using Uumoz fantastic mod, i plan on coding accordingly. you can expect fitting relations between the utopian empire and the other inhabitants of corvus (such as the antediluvians, junk pirate and such.\n\n Credits\n-Phyrex : coding and testing (more like piecing together :P)\n-Pelhamds : spriting, testing, helping and counseling me\n-Cycerin : for allowing me to use his burst jets ship system\n-EnderNerdCore : for programming said ship system\n\n=== LINKS IN THE POST ===\n- http://www.mediafire.com/?xevk7qs2361ebnj#!  \"http://www.mediafire.com/?xevk7qs2361ebnj#!\" [flagged downloadable]\n\n=== LINKS THE SCRAPER AUTO-DETECTED AS DOWNLOADS ===\n- http://www.mediafire.com/?xevk7qs2361ebnj#!\n\n=== IMAGES IN THE POST (use only these URLs for \"image\") ===\n- http://i.imgur.com/qcxVuaV.png\n- http://i.imgur.com/NWzRlmP.png\n- http://i.imgur.com/bwulspI.png\n- http://i.imgur.com/Ejmpe4M.png\n- http://i.imgur.com/5Gc5Ki0.png\n- http://i.imgur.com/WhRjckh.png\n- http://i.imgur.com/qMWw8eK.png\n- http://i.imgur.com/Ew8CCKY.png\n- http://i.imgur.com/fZpwBmV.png\n- http://i.imgur.com/vLt14Pu.png\n- http://i.imgur.com/OjLlNjL.png\n- http://i.imgur.com/b6Zevpg.png\n- http://i.imgur.com/glrFYAy.png\n- http://i.imgur.com/sFKeZt3.png\n\n",
+      "rawAnswer": "{\n  \"isMod\": true,\n  \"mods\": [\n    {\n      \"name\": \"The Utopian Empire\",\n      \"role\": \"main\",\n      \"requires\": null,\n      \"downloads\": [\n        {\n          \"url\": \"http://www.mediafire.com/?xevk7qs2361ebnj#!\",\n          \"label\": \"http://www.mediafire.com/?xevk7qs2361ebnj#!\",\n          \"kind\": \"direct\"\n        }\n      ],\n      \"image\": null,\n      \"changelog\": {\n        \"link\": null,\n        \"entries\": {\n          \"14/03/2013\": \"changed the name of the faction to avoid obvious confusion\"\n        }\n      },\n      \"version\": \"0.5\",\n      \"supportLinks\": [],\n      \"license\": null,\n      \"saveCompatibility\": null,\n      \"summary\": {\n        \"sentence\": \"Adds a new faction with 4 ships, 9 weapons, and a mission.\",\n        \"paragraph\": \"Introduces the Utopian Empire, a race of sentient synthetic beings acting as a galactic police force. The mod includes four new ship classes, nine fusion and drone-based weapons, and a mission to test them out. It also features lore detailing their technology and current situation in the Corvus sector.\"\n      }\n    }\n  ]\n}",
+      "tokenUsage": "prompt=4318 completion=320 total=4638 read=5920.3 tok/s write=166.8 tok/s",
+      "isMod": true,
+      "parsedGrounded": {
+        "mods": [
+          {
+            "name": "The Utopian Empire",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "http://www.mediafire.com/?xevk7qs2361ebnj#!",
+                "label": "http://www.mediafire.com/?xevk7qs2361ebnj#!",
+                "kind": "direct",
+                "resolvedDirectUrl": "http://download1580.mediafire.com/tkt4znbp3fwg9rxWL6r8XGb3MVDsiYr3VUdKEL8UyGnPofaV58em2RQSrHY84gIsyN4fNfeGJgTaQloxRt34TgJZfAZLsJjHeQ-Yg4ekNOHpn0hhw7yiAxr5KYFgDzV0smZGY7iEUL8rH4RTiAla0sp3bi_8JeN313F3XKM_QA/xevk7qs2361ebnj/Utopian+Empire+0.5.rar",
+                "sourceHost": "MediaFire",
+                "fileName": "Utopian+Empire+0.5.rar",
+                "confidence": "medium",
+                "requiresManualStep": false
+              }
+            ],
+            "extras": {
+              "version": "0.5",
+              "changelog": {
+                "entries": {
+                  "14/03/2013": "changed the name of the faction to avoid obvious confusion"
+                }
+              },
+              "summary": {
+                "sentence": "Adds a new faction with 4 ships, 9 weapons, and a mission.",
+                "paragraph": "Introduces the Utopian Empire, a race of sentient synthetic beings acting as a galactic police force. The mod includes four new ship classes, nine fusion and drone-based weapons, and a mission to test them out. It also features lore detailing their technology and current situation in the Corvus sector."
+              }
+            }
+          }
+        ]
+      },
+      "dropped": {
+        "downloads": 0,
+        "mods": 0
+      },
+      "rulesVsLlm": {
+        "ruleLinks": [
+          "http://www.mediafire.com/?xevk7qs2361ebnj#!"
+        ],
+        "llmMods": [
+          {
+            "name": "The Utopian Empire",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "http://www.mediafire.com/?xevk7qs2361ebnj#!",
+                "label": "http://www.mediafire.com/?xevk7qs2361ebnj#!",
+                "kind": "direct"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "topicId": 34161,
+      "title": "Hartley's Miscellaneous Mods",
+      "inputSent": "=== MOD TITLE ===\nHartley's Miscellaneous Mods\n\n=== POST TEXT (spoiler boxes included) ===\nThese are my mods that do not have their own thread:\n I've made a bunch of things that are too small to deserve their own threads over the years, so here goes.\n\n &nbsp; &nbsp; [0.98a] Useful.Tithes\nA small mod making pather tithes more useful.\n\nPaying tithes to a luddic path fleet causes all pather fleets in the star system to stop harassing you for a while, including newly spawned fleets and any fleets entering the system.\n\n Download\n Safe to add to ongoing games.\n\n &nbsp; &nbsp; [0.98a] Big Pilum Energy\nBalance is for losers.\n\nDoubles Pilum movement speed because I am terrible at the game and pilum spam is my lifeline.\n\n Download\n Safe to add to ongoing games.\n\n &nbsp; &nbsp; [0.98a] Lost.Sector\nA mod focused on exploration and quest content.\n\nThis is my LOST_SECTOR fork. Made in 0.97 for personal use to fix some of the issues that had been bugging me, with the departure of Kissa from the modding scene, I decided to publish it - with permission.\n\n Download\n Requires a new game.\n\n &nbsp; &nbsp; [0.98a] Disco.Balls\nMore orbital lamp colour options.\n\nAdds the option to make your lamp play Carameldansen and go disco, and adds more colours to the selection. This is a thinly veiled meme.\n\n Known issue: Loading a save while the song is playing makes it play twice (and twice as loud). This is a feature and will not be fixed.\n\n Download\n Safe to add to ongoing games.\n\n These are mods that do have their own thread, but I ran out of space in my signature for:\n\n &nbsp; &nbsp; [0.98a] Corrupt.Officials\nThis is a challenge mode intended to balance out the extreme passive income colonies can provide.\n\nThe mechanic imposes a diminishing-returns penalty on colonies whose net income exceeds a configurable cutoff.\n\n Forum Thread\n Safe to add to ongoing games.\n\n=== LINKS IN THE POST ===\n- https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip  \"Download\" [flagged downloadable]\n- https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.d/Big.Pilum.Energy1.0.d.zip  \"Download\" [flagged downloadable]\n- https://fractalsoftworks.com/forum/index.php?PHPSESSID=89e55b544cc31d1e3aff4a36f670dc75&topic=27556.0  \"LOST_SECTOR\"\n- https://github.com/SirHartley/Lost.Sector/releases/download/1.0.b/Lost.Sector1.0.b.zip  \"Download\" [flagged downloadable]\n- https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip  \"Download\" [flagged downloadable]\n- https://fractalsoftworks.com/forum/index.php?PHPSESSID=89e55b544cc31d1e3aff4a36f670dc75&topic=35125.0  \"Forum Thread\"\n\n=== LINKS THE SCRAPER AUTO-DETECTED AS DOWNLOADS ===\n- https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip\n- https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.d/Big.Pilum.Energy1.0.d.zip\n- https://github.com/SirHartley/Lost.Sector/releases/download/1.0.b/Lost.Sector1.0.b.zip\n- https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip\n\n=== IMAGES IN THE POST (use only these URLs for \"image\") ===\n- https://i.imgur.com/Wn6fJRQ.png\n- https://i.imgur.com/foNUf16.png\n- https://i.imgur.com/nGcxyQ8.png\n- https://i.imgur.com/4rVRIke.png\n- https://i.imgur.com/AO9LQbl.png\n\n",
+      "rawAnswer": "{\n  \"isMod\": true,\n  \"mods\": [\n    {\n      \"name\": \"Useful.Tithes\",\n      \"role\": \"main\",\n      \"requires\": null,\n      \"downloads\": [\n        {\n          \"url\": \"https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip\",\n          \"label\": \"Download\",\n          \"kind\": \"direct\"\n        }\n      ],\n      \"image\": null,\n      \"changelog\": {\n        \"link\": null,\n        \"entries\": {}\n      },\n      \"version\": \"1.0.a\",\n      \"supportLinks\": [],\n      \"license\": null,\n      \"saveCompatibility\": \"Safe to add to ongoing games.\",\n      \"summary\": {\n        \"sentence\": \"Makes pather tithes more useful by stopping all pather fleets in the star system from harassing the player for a while after paying tithes to a luddic path fleet.\",\n        \"paragraph\": \"Paying tithes to a luddic path fleet causes all pather fleets in the star system to stop harassing you for a while. This includes newly spawned fleets and any fleets entering the system.\"\n      }\n    },\n    {\n      \"name\": \"Big Pilum Energy\",\n      \"role\": \"main\",\n      \"requires\": null,\n      \"downloads\": [\n        {\n          \"url\": \"https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.d/Big.Pilum.Energy1.0.d.zip\",\n          \"label\": \"Download\",\n          \"kind\": \"direct\"\n        }\n      ],\n      \"image\": null,\n      \"changelog\": {\n        \"link\": null,\n        \"entries\": {}\n      },\n      \"version\": \"1.0.d\",\n      \"supportLinks\": [],\n      \"license\": null,\n      \"saveCompatibility\": \"Safe to add to ongoing games.\",\n      \"summary\": {\n        \"sentence\": \"Doubles Pilum movement speed.\",\n        \"paragraph\": \"Doubles Pilum movement speed because I am terrible at the game and pilum spam is my lifeline.\"\n      }\n    },\n    {\n      \"name\": \"Lost.Sector\",\n      \"role\": \"main\",\n      \"requires\": null,\n      \"downloads\": [\n        {\n          \"url\": \"https://github.com/SirHartley/Lost.Sector/releases/download/1.0.b/Lost.Sector1.0.b.zip\",\n          \"label\": \"Download\",\n          \"kind\": \"direct\"\n        }\n      ],\n      \"image\": null,\n      \"changelog\": {\n        \"link\": null,\n        \"entries\": {}\n      },\n      \"version\": \"1.0.b\",\n      \"supportLinks\": [],\n      \"license\": null,\n      \"saveCompatibility\": \"Requires a new game.\",\n      \"summary\": {\n        \"sentence\": \"Adds exploration and quest content as a fork of LOST_SECTOR.\",\n        \"paragraph\": \"This is a fork of LOST_SECTOR made to fix issues that had been bugging the author. It focuses on exploration and quest content.\"\n      }\n    },\n    {\n      \"name\": \"Disco.Balls\",\n      \"role\": \"main\",\n      \"requires\": null,\n      \"downloads\": [\n        {\n          \"url\": \"https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip\",\n          \"label\": \"Download\",\n          \"kind\": \"direct\"\n        }\n      ],\n      \"image\": null,\n      \"changelog\": {\n        \"link\": null,\n        \"entries\": {}\n      },\n      \"version\": \"1.0.c\",\n      \"supportLinks\": [],\n      \"license\": null,\n      \"saveCompatibility\": \"Safe to add to ongoing games.\",\n      \"summary\": {\n        \"sentence\": \"Adds more orbital lamp colour options and the ability to make the lamp play Carameldansen and go disco.\",\n        \"paragraph\": \"Adds the option to make your lamp play Carameldansen and go disco, and adds more colours to the selection. This is a thinly veiled meme.\"\n      }\n    },\n    {\n      \"name\": \"Corrupt.Officials\",\n      \"role\": \"main\",\n      \"requires\": null,\n      \"downloads\": [],\n      \"image\": null,\n      \"changelog\": {\n        \"link\": null,\n        \"entries\": {}\n      },\n      \"version\": null,\n      \"supportLinks\": [],\n      \"license\": null,\n      \"saveCompatibility\": \"Safe to add to ongoing games.\",\n      \"summary\": {\n        \"sentence\": \"Imposes a diminishing-returns penalty on colonies whose net income exceeds a configurable cutoff to balance out extreme passive income.\",\n        \"paragraph\": \"This is a challenge mode intended to balance out the extreme passive income colonies can provide. The mechanic imposes a diminishing-returns penalty on colonies whose net income exceeds a configurable cutoff.\"\n      }\n    }\n  ]\n}",
+      "tokenUsage": "prompt=3122 completion=1174 total=4296 read=5656.0 tok/s write=173.7 tok/s",
+      "isMod": true,
+      "parsedGrounded": {
+        "mods": [
+          {
+            "name": "Useful.Tithes",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip",
+                "label": "Download",
+                "kind": "direct",
+                "resolvedDirectUrl": "https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip",
+                "sourceHost": "GitHub",
+                "fileName": "Useful.Tithes1.0.a.zip",
+                "confidence": "high",
+                "requiresManualStep": false
+              }
+            ],
+            "extras": {
+              "version": "1.0.a",
+              "saveCompatibility": "Safe to add to ongoing games.",
+              "summary": {
+                "sentence": "Makes pather tithes more useful by stopping all pather fleets in the star system from harassing the player for a while after paying tithes to a luddic path fleet.",
+                "paragraph": "Paying tithes to a luddic path fleet causes all pather fleets in the star system to stop harassing you for a while. This includes newly spawned fleets and any fleets entering the system."
+              }
+            }
+          },
+          {
+            "name": "Big Pilum Energy",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.d/Big.Pilum.Energy1.0.d.zip",
+                "label": "Download",
+                "kind": "direct",
+                "resolvedDirectUrl": "https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.d/Big.Pilum.Energy1.0.d.zip",
+                "sourceHost": "GitHub",
+                "fileName": "Big.Pilum.Energy1.0.d.zip",
+                "confidence": "high",
+                "requiresManualStep": false
+              }
+            ],
+            "extras": {
+              "version": "1.0.d",
+              "saveCompatibility": "Safe to add to ongoing games.",
+              "summary": {
+                "sentence": "Doubles Pilum movement speed.",
+                "paragraph": "Doubles Pilum movement speed because I am terrible at the game and pilum spam is my lifeline."
+              }
+            }
+          },
+          {
+            "name": "Lost.Sector",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/SirHartley/Lost.Sector/releases/download/1.0.b/Lost.Sector1.0.b.zip",
+                "label": "Download",
+                "kind": "direct",
+                "resolvedDirectUrl": "https://github.com/SirHartley/Lost.Sector/releases/download/1.0.b/Lost.Sector1.0.b.zip",
+                "sourceHost": "GitHub",
+                "fileName": "Lost.Sector1.0.b.zip",
+                "confidence": "high",
+                "requiresManualStep": false
+              }
+            ],
+            "extras": {
+              "version": "1.0.b",
+              "saveCompatibility": "Requires a new game.",
+              "summary": {
+                "sentence": "Adds exploration and quest content as a fork of LOST_SECTOR.",
+                "paragraph": "This is a fork of LOST_SECTOR made to fix issues that had been bugging the author. It focuses on exploration and quest content."
+              }
+            }
+          },
+          {
+            "name": "Disco.Balls",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip",
+                "label": "Download",
+                "kind": "direct",
+                "resolvedDirectUrl": "https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip",
+                "sourceHost": "GitHub",
+                "fileName": "Disco.Balls1.0.c.zip",
+                "confidence": "high",
+                "requiresManualStep": false
+              }
+            ],
+            "extras": {
+              "version": "1.0.c",
+              "saveCompatibility": "Safe to add to ongoing games.",
+              "summary": {
+                "sentence": "Adds more orbital lamp colour options and the ability to make the lamp play Carameldansen and go disco.",
+                "paragraph": "Adds the option to make your lamp play Carameldansen and go disco, and adds more colours to the selection. This is a thinly veiled meme."
+              }
+            }
+          },
+          {
+            "name": "Corrupt.Officials",
+            "role": "main",
+            "downloads": [],
+            "extras": {
+              "saveCompatibility": "Safe to add to ongoing games.",
+              "summary": {
+                "sentence": "Imposes a diminishing-returns penalty on colonies whose net income exceeds a configurable cutoff to balance out extreme passive income.",
+                "paragraph": "This is a challenge mode intended to balance out the extreme passive income colonies can provide. The mechanic imposes a diminishing-returns penalty on colonies whose net income exceeds a configurable cutoff."
+              }
+            }
+          }
+        ]
+      },
+      "dropped": {
+        "downloads": 0,
+        "mods": 0
+      },
+      "rulesVsLlm": {
+        "ruleLinks": [
+          "https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip",
+          "https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.d/Big.Pilum.Energy1.0.d.zip",
+          "https://github.com/SirHartley/Lost.Sector/releases/download/1.0.b/Lost.Sector1.0.b.zip",
+          "https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip"
+        ],
+        "llmMods": [
+          {
+            "name": "Useful.Tithes",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip",
+                "label": "Download",
+                "kind": "direct"
+              }
+            ]
+          },
+          {
+            "name": "Big Pilum Energy",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.d/Big.Pilum.Energy1.0.d.zip",
+                "label": "Download",
+                "kind": "direct"
+              }
+            ]
+          },
+          {
+            "name": "Lost.Sector",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/SirHartley/Lost.Sector/releases/download/1.0.b/Lost.Sector1.0.b.zip",
+                "label": "Download",
+                "kind": "direct"
+              }
+            ]
+          },
+          {
+            "name": "Disco.Balls",
+            "role": "main",
+            "downloads": [
+              {
+                "url": "https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip",
+                "label": "Download",
+                "kind": "direct"
+              }
+            ]
+          },
+          {
+            "name": "Corrupt.Officials",
+            "role": "main",
+            "downloads": []
+          }
+        ]
+      }
+    }
+  ]
+}

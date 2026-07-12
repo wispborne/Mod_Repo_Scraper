@@ -15,6 +15,7 @@ class QbModSummaryMapper extends ClassMapperBase<QbModSummary> {
   static QbModSummaryMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = QbModSummaryMapper._());
+      LlmThreadDataMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -132,6 +133,12 @@ class QbModSummaryMapper extends ClassMapperBase<QbModSummary> {
     _$sourceBoard,
     opt: true,
   );
+  static LlmThreadData? _$llm(QbModSummary v) => v.llm;
+  static const Field<QbModSummary, LlmThreadData> _f$llm = Field(
+    'llm',
+    _$llm,
+    opt: true,
+  );
 
   @override
   final MappableFields<QbModSummary> fields = const {
@@ -152,6 +159,7 @@ class QbModSummaryMapper extends ClassMapperBase<QbModSummary> {
     #scrapedAt: _f$scrapedAt,
     #isWip: _f$isWip,
     #sourceBoard: _f$sourceBoard,
+    #llm: _f$llm,
   };
   @override
   final bool ignoreNull = true;
@@ -175,6 +183,7 @@ class QbModSummaryMapper extends ClassMapperBase<QbModSummary> {
       scrapedAt: data.dec(_f$scrapedAt),
       isWip: data.dec(_f$isWip),
       sourceBoard: data.dec(_f$sourceBoard),
+      llm: data.dec(_f$llm),
     );
   }
 
@@ -240,6 +249,7 @@ extension QbModSummaryValueCopy<$R, $Out>
 
 abstract class QbModSummaryCopyWith<$R, $In extends QbModSummary, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  LlmThreadDataCopyWith<$R, LlmThreadData, LlmThreadData>? get llm;
   $R call({
     int? topicId,
     String? title,
@@ -258,6 +268,7 @@ abstract class QbModSummaryCopyWith<$R, $In extends QbModSummary, $Out>
     DateTime? scrapedAt,
     bool? isWip,
     int? sourceBoard,
+    LlmThreadData? llm,
   });
   QbModSummaryCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -270,6 +281,9 @@ class _QbModSummaryCopyWithImpl<$R, $Out>
   @override
   late final ClassMapperBase<QbModSummary> $mapper =
       QbModSummaryMapper.ensureInitialized();
+  @override
+  LlmThreadDataCopyWith<$R, LlmThreadData, LlmThreadData>? get llm =>
+      $value.llm?.copyWith.$chain((v) => call(llm: v));
   @override
   $R call({
     int? topicId,
@@ -289,6 +303,7 @@ class _QbModSummaryCopyWithImpl<$R, $Out>
     Object? scrapedAt = $none,
     bool? isWip,
     Object? sourceBoard = $none,
+    Object? llm = $none,
   }) => $apply(
     FieldCopyWithData({
       if (topicId != null) #topicId: topicId,
@@ -308,6 +323,7 @@ class _QbModSummaryCopyWithImpl<$R, $Out>
       if (scrapedAt != $none) #scrapedAt: scrapedAt,
       if (isWip != null) #isWip: isWip,
       if (sourceBoard != $none) #sourceBoard: sourceBoard,
+      if (llm != $none) #llm: llm,
     }),
   );
   @override
@@ -332,6 +348,7 @@ class _QbModSummaryCopyWithImpl<$R, $Out>
     scrapedAt: data.get(#scrapedAt, or: $value.scrapedAt),
     isWip: data.get(#isWip, or: $value.isWip),
     sourceBoard: data.get(#sourceBoard, or: $value.sourceBoard),
+    llm: data.get(#llm, or: $value.llm),
   );
 
   @override

@@ -1,5 +1,7 @@
 import 'package:dart_mappable/dart_mappable.dart';
 
+import 'post_extraction.dart';
+
 part 'mod_summary.mapper.dart';
 
 @MappableClass(ignoreNull: true)
@@ -22,6 +24,12 @@ class QbModSummary with QbModSummaryMappable {
   final bool isWip;
   final int? sourceBoard;
 
+  /// The LLM's output for this thread: a list of the mods it found, each with
+  /// its own downloads and extras. Missing when the LLM feature is off or it
+  /// found nothing. When present, it is the full answer for this thread's mods
+  /// and downloads; when missing, use the rules-based `assumedDownloads`.
+  final LlmThreadData? llm;
+
   QbModSummary({
     required this.topicId,
     this.title = '',
@@ -40,5 +48,6 @@ class QbModSummary with QbModSummaryMappable {
     DateTime? scrapedAt,
     this.isWip = false,
     this.sourceBoard,
+    this.llm,
   }) : scrapedAt = scrapedAt ?? DateTime.now().toUtc();
 }

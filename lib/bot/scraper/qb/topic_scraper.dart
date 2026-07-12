@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
 import '../download_link_detector.dart';
+import 'downloadable_probe_cache.dart';
 import 'forum_constants.dart';
 import 'html_processor.dart';
 import 'models/mod_detail.dart';
@@ -14,6 +15,7 @@ class QbTopicScraper {
   final Logger _log;
   final ThrottledClient _client;
   final http.Client? _externalClient;
+  final DownloadableProbeCache? _probeCache;
   final Duration _probeTimeout;
 
   static final RegExp _lazyImageAltRegex = RegExp(
@@ -44,8 +46,10 @@ class QbTopicScraper {
     this._client, {
     Logger? logger,
     http.Client? externalClient,
+    DownloadableProbeCache? probeCache,
     Duration probeTimeout = const Duration(seconds: 10),
   })  : _externalClient = externalClient,
+        _probeCache = probeCache,
         _probeTimeout = probeTimeout,
         _log = logger ?? Logger('QbTopicScraper');
 
@@ -259,12 +263,19 @@ class QbTopicScraper {
 
   Future<List<LinkRef>> _classifyDownloadableLinks(List<LinkRef> links) async {
     if (links.isEmpty) return links;
+    final cache = _probeCache;
     return links.parallelMap((l) async => l.copyWith(
-          isDownloadable: await isDownloadableUrl(
-            l.url,
-            client: _externalClient,
-            timeout: _probeTimeout,
-          ),
+          isDownloadable: cache != null
+              ? await cache.classify(
+                  l.url,
+                  client: _externalClient,
+                  timeout: _probeTimeout,
+                )
+              : await isDownloadableUrl(
+                  l.url,
+                  client: _externalClient,
+                  timeout: _probeTimeout,
+                ),
         ));
   }
 

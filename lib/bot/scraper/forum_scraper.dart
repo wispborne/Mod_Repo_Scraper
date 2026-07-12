@@ -13,6 +13,7 @@
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 import '../../timber/ktx/timber_kt.dart' as timber;
+import '../../utilities/console_progress_bar.dart';
 import '../../utilities/parallel_map.dart';
 import 'scraped_mod.dart';
 import 'main_repo_scraper.dart';
@@ -93,6 +94,7 @@ class ForumScraper {
       forumBaseUrl: MainRepoScraper.forumBaseUrl,
       subforumNumber: 3,
       take: postsPerPage * moddingForumPagesToScrape,
+      progressLabel: 'Forum: modding board',
     );
     timber.i(message: () => "Modding Forum scraped: ${result?.length ?? 0} mods in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
     return result;
@@ -105,6 +107,7 @@ class ForumScraper {
       forumBaseUrl: MainRepoScraper.forumBaseUrl,
       subforumNumber: 8,
       take: postsPerPage * modForumPagesToScrape,
+      progressLabel: 'Forum: mods board',
     );
     timber.i(message: () => "Mod Forum scraped: ${result?.length ?? 0} mods in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
     return result;
@@ -125,11 +128,15 @@ class ForumScraper {
     required String forumBaseUrl,
     required int subforumNumber,
     required int take,
+    required String progressLabel,
   }) async {
+    final totalPages = (take / postsPerPage).ceil();
+    final progressBar = ConsoleProgressBar.start(progressLabel, totalPages);
     try {
       final allMods = <ScrapedMod>[];
 
       for (var page = 0; page < take; page += 20) {
+        progressBar.update(page ~/ postsPerPage + 1);
         timber.i(message: () => "Fetching page ${page ~/ postsPerPage} from subforum $subforumNumber.");
 
         final response = await http.get(Uri.parse("$forumBaseUrl?board=$subforumNumber.$page"));
@@ -182,6 +189,8 @@ class ForumScraper {
     } catch (e, stackTrace) {
       timber.w(t: e, message: () => "Error scraping subforum");
       return null;
+    } finally {
+      progressBar.finish();
     }
   }
 }

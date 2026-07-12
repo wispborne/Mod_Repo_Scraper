@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 
 import 'board_scraper.dart';
 import 'download_resolver.dart';
+import 'downloadable_probe_cache.dart';
 import 'forum_constants.dart';
 import 'html_processor.dart';
 import 'json_data_store.dart';
@@ -22,7 +23,12 @@ class QbScraperEngine {
   final ThrottledClient _client;
   final http.Client _downloadClient;
   final QbDownloadResolver downloadResolver;
+  final DownloadableProbeCache probeCache;
   final ScrapeJob currentJob = ScrapeJob();
+
+  /// Optional progress reporter, invoked whenever a topic finishes (or fails).
+  /// Set for the duration of [run].
+  void Function(int processed, int total, String? item)? _onProgress;
 
   factory QbScraperEngine({
     required JsonDataStore store,
@@ -52,12 +58,15 @@ class QbScraperEngine {
           client: downloadClient,
           dataPath: store.basePath,
         ),
+        probeCache = DownloadableProbeCache(dataPath: store.basePath),
         _log = logger ?? Logger('QbScraperEngine');
 
   Future<ScrapeResult> run(
     ScrapeScope scope, {
     Future<void> Function(QbModDetail detail)? onTopicSaved,
+    void Function(int processed, int total, String? item)? onProgress,
   }) async {
+    _onProgress = onProgress;
     final startTime = DateTime.now().toUtc();
     currentJob.state = ScrapeState.scraping;
     currentJob.startedAt = startTime;
@@ -72,6 +81,7 @@ class QbScraperEngine {
         _client,
         logger: _log,
         externalClient: _downloadClient,
+        probeCache: probeCache,
       );
       final modIndexScraper = QbModIndexScraper(_client, logger: _log);
 
@@ -235,6 +245,7 @@ class QbScraperEngine {
       currentJob.totalTopics = modSummaries.length;
       _log.info('Found ${modSummaries.length} topics to scrape');
       currentJob.currentPhase = null;
+      _reportProgress();
 
       // --- Topic Scraping (pipelined) ---
       // ThrottledClient serializes network calls; this buffer only overlaps
@@ -286,6 +297,7 @@ class QbScraperEngine {
               'Failed to process topic ${summary.topicId}: $e');
           currentJob.errors++;
           currentJob.processedTopics++;
+          _reportProgress();
         }
 
         if (pending.length >= maxPending) {
@@ -326,7 +338,16 @@ class QbScraperEngine {
       return _buildResult(false, startTime, errorMessage: e.toString());
     } finally {
       currentJob.currentPhase = null;
+      _onProgress = null;
     }
+  }
+
+  void _reportProgress() {
+    _onProgress?.call(
+      currentJob.processedTopics,
+      currentJob.totalTopics,
+      currentJob.currentItem,
+    );
   }
 
   Future<void> _processTopicDetail({
@@ -345,6 +366,7 @@ class QbScraperEngine {
         _log.info(
             'Board-3 topic ${s.topicId} has no qualifying external links; skipping.');
         currentJob.processedTopics++;
+        _reportProgress();
         indexMap[s.topicId] = s;
         return;
       }
@@ -398,6 +420,7 @@ class QbScraperEngine {
       meaningfullyChangedIds.add(s.topicId);
     }
     currentJob.processedTopics++;
+    _reportProgress();
   }
 
   ScrapeResult _buildResult(bool success, DateTime startTime,

@@ -263,6 +263,19 @@ class QbDownloadResolver {
     return candidates;
   }
 
+  /// Turns a single link into a download candidate, without touching the
+  /// per-topic cache. Used by the LLM flow to look up a link the LLM chose as
+  /// a download. Returns null when the link can't be turned into a download
+  /// (e.g. an unknown host), so the caller can keep the raw link instead.
+  Future<DownloadCandidate?> resolveSingleLink(LinkRef link) async {
+    try {
+      return await _resolveLink(link);
+    } catch (e) {
+      _log.warning('Failed to resolve LLM-chosen link ${link.url}: $e');
+      return null;
+    }
+  }
+
   /// Returns cached candidates for a topic, or null if not cached.
   List<DownloadCandidate>? getCachedCandidates(int topicId) => _cache[topicId]?.candidates;
 

@@ -44,7 +44,9 @@ config.properties
 /*_cache.json
 outputs/
 /MergeDebug.html
+/merge-debug.json
 
 nul
 qb_data/
 QBMBAMM
+/new_data/mods/

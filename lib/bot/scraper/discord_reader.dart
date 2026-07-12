@@ -19,6 +19,7 @@ import 'package:meta/meta.dart';
 import 'package:mod_repo_scraper/bot/common.dart';
 import 'package:mod_repo_scraper/bot/scraper/download_link_detector.dart';
 import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:mod_repo_scraper/utilities/console_progress_bar.dart';
 import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
 import 'scraped_mod.dart';
@@ -152,7 +153,12 @@ class DiscordReader {
     // Process threads sequentially to respect Discord rate limits.
     stepStartTime = DateTime.now();
     final allMessages = <List<Message>>[];
+    final progressBar =
+        ConsoleProgressBar.start('Discord threads', threads.length);
+    var threadIndex = 0;
     for (final thread in threads) {
+      threadIndex++;
+      progressBar.update(threadIndex, item: thread.name);
       final messages = await _getMessages(
         channelId: thread.id,
         channelName: thread.name,
@@ -164,6 +170,7 @@ class DiscordReader {
         messages.map((msg) => msg.copyWith(parentThread: thread)).toList(),
       );
     }
+    progressBar.finish();
     timber.i(
         message: () =>
             "Fetched messages for ${threads.length} threads in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
