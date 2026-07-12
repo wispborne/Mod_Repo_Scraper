@@ -111,24 +111,36 @@ void main() {
       expect(fallback.callCount, 4);
     });
 
-    test('timeout is NOT a connection failure: rethrows, no fallback (4.4)',
-        () async {
+    test('timeout: falls back and returns the fallback answer (4.4)', () async {
       final primary = _FakeLlmClient(
           [LlmException('Request failed', TimeoutException('slow'))]);
       final fallback = _FakeLlmClient([_ok('fallback')]);
       final client = FallbackLlmClient(primary: primary, fallback: fallback);
 
-      await expectLater(client.complete(_req()), throwsA(isA<LlmException>()));
-      expect(fallback.callCount, 0);
+      final res = await client.complete(_req());
 
-      // The latch is still open: a later reachable call still tries the primary.
-      final primary2 = _FakeLlmClient([_ok('primary')]);
-      final fallback2 = _FakeLlmClient([_ok('fallback')]);
-      final client2 =
-          FallbackLlmClient(primary: primary2, fallback: fallback2);
-      await client2.complete(_req());
-      expect(primary2.callCount, 1);
-      expect(fallback2.callCount, 0);
+      expect(res.content, 'fallback');
+      expect(primary.callCount, 1);
+      expect(fallback.callCount, 1);
+    });
+
+    test('after a timeout, later calls skip the primary (4.4b)', () async {
+      // The primary would answer on a second call, but one timeout latches the
+      // switch so we never pay the full timeout again this run.
+      final primary = _FakeLlmClient([
+        LlmException('Request failed', TimeoutException('slow')),
+        _ok('primary-2'),
+      ]);
+      final fallback = _FakeLlmClient([_ok('fb-1'), _ok('fb-2')]);
+      final client = FallbackLlmClient(primary: primary, fallback: fallback);
+
+      final first = await client.complete(_req());
+      final second = await client.complete(_req());
+
+      expect(first.content, 'fb-1');
+      expect(second.content, 'fb-2');
+      expect(primary.callCount, 1); // never called again after the latch closed
+      expect(fallback.callCount, 2);
     });
 
     test('status-code error (no cause): rethrows, no fallback (4.5)', () async {

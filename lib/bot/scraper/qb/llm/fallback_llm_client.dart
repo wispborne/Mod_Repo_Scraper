@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
@@ -11,16 +12,17 @@ import 'llm_client.dart';
 /// is often asleep, and the fallback is a cloud endpoint (OpenRouter) that
 /// quietly takes over when the PC is off.
 ///
-/// The rule is narrow on purpose:
-/// - A **connection failure** on the primary (the server isn't there —
-///   connection refused, host unreachable, DNS failure) switches to the
-///   fallback. The switch **latches for the rest of the run**: once the primary
-///   is found unreachable, every following call goes straight to the fallback,
-///   so a sleeping PC isn't knocked on for every post. A fresh run (a new
+/// The rule:
+/// - A **connection failure** (the server isn't there — connection refused,
+///   host unreachable, DNS failure) or a **timeout** (the server answered the
+///   socket but didn't finish in time) on the primary switches to the fallback.
+///   The switch **latches for the rest of the run**: once the primary is found
+///   unreachable or too slow, every following call goes straight to the
+///   fallback, so a sleeping or overloaded PC isn't knocked on for every post —
+///   which would otherwise waste the full timeout per topic. A fresh run (a new
 ///   instance) tries the primary again.
-/// - Anything else — a timeout, a non-success status, an unparseable answer —
-///   is **rethrown** so the caller's existing retry-then-rule-based path runs.
-///   A timeout counts as "reachable but slow", not a connection failure.
+/// - Anything else — a non-success status, an unparseable answer — is
+///   **rethrown** so the caller's existing retry-then-rule-based path runs.
 ///
 /// No retry logic lives here: [PostExtractor] already retries above the client.
 class FallbackLlmClient implements LlmClient {
@@ -58,7 +60,7 @@ class FallbackLlmClient implements LlmClient {
     try {
       return await _primary.complete(request);
     } on LlmException catch (e) {
-      if (_isConnectionFailure(e)) {
+      if (_shouldSwitchToFallback(e)) {
         // Log only on the flip. Several calls can be in flight at once (the
         // pipeline overlaps a few topics), so they all reach here in the first
         // batch. Reading and setting the latch is synchronous — no `await`
@@ -67,25 +69,30 @@ class FallbackLlmClient implements LlmClient {
         if (_primaryReachable) {
           _primaryReachable = false;
           _log.warning(
-              'Primary LLM ($_primaryLabel) not reachable ($e); switching to '
+              'Primary LLM ($_primaryLabel) unavailable ($e); switching to '
               'the fallback ($_fallbackLabel) for the rest of this run.');
         }
         return _fallback.complete(request);
       }
-      // Reachable but this call failed (timeout, bad status, bad JSON): let the
-      // caller's retry-then-rule-based path handle it. Do not use the fallback.
+      // A different failure (bad status, bad JSON): let the caller's
+      // retry-then-rule-based path handle it. Do not use the fallback.
       rethrow;
     }
   }
 
-  /// True only for "the server isn't there" errors. [OpenAiCompatibleClient]
-  /// wraps network errors as `LlmException('Request failed', cause)`, so a
-  /// connection refused / host unreachable / DNS failure arrives as a
-  /// [SocketException] in [LlmException.cause]. (package:http throws a
-  /// `_ClientSocketException` for a refused connection, which is itself a
-  /// [SocketException], so this catches it.) A [TimeoutException] arrives the
-  /// same way but is deliberately NOT treated as a connection failure — the
-  /// server answered the socket, it is just slow. A non-success HTTP status has
-  /// no cause at all (a different [LlmException]), so it is not caught here.
-  static bool _isConnectionFailure(LlmException e) => e.cause is SocketException;
+  /// True for "the primary is no good this run" errors: the server isn't there,
+  /// or it's there but too slow. [OpenAiCompatibleClient] wraps network errors
+  /// as `LlmException('Request failed', cause)`, so both arrive in
+  /// [LlmException.cause]:
+  /// - A connection refused / host unreachable / DNS failure arrives as a
+  ///   [SocketException]. (package:http throws a `_ClientSocketException` for a
+  ///   refused connection, which is itself a [SocketException].)
+  /// - A request that ran past the timeout arrives as a [TimeoutException].
+  ///
+  /// Both latch the switch, so once the primary is found unreachable or too
+  /// slow the run stops paying the full timeout per topic. A non-success HTTP
+  /// status has no cause at all (a different [LlmException]), so it is not
+  /// caught here.
+  static bool _shouldSwitchToFallback(LlmException e) =>
+      e.cause is SocketException || e.cause is TimeoutException;
 }
