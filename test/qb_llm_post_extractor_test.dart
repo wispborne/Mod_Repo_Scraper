@@ -633,7 +633,7 @@ void main() {
       final extractor = makeExtractor(client);
       await extractor.extractForTopic(_detail(5, '<a href="https://x.com/a.zip">a</a>'), []);
       expect(store.get(5), isNull);
-      expect(client.callCount, 2); // one retry
+      expect(client.callCount, 3); // two retries
     });
 
     test('first attempt fails, retry succeeds → retry answer used', () async {

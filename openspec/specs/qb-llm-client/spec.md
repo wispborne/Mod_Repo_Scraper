@@ -50,16 +50,20 @@ The system SHALL send requests as an OpenAI-style chat completion using the proj
 - **WHEN** the model's answer is cut off at the token limit
 - **THEN** the affected field (e.g. a long changelog) is treated as not captured rather than saved partially
 
-### Requirement: A wrong response is retried once, then falls back
-When a call errors, times out, returns a non-success status, or returns a body that cannot be parsed or does not match the expected shape, the system SHALL retry the call exactly one time. If the retry also fails, the topic SHALL fall back to the rule-based downloads only, with no LLM extras written for it.
+### Requirement: A wrong response is retried, then falls back
+When a call errors, returns a non-success status, or returns a body that cannot be parsed or does not match the expected shape, the system SHALL retry the call up to two more times (three attempts in total). If every attempt fails, the topic SHALL fall back to the rule-based downloads only, with no LLM extras written for it. A timeout is the exception: it SHALL NOT be retried, because the retry would run under the same limit and almost always time out again — the topic falls straight back to the rule-based downloads.
 
-#### Scenario: First attempt is unusable, retry succeeds
-- **WHEN** the first response is malformed or errors AND the single retry returns a valid, parseable answer
+#### Scenario: First attempt is unusable, a retry succeeds
+- **WHEN** the first response is malformed or errors AND a following retry returns a valid, parseable answer
 - **THEN** the retry's answer is used for that topic
 
-#### Scenario: Both attempts fail
-- **WHEN** both the first attempt and its one retry fail
+#### Scenario: All attempts fail
+- **WHEN** the first attempt and both of its retries fail
 - **THEN** the topic falls back to rule-based downloads only, no LLM extras are written, and the run continues with the next topic
+
+#### Scenario: A timeout is not retried
+- **WHEN** a call times out
+- **THEN** the system does not retry it and the topic falls back to rule-based downloads only
 
 ### Requirement: Every LLM error is logged
 The system SHALL log every LLM failure through the existing logger, including the topicId and the reason — HTTP errors, timeouts, non-success statuses, parse failures, shape-check failures, each dropped (grounded-out) URL or fact, retries, and fallbacks. Nothing SHALL fail silently. Successful calls SHALL log their token usage.
