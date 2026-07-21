@@ -31,17 +31,26 @@ class OpenAiCompatibleClient implements LlmClient {
   /// unknown body fields.
   final bool _disableThinking;
 
+  /// When true, and the request carries a schema, ask the endpoint to force the
+  /// answer into that exact JSON shape (`response_format: json_schema`). A
+  /// server that honours it (e.g. llama.cpp) then cannot emit broken JSON. Off
+  /// for endpoints that reject or ignore it (OpenRouter and most cloud
+  /// providers), which fall back to the weaker `json_object` hint.
+  final bool _structuredOutput;
+
   OpenAiCompatibleClient({
     required ThrottledClient client,
     required String baseUrl,
     required String model,
     String? apiToken,
     bool disableThinking = false,
+    bool structuredOutput = false,
   })  : _client = client,
         _baseUrl = baseUrl,
         _model = model,
         _apiToken = apiToken,
-        _disableThinking = disableThinking;
+        _disableThinking = disableThinking,
+        _structuredOutput = structuredOutput;
 
   @override
   Future<LlmResponse> complete(LlmRequest request) async {
@@ -56,6 +65,24 @@ class OpenAiCompatibleClient implements LlmClient {
     //   userPrompt = '/nothink $userPrompt';
     // }
 
+    // Constrain the reply to JSON. A full schema (json_schema) makes a
+    // compliant server emit only valid JSON in the exact shape, which removes
+    // the main cause of a wasted call: a copied changelog with an unescaped
+    // quote breaking the whole object. Where that isn't available, the weaker
+    // json_object hint asks for valid JSON of any shape (some servers ignore
+    // even this).
+    final Map<String, dynamic> responseFormat =
+        _structuredOutput && request.jsonSchema != null
+            ? {
+                'type': 'json_schema',
+                'json_schema': {
+                  'name': 'mod_extraction',
+                  'strict': true,
+                  'schema': request.jsonSchema,
+                },
+              }
+            : {'type': 'json_object'};
+
     final payload = <String, dynamic>{
       'model': _model,
       'messages': [
@@ -63,7 +90,7 @@ class OpenAiCompatibleClient implements LlmClient {
         {'role': 'user', 'content': request.userPrompt},
       ],
       'temperature': request.temperature,
-      'response_format': {'type': 'json_object'},
+      'response_format': responseFormat,
       'max_tokens': request.maxTokens,
       'stream': false,
     };

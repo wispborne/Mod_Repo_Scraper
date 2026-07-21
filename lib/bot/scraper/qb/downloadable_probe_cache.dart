@@ -32,10 +32,20 @@ class DownloadableProbeCache {
   /// url → isDownloadable
   final Map<String, bool> _cache = {};
 
+  /// Checks currently in progress, so the same URL asked about twice at the
+  /// same time only makes one request.
+  final Map<String, Future<bool>> _inFlight = {};
+
   /// New answers since the last disk write, and a guard so overlapping probes
   /// never start two writes at once.
   int _unsaved = 0;
   bool _writing = false;
+
+  /// Whether the file on disk has been read yet. [classify] reads it on
+  /// first use, so a cache that nobody explicitly loaded still starts from
+  /// the saved answers instead of overwriting them later.
+  bool _loaded = false;
+  Future<void>? _loading;
 
   DownloadableProbeCache({
     required String dataPath,
@@ -53,15 +63,30 @@ class DownloadableProbeCache {
     // Obvious downloads are free to classify; don't bloat the cache with them.
     if (isLikelyModDownloadUrl(url)) return true;
 
+    if (!_loaded) await (_loading ??= loadCache());
+
     final cached = _cache[url];
     if (cached != null) return cached;
 
-    final result =
-        await isDownloadableUrl(url, client: client, timeout: timeout);
-    _cache[url] = result;
-    _unsaved++;
-    _maybeFlush();
-    return result;
+    // If this exact URL is already being checked, wait for that answer
+    // instead of asking the host a second time.
+    final inFlight = _inFlight[url];
+    if (inFlight != null) return inFlight;
+
+    final probe = () async {
+      try {
+        final result =
+            await isDownloadableUrl(url, client: client, timeout: timeout);
+        _cache[url] = result;
+        _unsaved++;
+        _maybeFlush();
+        return result;
+      } finally {
+        _inFlight.remove(url);
+      }
+    }();
+    _inFlight[url] = probe;
+    return probe;
   }
 
   /// Writes the cache in the background once enough new answers have piled up.
@@ -79,6 +104,7 @@ class DownloadableProbeCache {
   /// Loads the cache from disk. A missing file or a schema-version mismatch
   /// simply starts empty.
   Future<void> loadCache() async {
+    _loaded = true;
     final file = File(p.join(_dataPath, _cacheFilename));
     if (!file.existsSync()) return;
 

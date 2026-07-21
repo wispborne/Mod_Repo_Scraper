@@ -16,10 +16,19 @@ class _FakeLlmClient implements LlmClient {
   final List<Object> behaviors; // LlmResponse to return, or Object to throw
   int callCount = 0;
 
+  /// The temperature each call was made with, in order — lets a test check that
+  /// a retry bumped it.
+  final List<double> temperatures = [];
+
+  /// The schema each call carried (or null), in order.
+  final List<Map<String, dynamic>?> schemas = [];
+
   _FakeLlmClient(this.behaviors);
 
   @override
   Future<LlmResponse> complete(LlmRequest request) async {
+    temperatures.add(request.temperature);
+    schemas.add(request.jsonSchema);
     final i = callCount < behaviors.length ? callCount : behaviors.length - 1;
     callCount++;
     final behavior = behaviors[i];
@@ -645,6 +654,36 @@ void main() {
       await extractor.extractForTopic(_detail(6, '<a href="https://x.com/a.zip">a</a>'), []);
       expect(client.callCount, 2);
       expect(downloadsOf(6).single.url, 'https://x.com/a.zip');
+      // A network retry keeps the original (deterministic) temperature.
+      expect(client.temperatures, [0, 0]);
+    });
+
+    test('unparseable JSON is retried at a higher temperature, then recovers',
+        () async {
+      final client = _FakeLlmClient([
+        // Returns (no exception) but the body is not valid JSON.
+        _json('this is not json at all'),
+        _json('{"mods":[{"name":"a","role":"main","downloads":[{"url":"https://x.com/a.zip","label":"a","kind":"direct"}]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+          _detail(8, '<a href="https://x.com/a.zip">a</a>'), []);
+      expect(client.callCount, 2);
+      expect(downloadsOf(8).single.url, 'https://x.com/a.zip');
+      // First try at 0; the parse failure bumps the retry above 0.
+      expect(client.temperatures.first, 0);
+      expect(client.temperatures[1], greaterThan(0));
+    });
+
+    test('unparseable JSON on every attempt → no store entry, one slot spent',
+        () async {
+      final client = _FakeLlmClient([_json('not json')]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+          _detail(9, '<a href="https://x.com/a.zip">a</a>'), []);
+      expect(store.get(9), isNull);
+      expect(client.callCount, 3); // all attempts used
+      expect(extractor.liveCallCount, 1); // but only one slot was reserved
     });
 
     test('consecutive failures bail; a success resets the count', () async {

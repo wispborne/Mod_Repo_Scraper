@@ -1,17 +1,17 @@
 ### Requirement: LLM feature is off by default and configured via config.properties
-The system SHALL read LLM settings from `config.properties` into `BotConfig`, and SHALL perform no LLM calls unless `enable_llm` is true.
+The system SHALL read LLM settings from `config.properties` into `BotConfig`, and SHALL perform no LLM calls unless `llm_enabled` is true.
 
 #### Scenario: Feature disabled
-- **WHEN** `enable_llm` is absent or false
+- **WHEN** `llm_enabled` is absent or false
 - **THEN** the QB pipeline behaves exactly as before, makes no LLM calls, and writes no LLM extras to the bundle
 
 #### Scenario: Feature enabled with no API token (local endpoint)
-- **WHEN** `enable_llm` is true AND `llm_api_token` is blank
+- **WHEN** `llm_enabled` is true AND `llm_api_token` is blank
 - **THEN** the system still runs LLM extraction and sends requests without an `Authorization` header (so a keyless local endpoint like Ollama works), logging a note that no token is set
 
 #### Scenario: Settings loaded
-- **WHEN** `enable_llm`, `llm_api_token`, `llm_model`, and `llm_base_url` are set
-- **THEN** they load into `BotConfig` and drive the LLM client, mirroring how `discord_auth_token` / `nexus_api_token` load today (the legacy key `openrouter_api_token` is still read as a fallback)
+- **WHEN** `llm_enabled`, `llm_api_token`, `llm_model`, and `llm_base_url` are set
+- **THEN** they load into `BotConfig` and drive the LLM client, mirroring how `modrepo_discord_auth_token` / `modrepo_nexus_api_token` load today (the legacy key `openrouter_api_token` is not read; it is reported by the startup unknown-key warning)
 
 ### Requirement: LLM access is behind a provider-agnostic interface
 The system SHALL call the LLM through an `LlmClient` interface, implemented against any OpenAI-compatible chat-completions endpoint (OpenRouter, OpenAI, DeepSeek, or a local server such as Ollama / LM Studio / llama.cpp), so a different provider (including a local model) can be substituted by config alone without changing the extraction logic.
@@ -120,7 +120,7 @@ provider MAY run its own model; the primary and fallback answers SHALL share the
 one content-fingerprinted cache and SHALL NOT be re-run against each other.
 
 #### Scenario: Fallback not configured
-- **WHEN** `enable_llm` is true AND the fallback fields are blank
+- **WHEN** `llm_enabled` is true AND the fallback fields are blank
 - **THEN** only the primary provider is used and the pipeline behaves exactly as before this capability
 
 #### Scenario: Primary reachable

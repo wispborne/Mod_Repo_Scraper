@@ -139,7 +139,7 @@ class DataAccess {
     AllowlistEntry('forum-data-bundle', _bundleFile,
         'Run the QB scraper to publish the bundle.'),
     AllowlistEntry('merge-debug', _mergeDebugFile,
-        'Run the scraper with generate_merge_debug enabled.'),
+        'Run the scraper with modrepo_merge_debug enabled.'),
     AllowlistEntry('log', _logFile, 'Run the scraper.'),
   ];
 

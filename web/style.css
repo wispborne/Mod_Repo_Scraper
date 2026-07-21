@@ -92,6 +92,17 @@ tbody tr.clickable { cursor: pointer; }
 .badge-dim { background: rgba(140, 150, 170, 0.15); color: var(--text-dim); }
 .badge-llm { background: rgba(196, 148, 255, 0.18); color: var(--llm); }
 
+/* Flags legend: a collapsible key under the filter bar */
+.legend { margin: -4px 0 16px; font-size: 0.85rem; }
+.legend summary { cursor: pointer; user-select: none; color: var(--text-dim); }
+.legend summary:hover { color: var(--text); }
+.legend-grid {
+  display: grid; grid-template-columns: auto 1fr;
+  gap: 7px 12px; align-items: center;
+  margin-top: 12px; max-width: 620px;
+}
+.legend-desc { color: var(--text-dim); }
+
 /* Support links: one aligned row per link */
 .support-links { display: flex; flex-direction: column; gap: 6px; }
 .support-link { display: flex; align-items: baseline; gap: 8px; }

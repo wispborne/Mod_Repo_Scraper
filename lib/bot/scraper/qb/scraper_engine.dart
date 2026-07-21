@@ -38,10 +38,14 @@ class QbScraperEngine {
     final downloadClient = IOClient(
       io.HttpClient()..connectionTimeout = const Duration(seconds: 30),
     );
+    // Build the "does this link lead to a file?" cache once and share it, so the
+    // scrape step and the resolver reuse each other's answers.
+    final probeCache = DownloadableProbeCache(dataPath: store.basePath);
     return QbScraperEngine._(
       store: store,
       client: client,
       downloadClient: downloadClient,
+      probeCache: probeCache,
       logger: logger,
     );
   }
@@ -50,15 +54,17 @@ class QbScraperEngine {
     required JsonDataStore store,
     required ThrottledClient client,
     required http.Client downloadClient,
+    required DownloadableProbeCache probeCache,
     Logger? logger,
   })  : _store = store,
         _client = client,
         _downloadClient = downloadClient,
+        probeCache = probeCache,
         downloadResolver = QbDownloadResolver(
           client: downloadClient,
           dataPath: store.basePath,
+          probeCache: probeCache,
         ),
-        probeCache = DownloadableProbeCache(dataPath: store.basePath),
         _log = logger ?? Logger('QbScraperEngine');
 
   Future<ScrapeResult> run(
@@ -73,6 +79,10 @@ class QbScraperEngine {
     currentJob.errorMessage = null;
     currentJob.currentPhase = 'Initializing';
 
+    // Declared out here so the failure path below can still save what the
+    // index learned before the scrape broke.
+    final indexMap = <int, QbModSummary>{};
+
     try {
       _log.info('Starting scrape job with scope ${scope.type}');
 
@@ -86,9 +96,7 @@ class QbScraperEngine {
       final modIndexScraper = QbModIndexScraper(_client, logger: _log);
 
       final existingIndex = await _store.loadIndex();
-      final indexMap = <int, QbModSummary>{
-        for (final m in existingIndex) m.topicId: m
-      };
+      indexMap.addEntries(existingIndex.map((m) => MapEntry(m.topicId, m)));
       final preScrapeSnapshot = <int, _MeaningfulSnapshot>{
         for (final m in existingIndex)
           m.topicId: _snapshotMeaningfulFields(m)
@@ -316,9 +324,7 @@ class QbScraperEngine {
       }
 
       // Save final index
-      final finalIndex = indexMap.values.toList()
-        ..sort((a, b) => b.scrapedAt.compareTo(a.scrapedAt));
-      await _store.saveIndex(finalIndex);
+      await _store.saveIndex(_sortedIndex(indexMap));
 
       _logMeaningfulChanges(meaningfullyChangedIds, modSummaries.length);
 
@@ -335,6 +341,18 @@ class QbScraperEngine {
       currentJob.finishedAt = DateTime.now().toUtc();
       currentJob.errorMessage = e.toString();
       _log.severe('Scrape job failed: $e');
+
+      // The detail files for the topics done so far are already on disk. Save
+      // the index that names them, or the next run won't know they exist and
+      // will scrape them all over again.
+      if (indexMap.isNotEmpty) {
+        try {
+          await _store.saveIndex(_sortedIndex(indexMap));
+        } catch (saveError) {
+          _log.warning('Failed to save index after scrape failure: $saveError');
+        }
+      }
+
       return _buildResult(false, startTime, errorMessage: e.toString());
     } finally {
       currentJob.currentPhase = null;
@@ -368,6 +386,7 @@ class QbScraperEngine {
         currentJob.processedTopics++;
         _reportProgress();
         indexMap[s.topicId] = s;
+        await _store.saveIndexIfDue(_sortedIndex(indexMap));
         return;
       }
 
@@ -421,7 +440,17 @@ class QbScraperEngine {
     }
     currentJob.processedTopics++;
     _reportProgress();
+
+    // The detail file for this topic is saved above. Keep the index that names
+    // it roughly in step, so an interrupted run doesn't leave detail files that
+    // nothing points at.
+    await _store.saveIndexIfDue(_sortedIndex(indexMap));
   }
+
+  /// The index in the order it is written to disk: newest scrape first.
+  static List<QbModSummary> _sortedIndex(Map<int, QbModSummary> indexMap) =>
+      indexMap.values.toList()
+        ..sort((a, b) => b.scrapedAt.compareTo(a.scrapedAt));
 
   ScrapeResult _buildResult(bool success, DateTime startTime,
       {String? errorMessage}) {

@@ -44,11 +44,35 @@ class UrlNormalizer {
     return host.contains('mega.nz') || host.contains('mega.co.nz');
   }
 
+  /// Returns true for Google Drive links that open a folder listing rather
+  /// than a single file. These can't be turned into a direct download.
+  static bool isGoogleDriveFolder(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    if (!uri.host.toLowerCase().contains('drive.google.com')) return false;
+    final path = uri.path.toLowerCase();
+    return path.contains('/folders/') || path.startsWith('/folderview');
+  }
+
+  /// Returns true for old-style `drive.google.com/open?id=...` links.
+  /// These can point at either a file or a folder — only following the
+  /// link tells us which.
+  static bool isGoogleDriveOpenLink(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    if (!uri.host.toLowerCase().contains('drive.google.com')) return false;
+    return uri.path == '/open' && (uri.queryParameters['id']?.isNotEmpty ?? false);
+  }
+
   static String _normalizeGoogleDrive(String url, Uri uri) {
     final match = _googleDriveFileRegex.firstMatch(url);
     if (match != null) {
       final fileId = match.group(1)!;
       return 'https://drive.google.com/uc?export=download&id=$fileId';
+    }
+    // open?id={id} → uc?export=download&id={id}
+    if (uri.path == '/open' && (uri.queryParameters['id']?.isNotEmpty ?? false)) {
+      return 'https://drive.google.com/uc?export=download&id=${uri.queryParameters['id']}';
     }
     // Already in uc?export=download form or other format
     return url;

@@ -67,11 +67,11 @@ The system SHALL optionally publish the bundle to a local git repo clone.
 The system SHALL add QB scraper config to `config.properties` and `BotConfig`.
 
 #### Scenario: Enable QB scraper
-- **WHEN** `enable_qb=true` in config
+- **WHEN** `qb_enabled=true` in config
 - **THEN** the QB pipeline SHALL run after the existing pipeline
 
 #### Scenario: Disabled by default
-- **WHEN** `enable_qb` is absent
+- **WHEN** `qb_enabled` is absent
 - **THEN** the QB scraper SHALL not run
 
 #### Scenario: Configurable data path
@@ -95,7 +95,7 @@ The system SHALL add QB scraper config to `config.properties` and `BotConfig`.
 - **THEN** the bundle SHALL be published there via git
 
 #### Scenario: Configurable lesser board max pages
-- **WHEN** `qb_lesser_board_max_pages` is set
+- **WHEN** `qb_max_pages_lesser` is set
 - **THEN** board 3 SHALL be capped at that page count; default 20
 
 ### Requirement: Entry point integration

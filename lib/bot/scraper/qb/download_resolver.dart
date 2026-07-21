@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
+import 'package:synchronized/synchronized.dart';
 
 import 'archive_helpers.dart';
+import 'downloadable_probe_cache.dart';
 import 'forum_constants.dart';
 import 'html_processor.dart';
 import 'models/mod_detail.dart';
@@ -80,12 +82,32 @@ class _CacheEntry {
 
 /// Resolves direct download URLs from links found in forum topic first posts.
 class QbDownloadResolver {
-  static const int _schemaVersion = 2;
+  // v3: GitHub releases/latest/download links resolve as direct assets;
+  // Google Drive folder and open?id= links (including folders hiding behind
+  // open?id=) are handled correctly; unknown hosts are checked for a real
+  // file before being dropped.
+  static const int _schemaVersion = 3;
   static const String _cacheFilename = 'assumed-downloads-cache.json';
+
+  /// Write the file once this many topics have been resolved. Resolving a topic
+  /// means live calls out to GitHub, Google Drive, MediaFire and friends, so an
+  /// interrupted run that saved nothing has thrown away real work.
+  static const int _flushEvery = 10;
 
   final http.Client _client;
   final String _dataPath;
   final Logger _log;
+
+  /// Topics resolved since the last disk write, and a guard so overlapping
+  /// topics never start two writes at once.
+  int _unsaved = 0;
+  final Lock _writeLock = Lock();
+
+  /// The shared "does this link lead to a file?" cache. The unknown-host
+  /// fallback reuses its saved answers (and adds to them) instead of asking
+  /// the same host twice. If the caller doesn't pass one in, the resolver
+  /// makes its own over the same data folder.
+  final DownloadableProbeCache _probeCache;
 
   /// topicId → cache entry
   final Map<int, _CacheEntry> _cache = {};
@@ -127,8 +149,10 @@ class QbDownloadResolver {
     '.htm',
   ];
 
+  // Matches both asset URL forms: /releases/download/{tag}/{file} and the
+  // "always newest" permalink /releases/latest/download/{file}.
   static final _githubDirectAssetRegex = RegExp(
-    r'github\.com/[^/]+/[^/]+/releases/download/[^/]+/.+',
+    r'github\.com/[^/]+/[^/]+/releases/(?:download/[^/]+|latest/download)/.+',
     caseSensitive: false,
   );
 
@@ -191,9 +215,11 @@ class QbDownloadResolver {
   QbDownloadResolver({
     required http.Client client,
     required String dataPath,
+    DownloadableProbeCache? probeCache,
     Logger? logger,
   })  : _client = client,
         _dataPath = dataPath,
+        _probeCache = probeCache ?? DownloadableProbeCache(dataPath: dataPath),
         _log = logger ?? Logger('QbDownloadResolver');
 
   // ---------------------------------------------------------------------------
@@ -259,8 +285,23 @@ class QbDownloadResolver {
       schemaVersion: _schemaVersion,
       candidates: candidates,
     );
+    _unsaved++;
+    await _maybeFlush();
 
     return candidates;
+  }
+
+  /// Writes the cache once enough topics have been resolved since the last
+  /// write, so an interrupted run keeps most of its resolution work.
+  Future<void> _maybeFlush() async {
+    if (_unsaved < _flushEvery) return;
+    try {
+      await saveCache();
+    } catch (e) {
+      // A failed write just means we try again at the next threshold, or at the
+      // final save. The answers are still in memory either way.
+      _log.warning('Background download-cache flush failed: $e');
+    }
   }
 
   /// Turns a single link into a download candidate, without touching the
@@ -284,6 +325,14 @@ class QbDownloadResolver {
 
   /// Returns all cached candidates across all topics.
   Map<int, List<DownloadCandidate>> getAllCandidates() => _cache.map((k, v) => MapEntry(k, v.candidates));
+
+  /// Topics whose saved entries were made by an older version of this
+  /// resolver. Their results may be missing the newer rules, so the caller
+  /// should redo them (using the links already saved on disk) when it can.
+  Set<int> get outdatedTopicIds => _cache.entries
+      .where((e) => e.value.schemaVersion != _schemaVersion)
+      .map((e) => e.key)
+      .toSet();
 
   /// Imports externally-provided candidates with a sentinel fingerprint.
   void importCandidates(int topicId, List<DownloadCandidate> candidates) {
@@ -311,8 +360,10 @@ class QbDownloadResolver {
         final topicId = int.tryParse(entry.key);
         if (topicId == null) continue;
         final cacheEntry = _CacheEntry.fromJson(entry.value as Map<String, dynamic>);
-        // Skip entries with old schema version
-        if (cacheEntry.schemaVersion != _schemaVersion) continue;
+        // Entries saved by an older version are kept: they still fill the
+        // bundle for topics that aren't re-scraped this run. resolveForTopic
+        // treats them as misses, and the main flow redoes them from the links
+        // already on disk (see [outdatedTopicIds]).
         _cache[topicId] = cacheEntry;
       }
       _log.info('Loaded download cache with ${_cache.length} entries');
@@ -321,13 +372,16 @@ class QbDownloadResolver {
     }
   }
 
-  /// Saves the cache to disk.
+  /// Saves the cache to disk. Safe to call from multiple places at once.
   Future<void> saveCache() async {
-    final map = _cache.map((k, v) => MapEntry(k.toString(), v.toJson()));
-    final json = const JsonEncoder.withIndent('  ').convert(map);
-    final file = File(p.join(_dataPath, _cacheFilename));
-    await file.writeAsString(json);
-    _log.info('Saved download cache with ${_cache.length} entries');
+    await _writeLock.synchronized(() async {
+      _unsaved = 0;
+      final map = _cache.map((k, v) => MapEntry(k.toString(), v.toJson()));
+      final json = const JsonEncoder.withIndent('  ').convert(map);
+      final file = File(p.join(_dataPath, _cacheFilename));
+      await file.writeAsString(json);
+      _log.info('Saved download cache with ${_cache.length} entries');
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -406,6 +460,21 @@ class QbDownloadResolver {
         resolvedUrl: url,
         confidence: DownloadConfidence.low,
         requiresManualStep: true,
+      );
+    }
+
+    // No host-specific rule matched. Before giving up, ask whether the link
+    // actually serves a file: an obvious archive extension answers with no
+    // request; anything else does one HEAD/GET that inspects Content-Disposition
+    // and Content-Type. Answers are saved, so each link is only asked about
+    // once — later runs reuse the answer from disk. If it is a real download,
+    // keep it as a direct link rather than mislabelling it a manual step.
+    final servesFile = await _probeCache.classify(url, client: _client);
+    if (servesFile) {
+      return DownloadCandidate(
+        sourceUrl: link.url,
+        resolvedUrl: url,
+        confidence: DownloadConfidence.medium,
       );
     }
 
@@ -517,6 +586,32 @@ class QbDownloadResolver {
   // ---------------------------------------------------------------------------
 
   Future<DownloadCandidate> _resolveGoogleDrive(String sourceUrl, String url) async {
+    // A folder link opens a file listing, not a download — the user has to
+    // open it and pick a file themselves.
+    if (UrlNormalizer.isGoogleDriveFolder(url)) {
+      return DownloadCandidate(
+        sourceUrl: sourceUrl,
+        resolvedUrl: url,
+        confidence: DownloadConfidence.low,
+        requiresManualStep: true,
+      );
+    }
+
+    // An old-style open?id= link can hide either a file or a folder. Follow
+    // the redirect once to find out; if it lands on a folder, treat it like
+    // one. If we can't tell, assume it's a file, as before.
+    if (UrlNormalizer.isGoogleDriveOpenLink(url)) {
+      final followed = await _followRedirect(url);
+      if (followed != null && UrlNormalizer.isGoogleDriveFolder(followed)) {
+        return DownloadCandidate(
+          sourceUrl: sourceUrl,
+          resolvedUrl: followed,
+          confidence: DownloadConfidence.low,
+          requiresManualStep: true,
+        );
+      }
+    }
+
     final normalized = UrlNormalizer.normalizeDownloadUrl(url);
     String? filename;
 

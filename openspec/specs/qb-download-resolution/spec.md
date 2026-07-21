@@ -4,7 +4,7 @@
 The system SHALL classify and resolve direct download URLs from links found in forum topic first posts, with host-specific resolution logic.
 
 #### Scenario: GitHub direct asset link
-- **WHEN** a link matches a GitHub releases download URL pattern (e.g., `/releases/download/{tag}/{file}`)
+- **WHEN** a link matches a GitHub releases download URL pattern (`/releases/download/{tag}/{file}` or the latest-release permalink `/releases/latest/download/{file}`)
 - **THEN** it SHALL be high confidence with filename extracted from URL path
 
 #### Scenario: GitHub releases page
@@ -14,6 +14,14 @@ The system SHALL classify and resolve direct download URLs from links found in f
 #### Scenario: Google Drive link
 - **WHEN** a link points to `drive.google.com` or `drive.usercontent.google.com`
 - **THEN** the system SHALL normalize to `uc?export=download` form and probe for filename; medium confidence
+
+#### Scenario: Google Drive folder link
+- **WHEN** a Google Drive link points to a folder (`/drive/folders/...`, `/folderview`, or an `open?id=` link whose redirect lands on a folder)
+- **THEN** it SHALL be low confidence with `requiresManualStep=true`, keeping the folder URL
+
+#### Scenario: Google Drive open?id= link
+- **WHEN** a Google Drive link is in `open?id=` form (which can hide a file or a folder)
+- **THEN** the system SHALL follow the redirect once to find out which; a folder is handled per the folder scenario, a file (or an unreadable redirect) is handled per the normal Drive scenario
 
 #### Scenario: Dropbox link
 - **WHEN** a link points to `dropbox.com`
@@ -44,6 +52,13 @@ The system SHALL classify and resolve direct download URLs from links found in f
 - **WHEN** a link points to `patreon.com`
 - **THEN** low confidence with `requiresManualStep=true`
 
+#### Scenario: Unknown host confirmed by probe
+- **WHEN** a link's host matches no host-specific rule
+- **THEN** the system SHALL probe the URL to see whether it serves a file — an obvious archive extension short-circuits with no request; otherwise a HEAD (falling back to GET) inspects `Content-Disposition` and `Content-Type`
+- **AND** the answer SHALL be saved (in `link-downloadable-cache.json`), so each link only goes to the network once across runs and paths; a link being checked twice at the same time SHALL only make one request
+- **AND** if the URL serves a file, it SHALL be medium confidence with `requiresManualStep=false`
+- **AND** if it does not, it SHALL be treated as unresolved (dropped on the rules path, kept as a low-confidence manual step on the LLM path)
+
 #### Scenario: URL shortener resolution
 - **WHEN** a link points to a known shortener (tinyurl, bit.ly, t.co, goo.gl, ow.ly, is.gd, buff.ly, rebrand.ly)
 - **THEN** the system SHALL follow the redirect to resolve the real host, then classify
@@ -56,7 +71,7 @@ The system SHALL classify and resolve direct download URLs from links found in f
 The system SHALL normalize hosting-provider URLs into direct-download forms.
 
 #### Scenario: Google Drive normalization
-- **WHEN** a Google Drive URL contains `/file/d/{id}`
+- **WHEN** a Google Drive URL contains `/file/d/{id}` or is in `open?id={id}` form
 - **THEN** it SHALL be normalized to `https://drive.google.com/uc?export=download&id={id}`
 
 #### Scenario: Dropbox normalization
@@ -125,8 +140,9 @@ The system SHALL cache resolution results with fingerprint-based invalidation.
 - **THEN** the cache SHALL be written to `{dataPath}/assumed-downloads-cache.json`
 
 #### Scenario: Schema versioning
-- **WHEN** resolver logic changes
-- **THEN** incrementing the schema version SHALL invalidate all old cache entries
+- **WHEN** resolver logic changes and the schema version is incremented
+- **THEN** entries saved under the old version SHALL be kept and continue to fill the bundle, so no mod loses its download links in the meantime
+- **AND** those topics SHALL be reported as outdated, and the next scrape run SHALL redo them from the links already saved on disk — no manual step needed
 
 #### Scenario: Bundle-imported candidates
 - **WHEN** candidates are imported via `importCandidates`

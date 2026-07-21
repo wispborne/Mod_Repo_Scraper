@@ -32,9 +32,44 @@ class HtmlProcessor {
   static final RegExp _altAttr =
       RegExp(r'alt="([^"]*?)"', caseSensitive: false);
 
+  // The forum glues a per-request `PHPSESSID=<hex>` onto some in-post links, so
+  // the same unchanged post comes back with a different token every fetch. These
+  // three patterns strip it out of post HTML. Unlike [ForumConstants.stripPhpSessId]
+  // (which runs on a decoded URL), these run on the stored HTML, where the query
+  // separator is the entity `&amp;`, so the token's value ends just before it.
+  // The value stops at any query/HTML boundary: `&`, `#`, a quote, whitespace, or
+  // an angle bracket.
+  static const String _sessValue = r'''[^&#"'\s<>]*''';
+
+  // `?PHPSESSID=xxx&amp;rest` → `?rest`: first query param, more follow. The
+  // trailing separator is consumed and the leading `?` put back.
+  static final RegExp _sessFirstParam =
+      RegExp(r'\?PHPSESSID=' + _sessValue + r'(?:&amp;|&)', caseSensitive: false);
+  // `...&amp;PHPSESSID=xxx...` → `......`: a later (or the last) query param.
+  static final RegExp _sessOtherParam =
+      RegExp(r'(?:&amp;|&)PHPSESSID=' + _sessValue, caseSensitive: false);
+  // `?PHPSESSID=xxx` → ``: the only query param, so the `?` goes too.
+  static final RegExp _sessOnlyParam =
+      RegExp(r'\?PHPSESSID=' + _sessValue, caseSensitive: false);
+
+  /// Removes the forum's `PHPSESSID=<hex>` session token from every link in a
+  /// block of post HTML. Idempotent, and a no-op when there is no token. Keeping
+  /// it out of the stored post matters twice over: the token is a session id we
+  /// should not publish to clients, and because it changes on every fetch it
+  /// makes an unchanged post look changed to the LLM freshness check, which would
+  /// otherwise re-extract the same post again and again.
+  static String stripSessionIds(String html) {
+    if (!html.contains('PHPSESSID=')) return html;
+    return html
+        .replaceAll(_sessFirstParam, '?')
+        .replaceAll(_sessOtherParam, '')
+        .replaceAll(_sessOnlyParam, '');
+  }
+
   static String processHtml(String html) {
     var processed = _addTargetBlankToExternalLinks(html);
     processed = _stripSmfArtifacts(processed);
+    processed = stripSessionIds(processed);
     return processed;
   }
 

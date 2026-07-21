@@ -15,7 +15,7 @@ Future<void> main(List<String> args) async {
   final parser = ArgParser()
     ..addOption('port', defaultsTo: '8085', help: 'Port to listen on.')
     ..addOption('data-dir',
-        defaultsTo: 'new_data',
+        defaultsTo: 'qb_data',
         help: 'QB data dir: mods-index.json, mods/, the caches.')
     ..addOption('outputs-dir',
         defaultsTo: 'outputs',

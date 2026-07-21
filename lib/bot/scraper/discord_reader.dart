@@ -68,13 +68,13 @@ class DiscordReader {
 
     final serverId = botConfig.discordServerId;
     if (serverId == null || serverId.isEmpty) {
-      timber.w(message: () => "No discord_serverId found in config.");
+      timber.w(message: () => "No modrepo_discord_server_id found in config.");
       return null;
     }
 
     final forumChannelIds = botConfig.discordForumChannelIdsAndGameVersions;
     if (forumChannelIds == null || forumChannelIds.isEmpty) {
-      timber.w(message: () => "No discord_forumChannelIdsAndGameVersions found in config.");
+      timber.w(message: () => "No modrepo_discord_forum_channels found in config.");
       return null;
     }
 

@@ -30,6 +30,7 @@ import 'mod_repo_cache.dart';
 import 'nexus_reader.dart';
 import 'qb/bundle_publisher.dart';
 import 'qb/download_resolver.dart';
+import 'qb/downloadable_probe_cache.dart';
 import 'qb/json_data_store.dart';
 import 'qb/llm/extraction_store.dart';
 import 'qb/llm/fallback_llm_client.dart';
@@ -132,38 +133,114 @@ class MainRepoScraper {
     }
   }
 
-  /// Runs the LLM extractor over every post saved on disk (no scraping),
-  /// saving results to the real store. Already-finished posts are skipped
-  /// automatically.
-  static Future<void> _runLlmOverStoredPosts(
+  /// Saves the QB caches on the failure path. A run that broke has still fetched
+  /// pages, resolved links and probed hosts; keeping that means the next run
+  /// doesn't pay for it twice. Save errors are logged and swallowed so they
+  /// can't hide the failure that got us here.
+  static Future<void> _saveQbCachesQuietly(
+    QbDownloadResolver resolver,
+    DownloadableProbeCache probeCache,
+  ) async {
+    try {
+      await resolver.saveCache();
+      await probeCache.saveCache();
+    } catch (e) {
+      timber.w(message: () => "Could not save QB caches after the failure: $e");
+    }
+  }
+
+  /// Why the extractor will not make any more calls this run, or null while it
+  /// still can.
+  static String? _llmStopReason(PostExtractor extractor) {
+    if (extractor.hasBailed) {
+      return "the LLM kept failing, so it stopped calling";
+    }
+    final cap = extractor.maxTopics;
+    if (cap != null && extractor.liveCallCount >= cap) {
+      return "it hit the per-run limit (llm_max_topics=$cap)";
+    }
+    return null;
+  }
+
+  /// Walks every topic in the mods index and makes sure each one has LLM
+  /// results, whether or not it was scraped this run. A topic whose stored
+  /// result is still good is served from the store and costs nothing, so a
+  /// topic already extracted during the scrape is not paid for twice.
+  ///
+  /// Runs from both the normal path (after the scrape) and the reprocess-only
+  /// path (instead of a scrape), so it says nothing about whether a scrape
+  /// happened.
+  static Future<void> _runLlmCoveragePass(
     JsonDataStore store,
     QbDownloadResolver resolver,
+    LlmExtractionStore llmStore,
     PostExtractor extractor,
   ) async {
     final index = await store.loadIndex();
-    final bar = ConsoleProgressBar.start('LLM posts', index.length);
-    var processed = 0;
+    final bar = ConsoleProgressBar.start('LLM coverage', index.length);
+
     var seen = 0;
+    var alreadyHadResults = 0; // results were already stored when we got here
+    var passCalls = 0; // sent to the LLM by this pass
+    var skipped = 0; // no post saved on disk, or a stub post we never send
+    var withoutResults = 0; // ends the run with nothing stored
+    String? stopReason;
+
     for (final summary in index) {
       seen++;
       final detail = await store.loadDetail(summary.topicId);
-      if (detail == null) {
+      if (detail == null || detail.isPlaceholderDetail) {
+        skipped++;
         bar.update(seen);
         continue;
       }
-      await extractor.extractForTopic(
-          detail, resolver.getCachedCandidates(summary.topicId) ?? const []);
-      processed++;
+
+      // Read the store before the call, not after, so a topic extracted earlier
+      // in this run (during the scrape) is counted as one we already had rather
+      // than one this pass produced.
+      if (llmStore.get(summary.topicId) != null) alreadyHadResults++;
+
+      // Once the extractor has stopped calling, keep walking the index so the
+      // count of what is left is right, but don't ask it for work it will
+      // refuse.
+      stopReason ??= _llmStopReason(extractor);
+      if (stopReason == null) {
+        final callsBefore = extractor.liveCallCount;
+        await extractor.extractForTopic(
+            detail, resolver.getCachedCandidates(summary.topicId) ?? const []);
+        if (extractor.liveCallCount > callsBefore) passCalls++;
+      }
+
+      if (llmStore.get(summary.topicId) == null) withoutResults++;
+
       bar.update(seen, item: detail.title);
-      if (processed % 50 == 0) {
+      if (seen % 50 == 0) {
         timber.i(
-            message: () =>
-                "LLM: processed $processed/${index.length} stored posts...");
+            message: () => "LLM: covered $seen/${index.length} topics "
+                "($passCalls sent to the LLM so far)...");
       }
     }
     bar.finish();
+
+    // The run's call count, not the pass's: topics scraped this run were sent
+    // to the LLM inside the scrape loop, and those calls count against the same
+    // per-run limit.
+    final runCalls = extractor.liveCallCount;
     timber.i(
-        message: () => "LLM: finished $processed/${index.length} stored posts.");
+        message: () => "LLM coverage: ${index.length} topics in the index, "
+            "$alreadyHadResults already had results, $passCalls sent to the LLM "
+            "by this pass ($runCalls this run in total, counting topics done "
+            "during the scrape), $skipped skipped (no post saved).");
+    if (stopReason != null) {
+      timber.w(
+          message: () => "LLM: stopped early because $stopReason. "
+              "$withoutResults topic(s) still have no LLM results; run again to "
+              "carry on where this run stopped.");
+    } else {
+      timber.i(
+          message: () => "LLM: $withoutResults topic(s) still have no LLM "
+              "results.");
+    }
   }
 
   static Future<void> main(List<String> args) async {
@@ -206,7 +283,9 @@ class MainRepoScraper {
           timber.i(message: () => "Loading Discord raw HTTP cache...");
           httpClient = await CachingClient.fromFile(discordCacheFile.path);
         } else if (config.useCached) {
-          httpClient = CachingClient(http.Client());
+          // Records each response to the cache file as it arrives, so a run that
+          // is interrupted keeps what it already fetched.
+          httpClient = CachingClient(http.Client(), recordPath: discordCacheFile.path);
         } else {
           // If useCached is false, don't generate a cache file.
           // We don't want to be doing this on production.
@@ -219,15 +298,18 @@ class MainRepoScraper {
               message: () =>
                   "Discord scraping finished (${results.length} mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
 
-          if (httpClient is CachingClient && !httpClient.isReplaying) {
-            timber.i(message: () => "Saving Discord raw HTTP cache...");
-            await httpClient.saveToFile(discordCacheFile.path);
-          }
-
           return results;
         } catch (e) {
           timber.e(message: () => "Error running Discord: $e");
           return <ScrapedMod>[];
+        } finally {
+          // The responses were written as they arrived; this just finishes off
+          // the file. Runs on the error path too, so a failed run still keeps
+          // the responses it got.
+          if (httpClient is CachingClient && !httpClient.isReplaying) {
+            timber.i(message: () => "Saving Discord raw HTTP cache...");
+            await httpClient.saveToFile(discordCacheFile.path);
+          }
         }
       }();
 
@@ -304,7 +386,10 @@ class MainRepoScraper {
         timber.i(message: () => "Loading QB raw HTTP cache...");
         qbCachingClient = await CachingClient.fromFile(qbCacheFile.path);
       } else {
-        qbCachingClient = CachingClient(http.Client());
+        // Records each response to the cache file as it arrives, rather than
+        // holding the whole run's pages in memory and writing at the end.
+        await qbCacheFile.parent.create(recursive: true);
+        qbCachingClient = CachingClient(http.Client(), recordPath: qbCacheFile.path);
       }
 
       final qbClient = ThrottledClient(
@@ -314,14 +399,27 @@ class MainRepoScraper {
       // Console-only progress bar; it never touches the log file. Started
       // lazily on the first progress report so it gets the real topic count.
       ConsoleProgressBar? progressBar;
+
+      final qbStore = JsonDataStore(config.qbDataPath);
+      final qbEngine = QbScraperEngine(
+        store: qbStore,
+        client: qbClient,
+      );
+      final qbResolver = qbEngine.downloadResolver;
+
       try {
         timber.i(message: () => "Starting QB pipeline...");
         final qbStartTime = DateTime.now();
 
-        final scopeType = ScopeType.values.firstWhere(
-          (e) => e.name == config.qbScope,
-          orElse: () => ScopeType.newData,
-        );
+        final parsedScope = parseScopeType(config.qbScope);
+        if (parsedScope == null) {
+          timber.w(
+              message: () =>
+                  "Unrecognized qb_scope '${config.qbScope}'; accepted values "
+                  "are ${ScopeType.values.map((e) => e.name).join(', ')}. "
+                  "Using default '${ScopeType.newData.name}'.");
+        }
+        final scopeType = parsedScope ?? ScopeType.newData;
 
         final boards = config.qbBoards.map((name) {
           final board = ScrapeBoard.values.firstWhere(
@@ -342,13 +440,6 @@ class MainRepoScraper {
           maxPagesLibraries: config.qbMaxPagesLibraries,
         );
 
-        final qbStore = JsonDataStore(config.qbDataPath);
-
-        final qbEngine = QbScraperEngine(
-          store: qbStore,
-          client: qbClient,
-        );
-        final qbResolver = qbEngine.downloadResolver;
         await qbResolver.loadCache();
         await qbEngine.probeCache.loadCache();
 
@@ -377,6 +468,7 @@ class MainRepoScraper {
             model: config.llmModel,
             apiToken: config.llmApiToken,
             disableThinking: config.llmDisableThinking,
+            structuredOutput: config.llmStructuredOutput,
           );
           // When a fallback provider is configured, wrap the primary so a post
           // switches to the fallback only if the primary can't be reached.
@@ -393,6 +485,7 @@ class MainRepoScraper {
               model: config.llmFallbackModel!,
               apiToken: config.llmFallbackApiToken,
               disableThinking: config.llmFallbackDisableThinking,
+              structuredOutput: config.llmFallbackStructuredOutput,
             );
             llm = FallbackLlmClient(
               primary: primary,
@@ -428,13 +521,16 @@ class MainRepoScraper {
                   "${config.llmFallbackBaseUrl} (used only if the primary is "
                   "unreachable)"
               : "";
+          final structuredNote = config.llmStructuredOutput
+              ? ", structured output ON (forces valid JSON)"
+              : "";
           timber.i(
               message: () => config.llmTestMode
                   ? "LLM extraction: TEST MODE (limit ${config.llmTestLimit}, "
                       "model ${config.llmModel}, endpoint ${config.llmBaseUrl}"
-                      "$fallbackNote)"
+                      "$structuredNote$fallbackNote)"
                   : "LLM extraction enabled (model ${config.llmModel}, "
-                      "endpoint ${config.llmBaseUrl}$fallbackNote)");
+                      "endpoint ${config.llmBaseUrl}$structuredNote$fallbackNote)");
         }
 
         if (config.enableLlm && config.llmTestMode && extractor != null) {
@@ -453,13 +549,18 @@ class MainRepoScraper {
         } else if (config.enableLlm &&
             config.llmSkipScrapeReprocessOnly &&
             extractor != null) {
-          // Run the LLM over every post already saved on disk — no scrape — then
-          // rebuild the bundle. Already-finished posts are skipped, so re-runs
-          // only handle new or changed ones.
+          // Same coverage pass as the normal path, minus the scrape: make sure
+          // every stored topic has LLM results, then rebuild the bundle. Topics
+          // whose results are still good are skipped, so re-runs only pay for
+          // new or changed ones.
           timber.i(
-              message: () => "LLM: processing all stored posts (no scrape)...");
-          await _runLlmOverStoredPosts(qbStore, qbResolver, extractor);
-          await llmStore!.flush();
+              message: () =>
+                  "LLM: covering every stored topic (no scrape this run)...");
+          await _runLlmCoveragePass(qbStore, qbResolver, llmStore!, extractor);
+          await llmStore.flush();
+          // The LLM path checks unknown links through the shared
+          // "does this serve a file?" cache; keep those answers for next time.
+          await qbEngine.probeCache.saveCache();
           llmClient?.close();
           llmFallbackClient?.close();
 
@@ -490,22 +591,50 @@ class MainRepoScraper {
             },
           );
 
+          // Entries saved by an older version of the resolver may be missing
+          // its newer rules. Redo them from the links already on disk, so the
+          // bundle stays complete without anyone forcing a full re-scrape.
+          final outdated = qbResolver.outdatedTopicIds;
+          if (outdated.isNotEmpty) {
+            timber.i(
+                message: () =>
+                    "Redoing ${outdated.length} download entries saved by an older version...");
+            final redoBar =
+                ConsoleProgressBar.start('Updating downloads', outdated.length);
+            var redone = 0;
+            for (final topicId in outdated) {
+              final detail = await qbStore.loadDetail(topicId);
+              if (detail != null) {
+                await qbResolver.resolveForTopic(topicId, detail.links);
+              }
+              redoBar.update(++redone);
+            }
+            redoBar.finish();
+          }
+
+          // Topics scraped this run were already sent to the LLM inside the
+          // scrape loop above. This pass catches every other stored topic — the
+          // ones the incremental scope found unchanged, and the ones saved
+          // before the LLM was turned on — so switching the LLM on means the
+          // bundle's LLM data is complete, not that it fills in over months of
+          // re-scrapes. Topics done during the scrape come back as store hits
+          // here, so they are not paid for twice.
+          if (extractor != null) {
+            await _runLlmCoveragePass(qbStore, qbResolver, llmStore!, extractor);
+            // Save LLM results before the caches below, so the bundle written at
+            // the end sees everything this pass produced.
+            await llmStore.flush();
+          }
+
+          // Both caches are written as the run goes; these are the final saves
+          // that pick up whatever came after the last one. The LLM pass checks
+          // the links the model picked, which can add new probe answers, so save
+          // after it rather than before.
           await qbResolver.saveCache();
           await qbEngine.probeCache.saveCache();
 
-          // Save LLM results as we finish.
-          if (extractor != null) {
-            await llmStore!.flush();
-          }
           llmClient?.close();
           llmFallbackClient?.close();
-
-          if (!qbCachingClient.isReplaying) {
-            timber.i(message: () => "Saving QB raw HTTP cache...");
-            await qbCachingClient.saveToFile(qbCacheFile.path);
-          } else {
-            timber.i(message: () => "QB ran from cache; skipping cache save.");
-          }
 
           timber.i(
               message: () => "QB scrape completed: ${qbResult.modsScraped} mods, "
@@ -526,8 +655,19 @@ class MainRepoScraper {
         }
       } catch (e, st) {
         timber.e(message: () => "QB pipeline failed: $e\n$st");
+
+        // A failed run has still done real work: pages fetched, links resolved,
+        // links probed. Keep it, so the next run doesn't pay for it again.
+        await _saveQbCachesQuietly(qbResolver, qbEngine.probeCache);
       } finally {
         progressBar?.finish();
+        if (!qbCachingClient.isReplaying) {
+          // Responses were written as they arrived; this finishes off the file.
+          timber.i(message: () => "Saving QB raw HTTP cache...");
+          await qbCachingClient.saveToFile(qbCacheFile.path);
+        } else {
+          timber.i(message: () => "QB ran from cache; skipping cache save.");
+        }
         qbClient.close();
       }
     }

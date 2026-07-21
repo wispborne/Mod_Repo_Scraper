@@ -8,6 +8,20 @@ enum ScrapeState { idle, scraping, completed, failed, cancelled }
 @MappableEnum()
 enum ScopeType { newData, all, pages, topics, librariesOnly }
 
+/// Resolves a `qb_scope` config value to a [ScopeType], accepting either
+/// snake_case (`new_data`, `libraries_only`) or camelCase (`newData`,
+/// `librariesOnly`) spellings by lowercasing and dropping underscores on both
+/// sides before comparing. Returns null when nothing matches, so the caller can
+/// warn and fall back to a default.
+ScopeType? parseScopeType(String value) {
+  String normalize(String s) => s.toLowerCase().replaceAll('_', '');
+  final wanted = normalize(value);
+  for (final scope in ScopeType.values) {
+    if (normalize(scope.name) == wanted) return scope;
+  }
+  return null;
+}
+
 @MappableEnum()
 enum ScrapeBoard {
   main, // Board 8

@@ -299,7 +299,7 @@ class ViewerApi {
     final md = _mergeOrNull();
     if (md == null) {
       return _missing('merge-debug',
-          'Run the scraper with generate_merge_debug enabled.');
+          'Run the scraper with modrepo_merge_debug enabled.');
     }
     final groups = (md['groups'] as List?) ?? const [];
     final multi = groups
@@ -336,7 +336,7 @@ class ViewerApi {
     final md = _mergeOrNull();
     if (md == null) {
       return _missing('merge-debug',
-          'Run the scraper with generate_merge_debug enabled.');
+          'Run the scraper with modrepo_merge_debug enabled.');
     }
     final q = _q(req);
     final multiOnly =
@@ -367,7 +367,7 @@ class ViewerApi {
     final md = _mergeOrNull();
     if (md == null) {
       return _missing('merge-debug',
-          'Run the scraper with generate_merge_debug enabled.');
+          'Run the scraper with modrepo_merge_debug enabled.');
     }
     final groupIndex = int.tryParse(id);
     if (groupIndex == null) return _notFound('Group id must be an integer.');
@@ -390,7 +390,7 @@ class ViewerApi {
     final md = _mergeOrNull();
     if (md == null) {
       return _missing('merge-debug',
-          'Run the scraper with generate_merge_debug enabled.');
+          'Run the scraper with modrepo_merge_debug enabled.');
     }
     final kind = req.url.queryParameters['kind'] ?? 'preDedup';
     final key = switch (kind) {

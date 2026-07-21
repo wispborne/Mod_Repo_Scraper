@@ -120,9 +120,7 @@ When merge debug output is turned on, the scraper writes `merge-debug.json`
 (in the repo root), which the Merge view reads. This replaces the old
 `MergeDebug.html` page — the HTML report is no longer produced.
 
-Turn it on with `generate_merge_debug=true` in `config.properties`. The old key
-name `generate_debug_html` still works as an alias, so existing config files
-keep producing debug output.
+Turn it on with `modrepo_merge_debug=true` in `config.properties`.
 
 ## Scrapers
 

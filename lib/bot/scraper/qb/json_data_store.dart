@@ -3,16 +3,31 @@ import 'dart:io';
 
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
+import 'package:synchronized/synchronized.dart';
 
 import '../download_link_detector.dart';
 import 'models/mod_detail.dart';
 import 'models/mod_summary.dart';
 
 class JsonDataStore {
+  /// How many topics may finish between index writes. The index is what tells
+  /// the next run "I already have this topic", so an index left unwritten until
+  /// the end of a run orphans every detail file the run saved: they sit on disk
+  /// but nothing points at them, and the next run scrapes them all again.
+  /// Writing as we go keeps an interrupted run's work; batching keeps the cost
+  /// of rewriting the whole file down.
+  static const int _indexFlushEvery = 10;
+
   final String basePath;
   final Logger _log;
   List<QbModSummary>? _indexCache;
   String? _lastSavedIndexJson;
+
+  /// Topics finished since the index was last written.
+  int _indexDirtySinceFlush = 0;
+
+  /// Topics are scraped with some overlap, so two saves can land at once.
+  final Lock _indexWriteLock = Lock();
 
   JsonDataStore(this.basePath, {Logger? logger})
       : _log = logger ?? Logger('JsonDataStore') {
@@ -37,17 +52,28 @@ class JsonDataStore {
   }
 
   Future<void> saveIndex(List<QbModSummary> mods) async {
-    final path = p.join(basePath, 'mods-index.json');
-    final json = const JsonEncoder.withIndent('  ')
-        .convert(mods.map((m) => m.toMap()).toList());
-    _indexCache = mods;
-    if (json == _lastSavedIndexJson) {
-      _log.info('Mods index unchanged; skipping write (${mods.length} entries)');
-      return;
-    }
-    await File(path).writeAsString(json);
-    _lastSavedIndexJson = json;
-    _log.info('Saved mods index with ${mods.length} entries');
+    await _indexWriteLock.synchronized(() async {
+      final path = p.join(basePath, 'mods-index.json');
+      final json = const JsonEncoder.withIndent('  ')
+          .convert(mods.map((m) => m.toMap()).toList());
+      _indexCache = mods;
+      _indexDirtySinceFlush = 0;
+      if (json == _lastSavedIndexJson) {
+        _log.info('Mods index unchanged; skipping write (${mods.length} entries)');
+        return;
+      }
+      await File(path).writeAsString(json);
+      _lastSavedIndexJson = json;
+      _log.info('Saved mods index with ${mods.length} entries');
+    });
+  }
+
+  /// Saves the index once [_indexFlushEvery] topics have finished since the
+  /// last write. Call this as topics are scraped; a run that dies partway then
+  /// still leaves an index that names the detail files it wrote.
+  Future<void> saveIndexIfDue(List<QbModSummary> mods) async {
+    if (++_indexDirtySinceFlush < _indexFlushEvery) return;
+    await saveIndex(mods);
   }
 
   // --- Mod Detail ---

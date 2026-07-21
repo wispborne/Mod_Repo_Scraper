@@ -164,6 +164,11 @@ class PostExtractor {
 
   bool get hasBailed => _bailed;
 
+  /// How many live calls this run has spent, counting the ones that failed.
+  /// This is what [maxTopics] caps, so a caller can tell whether the run still
+  /// has budget left and report how much of it was used.
+  int get liveCallCount => _processed;
+
   /// The field set for the current settings: [fieldSet], plus 'summary' when
   /// summaries are on. Part of the cache key, so flipping summaries on re-runs
   /// posts and flipping it off returns to the earlier cached results.
@@ -203,6 +208,12 @@ class PostExtractor {
     );
 
     // Already done (also lets interrupted runs pick up here): skip the call.
+    //
+    // This check must stay ahead of _reserveSlot(): a stored result costs no
+    // [maxTopics] budget, so a capped run spends its budget only on topics that
+    // really need a call. That is what lets a run over every stored topic pick
+    // up where the last one stopped instead of re-chewing the same first few
+    // topics every time.
     if (_store.isFresh(
         detail.topicId, fingerprint, ExtractionPrompt.promptVersion)) {
       _log.fine('LLM store hit for topic ${detail.topicId}');
@@ -222,6 +233,11 @@ class PostExtractor {
       userPrompt: userPrompt,
       temperature: ExtractionPrompt.temperature,
       maxTokens: maxTokens ?? ExtractionPrompt.maxTokens,
+      // The client only sends this when structured output is on; it does not
+      // affect the cache key, so turning structured output on/off does not
+      // re-run stored posts.
+      jsonSchema:
+          ExtractionPrompt.buildResponseSchema(includeSummary: generateSummaries),
     );
 
     final attempt = await _callWithRetry(request, detail.topicId);
@@ -316,27 +332,46 @@ class PostExtractor {
   // Call + retry
   // ---------------------------------------------------------------------------
   static const maxAttempts = 3;
+
+  /// Temperature used on a retry after the model returned unparseable JSON. At
+  /// the request's temperature (0 for extraction) the model is deterministic, so
+  /// a plain retry would reproduce the same broken text; a small bump makes it
+  /// sample differently and gives the retry a real chance to recover. Only
+  /// reached when structured output is off (or the endpoint ignored it) — a
+  /// compliant server can't return unparseable JSON.
+  static const _parseRetryTemperature = 0.4;
+
   Future<_Attempt?> _callWithRetry(LlmRequest request, int topicId) async {
+    // Bumped only after a parse failure, so a network/server retry keeps the
+    // original (deterministic) settings.
+    var req = request;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        final response = await _client.complete(request);
+        final response = await _client.complete(req);
         final answer = _parseAnswer(response.content);
         return _Attempt(response, answer);
-      } catch (e) {
+      } on LlmException catch (e) {
+        // The call itself failed (network, bad status, timeout, empty answer).
         _log.warning('LLM attempt $attempt failed for topic $topicId: $e');
         // A timeout means the request ran past the limit. Retrying with the
         // same limit would almost always time out again — just burning more
         // minutes — so stop now and fall back to the rule-based result. Raise
         // llm_timeout_seconds if this happens a lot.
-        if (e is LlmException && e.cause is TimeoutException) {
+        if (e.cause is TimeoutException) {
           _log.warning('LLM timed out for topic $topicId; not retrying. Raise '
               'llm_timeout_seconds if this is common.');
           return null;
         }
-        if (attempt == maxAttempts) {
-          return null;
-        }
-        // else: retry.
+        if (attempt == maxAttempts) return null;
+        // else: retry as-is (a transient network/server problem).
+      } catch (e) {
+        // The call returned, but the answer wasn't usable JSON. Retry at a
+        // higher temperature so a deterministic model doesn't just repeat the
+        // same broken output.
+        _log.warning('LLM answer for topic $topicId was not valid JSON on '
+            'attempt $attempt ($e); retrying at a higher temperature.');
+        if (attempt == maxAttempts) return null;
+        req = request.copyWith(temperature: _parseRetryTemperature);
       }
     }
     return null;
@@ -927,6 +962,8 @@ class PostExtractor {
       userPrompt: userPrompt,
       temperature: ExtractionPrompt.temperature,
       maxTokens: maxTokens ?? ExtractionPrompt.maxTokens,
+      jsonSchema:
+          ExtractionPrompt.buildResponseSchema(includeSummary: generateSummaries),
     );
 
     // Live call, no saved answers, nothing written to disk.

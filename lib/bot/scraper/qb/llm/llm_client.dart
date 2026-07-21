@@ -6,12 +6,30 @@ class LlmRequest {
   final double temperature;
   final int maxTokens;
 
+  /// The exact answer shape, as a JSON Schema. When set AND the client is
+  /// configured for structured output, it is sent as `response_format:
+  /// json_schema` so a compliant endpoint constrains the model to valid JSON in
+  /// this shape. Clients not using structured output ignore it.
+  final Map<String, dynamic>? jsonSchema;
+
   const LlmRequest({
     required this.systemPrompt,
     required this.userPrompt,
     this.temperature = 0,
     this.maxTokens = 6000,
+    this.jsonSchema,
   });
+
+  /// A copy with a different [temperature]. Used to retry a parse failure with
+  /// a higher temperature, so a deterministic model samples differently instead
+  /// of repeating the same unusable answer.
+  LlmRequest copyWith({double? temperature}) => LlmRequest(
+        systemPrompt: systemPrompt,
+        userPrompt: userPrompt,
+        temperature: temperature ?? this.temperature,
+        maxTokens: maxTokens,
+        jsonSchema: jsonSchema,
+      );
 }
 
 /// Token counts and speeds for one LLM call, when the endpoint reports them.

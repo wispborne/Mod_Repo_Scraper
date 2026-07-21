@@ -2,15 +2,27 @@
 
 import { api, el, clear, missingPanel, MissingFile, pager, go } from '../lib.js';
 
-const FILTERS = [
-  ['noDownload', 'No download'],
-  ['lowConfidenceOnly', 'Low-confidence only'],
-  ['llmOnlyDownloads', 'LLM found (rules missed)'],
-  ['multiMod', 'More than one mod'],
-  ['placeholderDetail', 'Placeholder detail'],
-  ['missingGameVersion', 'Missing game version'],
-  ['wip', 'WIP'],
-  ['noLlmExtraction', 'No LLM extraction'],
+// One source of truth for the eight topic flags. Each entry drives three
+// things: the filter chip (label), the badge in the Flags column (cls + badge),
+// and the plain-English meaning (desc) shown in the legend and as a hover
+// tooltip on both the chip and the badge.
+const FLAGS = [
+  { key: 'noDownload', cls: 'badge-error', badge: 'no dl', label: 'No download',
+    desc: 'No download link was found — not by the rules and not by the LLM.' },
+  { key: 'lowConfidenceOnly', cls: 'badge-warning', badge: 'low conf', label: 'Low-confidence only',
+    desc: 'Every download link found is a low-confidence guess.' },
+  { key: 'llmOnlyDownloads', cls: 'badge-llm', badge: 'llm found', label: 'LLM found (rules missed)',
+    desc: 'The LLM found a download link that the rules missed.' },
+  { key: 'multiMod', cls: 'badge-llm', badge: 'multi-mod', label: 'More than one mod',
+    desc: 'The LLM split this one thread into more than one mod.' },
+  { key: 'placeholderDetail', cls: 'badge-dim', badge: 'placeholder', label: 'Placeholder detail',
+    desc: 'Only a stub was saved — this topic was not fully scraped.' },
+  { key: 'missingGameVersion', cls: 'badge-warning', badge: 'no ver', label: 'Missing game version',
+    desc: 'No Starsector game version was found for this mod.' },
+  { key: 'wip', cls: 'badge-secondary', badge: 'wip', label: 'WIP',
+    desc: 'The thread is marked work-in-progress.' },
+  { key: 'noLlmExtraction', cls: 'badge-dim', badge: 'no llm', label: 'No LLM extraction',
+    desc: 'The LLM has not processed this topic yet.' },
 ];
 
 const COLUMNS = [
@@ -55,13 +67,14 @@ export async function render(root) {
   toolbar.append(search);
 
   const filterBar = el('div', { class: 'filters' });
-  for (const [key, label] of FILTERS) {
+  for (const f of FLAGS) {
     const chip = el('span', {
-      class: 'chip' + (state.filters.has(key) ? ' on' : ''),
-      text: label,
+      class: 'chip' + (state.filters.has(f.key) ? ' on' : ''),
+      text: f.label,
+      title: f.desc,
       onclick: () => {
-        if (state.filters.has(key)) state.filters.delete(key);
-        else state.filters.add(key);
+        if (state.filters.has(f.key)) state.filters.delete(f.key);
+        else state.filters.add(f.key);
         chip.classList.toggle('on');
         state.page = 0;
         load();
@@ -71,6 +84,7 @@ export async function render(root) {
   }
   toolbar.append(filterBar);
   root.append(toolbar);
+  root.append(flagLegend());
 
   const results = el('div', {});
   root.append(results);
@@ -157,21 +171,27 @@ function buildTable(data, reload) {
 }
 
 function flagBadges(flags) {
-  const map = {
-    noDownload: ['badge-error', 'no dl'],
-    lowConfidenceOnly: ['badge-warning', 'low conf'],
-    llmOnlyDownloads: ['badge-llm', 'llm found'],
-    multiMod: ['badge-llm', 'multi-mod'],
-    placeholderDetail: ['badge-dim', 'placeholder'],
-    missingGameVersion: ['badge-warning', 'no ver'],
-    wip: ['badge-secondary', 'wip'],
-    noLlmExtraction: ['badge-dim', 'no llm'],
-  };
   const out = [];
-  for (const [key, [cls, label]] of Object.entries(map)) {
-    if (flags[key]) {
-      out.push(el('span', { class: 'badge ' + cls, text: label }), ' ');
+  for (const f of FLAGS) {
+    if (flags[f.key]) {
+      out.push(el('span', { class: 'badge ' + f.cls, text: f.badge, title: f.desc }), ' ');
     }
   }
   return out;
+}
+
+// A collapsible key that maps each badge to what it means, so the Flags column
+// reads on its own without hunting through the code.
+function flagLegend() {
+  const details = el('details', { class: 'legend', open: '' });
+  details.append(el('summary', { text: 'What do the flags mean?' }));
+  const grid = el('div', { class: 'legend-grid' });
+  for (const f of FLAGS) {
+    grid.append(
+      el('span', { class: 'badge ' + f.cls, text: f.badge, title: f.desc }),
+      el('span', { class: 'legend-desc', text: f.desc }),
+    );
+  }
+  details.append(grid);
+  return details;
 }

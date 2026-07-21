@@ -3,7 +3,7 @@ import 'merge_debug_data.dart';
 
 /// Collects structured debug data during the merge process.
 ///
-/// When `generate_debug_html` is false, ModMerger holds a null reference
+/// When `modrepo_merge_debug` is false, ModMerger holds a null reference
 /// to this class, so no collection methods are ever called.
 class MergeDebugCollector {
   final MergeDebugData data = MergeDebugData();

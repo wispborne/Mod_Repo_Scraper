@@ -22,8 +22,7 @@ part 'common.mapper.dart';
 class Common {
   static const String serverId = "187635036525166592";
 
-  static BotConfig? readConfig() {
-    final configFilePath = 'config.properties';
+  static BotConfig? readConfig({String configFilePath = 'config.properties'}) {
     final file = File(configFilePath);
 
     try {
@@ -47,28 +46,28 @@ class Common {
         }
       }
 
+      _warnUnknownKeys(properties.keys);
+
       return BotConfig(
-        lessScraping: properties['less_scraping']?.toLowerCase() == 'true',
-        useCached: properties["use_cached"]?.toLowerCase() == 'true',
-        enableForums: properties['enable_forums']?.toLowerCase() == 'true',
-        enableDiscord: properties['enable_discord']?.toLowerCase() == 'true',
-        enableNexus: properties['enable_nexus']?.toLowerCase() == 'true',
         logLevel: properties['log_level'] ?? 'INFO',
-        discordAuthToken: properties['discord_auth_token'],
-        nexusApiToken: properties['nexus_api_token'],
-        discordServerId: properties['discord_serverId'],
+        // ModRepo pipeline.
+        enableModRepo: properties['modrepo_enabled']?.toLowerCase() != 'false',
+        useCached: properties['modrepo_use_cached']?.toLowerCase() == 'true',
+        lessScraping: properties['modrepo_less_scraping']?.toLowerCase() == 'true',
+        enableForums: properties['modrepo_forums_enabled']?.toLowerCase() == 'true',
+        enableDiscord: properties['modrepo_discord_enabled']?.toLowerCase() == 'true',
+        enableNexus: properties['modrepo_nexus_enabled']?.toLowerCase() == 'true',
+        discordAuthToken: properties['modrepo_discord_auth_token'],
+        nexusApiToken: properties['modrepo_nexus_api_token'],
+        discordServerId: properties['modrepo_discord_server_id'],
         discordForumChannelIdsAndGameVersions:
-            _parseForumChannelIds(properties['discord_forumChannelIdsAndGameVersions']),
-        enableModRepo: properties['enable_mod_repo']?.toLowerCase() != 'false',
+            _parseForumChannelIds(properties['modrepo_discord_forum_channels']),
         keepAllGameVersionsFromSameSource:
-            properties['keep_all_game_versions_from_same_source']?.toLowerCase() == 'true',
-        // `generate_debug_html` is kept as a working alias so existing config
-        // files keep producing merge debug output after the rename.
-        generateMergeDebug: (properties['generate_merge_debug'] ??
-                    properties['generate_debug_html'])
-                ?.toLowerCase() ==
-            'true',
-        enableQb: properties['enable_qb']?.toLowerCase() == 'true',
+            properties['modrepo_keep_all_game_versions']?.toLowerCase() == 'true',
+        generateMergeDebug:
+            properties['modrepo_merge_debug']?.toLowerCase() == 'true',
+        // QB pipeline.
+        enableQb: properties['qb_enabled']?.toLowerCase() == 'true',
         qbUseCached: properties['qb_use_cached']?.toLowerCase() == 'true',
         qbDataPath: _trimOrDefault(properties['qb_data_path'], 'qb_data')!,
         qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
@@ -76,12 +75,12 @@ class Common {
         qbDelayMs: int.tryParse(properties['qb_delay_ms'] ?? '') ?? 1500,
         qbMaxPagesMain: int.tryParse(properties['qb_max_pages_main'] ?? ''),
         qbLesserBoardMaxPages:
-            int.tryParse(properties['qb_lesser_board_max_pages'] ?? '') ?? 20,
+            int.tryParse(properties['qb_max_pages_lesser'] ?? '') ?? 20,
         qbMaxPagesLibraries:
             int.tryParse(properties['qb_max_pages_libraries'] ?? ''),
-        enableLlm: properties['enable_llm']?.toLowerCase() == 'true',
-        llmApiToken: _trimOrNull(properties['llm_api_token']) ??
-            _trimOrNull(properties['openrouter_api_token']),
+        // QB LLM extraction.
+        enableLlm: properties['llm_enabled']?.toLowerCase() == 'true',
+        llmApiToken: _trimOrNull(properties['llm_api_token']),
         llmModel: _trimOrDefault(properties['llm_model'], 'deepseek/deepseek-chat')!,
         llmBaseUrl: _trimOrDefault(
             properties['llm_base_url'], 'https://openrouter.ai/api/v1/chat/completions')!,
@@ -95,11 +94,12 @@ class Common {
             int.tryParse(properties['llm_max_input_chars'] ?? ''),
         llmDisableThinking:
             properties['llm_disable_thinking']?.toLowerCase() == 'true',
+        llmStructuredOutput:
+            properties['llm_structured_output']?.toLowerCase() == 'true',
         enableLlmSummaries:
             properties['llm_summaries']?.toLowerCase() == 'true',
         llmSkipScrapeReprocessOnly:
-            properties['llm_skip_scrape_reprocess_only']?.toLowerCase() ==
-                'true',
+            properties['llm_reprocess_only']?.toLowerCase() == 'true',
         llmTestMode: properties['llm_test_mode']?.toLowerCase() == 'true',
         llmTestLimit: int.tryParse(properties['llm_test_limit'] ?? '') ?? 5,
         llmTestTopicIds: _parseTopicIds(properties['llm_test_topic_ids']),
@@ -108,10 +108,81 @@ class Common {
         llmFallbackApiToken: _trimOrNull(properties['llm_fallback_api_token']),
         llmFallbackDisableThinking:
             properties['llm_fallback_disable_thinking']?.toLowerCase() == 'true',
+        llmFallbackStructuredOutput:
+            properties['llm_fallback_structured_output']?.toLowerCase() ==
+                'true',
       );
     } catch (e) {
       stderr.writeln(e);
       return null;
+    }
+  }
+
+  /// Every key `readConfig` knows how to read. Anything in the config file that
+  /// is not in this set is reported by [_warnUnknownKeys] — this is how a stale
+  /// old-name key (after the rename) or a plain typo is caught at startup.
+  static const Set<String> _recognizedKeys = {
+    'log_level',
+    // ModRepo pipeline.
+    'modrepo_enabled',
+    'modrepo_use_cached',
+    'modrepo_less_scraping',
+    'modrepo_forums_enabled',
+    'modrepo_discord_enabled',
+    'modrepo_nexus_enabled',
+    'modrepo_discord_auth_token',
+    'modrepo_nexus_api_token',
+    'modrepo_discord_server_id',
+    'modrepo_discord_forum_channels',
+    'modrepo_keep_all_game_versions',
+    'modrepo_merge_debug',
+    // QB pipeline.
+    'qb_enabled',
+    'qb_use_cached',
+    'qb_data_path',
+    'qb_scope',
+    'qb_boards',
+    'qb_delay_ms',
+    'qb_max_pages_main',
+    'qb_max_pages_lesser',
+    'qb_max_pages_libraries',
+    // QB LLM extraction.
+    'llm_enabled',
+    'llm_api_token',
+    'llm_model',
+    'llm_base_url',
+    'llm_max_consecutive_failures',
+    'llm_timeout_seconds',
+    'llm_max_topics',
+    'llm_max_tokens',
+    'llm_max_input_chars',
+    'llm_disable_thinking',
+    'llm_structured_output',
+    'llm_summaries',
+    'llm_reprocess_only',
+    'llm_test_mode',
+    'llm_test_limit',
+    'llm_test_topic_ids',
+    'llm_fallback_base_url',
+    'llm_fallback_model',
+    'llm_fallback_api_token',
+    'llm_fallback_disable_thinking',
+    'llm_fallback_structured_output',
+  };
+
+  /// Returns the keys in [keys] that `readConfig` does not recognize, in the
+  /// order given. An empty list means every key in the file is understood.
+  static List<String> unknownConfigKeys(Iterable<String> keys) =>
+      keys.where((key) => !_recognizedKeys.contains(key)).toList();
+
+  /// Warns (one line per key) about every key in the config file that
+  /// `readConfig` does not recognize. Uses stderr because the logger is not yet
+  /// configured this early in startup. Does not stop the run.
+  static void _warnUnknownKeys(Iterable<String> keys) {
+    for (final key in unknownConfigKeys(keys)) {
+      stderr.writeln(
+          'Warning: unrecognized config key "$key" in config.properties '
+          '(ignored). Check for a typo or an old key name that was renamed.');
     }
   }
 
@@ -158,7 +229,7 @@ class Common {
       }
       return map.isEmpty ? null : map;
     } catch (e) {
-      stderr.writeln('Error parsing discord_forumChannelIdsAndGameVersions: $e');
+      stderr.writeln('Error parsing modrepo_discord_forum_channels: $e');
       return null;
     }
   }
@@ -275,6 +346,11 @@ class BotConfig with BotConfigMappable {
   /// servers (Ollama, vLLM, ...); leave off for cloud services, which reject
   /// the extra request fields.
   final bool llmDisableThinking;
+  /// Ask the primary endpoint to force the answer into the exact JSON shape
+  /// (`response_format: json_schema`). A server that honours it (e.g. llama.cpp)
+  /// then cannot return broken JSON — the main cause of a post falling back to
+  /// rules-only. Leave off for an endpoint that rejects json_schema requests.
+  final bool llmStructuredOutput;
   /// When true, the same per-mod LLM call also writes a short, plain-English
   /// summary of the mod: one sentence and one paragraph. Unlike the other LLM
   /// fields, these are written in the model's own words rather than copied from
@@ -308,6 +384,11 @@ class BotConfig with BotConfigMappable {
   /// services (OpenRouter, ...) reject the extra request fields, so leave it off
   /// unless the fallback is itself a local server.
   final bool llmFallbackDisableThinking;
+  /// The [llmStructuredOutput] switch for the fallback endpoint. Leave off for
+  /// OpenRouter and most cloud providers, which often reject a json_schema
+  /// request (which would fail the call). Turn on only when the fallback is a
+  /// server known to support it.
+  final bool llmFallbackStructuredOutput;
 
   /// True when the fallback provider is configured (both URL and model set).
   bool get llmFallbackEnabled =>
@@ -347,6 +428,7 @@ class BotConfig with BotConfigMappable {
     this.llmMaxTokens,
     this.llmMaxInputChars,
     this.llmDisableThinking = false,
+    this.llmStructuredOutput = false,
     this.enableLlmSummaries = false,
     this.llmSkipScrapeReprocessOnly = false,
     this.llmTestMode = false,
@@ -356,5 +438,6 @@ class BotConfig with BotConfigMappable {
     this.llmFallbackModel,
     this.llmFallbackApiToken,
     this.llmFallbackDisableThinking = false,
+    this.llmFallbackStructuredOutput = false,
   });
 }

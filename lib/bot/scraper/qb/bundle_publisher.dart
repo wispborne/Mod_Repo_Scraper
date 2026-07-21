@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import 'download_resolver.dart';
 import 'forum_constants.dart';
+import 'html_processor.dart';
 import 'json_data_store.dart';
 import 'llm/extraction_store.dart';
 import 'models/assumed_download.dart';
@@ -115,7 +116,11 @@ class BundlePublisher {
         authorAvatarPath: detail.authorAvatarPath,
         postDate: detail.postDate,
         lastEditDate: detail.lastEditDate,
-        contentHtml: detail.contentHtml,
+        // Strip the forum session token here too, so the published bundle is
+        // clean even for topics whose stored detail was saved before this was
+        // fixed and has not been re-scraped yet. A no-op once the stored HTML is
+        // already clean.
+        contentHtml: HtmlProcessor.stripSessionIds(detail.contentHtml),
         images: strippedImages,
         links: detail.links,
         scrapedAt: detail.scrapedAt,

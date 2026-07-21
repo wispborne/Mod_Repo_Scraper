@@ -175,6 +175,109 @@ Guidance:
 ''';
   }
 
+  /// The JSON Schema for the answer, matching the shape in [buildSystemPrompt].
+  /// Sent as `response_format: json_schema` when structured output is on, so a
+  /// compliant endpoint can only return valid JSON in this shape. Nullable
+  /// fields use a `["<type>", "null"]` union, matching the "or null" wording in
+  /// the prompt. Kept in step with the prompt: change one, change the other, and
+  /// bump [promptVersion] if the shape changes.
+  static Map<String, dynamic> buildResponseSchema({bool includeSummary = false}) {
+    Map<String, dynamic> nullableString() => {
+          'type': ['string', 'null']
+        };
+
+    final modProps = <String, dynamic>{
+      'name': {'type': 'string'},
+      'role': {
+        'type': 'string',
+        'enum': ['main', 'addon', 'separate', 'variant'],
+      },
+      'requires': nullableString(),
+      'downloads': {
+        'type': 'array',
+        'items': {
+          'type': 'object',
+          'properties': {
+            'url': {'type': 'string'},
+            'label': {'type': 'string'},
+            'kind': {
+              'type': 'string',
+              'enum': ['direct', 'mirror', 'trios'],
+            },
+          },
+          'required': ['url', 'label', 'kind'],
+          'additionalProperties': false,
+        },
+      },
+      'image': nullableString(),
+      'changelog': {
+        'type': ['object', 'null'],
+        'properties': {
+          'link': nullableString(),
+          'entries': {
+            'type': ['object', 'null'],
+            // Keyed by an arbitrary version string, valued by that version's
+            // notes.
+            'additionalProperties': {'type': 'string'},
+          },
+        },
+        'required': ['link', 'entries'],
+        'additionalProperties': false,
+      },
+      'version': nullableString(),
+      'supportLinks': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
+      'license': nullableString(),
+      'saveCompatibility': nullableString(),
+    };
+
+    final modRequired = <String>[
+      'name',
+      'role',
+      'requires',
+      'downloads',
+      'image',
+      'changelog',
+      'version',
+      'supportLinks',
+      'license',
+      'saveCompatibility',
+    ];
+
+    if (includeSummary) {
+      modProps['summary'] = {
+        'type': ['object', 'null'],
+        'properties': {
+          'sentence': nullableString(),
+          'paragraph': nullableString(),
+        },
+        'required': ['sentence', 'paragraph'],
+        'additionalProperties': false,
+      };
+      modRequired.add('summary');
+    }
+
+    return {
+      'type': 'object',
+      'properties': {
+        'isMod': {'type': 'boolean'},
+        'mods': {
+          'type': 'array',
+          'items': {
+            'type': 'object',
+            'properties': modProps,
+            'required': modRequired,
+            'additionalProperties': false,
+          },
+        },
+      },
+      'required': ['isMod', 'mods'],
+      'additionalProperties': false,
+    };
+  }
+
   /// Builds the user message: the reduced post plus the hints the scraper
   /// already knows. Always builds the same string for the same post (the
   /// content hash depends on it).
