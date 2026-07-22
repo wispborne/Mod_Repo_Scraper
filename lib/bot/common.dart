@@ -176,6 +176,10 @@ class Common {
     'llm_fallback_structured_output',
   };
 
+  /// Every key `readConfig` knows how to read. `config.example.properties` is
+  /// meant to hold exactly these, and a test checks that it does.
+  static Set<String> get recognizedKeys => _recognizedKeys;
+
   /// Returns the keys in [keys] that `readConfig` does not recognize, in the
   /// order given. An empty list means every key in the file is understood.
   static List<String> unknownConfigKeys(Iterable<String> keys) =>

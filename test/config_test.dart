@@ -138,15 +138,31 @@ llm_skip_scrape_reprocess_only=true
           ]);
     });
 
-    test('every key the shipped config.properties uses is recognized', () {
-      final keys = File('config.properties')
-          .readAsLinesSync()
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty && !line.startsWith('#'))
-          .where((line) => line.contains('='))
-          .map((line) => line.split('=').first.trim());
+    // The real config.properties holds secrets and is not committed, so it is
+    // not there on a fresh checkout or on CI. config.example.properties is the
+    // committed stand-in, and the two must say the same thing.
+    List<String> exampleConfigKeys() => File('config.example.properties')
+        .readAsLinesSync()
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty && !line.startsWith('#'))
+        .where((line) => line.contains('='))
+        .map((line) => line.split('=').first.trim())
+        .toList();
 
-      expect(Common.unknownConfigKeys(keys), isEmpty);
+    test('every key the example config uses is recognized', () {
+      expect(Common.unknownConfigKeys(exampleConfigKeys()), isEmpty);
+    });
+
+    test('every recognized key is written down in the example config', () {
+      final documented = exampleConfigKeys().toSet();
+      final missing = Common.recognizedKeys
+          .where((key) => !documented.contains(key))
+          .toList()
+        ..sort();
+
+      expect(missing, isEmpty,
+          reason: 'These keys are read but not in config.example.properties. '
+              'Add each one there, with its default and a plain-English note.');
     });
   });
 
