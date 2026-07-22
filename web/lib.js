@@ -80,10 +80,39 @@ export function loading() {
   return el('div', { class: 'loading', text: 'Loading…' });
 }
 
-/// A reusable pager row. `onPage(newPage)` is called on click.
-export function pager(page, pageSize, total, onPage) {
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-  const cur = page + 1;
+// --- How many rows to a page ---
+
+/// The choices in the "rows" box. 0 means all of them on one page.
+export const PAGE_SIZES = [25, 50, 100, 250, 500, 0];
+
+const PAGE_SIZE_KEY = 'viewerPageSize';
+const DEFAULT_PAGE_SIZE = 50;
+
+/// The rows-per-page the user last picked. One setting for the whole site, kept
+/// in the browser, so a choice made on one list holds on the next one.
+export function pageSizePreference() {
+  const saved = Number(localStorage.getItem(PAGE_SIZE_KEY));
+  return PAGE_SIZES.includes(saved) ? saved : DEFAULT_PAGE_SIZE;
+}
+
+export function setPageSizePreference(size) {
+  localStorage.setItem(PAGE_SIZE_KEY, String(size));
+}
+
+function pageSizeLabel(size) {
+  return size === 0 ? 'All on one page' : `${size} rows`;
+}
+
+/// A reusable pager row.
+///
+/// `onPage(newPage)` is called when a page button is pressed. When
+/// `onPageSize(newSize)` is given, the row also carries a box for choosing how
+/// many rows a page holds — including all of them at once. A page size of 0
+/// means everything is already on the page, so the buttons go away.
+export function pager(page, pageSize, total, onPage, onPageSize) {
+  const showingAll = !pageSize;
+  const pages = showingAll ? 1 : Math.max(1, Math.ceil(total / pageSize));
+  const cur = showingAll ? 1 : page + 1;
   const row = el('div', { class: 'pager' });
   const btn = (label, target, disabled) =>
     el('button', {
@@ -91,14 +120,45 @@ export function pager(page, pageSize, total, onPage) {
       disabled: disabled ? 'true' : null,
       onclick: () => onPage(target),
     });
-  row.append(
-    btn('« First', 0, page <= 0),
-    btn('‹ Prev', page - 1, page <= 0),
-    el('span', { class: 'pager-info', text: `Page ${cur} of ${pages} (${total} total)` }),
-    btn('Next ›', page + 1, cur >= pages),
-    btn('Last »', pages - 1, cur >= pages)
-  );
+
+  if (!showingAll) {
+    row.append(
+      btn('« First', 0, page <= 0),
+      btn('‹ Prev', page - 1, page <= 0)
+    );
+  }
+  row.append(el('span', {
+    class: 'pager-info',
+    text: showingAll
+      ? `All ${total} on one page`
+      : `Page ${cur} of ${pages} (${total} total)`,
+  }));
+  if (!showingAll) {
+    row.append(
+      btn('Next ›', page + 1, cur >= pages),
+      btn('Last »', pages - 1, cur >= pages)
+    );
+  }
+
+  if (onPageSize) row.append(pageSizePicker(pageSize, onPageSize));
   return row;
+}
+
+function pageSizePicker(pageSize, onPageSize) {
+  const select = el('select', { class: 'pager-size' });
+  for (const size of PAGE_SIZES) {
+    select.append(el('option', { value: String(size), text: pageSizeLabel(size) }));
+  }
+  select.value = String(PAGE_SIZES.includes(pageSize) ? pageSize : DEFAULT_PAGE_SIZE);
+  select.addEventListener('change', () => {
+    const picked = Number(select.value);
+    setPageSizePreference(picked);
+    onPageSize(picked);
+  });
+  return el('label', { class: 'pager-size-label' }, [
+    el('span', { text: 'Show ' }),
+    select,
+  ]);
 }
 
 /// Reads `#/foo/bar` into ['foo','bar'].

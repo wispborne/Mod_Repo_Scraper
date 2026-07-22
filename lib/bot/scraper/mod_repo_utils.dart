@@ -49,7 +49,18 @@ class ModRepoUtils {
     ["Mr. THG", "thog"],
     ["Derelict_Surveyor", "jdt15"],
     ["astarat.", "Astarat", "Astarat and PureTilt"],
+    ["Yogurt Fox", "YogurtFox", "Mycophobia"],
   ];
+
+  /// Splits an author credit like "Ed, Nick XR & Foo and Bar" into the
+  /// individual names. The credit itself is not included in the result.
+  static List<String> splitAuthorNames(String authors) {
+    return authors
+        .split(RegExp(r',|&|/|\band\b', caseSensitive: false))
+        .map((name) => name.trim())
+        .where((name) => name.length >= 2)
+        .toList();
+  }
 
   static List<String> getOtherMatchingAliases(
     String author, {
@@ -118,7 +129,19 @@ class ModRepoUtils {
     }
 
     final results = await pairs.parallelMap((pair) async {
-      final fuzzyMatch = Fuzzy.fuzzyMatch(pair.$1, pair.$2);
+      // Subsequence matching is one-way: "hqz" is found inside "hqz nightkev",
+      // but not the other way round. Check both directions and keep the better,
+      // so the answer doesn't depend on which side a name arrived on.
+      final forward = Fuzzy.fuzzyMatch(pair.$1, pair.$2);
+      final backward = Fuzzy.fuzzyMatch(pair.$2, pair.$1);
+      // A direction that actually matched beats one that didn't; between two
+      // matches, the higher score wins.
+      final (bool, int) fuzzyMatch;
+      if (forward.$1 != backward.$1) {
+        fuzzyMatch = forward.$1 ? forward : backward;
+      } else {
+        fuzzyMatch = forward.$2 >= backward.$2 ? forward : backward;
+      }
       final obj = MatchResult(
         leftMatch: pair.$1,
         rightMatch: pair.$2,

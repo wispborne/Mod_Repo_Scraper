@@ -1,6 +1,6 @@
 // #/topics — searchable, sortable, filterable topic index (2.3).
 
-import { api, el, clear, missingPanel, MissingFile, pager, go } from '../lib.js';
+import { api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go } from '../lib.js';
 import * as manager from '../manager.js';
 
 // True only when the server can actually run jobs. When it can't, none of the
@@ -48,7 +48,7 @@ const state = {
   sort: 'lastPostDate',
   dir: 'desc',
   page: 0,
-  pageSize: 50,
+  pageSize: pageSizePreference(),
 };
 
 export async function render(root) {
@@ -103,6 +103,10 @@ export async function render(root) {
     }
     results.append(buildTable(data, load), pager(data.page, data.pageSize, data.total, (p) => {
       state.page = p;
+      load();
+    }, (size) => {
+      state.pageSize = size;
+      state.page = 0;
       load();
     }));
   }

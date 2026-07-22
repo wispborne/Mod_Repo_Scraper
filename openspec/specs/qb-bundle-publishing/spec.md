@@ -1,3 +1,9 @@
+# qb-bundle-publishing
+
+## Purpose
+
+Gather everything the forum scrape learned into one file the launcher can read, and put that file where the launcher can fetch it.
+## Requirements
 ### Requirement: Forum data bundle model
 The system SHALL define a `ForumDataBundle` with: `updatedAt` (DateTime), `index` (List<QbModSummary>), `details` (Map<String, QbModDetail>), and `assumedDownloads` (Map<String, List<AssumedDownloadCandidate>>). Map keys SHALL be string representations of topic IDs. `assumedDownloads` SHALL hold only rule-based download candidates and SHALL be exactly what a consumer uses when the LLM feature is off; the LLM SHALL never write into it. Each `QbModSummary` in `index` SHALL carry an optional `llm` field holding that thread's LLM output; the `ForumDataBundle` SHALL NOT have a top-level `llm` map. The `llm` field SHALL be absent on every index item when the LLM feature is off or produced nothing for that thread.
 

@@ -13,10 +13,12 @@ import '../bot/scraper/qb/llm/fallback_llm_client.dart';
 import '../bot/scraper/qb/llm/llm_client.dart';
 import '../bot/scraper/qb/llm/openai_client.dart';
 import '../bot/scraper/qb/llm/post_extractor.dart';
+import '../bot/scraper/qb/models/forum_data_bundle.dart';
 import '../bot/scraper/qb/models/scrape_job.dart';
 import '../bot/scraper/qb/scraper_engine.dart';
 import '../bot/scraper/qb/throttled_client.dart';
 import '../utilities/caching_http_client.dart';
+import 'bundle_snapshot_store.dart';
 import 'cancel_token.dart';
 import 'job.dart';
 import 'run_reporter.dart';
@@ -62,10 +64,14 @@ class JobOutcome {
 /// and no more lets a test stand in a job that finishes when it is told to,
 /// without a forum, an LLM, or a folder full of files.
 abstract class JobRunner {
+  /// [runId] names the run this job belongs to, so anything a job saves
+  /// alongside the run's record and log can be filed under the same name. Null
+  /// when nobody is keeping a history — a direct call in a test, say.
   Future<JobOutcome> runJob(
     JobRequest request, {
     RunReporter reporter,
     CancelToken? cancel,
+    String? runId,
   });
 }
 
@@ -87,6 +93,10 @@ class ScraperService implements JobRunner {
 
   /// Null when the environment has no LLM service set up.
   final LlmExtractionStore? llmStore;
+
+  /// Keeps a copy of each bundle this service publishes, so two runs can be
+  /// compared afterwards.
+  final BundleSnapshotStore bundleSnapshots;
 
   final http.Client _linkClient;
 
@@ -126,6 +136,8 @@ class ScraperService implements JobRunner {
       llmStore: environment.llm == null
           ? null
           : LlmExtractionStore(environment.dataPath),
+      bundleSnapshots: BundleSnapshotStore(environment.dataPath,
+          bundlesToKeep: guardrails.bundlesToKeep),
       linkClient: links,
       createNetworkClient: createNetworkClient ?? http.Client.new,
       createLlmClient: createLlmClient,
@@ -139,6 +151,7 @@ class ScraperService implements JobRunner {
     required this.probeCache,
     required this.resolver,
     required this.llmStore,
+    required this.bundleSnapshots,
     required http.Client linkClient,
     required http.Client Function() createNetworkClient,
     LlmClient Function()? createLlmClient,
@@ -163,23 +176,31 @@ class ScraperService implements JobRunner {
     JobRequest request, {
     RunReporter reporter = const SilentRunReporter(),
     CancelToken? cancel,
+    String? runId,
   }) async {
     await load();
     switch (request.kind) {
       case JobKind.fullRun:
-        return _fullRun(request, reporter, cancel);
+        return _fullRun(request, reporter, cancel, runId);
       case JobKind.rescrapeTopics:
-        return _rescrapeTopics(request, reporter, cancel);
+        return _rescrapeTopics(request, reporter, cancel, runId);
       case JobKind.resolveDownloads:
-        return _resolveDownloads(request, reporter, cancel);
+        return _resolveDownloads(request, reporter, cancel, runId);
       case JobKind.extractLlm:
-        return _extractLlm(request, reporter, cancel);
+        return _extractLlm(request, reporter, cancel, runId);
       case JobKind.llmCoveragePass:
-        return _llmCoveragePassJob(request, reporter, cancel);
+        return _llmCoveragePassJob(request, reporter, cancel, runId);
       case JobKind.llmTest:
         return _llmTest(request, reporter, cancel);
       case JobKind.rebuildBundle:
-        return _rebuildBundleJob(reporter);
+        return _rebuildBundleJob(reporter, runId);
+      case JobKind.mergeModRepo:
+      case JobKind.scrapeAndMerge:
+        // The merge kinds belong to the ModRepo service. A JobRouter sends them
+        // there; this service only ever sees them if it was wired up on its own.
+        throw ArgumentError(
+            'The QB service cannot run ${request.kind.name}; that is a ModRepo '
+            'job.');
     }
   }
 
@@ -191,6 +212,7 @@ class ScraperService implements JobRunner {
     JobRequest request,
     RunReporter reporter,
     CancelToken? cancel,
+    String? runId,
   ) async {
     final scope = ScrapeScope(
       type: request.scope,
@@ -223,7 +245,8 @@ class ScraperService implements JobRunner {
       reporter.log('QB scrape completed: ${result.modsScraped} mods, '
           '${result.errors} errors.');
 
-      await _rebuildBundle(scrapeResult: result);
+      await _rebuildBundle(
+          scrapeResult: result, runId: runId, reporter: reporter);
 
       return JobOutcome(
         itemsDone: result.modsScraped,
@@ -244,6 +267,7 @@ class ScraperService implements JobRunner {
     JobRequest request,
     RunReporter reporter,
     CancelToken? cancel,
+    String? runId,
   ) async {
     if (request.topicIds.isEmpty) {
       reporter.log('Nothing to re-scrape: no topics were named.');
@@ -262,7 +286,7 @@ class ScraperService implements JobRunner {
 
       if (llm != null) await llmStore!.flush();
       await _saveCaches();
-      await _rebuildBundle();
+      await _rebuildBundle(runId: runId, reporter: reporter);
 
       return JobOutcome(
         itemsDone: result.modsScraped,
@@ -282,6 +306,7 @@ class ScraperService implements JobRunner {
     JobRequest request,
     RunReporter reporter,
     CancelToken? cancel,
+    String? runId,
   ) async {
     final ids = request.topicIds;
     if (ids.isEmpty) {
@@ -311,7 +336,7 @@ class ScraperService implements JobRunner {
     }
 
     await _saveCaches();
-    await _rebuildBundle();
+    await _rebuildBundle(runId: runId, reporter: reporter);
 
     return JobOutcome(
       itemsDone: done,
@@ -325,6 +350,7 @@ class ScraperService implements JobRunner {
     JobRequest request,
     RunReporter reporter,
     CancelToken? cancel,
+    String? runId,
   ) async {
     final ids = request.topicIds;
     if (ids.isEmpty) {
@@ -364,7 +390,7 @@ class ScraperService implements JobRunner {
       // The LLM checks the links it picked through the shared "does this serve
       // a file?" cache, so save those answers too.
       await probeCache.saveCache();
-      await _rebuildBundle();
+      await _rebuildBundle(runId: runId, reporter: reporter);
 
       return JobOutcome(
         itemsDone: done,
@@ -383,6 +409,7 @@ class ScraperService implements JobRunner {
     JobRequest request,
     RunReporter reporter,
     CancelToken? cancel,
+    String? runId,
   ) async {
     final llm = _buildExtractor(request);
     if (llm == null) {
@@ -393,7 +420,7 @@ class ScraperService implements JobRunner {
       final pass = await _llmCoveragePass(llm.extractor, reporter, cancel);
       await llmStore!.flush();
       await probeCache.saveCache();
-      await _rebuildBundle();
+      await _rebuildBundle(runId: runId, reporter: reporter);
       return JobOutcome(
         itemsDone: pass.seen,
         itemsTotal: pass.total,
@@ -469,9 +496,10 @@ class ScraperService implements JobRunner {
     }
   }
 
-  Future<JobOutcome> _rebuildBundleJob(RunReporter reporter) async {
+  Future<JobOutcome> _rebuildBundleJob(
+      RunReporter reporter, String? runId) async {
     reporter.phase('Building the bundle');
-    await _rebuildBundle();
+    await _rebuildBundle(runId: runId, reporter: reporter);
     return const JobOutcome();
   }
 
@@ -616,7 +644,15 @@ class ScraperService implements JobRunner {
         seen: seen, total: index.length, withoutResults: withoutResults);
   }
 
-  Future<void> _rebuildBundle({ScrapeResult? scrapeResult}) async {
+  /// Publishes the bundle, and saves a snapshot of what went out so this run
+  /// can be compared with the ones either side of it.
+  ///
+  /// Every job kind that publishes comes through here, so none of them has to
+  /// know snapshots exist.
+  Future<void> _rebuildBundle(
+      {ScrapeResult? scrapeResult,
+      String? runId,
+      RunReporter? reporter}) async {
     final publisher = BundlePublisher(
       store: store,
       resolver: resolver,
@@ -625,6 +661,23 @@ class ScraperService implements JobRunner {
     );
     final bundle = await publisher.createBundle(scrapeResult: scrapeResult);
     await publisher.writeLocal(bundle);
+    await _saveBundleSnapshot(bundle, runId, reporter);
+  }
+
+  /// Keeps a copy of the bundle just published, minus the posts' text.
+  ///
+  /// A snapshot going wrong must never fail a run that has already published
+  /// its bundle — the output is the job, and this is only paperwork about it.
+  Future<void> _saveBundleSnapshot(
+      ForumDataBundle bundle, String? runId, RunReporter? reporter) async {
+    if (runId == null) return;
+    try {
+      await bundleSnapshots.save(runId, bundle.toMap());
+    } catch (e) {
+      reporter?.log('The bundle was published, but this run\'s snapshot of it '
+          'could not be saved, so there will be nothing to compare it against '
+          'later: $e');
+    }
   }
 
   /// Both caches are written as the run goes; these are the final saves that

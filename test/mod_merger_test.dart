@@ -251,9 +251,9 @@ void main() {
       expect(result.first.gameVersionReq, equals('0.98a'));
     });
 
-    test('very different names in same group are NOT discarded by dedup', () async {
-      // Simulate a case where two very differently named mods end up in a group
-      // via forum URL match. The dedup safety should prevent discarding the minority mod.
+    test('same thread but unrelated names stay separate', () async {
+      // Some authors keep several mods in one forum thread. A shared thread
+      // alone must not merge mods whose names have nothing in common.
       final mods = [
         const ScrapedMod(
           name: 'Alpha Mod',
@@ -272,12 +272,111 @@ void main() {
       ];
 
       final result = await merger.merge(mods);
-      // Both share a forum URL so they're grouped together.
-      // The dedup safety keeps both (names too different to discard either).
-      // The merge step still combines them into one entry.
+      expect(result.length, equals(2));
+    });
+
+    test('same thread with a version-suffixed name still merges', () async {
+      // A Discord post titled "<mod> 1.2.3" linking the mod's thread is the
+      // same mod, even though the raw names differ a lot in length.
+      final mods = [
+        const ScrapedMod(
+          name: 'Alpha Mod',
+          authorsList: ['AuthorOne'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=55556.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Alpha Mod 1.2.3 (2026-01-01)',
+          authorsList: ['SomeoneElse'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=55556.0'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
       expect(result.length, equals(1));
-      // Both are Index, so the first mod in sorted order ("Alpha Mod") wins priority.
-      expect(result.first.name, equals('Alpha Mod'));
+    });
+  });
+
+  group('Grouping is transitive and publishes each mod once', () {
+    final merger = ModMerger();
+
+    test('old thread, new thread, and Discord post all become one mod', () async {
+      // The old thread only matches the new thread (by name and author), and
+      // the Discord post only matches the new thread (by forum topic). All
+      // three must land in one group — and nothing may appear twice.
+      final mods = [
+        const ScrapedMod(
+          name: 'Chain Mod',
+          authorsList: ['OldAuthor'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=11111.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Chain Mod',
+          authorsList: ['OldAuthor, NewAuthor'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=22222.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Chain Mod v2.0',
+          authorsList: ['NewAuthor'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=22222.0'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.length, equals(1));
+    });
+
+    test('author credit lists match no matter which side is longer', () async {
+      // "hqz" must match "hqz, NightKev" whichever entry the merger looks at
+      // first — one-way subsequence matching used to make this depend on order.
+      for (final ordering in [
+        ['hqz, NightKev', 'hqz'],
+        ['hqz', 'hqz, NightKev'],
+      ]) {
+        final mods = [
+          ScrapedMod(
+            name: 'Ordering Mod',
+            authorsList: [ordering[0]],
+            urls: const {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=33333.0'},
+            sources: const [ModSource.Index],
+          ),
+          ScrapedMod(
+            name: 'Ordering Mod',
+            authorsList: [ordering[1]],
+            urls: const {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=44444.0'},
+            sources: const [ModSource.Index],
+          ),
+        ];
+
+        final result = await merger.merge(mods);
+        expect(result.length, equals(1), reason: 'order: $ordering');
+      }
+    });
+
+    test('a shared person inside two different author credits matches', () async {
+      // "Snrasha, NicoBBQ" and "NicoBBQ, carolinlove" share one person, so
+      // two same-named entries are the same mod handed to a new keeper.
+      final mods = [
+        const ScrapedMod(
+          name: 'Handover Mod',
+          authorsList: ['Snrasha, NicoBBQ'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=66666.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Handover Mod',
+          authorsList: ['NicoBBQ, carolinlove'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=77777.0'},
+          sources: [ModSource.Index],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.length, equals(1));
     });
   });
 

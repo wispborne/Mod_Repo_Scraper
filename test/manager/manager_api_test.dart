@@ -201,6 +201,13 @@ void main() {
     final secondPage = await json('GET', 'runs?page=1&pageSize=2');
     expect((secondPage['items'] as List), hasLength(1));
     expect((secondPage['items'] as List).first['id'], ids.last);
+
+    // Everything on one page, for when you want to read the lot.
+    final everything = await json('GET', 'runs?pageSize=0');
+    expect((everything['items'] as List), hasLength(3));
+    expect(everything['total'], 3);
+    expect(everything['page'], 0);
+    expect(everything['pageSize'], 0);
   });
 
   test('an unknown run id is a 404 on both the record and the log', () async {

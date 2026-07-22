@@ -1,3 +1,9 @@
+# qb-llm-client
+
+## Purpose
+
+Talk to any OpenAI-style language model in a safe, bounded way — off unless switched on, capped in how much it spends, and able to carry on when the model is unreachable or answers badly.
+## Requirements
 ### Requirement: LLM feature is off by default and configured via config.properties
 The system SHALL read LLM settings from `config.properties` into `BotConfig`, and SHALL perform no LLM calls unless `llm_enabled` is true.
 

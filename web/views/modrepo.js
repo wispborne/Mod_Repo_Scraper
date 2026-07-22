@@ -2,9 +2,10 @@
 //   #/modrepo            searchable, paged mod table
 //   #/modrepo/<index>    one merged mod, with source provenance
 
-import { api, el, clear, missingPanel, MissingFile, pager, go } from '../lib.js';
+import { api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go } from '../lib.js';
+import * as manager from '../manager.js';
 
-const state = { q: '', page: 0, pageSize: 50 };
+const state = { q: '', page: 0, pageSize: pageSizePreference() };
 
 export async function render(root, parts) {
   clear(root);
@@ -48,7 +49,9 @@ export async function render(root, parts) {
     wrap.append(table);
     results.append(wrap);
     if (!data.items.length) results.append(el('p', { class: 'loading', text: 'No mods match.' }));
-    results.append(pager(data.page, data.pageSize, data.total, (p) => { state.page = p; load(); }));
+    results.append(pager(data.page, data.pageSize, data.total,
+      (p) => { state.page = p; load(); },
+      (size) => { state.pageSize = size; state.page = 0; load(); }));
   }
   load();
 }
@@ -60,6 +63,31 @@ async function detail(root, index) {
   if (mod.error) return root.append(el('div', { class: 'missing error' }, el('h3', { text: mod.error })));
 
   root.append(el('h1', { text: mod.name || '(empty)' }));
+
+  // This page's data comes from the merge, so the button here is the merge —
+  // from the source files already saved, no network. The full form with source
+  // choices lives on the Runs view. Only when there is a manager to send it to.
+  const status = manager.status() || await manager.refresh();
+  if (status && status.on) {
+    root.append(el('div', { class: 'topic-actions' }, [
+      el('button', {
+        class: 'btn',
+        text: 'Re-run the merge',
+        title: 'Merge the sources already saved on disk into ModRepo.json. No network requests.',
+        onclick: async () => {
+          try {
+            const record = await manager.confirmAndSubmit({
+              kind: 'mergeModRepo',
+              collectMergeDebug: true,
+            });
+            if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
+          } catch (err) {
+            window.alert(err.message);
+          }
+        },
+      }),
+    ]));
+  }
 
   const list = el('ul', { class: 'field-list' });
   const rows = [

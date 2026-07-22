@@ -50,6 +50,7 @@ class FakeJobRunner implements JobRunner {
     JobRequest request, {
     RunReporter reporter = const SilentRunReporter(),
     CancelToken? cancel,
+    String? runId,
   }) async {
     ran.add(request);
     reporter.phase(phaseName);

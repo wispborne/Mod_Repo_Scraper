@@ -1,5 +1,9 @@
-## ADDED Requirements
+# qb-raw-http-caching
 
+## Purpose
+
+Keep a copy of every page the forum scrape fetched, so a later run can be replayed from disk at full speed without touching the forum again.
+## Requirements
 ### Requirement: QB scraper records raw HTTP responses to a cache file
 The system SHALL save all raw HTTP responses made during QB board scraping and topic scraping to a JSON cache file at `<qb_data_path>/qb_raw_cache.json` after every live (non-replaying) scrape run.
 

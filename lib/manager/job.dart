@@ -29,7 +29,19 @@ enum JobKind {
 
   /// Build `forum-data-bundle.json` again from what is already saved.
   rebuildBundle,
+
+  /// Merge the mod sources already saved on disk into `ModRepo.json`. No
+  /// network.
+  mergeModRepo,
+
+  /// Fetch the chosen mod sources, then merge them into `ModRepo.json`.
+  scrapeAndMerge,
 }
+
+/// The places ModRepo mods are scraped from. Which of these a job wants is job
+/// shape; the tokens needed to reach them are environment.
+@MappableEnum()
+enum ModSourceKind { forum, discord, nexus }
 
 /// How a run ended, or that it hasn't yet.
 @MappableEnum()
@@ -85,6 +97,25 @@ class JobRequest with JobRequestMappable {
   /// How many live LLM calls an `llmTest` job may make.
   final int testLimit;
 
+  /// Which mod sources a `scrapeAndMerge` should fetch. A source with no token
+  /// set up is skipped with a line in the log; asking for it is not an error.
+  /// Ignored by `mergeModRepo`, which reads whatever is already on disk.
+  final Set<ModSourceKind> modSources;
+
+  /// How many forum pages a `scrapeAndMerge` walks. Null means the usual full
+  /// count.
+  final int? modForumPages;
+  final int? moddingForumPages;
+
+  /// Whether a merge keeps every game version a single source lists, instead of
+  /// keeping only the newest.
+  final bool keepAllGameVersions;
+
+  /// Whether a merge collects the data behind the Merge Explorer. Runs started
+  /// from the website always ask for it; the CLI asks when
+  /// `modrepo_merge_debug` is on.
+  final bool collectMergeDebug;
+
   const JobRequest({
     required this.kind,
     this.topicIds = const [],
@@ -96,6 +127,15 @@ class JobRequest with JobRequestMappable {
     this.runLlm = false,
     this.replayAllowed = false,
     this.testLimit = 5,
+    this.modSources = const {
+      ModSourceKind.forum,
+      ModSourceKind.discord,
+      ModSourceKind.nexus
+    },
+    this.modForumPages,
+    this.moddingForumPages,
+    this.keepAllGameVersions = false,
+    this.collectMergeDebug = false,
   });
 
   /// A scrape over the boards, the way the CLI has always run.
@@ -144,6 +184,44 @@ class JobRequest with JobRequestMappable {
   /// Rebuilds the published bundle from what is already saved.
   factory JobRequest.rebuildBundle() =>
       const JobRequest(kind: JobKind.rebuildBundle);
+
+  /// Merges the mod sources already saved on disk. Costs no network time.
+  factory JobRequest.mergeModRepo({
+    bool keepAllGameVersions = false,
+    bool collectMergeDebug = true,
+  }) =>
+      JobRequest(
+        kind: JobKind.mergeModRepo,
+        keepAllGameVersions: keepAllGameVersions,
+        collectMergeDebug: collectMergeDebug,
+      );
+
+  /// Fetches the chosen mod sources and then merges them.
+  factory JobRequest.scrapeAndMerge({
+    Set<ModSourceKind> sources = const {
+      ModSourceKind.forum,
+      ModSourceKind.discord,
+      ModSourceKind.nexus
+    },
+    int? modForumPages,
+    int? moddingForumPages,
+    bool keepAllGameVersions = false,
+    bool collectMergeDebug = true,
+    bool replayAllowed = false,
+  }) =>
+      JobRequest(
+        kind: JobKind.scrapeAndMerge,
+        modSources: sources,
+        modForumPages: modForumPages,
+        moddingForumPages: moddingForumPages,
+        keepAllGameVersions: keepAllGameVersions,
+        collectMergeDebug: collectMergeDebug,
+        replayAllowed: replayAllowed,
+      );
+
+  /// True for the two kinds that end in a merge.
+  bool get isMergeKind =>
+      kind == JobKind.mergeModRepo || kind == JobKind.scrapeAndMerge;
 }
 
 /// How much a run got through. Saved as the run goes, so a run that dies still

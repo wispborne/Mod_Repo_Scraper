@@ -1,16 +1,26 @@
 // #/bundle — forum-data-bundle.json browser (4.4) + TriOS-style card preview (4.5).
 //   #/bundle              bundle meta + searchable, paged entries
 //   #/bundle/<index>      one bundle entry, with a labeled card approximation
+//   #/bundle/changes      what changed between two saved bundles
 
-import { api, el, clear, missingPanel, MissingFile, pager, go } from '../lib.js';
+import { api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go } from '../lib.js';
+import * as manager from '../manager.js';
+import { changesPage } from './bundle_compare.js';
+import {
+  postFrame, imageList, linkList, fieldList, fold, assumedTable, llmModsBlock,
+  downloadRowFromBundle, downloadRowFromCandidate, normUrl, topicActionBar,
+} from './extraction_views.js';
 
-const state = { q: '', page: 0, pageSize: 50 };
+const state = { q: '', page: 0, pageSize: pageSizePreference() };
 
 export async function render(root, parts) {
   clear(root);
-  if (parts.length) return entry(root, parts[0]);
+  if (parts.length && parts[0] !== 'changes') return entry(root, parts[0]);
 
   root.append(el('h1', { text: 'Forum Data Bundle (what TriOS receives)' }));
+  root.append(subnav(parts));
+
+  if (parts[0] === 'changes') return changesPage(root);
 
   const meta = await api('bundle/meta');
   if (meta instanceof MissingFile) return root.append(missingPanel(meta));
@@ -66,30 +76,67 @@ export async function render(root, parts) {
     wrap.append(table);
     results.append(wrap);
     if (!data.items.length) results.append(el('p', { class: 'loading', text: 'No entries match.' }));
-    results.append(pager(data.page, data.pageSize, data.total, (p) => { state.page = p; load(); }));
+    results.append(pager(data.page, data.pageSize, data.total,
+      (p) => { state.page = p; load(); },
+      (size) => { state.pageSize = size; state.page = 0; load(); }));
   }
   load();
 }
 
-// A single bundle entry lookup reuses the searchable endpoint, filtering by the
-// topic's own id so we get its joined index/detail/assumedDownloads back.
+/// Two pages: the bundle as published, and what changed since last time.
+function subnav(parts) {
+  const on = parts[0] === 'changes' ? 'changes' : 'browse';
+  const tab = (label, hash, active) =>
+    el('a', { class: 'chip' + (active ? ' on' : ''), href: hash, text: label });
+  return el('div', { class: 'toolbar' }, [
+    tab('Browse', '#/bundle', on === 'browse'),
+    tab('What changed', '#/bundle/changes', on === 'changes'),
+  ]);
+}
+
 async function entry(root, topicId) {
   root.append(el('a', { class: 'back-link', href: '#/bundle', text: '‹ Back to bundle' }));
-  const data = await api('bundle/mods', { q: '', pageSize: 500 });
+  // Search by the topic's own id rather than pulling the whole bundle down —
+  // the search matches ids too, so this is a handful of rows at most.
+  const data = await api('bundle/mods', { q: String(topicId), pageSize: 500 });
   if (data instanceof MissingFile) return root.append(missingPanel(data));
 
+  // Job buttons only exist when there is a manager to send jobs to.
+  const status = manager.status() || await manager.refresh();
+  const managerOn = !!(status && status.on);
+
   const match = (data.items || []).find((r) => String((r.index || {}).topicId) === String(topicId));
-  if (!match) {
-    // Fall back to the topic detail endpoint for the card fields. In both places
-    // the LLM output is a mods list on the topic's `llm` field.
-    const td = await api(`topics/${encodeURIComponent(topicId)}`);
-    if (td && !td.error) {
-      return renderEntry(root, td.index || {}, td.detail, td.assumedDownloads || [], primaryExtras(td.llm));
-    }
-    root.append(el('p', { class: 'loading', text: 'Entry not found in the bundle.' }));
-    return;
+  if (match) {
+    const idx = match.index || {};
+    return renderEntry(root, {
+      index: idx,
+      detail: match.detail,
+      // The bundle's own download shape, which names its fields differently
+      // from the resolver's.
+      downloads: (match.assumedDownloads || []).map(downloadRowFromBundle),
+      // In both places the LLM output is a mods list on the topic's `llm` field.
+      llm: match.llm || idx.llm,
+      fromBundle: true,
+      topicId: Number(topicId),
+      managerOn,
+    });
   }
-  renderEntry(root, match.index || {}, match.detail, match.assumedDownloads || [], primaryExtras(match.llm));
+
+  // Not in the published bundle — fall back to what is on disk for this topic,
+  // so the page still shows something, and say so.
+  const td = await api(`topics/${encodeURIComponent(topicId)}`);
+  if (td && !(td instanceof MissingFile) && !td.error) {
+    return renderEntry(root, {
+      index: td.index || {},
+      detail: td.detail,
+      downloads: (td.assumedDownloads || []).map(downloadRowFromCandidate),
+      llm: td.llm,
+      fromBundle: false,
+      topicId: Number(topicId),
+      managerOn,
+    });
+  }
+  root.append(el('p', { class: 'loading', text: 'Entry not found in the bundle.' }));
 }
 
 // The card preview shows the main mod's summary. Prefer the mod tagged `main`,
@@ -102,42 +149,144 @@ function primaryExtras(llm) {
   return main.extras || null;
 }
 
-function renderEntry(root, idx, detail, assumed, extras) {
-  root.append(el('h1', { text: idx.title || `Topic ${idx.topicId}` }));
+// Everything the bundle holds for one mod, in two rows: the plain fields
+// beside the card preview, then the post beside what was pulled out of it —
+// the same post/extraction split the topic inspector uses. Nothing in the
+// entry is left out — this page is how you check what TriOS actually receives.
+function renderEntry(root, entry) {
+  const { index: idx, detail, downloads, llm, fromBundle, topicId, managerOn } = entry;
+  const mods = (llm && llm.mods) || [];
 
-  root.append(el('div', { class: 'approx-label', text: 'Card preview below is an approximation — TriOS is the source of truth for how mods display.' }));
+  root.append(el('h1', { text: idx.title || `Topic ${topicId}` }));
 
-  const split = el('div', { class: 'split' });
-
-  // Left: the raw bundle fields.
-  const left = el('div', { class: 'panel' });
-  left.append(el('h2', { text: 'Bundle fields' }));
-  const list = el('ul', { class: 'field-list' });
-  for (const [label, value] of [
-    ['Author', idx.author], ['Game version', idx.gameVersion], ['Category', idx.category],
-    ['Replies', idx.replies], ['Views', idx.views], ['Last post', idx.lastPostDate],
-    ['Thumbnail', thumbUrl(idx.thumbnailPath)], ['Has detail', detail ? 'yes' : 'no'],
-    ['Assumed downloads', assumed.length],
-  ]) {
-    if (value == null || value === '') continue;
-    list.append(el('li', {}, [el('span', { class: 'field-label', text: label }), el('span', { class: 'field-value', text: String(value) })]));
+  const links = el('div', { class: 'toolbar' });
+  if (idx.topicUrl) {
+    links.append(el('a', { class: 'chip', href: idx.topicUrl, target: '_blank', text: 'Open on the forum ↗' }));
   }
-  left.append(list);
+  links.append(el('a', { class: 'chip', href: `#/topics/${topicId}`, text: 'Topic inspector' }));
+  root.append(links);
 
-  // Right: the card approximation.
-  const right = el('div', {});
-  right.append(el('h2', { text: 'TriOS card (approximation)' }));
-  right.append(card(idx, detail, assumed, extras));
+  // The same three per-topic jobs the topic inspector offers, when there is a
+  // manager to send them to. A finished job republishes the bundle, so this
+  // page shows the new answer after a reload.
+  if (managerOn) root.append(topicActionBar(topicId));
 
-  split.append(left, right);
-  root.append(split);
+  if (!fromBundle) {
+    root.append(el('div', { class: 'approx-label', text: 'This topic is not in the published bundle — showing what is saved on disk for it instead.' }));
+  }
+
+  // Top row: every plain field, beside the card preview.
+  const top = el('div', { class: 'split-side' });
+
+  const fields = el('div', { class: 'panel' });
+  fields.append(el('h2', { text: 'Bundle fields' }));
+  const cols = el('div', { class: 'field-cols' });
+
+  const thumb = thumbUrl(idx.thumbnailPath);
+  const threadCol = el('div', {});
+  threadCol.append(el('h3', { text: 'Thread' }));
+  threadCol.append(fieldList([
+    ['Topic id', idx.topicId],
+    ['Author', idx.author],
+    ['Game version', idx.gameVersion],
+    ['Category', idx.category],
+    ['Replies', idx.replies],
+    ['Views', idx.views],
+    ['Created', idx.createdDate],
+    ['Last post', idx.lastPostDate],
+    ['Last post by', idx.lastPostBy],
+    ['In the mod index', idx.inModIndex == null ? null : (idx.inModIndex ? 'yes' : 'no')],
+    ['Archived mod index', idx.isArchivedModIndex ? 'yes' : null],
+    ['Work in progress', idx.isWip ? 'yes' : null],
+    ['Source board', idx.sourceBoard],
+    ['Scraped at', stamp(idx.scrapedAt)],
+    ['Thumbnail', thumb, thumb
+      ? el('a', { href: thumb, target: '_blank', text: thumb }) : null],
+  ]));
+
+  const postCol = el('div', {});
+  postCol.append(el('h3', { text: 'First post' }));
+  if (detail) {
+    // Skip what just repeats the thread column — only post-only fields, and
+    // shared ones when the post disagrees with the thread.
+    const differs = (v, threadValue) => (v && v !== threadValue ? v : null);
+    postCol.append(fieldList([
+      ['Title', differs(detail.title, idx.title)],
+      ['Author', differs(detail.author, idx.author)],
+      ['Game version', differs(detail.gameVersion, idx.gameVersion)],
+      ['Category', differs(detail.category, idx.category)],
+      ['Author title', detail.authorTitle],
+      ['Author post count', detail.authorPostCount],
+      ['Author avatar', detail.authorAvatarPath],
+      ['Posted', detail.postDate],
+      ['Last edited', detail.lastEditDate],
+      ['Placeholder only', detail.isPlaceholderDetail ? 'yes' : null],
+      ['Scraped at', stamp(detail.scrapedAt)],
+    ]));
+  } else {
+    postCol.append(el('p', { class: 'loading', text: 'No post saved for this thread.' }));
+  }
+
+  cols.append(threadCol, postCol);
+  fields.append(cols);
+
+  const cardCol = el('div', {});
+  cardCol.append(el('h2', { style: 'margin-top:0', text: 'TriOS card' }));
+  cardCol.append(el('div', { class: 'approx-label', text: 'An approximation — TriOS is the source of truth for how mods display.' }));
+  cardCol.append(card(idx, detail, downloads, primaryExtras(llm)));
+
+  top.append(fields, cardCol);
+  root.append(top);
+
+  // Bottom row: the post itself, beside what was pulled out of it.
+  const bottom = el('div', { class: 'split' });
+
+  const post = el('div', { class: 'panel' });
+  post.append(el('h2', { text: 'Post' }));
+  if (detail && detail.contentHtml) {
+    post.append(postFrame(detail.contentHtml));
+  } else {
+    post.append(el('p', { class: 'loading', text: 'No post text in the bundle for this thread.' }));
+  }
+  if (detail && (detail.images || []).length) {
+    post.append(fold(`Images (${detail.images.length})`, imageList(detail.images)));
+  }
+  if (detail && (detail.links || []).length) {
+    post.append(fold(`Links (${detail.links.length})`, linkList(detail.links)));
+  }
+
+  const found = el('div', { class: 'panel' });
+  found.append(el('h2', { text: 'Pulled out of the post' }));
+
+  // A download the LLM lists whose post URL is not in the rule-based list is
+  // one the rules missed — set apart in the table.
+  const ruleUrls = new Set(downloads.map((d) => normUrl(d.url)));
+  if (mods.length) {
+    found.append(el('h3', { text: `Mods the LLM found (${mods.length})` }));
+    found.append(llmModsBlock(mods, ruleUrls));
+  } else {
+    found.append(el('h3', { text: 'Mods the LLM found' }));
+    found.append(el('p', { class: 'loading', text: 'No LLM results in the bundle for this thread.' }));
+  }
+
+  found.append(el('h3', { text: `Rule-based downloads (${downloads.length})` }));
+  found.append(assumedTable(downloads));
+
+  bottom.append(post, found);
+  root.append(bottom);
+}
+
+// Timestamps arrive as ISO strings; drop the noise for reading.
+function stamp(value) {
+  if (!value) return null;
+  return String(value).replace('T', ' ').replace(/(\.\d+)?Z$/, ' UTC');
 }
 
 // D9: thumbnail (strip ext:, Imgur→i.imgur), title, author, game-version chip, views/replies,
 // the LLM summary (what TriOS shows), one download button per
 // high/medium-confidence download. Falls back to a ~200-char post excerpt only
 // when no summary was generated.
-function card(idx, detail, assumed, extras) {
+function card(idx, detail, downloads, extras) {
   const wrap = el('div', { class: 'card-wrap' });
   const card = el('div', { class: 'mod-card' });
 
@@ -172,11 +321,11 @@ function card(idx, detail, assumed, extras) {
     if (excerpt) body.append(el('div', { class: 'excerpt excerpt-fallback', text: excerpt }));
   }
 
-  for (const c of assumed) {
-    if (c.confidence !== 'high' && c.confidence !== 'medium') continue;
+  for (const d of downloads) {
+    if (d.confidence !== 'high' && d.confidence !== 'medium') continue;
     body.append(el('a', {
-      class: 'dl', href: c.resolvedUrl || c.sourceUrl, target: '_blank',
-      text: `Download${c.archiveFilename ? ' · ' + c.archiveFilename : ''}`,
+      class: 'dl', href: d.directUrl || d.url, target: '_blank',
+      text: `Download${d.fileName ? ' · ' + d.fileName : ''}`,
     }));
   }
 

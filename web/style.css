@@ -179,10 +179,21 @@ tbody tr.clickable { cursor: pointer; }
 .pager button:hover:not([disabled]) { color: var(--primary); border-color: var(--primary); }
 .pager button[disabled] { opacity: 0.4; cursor: default; }
 .pager-info { color: var(--text-dim); font-size: 0.8rem; }
+/* How many rows to a page. Pushed to the right so it stays out of the way of
+   the page buttons, which is what people reach for most. */
+.pager-size-label { margin-left: auto; color: var(--text-dim); font-size: 0.8rem; display: flex; align-items: center; gap: 6px; }
+.pager-size { background: var(--surface-container); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 0.8rem; }
 
 /* Detail layouts */
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 @media (max-width: 1100px) { .split { grid-template-columns: 1fr; } }
+/* A wide main column with a narrow side one — fields beside the card preview. */
+.split-side { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; margin-bottom: 20px; }
+@media (max-width: 1100px) { .split-side { grid-template-columns: 1fr; } }
+/* Two field lists side by side inside one panel. */
+.field-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+@media (max-width: 700px) { .field-cols { grid-template-columns: 1fr; } }
+.field-cols h3 { margin-top: 0; color: var(--text-dim); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
 .panel { background: var(--surface-container); border: 1px solid var(--border); border-radius: 8px; padding: 16px; min-width: 0; }
 .panel h2 { margin-top: 0; }
 
@@ -200,8 +211,15 @@ tbody tr.clickable { cursor: pointer; }
 .dl-row.llm { background: rgba(196, 148, 255, 0.08); }
 .back-link { display: inline-block; margin-bottom: 12px; color: var(--text-dim); }
 
-/* One LLM-found mod in the topic inspector (its own downloads + extras). */
-.llm-mod { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 8px 0 14px; background: var(--surface-container); }
+/* Long lists folded away until asked for (post images, post links). */
+details.fold { margin: 12px 0; }
+details.fold summary { cursor: pointer; color: var(--text-dim); font-weight: 600; font-size: 0.9rem; user-select: none; }
+details.fold summary:hover { color: var(--primary); }
+details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
+
+/* One LLM-found mod (its own downloads + extras). Darker than the panel it
+   sits in, so nested boxes stay visible. */
+.llm-mod { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 8px 0 14px; background: var(--surface-2); }
 .llm-mod-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
 .llm-mod-name { font-weight: 700; color: var(--primary); }
 .llm-mod-image { display: block; max-width: 100%; max-height: 220px; border-radius: 6px; border: 1px solid var(--border); margin: 0 0 10px; }

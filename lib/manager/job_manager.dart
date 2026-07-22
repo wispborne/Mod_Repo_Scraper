@@ -174,6 +174,7 @@ class JobManager {
         job.request,
         reporter: _HistoryReporter(reporter, history, job, this),
         cancel: job.cancel,
+        runId: job.record.id,
       );
       job.record = await history.update(job.record.copyWith(
         state: outcome.cancelled ? RunState.cancelled : RunState.completed,

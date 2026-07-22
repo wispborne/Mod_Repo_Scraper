@@ -10,6 +10,7 @@ import 'package:mod_repo_scraper/bot/scraper/qb/llm/llm_client.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_detail.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_summary.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/scrape_job.dart';
+import 'package:mod_repo_scraper/manager/bundle_snapshot_store.dart';
 import 'package:mod_repo_scraper/manager/job.dart';
 import 'package:mod_repo_scraper/manager/run_reporter.dart';
 import 'package:mod_repo_scraper/manager/scraper_service.dart';
@@ -226,5 +227,75 @@ void main() {
     );
 
     expect(liveClientsMade, 0);
+  });
+
+  group('bundle snapshots', () {
+    test('a run that publishes the bundle leaves a snapshot named after it',
+        () async {
+      final service = makeService();
+      await service.runJob(
+        JobRequest.rebuildBundle(),
+        reporter: RecordingRunReporter(),
+        runId: '20260722T120000Z-rebuildBundle',
+      );
+
+      final saved = service.bundleSnapshots.list();
+      expect(saved.map((s) => s.id), ['20260722T120000Z-rebuildBundle']);
+
+      // It is a snapshot, not a bundle: the posts' text is not in it.
+      final back =
+          service.bundleSnapshots.readRaw('20260722T120000Z-rebuildBundle')!;
+      final details = back['details'] as Map;
+      expect(details, isNotEmpty);
+      for (final detail in details.values) {
+        expect((detail as Map).containsKey('contentHtml'), isFalse);
+        expect(detail[BundleSnapshotStore.fingerprintKey], isNotNull);
+      }
+
+      // The bundle that went out still has everything in it.
+      final published = jsonDecode(
+              File(p.join(dir.path, 'outputs', 'forum-data-bundle.json'))
+                  .readAsStringSync())
+          as Map<String, dynamic>;
+      final publishedDetail =
+          (published['details'] as Map).values.first as Map;
+      expect(publishedDetail['contentHtml'], isNotNull);
+    });
+
+    test('a job that publishes nothing leaves no snapshot', () async {
+      // A prompt trial saves nothing and publishes nothing, so there is
+      // nothing about it to compare. Every other kind ends by publishing the
+      // bundle, and so leaves a snapshot.
+      final service = makeService(llm: FakeLlmClient());
+      await service.runJob(
+        JobRequest.llmTest(topicIds: [123], limit: 1),
+        reporter: RecordingRunReporter(),
+        runId: '20260722T120000Z-llmTest',
+      );
+
+      expect(service.bundleSnapshots.list(), isEmpty);
+    });
+
+    test('a per-topic job that republishes leaves one too', () async {
+      final service = makeService(llm: FakeLlmClient());
+      await service.runJob(
+        JobRequest.forTopics(JobKind.extractLlm, [123], runLlm: true),
+        reporter: RecordingRunReporter(),
+        runId: '20260722T120000Z-extractLlm',
+      );
+
+      expect(service.bundleSnapshots.list().map((s) => s.id),
+          ['20260722T120000Z-extractLlm']);
+    });
+
+    test('with no run to file it under, nothing is saved', () async {
+      final service = makeService();
+      await service.runJob(
+        JobRequest.rebuildBundle(),
+        reporter: RecordingRunReporter(),
+      );
+
+      expect(service.bundleSnapshots.list(), isEmpty);
+    });
   });
 }

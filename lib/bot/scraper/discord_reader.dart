@@ -11,7 +11,6 @@
  */
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:http/http.dart' as http;
@@ -20,6 +19,7 @@ import 'package:mod_repo_scraper/bot/common.dart';
 import 'package:mod_repo_scraper/bot/scraper/download_link_detector.dart';
 import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:mod_repo_scraper/utilities/console_progress_bar.dart';
+import 'package:mod_repo_scraper/utilities/caching_http_client.dart';
 import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
 import 'scraped_mod.dart';
@@ -28,7 +28,12 @@ part 'discord_reader.mapper.dart';
 
 class DiscordReader {
   static const String baseUrl = "https://discord.com/api";
-  static int delayBetweenRequestsMillis = 40; // Allowed to do 50 requests per second
+
+  /// Pause between calls to Discord. 40ms is 25 a second, inside Discord's 50.
+  ///
+  /// This is only ever the pause for calls that really go to Discord. A run
+  /// playing back recorded answers waits for nothing — see [_pauseFor].
+  static const int delayBetweenRequestsMillis = 40;
   static int _timestampOfLastHttpCall = 0;
   static final RegExp _urlFinderRegex =
       RegExp(r'(http|ftp|https):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])');
@@ -78,9 +83,9 @@ class DiscordReader {
       return null;
     }
 
-    if (botConfig.useCached && File('discord_raw_cache.json').existsSync()) {
-      timber.i(message: () => "Using cache Discord data, disabling rate limiting.");
-      delayBetweenRequestsMillis = 0;
+    if (_isReplaying(client)) {
+      timber.i(message: () => "Reading Discord back from recorded answers; no "
+          "rate limiting and nothing fetched.");
     }
 
     timber.i(message: () => "Scraping ${forumChannelIds.length} Discord #mod_updates channel(s)...");
@@ -737,18 +742,25 @@ class DiscordReader {
     }
   }
 
+  /// True when this client is playing back recorded answers, so nothing it is
+  /// asked for reaches Discord.
+  static bool _isReplaying(http.Client client) =>
+      client is CachingClient && client.isReplaying;
+
+  /// How long to wait before the next call. Nothing at all when the answers are
+  /// coming off disk: waiting 40ms before each of several thousand recorded
+  /// answers turns a job that touches no network into a job that takes minutes.
+  static int _pauseFor(http.Client client) =>
+      _isReplaying(client) ? 0 : delayBetweenRequestsMillis;
+
   static Future<http.Response> _makeHttpRequestWithRateLimiting(
       http.Client client, Future<http.Response> Function() call) async {
-    // If response is cached, don't rate limit.
-    // Edit: nvm, we don't know if the request is cached until making it, and this method doesn't have the url and headers to determine that,
-    // so just suffer the rate limit during debugging.
-
     const maxRetries = 5;
 
     for (var attempt = 0; attempt <= maxRetries; attempt++) {
       apiCallsLastRun++;
       final now = DateTime.now().millisecondsSinceEpoch;
-      final delay = (_timestampOfLastHttpCall + delayBetweenRequestsMillis - now).clamp(0, 999999);
+      final delay = (_timestampOfLastHttpCall + _pauseFor(client) - now).clamp(0, 999999);
       if (delay > 0) {
         await Future.delayed(Duration(milliseconds: delay));
       }

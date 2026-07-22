@@ -1,5 +1,9 @@
-## ADDED Requirements
+# qb-forum-scraping
 
+## Purpose
+
+Read the Starsector forum's mod boards politely and keep what is found — each topic's details and posts — saved as the run goes, so a later run only has to fetch what has changed.
+## Requirements
 ### Requirement: QB mod summary model
 The system SHALL define a `QbModSummary` data class with fields: topicId (int), title (String), category (String), inModIndex (bool), isArchivedModIndex (bool), gameVersion (String?), author (String), replies (int), views (int), createdDate (String?), lastPostDate (String?), lastPostBy (String?), topicUrl (String), thumbnailPath (String?), scrapedAt (DateTime), isWip (bool), sourceBoard (int?). It SHALL serialize to/from JSON with camelCase keys and null omission.
 

@@ -1,10 +1,10 @@
 // #/runs — what is running now, what is waiting, what has already run, and the
 // form for starting a whole-store job.
 
-import { api, el, clear, pager, go, errorPanel } from '../lib.js';
+import { api, el, clear, pager, pageSizePreference, go, errorPanel } from '../lib.js';
 import * as manager from '../manager.js';
 
-const state = { page: 0, pageSize: 25 };
+const state = { page: 0, pageSize: pageSizePreference() };
 
 export async function render(root) {
   clear(root);
@@ -258,8 +258,75 @@ function drawStarter(node, s) {
     }),
   ]));
   panel.append(others);
+  panel.append(mergeForm());
 
   node.append(panel);
+}
+
+const MOD_SOURCES = [
+  ['forum', 'Forum', true],
+  ['discord', 'Discord', true],
+  ['nexus', 'Nexus', true],
+];
+
+/// The merge half of the form. Merging from saved files costs nothing, so it
+/// gets the plain button; scraping first is spelt out and confirmed.
+function mergeForm() {
+  const sourceBoxes = MOD_SOURCES.map(([value, label, on]) => {
+    const box = el('input', { type: 'checkbox', value });
+    box.checked = on;
+    return { value, box, label };
+  });
+  const keepVersionsBox = el('input', { type: 'checkbox' });
+
+  const form = el('div', { class: 'job-form' });
+  form.append(el('h3', { text: 'Merge into ModRepo.json' }));
+  form.append(el('p', {
+    class: 'run-when',
+    text: 'Merging saves its own copy of the workings, so you can look at this '
+      + 'merge next to an older one on the Merge page.',
+  }));
+
+  const sourceRow = el('div', { class: 'job-field' }, [
+    el('span', { class: 'field-label', text: 'Sources' }),
+  ]);
+  for (const s of sourceBoxes) {
+    sourceRow.append(el('label', { class: 'job-check' }, [s.box, ' ' + s.label]));
+  }
+  form.append(sourceRow);
+  form.append(el('div', { class: 'job-field' }, [
+    el('span', { class: 'field-label', text: 'Versions' }),
+    el('label', { class: 'job-check' }, [
+      keepVersionsBox,
+      ' Keep every game version one source lists',
+    ]),
+  ]));
+
+  form.append(el('div', { class: 'job-buttons' }, [
+    el('button', {
+      class: 'btn btn-primary',
+      text: 'Merge from saved files',
+      title: 'Merge what is already on disk. No network requests.',
+      onclick: () => start({
+        kind: 'mergeModRepo',
+        keepAllGameVersions: keepVersionsBox.checked,
+        collectMergeDebug: true,
+      }),
+    }),
+    el('button', {
+      class: 'btn',
+      text: 'Scrape then merge',
+      title: 'Fetch the ticked sources fresh, then merge. Takes a few minutes.',
+      onclick: () => start({
+        kind: 'scrapeAndMerge',
+        modSources: sourceBoxes.filter((s) => s.box.checked).map((s) => s.value),
+        keepAllGameVersions: keepVersionsBox.checked,
+        collectMergeDebug: true,
+        replayAllowed: false,
+      }),
+    }),
+  ]));
+  return form;
 }
 
 async function start(request) {
@@ -313,6 +380,10 @@ async function loadHistory(node) {
     inside.push(runTable(items));
     inside.push(pager(data.page, data.pageSize, total, (p) => {
       state.page = p;
+      loadHistory(node);
+    }, (size) => {
+      state.pageSize = size;
+      state.page = 0;
       loadHistory(node);
     }));
   }

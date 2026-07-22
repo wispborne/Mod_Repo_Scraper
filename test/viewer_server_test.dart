@@ -164,6 +164,36 @@ void main() {
     });
   });
 
+  group('how many rows to a page', () {
+    test('a page size is honoured', () async {
+      final body = await get('topics?pageSize=2');
+      expect((body['items'] as List), hasLength(2));
+      expect(body['total'], 5);
+      expect(body['pageSize'], 2);
+    });
+
+    test('zero puts everything on one page', () async {
+      final body = await get('topics?pageSize=0');
+      expect((body['items'] as List), hasLength(5));
+      expect(body['total'], 5);
+      expect(body['page'], 0);
+      expect(body['pageSize'], 0);
+    });
+
+    test('a page size that makes no sense falls back to the usual one',
+        () async {
+      for (final asked in ['-5', 'lots', '']) {
+        final body = await get('topics?pageSize=$asked');
+        expect(body['pageSize'], 50, reason: 'pageSize=$asked');
+      }
+    });
+
+    test('an enormous page size is capped', () async {
+      final body = await get('topics?pageSize=99999');
+      expect(body['pageSize'], 500);
+    });
+  });
+
   test('mtime cache invalidates when the file changes', () async {
     expect((await get('topics?pageSize=100'))['total'], 5);
 

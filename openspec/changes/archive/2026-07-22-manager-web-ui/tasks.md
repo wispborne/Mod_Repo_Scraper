@@ -26,6 +26,6 @@
 
 ## 5. Check it end to end and close out
 
-- [ ] 5.1 By hand against a live server: select topics across pages and run each per-stage action; start a full run from the form; cancel from the browser; watch the chip from another view; open a failed run's log; "run again"; then start the server without a config file and confirm every action surface reads as viewing-only.
-- [ ] 5.2 By hand: CLI-delegated run appears live in the browser chip and Runs view while the console shows its usual bar — the whole point, seen working once.
+- [x] 5.1 By hand against a live server: select topics across pages and run each per-stage action; start a full run from the form; cancel from the browser; watch the chip from another view; open a failed run's log; "run again"; then start the server without a config file and confirm every action surface reads as viewing-only.
+- [x] 5.2 By hand: CLI-delegated run appears live in the browser chip and Runs view while the console shows its usual bar — the whole point, seen working once.
 - [x] 5.3 Update `README.md` and `CLAUDE.md` with the browser workflow, and remove the "runs page comes in a later change" notes left in the earlier changes' docs.

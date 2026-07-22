@@ -78,15 +78,54 @@ class ModMerger {
       }
     }
 
-    // For each mod, gather candidates from indexes and verify matches.
-    final groupedMods = <List<ScrapedMod>>[];
-    final alreadyGrouped = List<bool>.filled(dedupedInput.length, false);
+    // Check each pair of similar-looking mods once, and join matches into
+    // shared groups. Joining carries over: when an old thread and a new thread
+    // both match a third entry, all three end up in one group. It also means a
+    // mod can only ever be in one group — the old one-pass approach could put
+    // a mod that started one group into a later group as well, publishing the
+    // same mod twice.
+    final groupOf = List<int>.generate(dedupedInput.length, (i) => i);
+
+    int findGroup(int i) {
+      var root = i;
+      while (groupOf[root] != root) {
+        root = groupOf[root];
+      }
+      // Point everything on the path straight at the root to keep lookups fast.
+      var current = i;
+      while (groupOf[current] != root) {
+        final next = groupOf[current];
+        groupOf[current] = root;
+        current = next;
+      }
+      return root;
+    }
+
+    void joinGroups(int a, int b) {
+      groupOf[findGroup(a)] = findGroup(b);
+    }
+
+    // The names an author credit can match under: the credit itself, each
+    // person named in it, and every known alias of each.
+    final authorNames = List<List<String>>.generate(dedupedInput.length, (i) {
+      final names = <String>{};
+      for (final author in dedupedInput[i].getAuthors()) {
+        names.add(author);
+        names.addAll(ModRepoUtils.splitAuthorNames(author));
+      }
+      for (final name in names.toList()) {
+        names.addAll(ModRepoUtils.getOtherMatchingAliases(name));
+      }
+      return names.map(_prepForMatching).whereType<String>().toList();
+    });
+
+    // Matches found, remembered by their lower-index side for the debug view.
+    final debugPairEntries = debugCollector != null ? <(int, GroupMatchEntry)>[] : null;
 
     final groupingBar =
         ConsoleProgressBar.start('Merging mods', dedupedInput.length);
     for (var index = 0; index < dedupedInput.length; index++) {
       groupingBar.update(index + 1);
-      if (alreadyGrouped[index]) continue;
 
       final outerLoopMod = dedupedInput[index];
       final outer = cleanedNames[index];
@@ -113,23 +152,25 @@ class ModMerger {
               trigramHits[candidateIdx] = (trigramHits[candidateIdx] ?? 0) + 1;
             }
           }
-          // Only consider candidates with >= 40% trigram overlap.
-          final minTrigrams = (outer.length - 2) * 0.4;
+          // Only consider candidates sharing >= 40% of the shorter name's
+          // trigrams, so a short name against a long one is judged by the
+          // short one — the same answer no matter which side asks.
+          final outerTrigramCount = outer.length - 2;
           for (final entry in trigramHits.entries) {
-            if (entry.value >= minTrigrams) {
+            final otherName = cleanedNames[entry.key];
+            if (otherName == null || otherName.length < 3) continue;
+            final otherTrigramCount = otherName.length - 2;
+            final shorterTrigramCount =
+                outerTrigramCount < otherTrigramCount ? outerTrigramCount : otherTrigramCount;
+            if (entry.value >= shorterTrigramCount * 0.4) {
               candidates.add(entry.key);
             }
           }
         }
       }
 
-      // Remove self and already-grouped items.
-      candidates.remove(index);
-      candidates.removeWhere((idx) => alreadyGrouped[idx]);
-
-      // Verify each candidate with the full matching logic.
-      final matchedMods = <ScrapedMod>[];
-      final debugMatchEntries = debugCollector != null ? <GroupMatchEntry>[] : null;
+      // Each pair is checked once, from its lower-index side.
+      candidates.removeWhere((idx) => idx <= index);
 
       for (final candidateIdx in candidates) {
         final innerLoopMod = dedupedInput[candidateIdx];
@@ -144,23 +185,18 @@ class ModMerger {
         );
 
         // If the names are similar, check the authors.
-        final outerAuthors = <String>{
-          ...outerLoopMod.getAuthors(),
-          ...outerLoopMod.getAuthors().expand((a) => ModRepoUtils.getOtherMatchingAliases(a)),
-        }.map(_prepForMatching).whereType<String>().toList();
-
-        final innerAuthors = <String>{
-          ...innerLoopMod.getAuthors(),
-          ...innerLoopMod.getAuthors().expand((a) => ModRepoUtils.getOtherMatchingAliases(a)),
-        }.map(_prepForMatching).whereType<String>().toList();
-
         final bestAuthorsResult = await ModRepoUtils.compareToFindBestMatch(
-          leftList: outerAuthors,
-          rightList: innerAuthors,
+          leftList: authorNames[index],
+          rightList: authorNames[candidateIdx],
         );
 
         final innerTopicId = forumTopicIds[candidateIdx];
-        final doForumLinksMatch = outerTopicId != null && outerTopicId == innerTopicId;
+        // One forum thread usually means one mod, but not always: some authors
+        // keep several mods in one thread, and some entries point at the wrong
+        // thread. Only trust a shared thread when the names also look related.
+        final doForumLinksMatch = outerTopicId != null &&
+            outerTopicId == innerTopicId &&
+            _namesLookRelated(outerLoopMod.name, innerLoopMod.name, outer, inner);
 
         // Guard against fuzzy subsequence false positives.
         final shorterLength = outer.length < inner.length ? outer.length : inner.length;
@@ -179,39 +215,57 @@ class ModMerger {
         }
 
         if (isMatch) {
-          alreadyGrouped[candidateIdx] = true;
-          matchedMods.add(innerLoopMod);
+          joinGroups(index, candidateIdx);
 
-          if (debugMatchEntries != null) {
+          if (debugPairEntries != null) {
             final reasons = <GroupMatchReason>{};
             if (doNameAndAuthorMatch) reasons.add(GroupMatchReason.nameAndAuthor);
             if (doForumLinksMatch) reasons.add(GroupMatchReason.forumUrl);
-            debugMatchEntries.add(GroupMatchEntry(
-              outerMod: outerLoopMod,
-              innerMod: innerLoopMod,
-              reasons: reasons,
-              nameScore: bestNameResult.isMatch ? bestNameResult.score : null,
-              authorScore: bestAuthorsResult.isMatch ? bestAuthorsResult.score : null,
-              nameLengthRatio: shorterLength / longerLength,
-              matchedForumTopicId: doForumLinksMatch ? outerTopicId : null,
+            debugPairEntries.add((
+              index,
+              GroupMatchEntry(
+                outerMod: outerLoopMod,
+                innerMod: innerLoopMod,
+                reasons: reasons,
+                nameScore: bestNameResult.isMatch ? bestNameResult.score : null,
+                authorScore: bestAuthorsResult.isMatch ? bestAuthorsResult.score : null,
+                nameLengthRatio: shorterLength / longerLength,
+                matchedForumTopicId: doForumLinksMatch ? outerTopicId : null,
+              )
             ));
           }
         }
       }
-
-      final groupMembers = [outerLoopMod, ...matchedMods];
-      groupedMods.add(groupMembers);
-
-      if (debugMatchEntries != null) {
-        debugCollector!.recordGroup(DebugModGroup(
-          groupIndex: groupedMods.length - 1,
-          members: groupMembers,
-          matchEntries: debugMatchEntries,
-        ));
-      }
     }
 
     groupingBar.finish();
+
+    // Collect the joined groups, keeping the input order.
+    final memberIndexesByRoot = <int, List<int>>{};
+    for (var i = 0; i < dedupedInput.length; i++) {
+      memberIndexesByRoot.putIfAbsent(findGroup(i), () => []).add(i);
+    }
+
+    final groupedMods = <List<ScrapedMod>>[];
+    final groupIndexByRoot = <int, int>{};
+    for (final entry in memberIndexesByRoot.entries) {
+      groupIndexByRoot[entry.key] = groupedMods.length;
+      groupedMods.add(entry.value.map((i) => dedupedInput[i]).toList());
+    }
+
+    if (debugPairEntries != null) {
+      final entriesByGroup = <int, List<GroupMatchEntry>>{};
+      for (final (memberIndex, entry) in debugPairEntries) {
+        entriesByGroup.putIfAbsent(groupIndexByRoot[findGroup(memberIndex)]!, () => []).add(entry);
+      }
+      for (var g = 0; g < groupedMods.length; g++) {
+        debugCollector!.recordGroup(DebugModGroup(
+          groupIndex: g,
+          members: groupedMods[g],
+          matchEntries: entriesByGroup[g] ?? [],
+        ));
+      }
+    }
 
     final msg = "Grouped ${mods.length} mods by similarity, created ${groupedMods.length} groups.";
     timber.i(message: () => msg);
@@ -576,6 +630,44 @@ class ModMerger {
   String? _prepForMatching(String str) {
     final cleaned = str.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
     return cleaned.isEmpty ? null : cleaned;
+  }
+
+  /// Whether two names look like versions of the same mod name.
+  ///
+  /// True when most of the shorter cleaned name's three-letter pieces appear
+  /// in the longer one — which covers version suffixes ("edshipyard" in
+  /// "edshipyardsrc"), renames that keep the old name ("red" in
+  /// "oculianarmadaakared"), and small typos ("cooperation" next to
+  /// "corporation") — or when one name is the other's initials ("SCVE" for
+  /// "Ship Catalogue/Variant Editor"). "Bushi" against "Hiigaran Descendants"
+  /// shares nothing and fails.
+  static bool _namesLookRelated(String rawA, String rawB, String cleanedA, String cleanedB) {
+    final shorter = cleanedA.length <= cleanedB.length ? cleanedA : cleanedB;
+    final longer = cleanedA.length <= cleanedB.length ? cleanedB : cleanedA;
+    if (shorter.length < 3) return longer.contains(shorter);
+
+    var shared = 0;
+    for (var t = 0; t <= shorter.length - 3; t++) {
+      if (longer.contains(shorter.substring(t, t + 3))) shared++;
+    }
+    if (shared >= (shorter.length - 2) * 0.4) return true;
+
+    final acronymA = _acronymOf(rawA);
+    final acronymB = _acronymOf(rawB);
+    return (acronymA.length >= 3 && cleanedB.startsWith(acronymA)) ||
+        (acronymB.length >= 3 && cleanedA.startsWith(acronymB));
+  }
+
+  /// The initials of a name: first letter of each word, keeping short
+  /// all-capitals words whole. "Another random SWP" gives "arswp".
+  static String _acronymOf(String name) {
+    final words = RegExp(r'[A-Za-z]+').allMatches(name).map((m) => m.group(0)!);
+    final buffer = StringBuffer();
+    for (final word in words) {
+      final isAllCaps = word.length > 1 && word.length <= 5 && word == word.toUpperCase();
+      buffer.write(isAllCaps ? word.toLowerCase() : word[0].toLowerCase());
+    }
+    return buffer.toString();
   }
 
   /// Removes duplicate input entries that have the same cleaned name, source, and forum URL.

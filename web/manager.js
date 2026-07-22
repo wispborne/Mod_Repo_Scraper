@@ -27,6 +27,8 @@ export const KIND_LABELS = {
   llmCoveragePass: 'LLM coverage pass',
   llmTest: 'LLM test',
   rebuildBundle: 'Rebuild bundle',
+  mergeModRepo: 'Merge from saved files',
+  scrapeAndMerge: 'Scrape then merge',
 };
 
 export function kindLabel(kind) {
@@ -238,6 +240,13 @@ export function describeJob(request) {
     case 'llmTest':
       return 'Try the LLM prompt on a few topics and write a report. Nothing '
         + 'else is saved. This spends a little LLM budget.';
+    case 'mergeModRepo':
+      return 'Merge the mod sources already saved on disk into ModRepo.json. '
+        + 'No network requests, no LLM spending. Safe to run again and again.';
+    case 'scrapeAndMerge':
+      return `Fetch ${listSources(request.modSources)} fresh, then merge them `
+        + 'into ModRepo.json. This one goes out to the mod sites and can take a '
+        + 'few minutes. No LLM spending.';
     default:
       return `Run a "${request.kind}" job.`;
   }
@@ -251,6 +260,16 @@ function listBoards(boards) {
   if (picked.length === 1) return `the ${picked[0]} board`;
   const last = picked.pop();
   return `the ${picked.join(', ')} and ${last} boards`;
+}
+
+/// The mod sources as you would say them: "the forum and Nexus".
+function listSources(sources) {
+  const names = { forum: 'the forum', discord: 'Discord', nexus: 'Nexus' };
+  const picked = (sources || []).map((s) => names[s] || s);
+  if (!picked.length) return 'no sources at all';
+  if (picked.length === 1) return picked[0];
+  const last = picked.pop();
+  return `${picked.join(', ')} and ${last}`;
 }
 
 /// What a scope means, in words rather than in its config-file spelling.

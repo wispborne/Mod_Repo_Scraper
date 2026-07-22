@@ -41,6 +41,10 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return JobKind.llmTest;
       case r'rebuildBundle':
         return JobKind.rebuildBundle;
+      case r'mergeModRepo':
+        return JobKind.mergeModRepo;
+      case r'scrapeAndMerge':
+        return JobKind.scrapeAndMerge;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -63,6 +67,10 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return r'llmTest';
       case JobKind.rebuildBundle:
         return r'rebuildBundle';
+      case JobKind.mergeModRepo:
+        return r'mergeModRepo';
+      case JobKind.scrapeAndMerge:
+        return r'scrapeAndMerge';
     }
   }
 }
@@ -71,6 +79,56 @@ extension JobKindMapperExtension on JobKind {
   String toValue() {
     JobKindMapper.ensureInitialized();
     return MapperContainer.globals.toValue<JobKind>(this) as String;
+  }
+}
+
+class ModSourceKindMapper extends EnumMapper<ModSourceKind> {
+  ModSourceKindMapper._();
+
+  static ModSourceKindMapper? _instance;
+  static ModSourceKindMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = ModSourceKindMapper._());
+    }
+    return _instance!;
+  }
+
+  static ModSourceKind fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  ModSourceKind decode(dynamic value) {
+    switch (value) {
+      case r'forum':
+        return ModSourceKind.forum;
+      case r'discord':
+        return ModSourceKind.discord;
+      case r'nexus':
+        return ModSourceKind.nexus;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(ModSourceKind self) {
+    switch (self) {
+      case ModSourceKind.forum:
+        return r'forum';
+      case ModSourceKind.discord:
+        return r'discord';
+      case ModSourceKind.nexus:
+        return r'nexus';
+    }
+  }
+}
+
+extension ModSourceKindMapperExtension on ModSourceKind {
+  String toValue() {
+    ModSourceKindMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<ModSourceKind>(this) as String;
   }
 }
 
@@ -146,6 +204,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       JobKindMapper.ensureInitialized();
       ScopeTypeMapper.ensureInitialized();
       ScrapeBoardMapper.ensureInitialized();
+      ModSourceKindMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -215,6 +274,43 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     opt: true,
     def: 5,
   );
+  static Set<ModSourceKind> _$modSources(JobRequest v) => v.modSources;
+  static const Field<JobRequest, Set<ModSourceKind>> _f$modSources = Field(
+    'modSources',
+    _$modSources,
+    opt: true,
+    def: const {
+      ModSourceKind.forum,
+      ModSourceKind.discord,
+      ModSourceKind.nexus,
+    },
+  );
+  static int? _$modForumPages(JobRequest v) => v.modForumPages;
+  static const Field<JobRequest, int> _f$modForumPages = Field(
+    'modForumPages',
+    _$modForumPages,
+    opt: true,
+  );
+  static int? _$moddingForumPages(JobRequest v) => v.moddingForumPages;
+  static const Field<JobRequest, int> _f$moddingForumPages = Field(
+    'moddingForumPages',
+    _$moddingForumPages,
+    opt: true,
+  );
+  static bool _$keepAllGameVersions(JobRequest v) => v.keepAllGameVersions;
+  static const Field<JobRequest, bool> _f$keepAllGameVersions = Field(
+    'keepAllGameVersions',
+    _$keepAllGameVersions,
+    opt: true,
+    def: false,
+  );
+  static bool _$collectMergeDebug(JobRequest v) => v.collectMergeDebug;
+  static const Field<JobRequest, bool> _f$collectMergeDebug = Field(
+    'collectMergeDebug',
+    _$collectMergeDebug,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<JobRequest> fields = const {
@@ -228,6 +324,11 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     #runLlm: _f$runLlm,
     #replayAllowed: _f$replayAllowed,
     #testLimit: _f$testLimit,
+    #modSources: _f$modSources,
+    #modForumPages: _f$modForumPages,
+    #moddingForumPages: _f$moddingForumPages,
+    #keepAllGameVersions: _f$keepAllGameVersions,
+    #collectMergeDebug: _f$collectMergeDebug,
   };
 
   static JobRequest _instantiate(DecodingData data) {
@@ -242,6 +343,11 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       runLlm: data.dec(_f$runLlm),
       replayAllowed: data.dec(_f$replayAllowed),
       testLimit: data.dec(_f$testLimit),
+      modSources: data.dec(_f$modSources),
+      modForumPages: data.dec(_f$modForumPages),
+      moddingForumPages: data.dec(_f$moddingForumPages),
+      keepAllGameVersions: data.dec(_f$keepAllGameVersions),
+      collectMergeDebug: data.dec(_f$collectMergeDebug),
     );
   }
 
@@ -317,6 +423,11 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     bool? runLlm,
     bool? replayAllowed,
     int? testLimit,
+    Set<ModSourceKind>? modSources,
+    int? modForumPages,
+    int? moddingForumPages,
+    bool? keepAllGameVersions,
+    bool? collectMergeDebug,
   });
   JobRequestCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -348,6 +459,11 @@ class _JobRequestCopyWithImpl<$R, $Out>
     bool? runLlm,
     bool? replayAllowed,
     int? testLimit,
+    Set<ModSourceKind>? modSources,
+    Object? modForumPages = $none,
+    Object? moddingForumPages = $none,
+    bool? keepAllGameVersions,
+    bool? collectMergeDebug,
   }) => $apply(
     FieldCopyWithData({
       if (kind != null) #kind: kind,
@@ -360,6 +476,12 @@ class _JobRequestCopyWithImpl<$R, $Out>
       if (runLlm != null) #runLlm: runLlm,
       if (replayAllowed != null) #replayAllowed: replayAllowed,
       if (testLimit != null) #testLimit: testLimit,
+      if (modSources != null) #modSources: modSources,
+      if (modForumPages != $none) #modForumPages: modForumPages,
+      if (moddingForumPages != $none) #moddingForumPages: moddingForumPages,
+      if (keepAllGameVersions != null)
+        #keepAllGameVersions: keepAllGameVersions,
+      if (collectMergeDebug != null) #collectMergeDebug: collectMergeDebug,
     }),
   );
   @override
@@ -377,6 +499,20 @@ class _JobRequestCopyWithImpl<$R, $Out>
     runLlm: data.get(#runLlm, or: $value.runLlm),
     replayAllowed: data.get(#replayAllowed, or: $value.replayAllowed),
     testLimit: data.get(#testLimit, or: $value.testLimit),
+    modSources: data.get(#modSources, or: $value.modSources),
+    modForumPages: data.get(#modForumPages, or: $value.modForumPages),
+    moddingForumPages: data.get(
+      #moddingForumPages,
+      or: $value.moddingForumPages,
+    ),
+    keepAllGameVersions: data.get(
+      #keepAllGameVersions,
+      or: $value.keepAllGameVersions,
+    ),
+    collectMergeDebug: data.get(
+      #collectMergeDebug,
+      or: $value.collectMergeDebug,
+    ),
   );
 
   @override

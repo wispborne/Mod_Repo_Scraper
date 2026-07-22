@@ -3,6 +3,7 @@
 import { api, el, clear, go, errorPanel, MissingFile } from '../lib.js';
 import * as manager from '../manager.js';
 import { progressBar, managerOffPanel } from './runs.js';
+import { compareRuns } from './bundle_compare.js';
 
 const DEFAULT_TAIL = 200;
 const MORE_TAIL = 2000;
@@ -83,7 +84,7 @@ export async function render(root, parts) {
 function header(record) {
   const head = el('div', {});
   head.append(el('h1', { text: manager.kindLabel(record.request && record.request.kind) }));
-  head.append(el('div', { class: 'run-head' }, [
+  const row = el('div', { class: 'run-head' }, [
     el('span', {
       class: 'badge ' + (manager.STATE_BADGES[record.state] || 'badge-dim'),
       text: record.state,
@@ -102,8 +103,29 @@ function header(record) {
         }
       },
     }),
-  ]));
+  ]);
+  head.append(row);
+  addWhatChangedLink(row, record.id);
   return head;
+}
+
+/// A link to what this run changed, but only when it saved a bundle and there
+/// is an older one to compare it against. A link that leads to "nothing to
+/// compare" is worse than no link.
+async function addWhatChangedLink(row, runId) {
+  const saved = await api('bundle/runs');
+  if (saved instanceof MissingFile) return;
+  const ids = (saved.items || []).map((r) => r.id);
+  const at = ids.indexOf(runId);
+  if (at < 0 || at + 1 >= ids.length) return;
+
+  row.append(el('a', {
+    class: 'btn',
+    href: '#/bundle/changes',
+    text: 'What this run changed',
+    title: 'Compare the bundle this run published with the one before it.',
+    onclick: () => compareRuns(ids[at + 1], runId),
+  }));
 }
 
 function recordPanel(record) {

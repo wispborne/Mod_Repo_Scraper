@@ -7,6 +7,8 @@ import '../bot/scraper/qb/download_resolver.dart';
 import '../bot/scraper/qb/llm/extraction_store.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
+import '../manager/bundle_snapshot_store.dart';
+import '../manager/merge_snapshot_store.dart';
 
 /// One file the raw-file/log endpoints are allowed to serve, addressed by a
 /// short [id] and never by a path the client supplies (D7). [hint] tells the
@@ -167,6 +169,55 @@ class DataAccess {
   Map<String, dynamic>? get llmTest => _llmTestCache.get();
 
   bool get mergeDebugExists => _mergeDebugFile.existsSync();
+
+  // --- Saved merges ---
+
+  late final MergeSnapshotStore mergeSnapshots = MergeSnapshotStore(dataDir);
+
+  /// The last couple of snapshots read — merges and bundles alike — so paging
+  /// through one or comparing two doesn't unzip megabytes again on every
+  /// request. Snapshots never change once written, so there is nothing to
+  /// invalidate.
+  final Map<String, Map<String, dynamic>> _snapshotCache = {};
+  final List<String> _snapshotOrder = [];
+
+  /// Every saved merge, newest first.
+  List<MergeSnapshotInfo> mergeRuns() => mergeSnapshots.list();
+
+  /// One saved merge, or null when there is no such run or it can't be read.
+  Map<String, dynamic>? mergeRun(String id) =>
+      _held('merge:$id', () => mergeSnapshots.readRaw(id));
+
+  // --- Saved bundles ---
+
+  late final BundleSnapshotStore bundleSnapshots = BundleSnapshotStore(dataDir);
+
+  /// Every saved bundle, newest first.
+  List<BundleSnapshotInfo> bundleRuns() => bundleSnapshots.list();
+
+  /// The saved bundle from just before [id], for "what did this run change?".
+  String? bundleRunBefore(String id) => bundleSnapshots.idBefore(id);
+
+  /// One saved bundle, or null when there is no such run or it can't be read.
+  Map<String, dynamic>? bundleRun(String id) =>
+      _held('bundle:$id', () => bundleSnapshots.readRaw(id));
+
+  /// Reads a snapshot through the small holding pen above.
+  Map<String, dynamic>? _held(
+      String key, Map<String, dynamic>? Function() read) {
+    final already = _snapshotCache[key];
+    if (already != null) return already;
+
+    final fresh = read();
+    if (fresh == null) return null;
+
+    _snapshotCache[key] = fresh;
+    _snapshotOrder.add(key);
+    while (_snapshotOrder.length > 2) {
+      _snapshotCache.remove(_snapshotOrder.removeAt(0));
+    }
+    return fresh;
+  }
 
   /// Reads one topic's detail on demand, uncached (D4).
   QbModDetail? loadDetail(int topicId) {

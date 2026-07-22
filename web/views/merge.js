@@ -1,19 +1,35 @@
-// #/merge — merge explorer over merge-debug.json (3.5).
+// #/merge — merge explorer over the saved merges.
 //   #/merge                       summary + phase timings
 //   #/merge/groups                searchable group list
 //   #/merge/groups/<id>           one group's members + merge decisions
+//   #/merge/groups/<id>/fields    before and after, field by field
 //   #/merge/removals/<kind>       preDedup | sameSource | validation
+//   #/merge/changes               what changed between two merges
+//
+// Every page reads one merge: the one picked at the top, or the newest when
+// nothing is picked. The pick survives moving between the pages.
 
-import { api, el, clear, esc, missingPanel, MissingFile, pager, go } from '../lib.js';
+import { api, el, clear, esc, missingPanel, MissingFile, pager, pageSizePreference, go } from '../lib.js';
+import { withRun, drawPicker, forgetRuns } from './merge_shared.js';
+import { groupFields, changesPage } from './merge_compare.js';
 
-export async function render(root, parts) {
+export async function render(root, parts, { keepRuns = false } = {}) {
+  // Ask again which merges are saved, so one that finished while this tab sat
+  // open turns up. Redrawing after a pick keeps the list we already have.
+  if (!keepRuns) forgetRuns();
   clear(root);
   root.append(el('h1', { text: 'Merge Explorer' }));
+  const pickerRow = el('div', {});
+  root.append(pickerRow);
   root.append(subnav(parts));
   const body = el('div', {});
   root.append(body);
 
+  drawPicker(pickerRow, () => render(root, parts, { keepRuns: true }));
+
   const section = parts[0] || 'summary';
+  if (section === 'changes') return changesPage(body);
+  if (section === 'groups' && parts[2] === 'fields') return groupFields(body, parts[1]);
   if (section === 'groups' && parts[1] != null) return groupDetail(body, parts[1]);
   if (section === 'groups') return groupsList(body);
   if (section === 'removals') return removalsList(body, parts[1] || 'preDedup');
@@ -30,13 +46,14 @@ function subnav(parts) {
     tab('Groups', '#/merge/groups', section === 'groups'),
     tab('Pre-dedup', '#/merge/removals/preDedup', section === 'removals' && (parts[1] || 'preDedup') === 'preDedup'),
     tab('Same-source', '#/merge/removals/sameSource', section === 'removals' && parts[1] === 'sameSource'),
-    tab('Validation', '#/merge/removals/validation', section === 'removals' && parts[1] === 'validation')
+    tab('Validation', '#/merge/removals/validation', section === 'removals' && parts[1] === 'validation'),
+    tab('What changed', '#/merge/changes', section === 'changes')
   );
   return nav;
 }
 
 async function summary(body) {
-  const data = await api('merge/summary');
+  const data = await api('merge/summary', withRun());
   if (data instanceof MissingFile) return body.append(missingPanel(data));
 
   const cards = [
@@ -76,7 +93,7 @@ async function summary(body) {
   }
 }
 
-const groupsState = { q: '', multiOnly: true, page: 0, pageSize: 50 };
+const groupsState = { q: '', multiOnly: true, page: 0, pageSize: pageSizePreference() };
 
 async function groupsList(body) {
   // A ModRepo detail link may have stashed a mod name to search for.
@@ -105,9 +122,9 @@ async function groupsList(body) {
 
   async function load() {
     clear(results).append(el('div', { class: 'loading', text: 'Loading…' }));
-    const data = await api('merge/groups', {
+    const data = await api('merge/groups', withRun({
       q: groupsState.q, multiOnly: groupsState.multiOnly, page: groupsState.page, pageSize: groupsState.pageSize,
-    });
+    }));
     clear(results);
     if (data instanceof MissingFile) return results.append(missingPanel(data));
     for (const g of data.items) {
@@ -134,7 +151,9 @@ async function groupsList(body) {
       results.append(card);
     }
     if (!data.items.length) results.append(el('p', { class: 'loading', text: 'No groups match.' }));
-    results.append(pager(data.page, data.pageSize, data.total, (p) => { groupsState.page = p; load(); }));
+    results.append(pager(data.page, data.pageSize, data.total,
+      (p) => { groupsState.page = p; load(); },
+      (size) => { groupsState.pageSize = size; groupsState.page = 0; load(); }));
   }
   load();
 }
@@ -159,13 +178,20 @@ function matchReason(mm) {
 
 async function groupDetail(body, id) {
   body.append(el('a', { class: 'back-link', href: '#/merge/groups', text: '‹ Back to groups' }));
-  const data = await api(`merge/groups/${encodeURIComponent(id)}`);
+  const data = await api(`merge/groups/${encodeURIComponent(id)}`, withRun());
   if (data instanceof MissingFile) return body.append(missingPanel(data));
   if (data.error) return body.append(el('div', { class: 'missing error' }, el('h3', { text: data.error })));
 
   const group = data.group || {};
   const decision = data.decision;
   body.append(el('h2', { text: `Group #${group.groupIndex}` }));
+  body.append(el('div', { class: 'toolbar' }, [
+    el('a', {
+      class: 'chip',
+      href: `#/merge/groups/${encodeURIComponent(id)}/fields`,
+      text: 'Before and after, field by field →',
+    }),
+  ]));
 
   body.append(el('h3', { text: 'Members' }));
   for (const m of group.members || []) {
@@ -207,7 +233,7 @@ function modLine(m) {
 const removalsState = {};
 
 async function removalsList(body, kind) {
-  const st = (removalsState[kind] ||= { q: '', page: 0, pageSize: 50 });
+  const st = (removalsState[kind] ||= { q: '', page: 0, pageSize: pageSizePreference() });
   const toolbar = el('div', { class: 'toolbar' });
   const search = el('input', { type: 'search', placeholder: 'Search name or author…', value: st.q });
   let d;
@@ -222,7 +248,8 @@ async function removalsList(body, kind) {
 
   async function load() {
     clear(results).append(el('div', { class: 'loading', text: 'Loading…' }));
-    const data = await api('merge/removals', { kind, q: st.q, page: st.page, pageSize: st.pageSize });
+    const data = await api('merge/removals',
+      withRun({ kind, q: st.q, page: st.page, pageSize: st.pageSize }));
     clear(results);
     if (data instanceof MissingFile) return results.append(missingPanel(data));
 
@@ -257,7 +284,9 @@ async function removalsList(body, kind) {
     wrap.append(table);
     results.append(wrap);
     if (!data.items.length) results.append(el('p', { class: 'loading', text: 'No entries.' }));
-    results.append(pager(data.page, data.pageSize, data.total, (p) => { st.page = p; load(); }));
+    results.append(pager(data.page, data.pageSize, data.total,
+      (p) => { st.page = p; load(); },
+      (size) => { st.pageSize = size; st.page = 0; load(); }));
   }
   load();
 }

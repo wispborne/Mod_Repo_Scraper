@@ -68,11 +68,15 @@ class Common {
             properties['modrepo_keep_all_game_versions']?.toLowerCase() == 'true',
         generateMergeDebug:
             properties['modrepo_merge_debug']?.toLowerCase() == 'true',
+        modRepoMergesToKeep:
+            int.tryParse(properties['modrepo_merges_to_keep'] ?? '') ?? 20,
         // QB pipeline.
         enableQb: properties['qb_enabled']?.toLowerCase() == 'true',
         qbUseCached: properties['qb_use_cached']?.toLowerCase() == 'true',
         qbDataPath: _trimOrDefault(properties['qb_data_path'], 'qb_data')!,
         qbRunsToKeep: int.tryParse(properties['qb_runs_to_keep'] ?? '') ?? 100,
+        qbBundlesToKeep:
+            int.tryParse(properties['qb_bundles_to_keep'] ?? '') ?? 20,
         qbManagerUrl: _trimOrNull(properties['qb_manager_url']),
         qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
         qbBoards: _parseQbBoards(properties['qb_boards']),
@@ -140,11 +144,13 @@ class Common {
     'modrepo_discord_forum_channels',
     'modrepo_keep_all_game_versions',
     'modrepo_merge_debug',
+    'modrepo_merges_to_keep',
     // QB pipeline.
     'qb_enabled',
     'qb_use_cached',
     'qb_data_path',
     'qb_runs_to_keep',
+    'qb_bundles_to_keep',
     'qb_manager_url',
     'qb_scope',
     'qb_boards',
@@ -329,6 +335,11 @@ class BotConfig with BotConfigMappable {
   final bool enableModRepo;
   final bool keepAllGameVersionsFromSameSource;
   final bool generateMergeDebug;
+
+  /// How many merge snapshots to keep. Each merge saves one, so the Merge
+  /// Explorer can show an older merge next to the newest. 0 keeps them all.
+  final int modRepoMergesToKeep;
+
   final bool enableQb;
   final bool qbUseCached;
   final String qbDataPath;
@@ -337,6 +348,10 @@ class BotConfig with BotConfigMappable {
   /// are more, along with their log files, which are the bulk of the folder.
   /// 0 or less keeps every run forever.
   final int qbRunsToKeep;
+
+  /// How many published bundles to keep a snapshot of, so two runs can be
+  /// compared. Each is about a megabyte. 0 or less keeps every one.
+  final int qbBundlesToKeep;
 
   /// Where a manager server is listening, e.g. `http://127.0.0.1:8085`. When
   /// set, the QB job is handed to that server so a browser and the command line
@@ -460,10 +475,12 @@ class BotConfig with BotConfigMappable {
     this.enableModRepo = true,
     this.keepAllGameVersionsFromSameSource = false,
     this.generateMergeDebug = false,
+    this.modRepoMergesToKeep = 20,
     this.enableQb = false,
     this.qbUseCached = false,
     this.qbDataPath = 'qb_data',
     this.qbRunsToKeep = 100,
+    this.qbBundlesToKeep = 20,
     this.qbManagerUrl,
     this.qbScope = 'newData',
     this.qbBoards = const {'main', 'libraries'},

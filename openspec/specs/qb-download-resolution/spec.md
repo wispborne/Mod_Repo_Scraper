@@ -1,5 +1,9 @@
-## ADDED Requirements
+# qb-download-resolution
 
+## Purpose
+
+Turn the links in a mod's forum post into real download addresses — following the rules each host needs, tidying and de-duplicating them, and remembering the answers so the same link isn't chased twice.
+## Requirements
 ### Requirement: Download URL classification and resolution
 The system SHALL classify and resolve direct download URLs from links found in forum topic first posts, with host-specific resolution logic.
 

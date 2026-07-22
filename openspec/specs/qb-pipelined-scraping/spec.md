@@ -1,3 +1,9 @@
+# qb-pipelined-scraping
+
+## Purpose
+
+Work on each forum topic as soon as it is fetched, rather than in separate passes over everything, and keep the polite forum delay from slowing down calls to other sites.
+## Requirements
 ### Requirement: Separate HTTP clients for forum and external hosts
 The system SHALL use a throttled HTTP client exclusively for forum requests and an unthrottled HTTP client for all non-forum requests (GitHub API, Google Drive, MediaFire, Dropbox, OneDrive, Bitbucket, URL shorteners).
 

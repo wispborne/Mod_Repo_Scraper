@@ -104,6 +104,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: false,
   );
+  static int _$modRepoMergesToKeep(BotConfig v) => v.modRepoMergesToKeep;
+  static const Field<BotConfig, int> _f$modRepoMergesToKeep = Field(
+    'modRepoMergesToKeep',
+    _$modRepoMergesToKeep,
+    opt: true,
+    def: 20,
+  );
   static bool _$enableQb(BotConfig v) => v.enableQb;
   static const Field<BotConfig, bool> _f$enableQb = Field(
     'enableQb',
@@ -338,6 +345,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #enableModRepo: _f$enableModRepo,
     #keepAllGameVersionsFromSameSource: _f$keepAllGameVersionsFromSameSource,
     #generateMergeDebug: _f$generateMergeDebug,
+    #modRepoMergesToKeep: _f$modRepoMergesToKeep,
     #enableQb: _f$enableQb,
     #qbUseCached: _f$qbUseCached,
     #qbDataPath: _f$qbDataPath,
@@ -391,6 +399,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
         _f$keepAllGameVersionsFromSameSource,
       ),
       generateMergeDebug: data.dec(_f$generateMergeDebug),
+      modRepoMergesToKeep: data.dec(_f$modRepoMergesToKeep),
       enableQb: data.dec(_f$enableQb),
       qbUseCached: data.dec(_f$qbUseCached),
       qbDataPath: data.dec(_f$qbDataPath),
@@ -501,6 +510,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     bool? enableModRepo,
     bool? keepAllGameVersionsFromSameSource,
     bool? generateMergeDebug,
+    int? modRepoMergesToKeep,
     bool? enableQb,
     bool? qbUseCached,
     String? qbDataPath,
@@ -570,6 +580,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     bool? enableModRepo,
     bool? keepAllGameVersionsFromSameSource,
     bool? generateMergeDebug,
+    int? modRepoMergesToKeep,
     bool? enableQb,
     bool? qbUseCached,
     String? qbDataPath,
@@ -620,6 +631,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (keepAllGameVersionsFromSameSource != null)
         #keepAllGameVersionsFromSameSource: keepAllGameVersionsFromSameSource,
       if (generateMergeDebug != null) #generateMergeDebug: generateMergeDebug,
+      if (modRepoMergesToKeep != null)
+        #modRepoMergesToKeep: modRepoMergesToKeep,
       if (enableQb != null) #enableQb: enableQb,
       if (qbUseCached != null) #qbUseCached: qbUseCached,
       if (qbDataPath != null) #qbDataPath: qbDataPath,
@@ -685,6 +698,10 @@ class _BotConfigCopyWithImpl<$R, $Out>
     generateMergeDebug: data.get(
       #generateMergeDebug,
       or: $value.generateMergeDebug,
+    ),
+    modRepoMergesToKeep: data.get(
+      #modRepoMergesToKeep,
+      or: $value.modRepoMergesToKeep,
     ),
     enableQb: data.get(#enableQb, or: $value.enableQb),
     qbUseCached: data.get(#qbUseCached, or: $value.qbUseCached),

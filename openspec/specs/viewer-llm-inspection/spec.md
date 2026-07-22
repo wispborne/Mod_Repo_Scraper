@@ -1,5 +1,8 @@
 # viewer-llm-inspection
 
+## Purpose
+
+Let somebody check what the LLM made of each forum thread — what it pulled out, what it was sent, and what a test run produced — so its answers can be read and trusted rather than taken on faith.
 ## Requirements
 
 ### Requirement: Filterable topic index

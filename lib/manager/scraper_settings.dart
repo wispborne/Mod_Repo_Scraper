@@ -111,6 +111,10 @@ class ScraperGuardrails {
   /// Cap on how much of a post's text is sent to the model. Null sends it all.
   final int? llmMaxInputChars;
 
+  /// How many bundle snapshots to keep, so runs can be compared. 0 keeps
+  /// everything.
+  final int bundlesToKeep;
+
   const ScraperGuardrails({
     this.delayMs = 1500,
     this.llmMaxTopics,
@@ -118,6 +122,7 @@ class ScraperGuardrails {
     this.llmTimeoutSeconds = 120,
     this.llmMaxTokens,
     this.llmMaxInputChars,
+    this.bundlesToKeep = 20,
   });
 
   factory ScraperGuardrails.fromConfig(BotConfig config) => ScraperGuardrails(
@@ -127,5 +132,105 @@ class ScraperGuardrails {
         llmTimeoutSeconds: config.llmTimeoutSeconds,
         llmMaxTokens: config.llmMaxTokens,
         llmMaxInputChars: config.llmMaxInputChars,
+        bundlesToKeep: config.qbBundlesToKeep,
+      );
+}
+
+/// Where the ModRepo pipeline keeps its files and what it needs to reach the
+/// mod sources.
+///
+/// The same split as the QB half: this is the part of the config file a job can
+/// never argue with. No job request can name a token, a folder, or an output
+/// path.
+class ModRepoEnvironment {
+  /// The folder holding the per-source cache files (`forum_cache.json` and
+  /// friends) and `merge-debug.json`.
+  final String workingPath;
+
+  /// Where `ModRepo.json` is written.
+  final String outputPath;
+
+  /// Where merge snapshots are kept — one per merge run.
+  final String snapshotPath;
+
+  /// Null when no Discord token is set up, which means no job can scrape
+  /// Discord no matter what it asks for.
+  final String? discordAuthToken;
+  final String? discordServerId;
+
+  /// Channel id to game version, as the Discord reader wants it.
+  final Map<String, String>? discordForumChannels;
+
+  /// Null when no Nexus token is set up.
+  final String? nexusApiToken;
+
+  const ModRepoEnvironment({
+    this.workingPath = '.',
+    this.outputPath = 'outputs',
+    required this.snapshotPath,
+    this.discordAuthToken,
+    this.discordServerId,
+    this.discordForumChannels,
+    this.nexusApiToken,
+  });
+
+  /// True when Discord can actually be reached — a token, a server, and at
+  /// least one channel. A job asking for a source we can't reach is skipped,
+  /// not failed.
+  bool get hasDiscord =>
+      (discordAuthToken?.trim().isNotEmpty ?? false) &&
+      (discordServerId?.trim().isNotEmpty ?? false) &&
+      (discordForumChannels?.isNotEmpty ?? false);
+
+  bool get hasNexus => (nexusApiToken?.trim().isNotEmpty ?? false);
+
+  /// Reads only environment keys. The on/off switches for each source are job
+  /// shape and are read where the request is built, not here.
+  factory ModRepoEnvironment.fromConfig(
+    BotConfig config, {
+    String workingPath = '.',
+    String outputPath = 'outputs',
+  }) =>
+      ModRepoEnvironment(
+        workingPath: workingPath,
+        outputPath: outputPath,
+        snapshotPath: config.qbDataPath,
+        discordAuthToken: config.discordAuthToken,
+        discordServerId: config.discordServerId,
+        discordForumChannels: config.discordForumChannelIdsAndGameVersions,
+        nexusApiToken: config.nexusApiToken,
+      );
+
+  /// The Discord and Nexus readers still want a whole [BotConfig]. This hands
+  /// them one holding nothing but the credentials they read, so the rest of the
+  /// config file never reaches them.
+  BotConfig toReaderConfig() => BotConfig(
+        lessScraping: false,
+        enableForums: false,
+        enableDiscord: hasDiscord,
+        enableNexus: hasNexus,
+        logLevel: 'INFO',
+        discordAuthToken: discordAuthToken,
+        discordServerId: discordServerId,
+        discordForumChannelIdsAndGameVersions: discordForumChannels,
+        nexusApiToken: nexusApiToken,
+      );
+}
+
+/// The limits every merge job runs under, whoever asked for it.
+class ModRepoGuardrails {
+  /// How long one source gets to answer before it is given up on.
+  final Duration sourceTimeout;
+
+  /// How many merge snapshots to keep. 0 keeps everything.
+  final int mergesToKeep;
+
+  const ModRepoGuardrails({
+    this.sourceTimeout = const Duration(minutes: 2),
+    this.mergesToKeep = 20,
+  });
+
+  factory ModRepoGuardrails.fromConfig(BotConfig config) => ModRepoGuardrails(
+        mergesToKeep: config.modRepoMergesToKeep,
       );
 }

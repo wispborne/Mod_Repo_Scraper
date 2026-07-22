@@ -1,3 +1,9 @@
+# qb-llm-post-extraction
+
+## Purpose
+
+Use the language model to pull facts out of a mod's forum post that the plain rules miss — extra downloads, changelog, version, support links and licence — while only saying what the post itself says.
+## Requirements
 ### Requirement: Every stored post is covered by the LLM
 
 When the feature is enabled, the system SHALL ensure that every topic held in the mods index either already has fresh LLM output or is sent to the LLM during the run — regardless of whether that topic was scraped in this run. Coverage SHALL be decided by the extraction store's freshness check (the post content, the prompt version, and the requested field set), not by whether the scraper happened to fetch the topic. A topic whose stored output is already fresh SHALL be served from the store without a live call. The post content sent SHALL include spoiler-box contents (which the regex link extractor drops).

@@ -160,14 +160,19 @@ class ManagerApi {
     final all = manager.history.records;
     final page = _page(req);
     final pageSize = _pageSize(req);
-    final start = page * pageSize;
-    final slice = start >= all.length
-        ? const <RunRecord>[]
-        : all.sublist(start, (start + pageSize).clamp(0, all.length));
+    final start = pageSize == 0 ? 0 : page * pageSize;
+    final List<RunRecord> slice;
+    if (pageSize == 0) {
+      slice = all;
+    } else if (start >= all.length) {
+      slice = const [];
+    } else {
+      slice = all.sublist(start, (start + pageSize).clamp(0, all.length));
+    }
     return _json({
       'items': [for (final r in slice) r.toMap()],
       'total': all.length,
-      'page': page,
+      'page': pageSize == 0 ? 0 : page,
       'pageSize': pageSize,
     });
   }
@@ -226,10 +231,15 @@ class ManagerApi {
     return v < 0 ? 0 : v;
   }
 
+  /// How many runs one page holds. `pageSize=0` means "all of them on one
+  /// page", which somebody has to ask for on purpose.
   int _pageSize(Request req) {
-    final v = int.tryParse(req.url.queryParameters['pageSize'] ?? '') ??
-        _defaultPageSize;
-    if (v < 1) return _defaultPageSize;
+    final asked = req.url.queryParameters['pageSize'];
+    if (asked == null || asked.trim().isEmpty) return _defaultPageSize;
+    final v = int.tryParse(asked.trim());
+    if (v == null) return _defaultPageSize;
+    if (v == 0) return 0;
+    if (v < 0) return _defaultPageSize;
     return v > _maxPageSize ? _maxPageSize : v;
   }
 }

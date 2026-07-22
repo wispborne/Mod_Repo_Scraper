@@ -10,81 +10,25 @@
  * The full license is available from <https://www.gnu.org/licenses/gpl-3.0.txt>.
  */
 
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
-import 'package:logging/logging.dart';
 import 'package:mod_repo_scraper/bot/common.dart';
 import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:mod_repo_scraper/manager/data_lock.dart';
 import 'package:mod_repo_scraper/manager/delegation_client.dart';
 import 'package:mod_repo_scraper/manager/job.dart';
 import 'package:mod_repo_scraper/manager/job_manager.dart';
+import 'package:mod_repo_scraper/manager/modrepo_service.dart';
 import 'package:mod_repo_scraper/manager/run_history_store.dart';
 import 'package:mod_repo_scraper/manager/run_reporter.dart';
 import 'package:mod_repo_scraper/manager/scraper_service.dart';
 import 'package:mod_repo_scraper/manager/scraper_settings.dart';
-import 'package:mod_repo_scraper/utilities/caching_http_client.dart';
-import 'package:mod_repo_scraper/utilities/jsanity.dart';
 
-import 'debug/merge_debug_collector.dart';
-import 'debug/merge_debug_data.dart';
-import 'discord_reader.dart';
-import 'forum_scraper.dart';
-import 'mod_merger.dart';
-import 'mod_repo_cache.dart';
-import 'nexus_reader.dart';
 import 'qb/models/scrape_job.dart';
-import 'scraped_mod.dart';
 
 class MainRepoScraper {
   static const String forumBaseUrl = "https://fractalsoftworks.com/forum/index.php";
   static const bool verboseOutput = true;
-
-  static Future<List<ScrapedMod>> _loadOrRun({
-    required String name,
-    required bool enabled,
-    required bool useCached,
-    required Jsanity jsanity,
-    required Future<List<ScrapedMod>?> Function() run,
-  }) async {
-    final stepStartTime = DateTime.now();
-    final cacheFile = File("${name.toLowerCase()}_cache.json");
-
-    if (useCached && await cacheFile.exists()) {
-      timber.i(message: () => "Loading $name from cache...");
-      try {
-        final json = await cacheFile.readAsString();
-        final results = jsanity.fromJson<ScrapedMods>(json, cacheFile.path, ScrapedModsMapper.fromMap).items;
-        timber.i(
-            message: () =>
-                "$name loaded from cache (${results.length} mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
-        return results;
-      } catch (e) {
-        timber.e(message: () => "Error loading $name cache: $e");
-      }
-    }
-
-    if (!enabled) return [];
-
-    try {
-      final results = await run() ?? [];
-      timber.i(
-          message: () =>
-              "$name scraping finished (${results.length} mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
-      if (results.isNotEmpty) {
-        timber.i(message: () => "Saving ${results.length} $name results to cache...");
-        final scrapedMods = ScrapedMods(items: results);
-        await cacheFile.writeAsString(scrapedMods.toJson());
-      }
-      return results;
-    } catch (e) {
-      timber.e(message: () => "Error running $name: $e");
-      return [];
-    }
-  }
-
 
   static Future<void> main(List<String> args) async {
     final config = Common.readConfig();
@@ -99,111 +43,7 @@ class MainRepoScraper {
 
     // --- ModRepo Pipeline (Forum/Discord/Nexus → merge → ModRepo.json) ---
     if (config.enableModRepo) {
-      final jsanity = Jsanity();
-      final modRepoCache = ModRepoCache();
-
-      // Run scraping tasks in parallel
-      final forumJob = _loadOrRun(
-          name: "Forum",
-          enabled: config.enableForums,
-          useCached: config.useCached,
-          jsanity: jsanity,
-          run: () => ForumScraper.run(
-                moddingForumPagesToScrape: config.lessScraping ? 3 : 15,
-                modForumPagesToScrape: config.lessScraping ? 3 : 12,
-              ).timeout(const Duration(seconds: 60 * 2)));
-
-      // Discord uses a caching HTTP client to cache raw API responses,
-      // allowing re-runs of the processing pipeline without hitting Discord.
-      final discordCacheFile = File('discord_raw_cache.json');
-      final discordJob = () async {
-        if (!config.enableDiscord) return <ScrapedMod>[];
-
-        final stepStartTime = DateTime.now();
-        final http.Client httpClient;
-
-        if (config.useCached && await discordCacheFile.exists()) {
-          timber.i(message: () => "Loading Discord raw HTTP cache...");
-          httpClient = await CachingClient.fromFile(discordCacheFile.path);
-        } else if (config.useCached) {
-          // Records each response to the cache file as it arrives, so a run that
-          // is interrupted keeps what it already fetched.
-          httpClient = CachingClient(http.Client(), recordPath: discordCacheFile.path);
-        } else {
-          // If useCached is false, don't generate a cache file.
-          // We don't want to be doing this on production.
-          httpClient = http.Client();
-        }
-
-        try {
-          final results = await DiscordReader.readAllMessages(config, httpClient: httpClient) ?? [];
-          timber.i(
-              message: () =>
-                  "Discord scraping finished (${results.length} mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
-
-          return results;
-        } catch (e) {
-          timber.e(message: () => "Error running Discord: $e");
-          return <ScrapedMod>[];
-        } finally {
-          // The responses were written as they arrived; this just finishes off
-          // the file. Runs on the error path too, so a failed run still keeps
-          // the responses it got.
-          if (httpClient is CachingClient && !httpClient.isReplaying) {
-            timber.i(message: () => "Saving Discord raw HTTP cache...");
-            await httpClient.saveToFile(discordCacheFile.path);
-          }
-        }
-      }();
-
-      final nexusModsJob = _loadOrRun(
-        name: "Nexus",
-        enabled: config.enableNexus,
-        useCached: config.useCached,
-        jsanity: jsanity,
-        run: () => NexusReader.readAllMessages(config).timeout(const Duration(seconds: 60 * 2)),
-      );
-
-      final forumMods = await forumJob;
-      timber.i(message: () => "Forum scraping completed in ${DateTime.now().difference(startTime).inMilliseconds}ms.");
-      final discordMods = await discordJob;
-      timber.i(
-          message: () => "Discord scraping completed in ${DateTime.now().difference(startTime).inMilliseconds}ms.");
-      final nexusMods = await nexusModsJob;
-      timber.i(message: () => "Nexus scraping completed in ${DateTime.now().difference(startTime).inMilliseconds}ms.");
-      timber.i(message: () => "All scraping completed in ${DateTime.now().difference(startTime).inMilliseconds}ms.");
-
-      timber.i(
-          message: () =>
-              "Found ${forumMods.length} forum mods, ${discordMods.length} Discord mods, and ${nexusMods.length} Nexus mods.");
-      timber.i(message: () => "Starting merge...");
-
-      final debugCollector = config.generateMergeDebug ? MergeDebugCollector() : null;
-
-      final mergeStartTime = DateTime.now();
-      final mergedMods = await ModMerger().merge(
-        [...forumMods, ...discordMods, ...nexusMods],
-        keepAllGameVersionsFromSameSource: config.keepAllGameVersionsFromSameSource,
-        debugCollector: debugCollector,
-      );
-      timber.i(message: () => "Merge completed in ${DateTime.now().difference(mergeStartTime).inMilliseconds}ms.");
-
-      if (debugCollector != null) {
-        timber.i(message: () => "Writing merge debug data...");
-        MergeDebugDataMapper.ensureInitialized();
-        final debugJson = const JsonEncoder.withIndent('  ')
-            .convert(debugCollector.data.toMap());
-        await File('merge-debug.json').writeAsString(debugJson);
-        timber.i(message: () => "Merge debug data written to merge-debug.json.");
-      }
-
-      timber.i(message: () => "Saving ${mergedMods.length} mods to ${ModRepoCache.location.absolute.path}...");
-      final saveStartTime = DateTime.now();
-      modRepoCache.items = mergedMods;
-      modRepoCache.totalCount = mergedMods.length;
-      modRepoCache.lastUpdated = DateTime.now().toIso8601String();
-      modRepoCache.save();
-      timber.i(message: () => "Save completed in ${DateTime.now().difference(saveStartTime).inMilliseconds}ms.");
+      await _runMergeThroughManager(config);
     } else {
       timber.i(message: () => "ModRepo pipeline disabled, skipping.");
     }
@@ -221,6 +61,103 @@ class MainRepoScraper {
     timber.i(message: () => "Wrote log to ${logFile.absolute.path}.");
     logOut.close();
   }
+
+  /// The merge job the config file is asking for.
+  ///
+  /// `modrepo_use_cached` decides which of the two merge kinds it is: on means
+  /// merge what is already saved and touch nothing on the network, off means
+  /// fetch the sources that are switched on and then merge.
+  static JobRequest _buildMergeRequest(BotConfig config) {
+    if (config.useCached) {
+      timber.i(
+          message: () =>
+              "ModRepo: merging what is already saved (modrepo_use_cached is "
+              "on, so nothing will be fetched).");
+      return JobRequest.mergeModRepo(
+        keepAllGameVersions: config.keepAllGameVersionsFromSameSource,
+        collectMergeDebug: config.generateMergeDebug,
+      );
+    }
+
+    final sources = <ModSourceKind>{
+      if (config.enableForums) ModSourceKind.forum,
+      if (config.enableDiscord) ModSourceKind.discord,
+      if (config.enableNexus) ModSourceKind.nexus,
+    };
+
+    return JobRequest.scrapeAndMerge(
+      sources: sources,
+      modForumPages: config.lessScraping ? 3 : null,
+      moddingForumPages: config.lessScraping ? 3 : null,
+      keepAllGameVersions: config.keepAllGameVersionsFromSameSource,
+      collectMergeDebug: config.generateMergeDebug,
+      replayAllowed: config.useCached,
+    );
+  }
+
+  /// Runs the merge, on the manager when one is set up and here otherwise —
+  /// the same terms the QB job runs on, so a merge started here and one started
+  /// from a browser share a queue, a history and a lock.
+  static Future<void> _runMergeThroughManager(BotConfig config) async {
+    _bridgeLoggingToTimber();
+
+    final request = _buildMergeRequest(config);
+    final startTime = DateTime.now();
+
+    final managerUrl = config.qbManagerUrl;
+    if (managerUrl != null && managerUrl.trim().isNotEmpty) {
+      final reporter = ConsoleRunReporter();
+      final delegate = ManagerDelegate(
+        managerUrl: managerUrl.trim(),
+        dataPath: config.qbDataPath,
+        reporter: reporter,
+      );
+      try {
+        timber.i(
+            message: () => "Starting the merge on the manager at "
+                "$managerUrl...");
+        final record = await delegate.run(
+          request,
+          interrupts: ProcessSignal.sigint.watch(),
+        );
+        if (record != null) {
+          timber.i(
+              message: () => "Merge completed in "
+                  "${DateTime.now().difference(startTime).inSeconds}s "
+                  "(run ${record.id}, on the manager).");
+          if (record.state == RunState.failed) exitCode = 1;
+          return;
+        }
+      } finally {
+        reporter.finish();
+        delegate.close();
+      }
+      // The delegate handed the job back, having said why. Run it here.
+    }
+
+    final manager = JobManager(
+      service: ModRepoService(
+        environment: ModRepoEnvironment.fromConfig(config),
+        guardrails: ModRepoGuardrails.fromConfig(config),
+      ),
+      history: RunHistoryStore(config.qbDataPath,
+          runsToKeep: config.qbRunsToKeep),
+      lock: DataLock(dataPath: config.qbDataPath, label: 'cli'),
+      makeReporter: (_) => ConsoleRunReporter(),
+    );
+    await manager.load();
+
+    final record = await manager.submit(request);
+    if (record.errorMessage != null) {
+      timber.e(message: () => "Merge failed: ${record.errorMessage}");
+      exitCode = 1;
+    }
+    timber.i(
+        message: () => "Merge completed in "
+            "${DateTime.now().difference(startTime).inSeconds}s "
+            "(run ${record.id}).");
+  }
+
 
   /// Turns the config file's job-shape keys into one job request and hands it to
   /// the manager. This is the only place those keys are read: the manager core

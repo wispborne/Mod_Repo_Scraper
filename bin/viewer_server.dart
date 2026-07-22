@@ -5,6 +5,7 @@ import 'package:mod_repo_scraper/bot/common.dart';
 import 'package:mod_repo_scraper/manager/data_lock.dart';
 import 'package:mod_repo_scraper/manager/job_manager.dart';
 import 'package:mod_repo_scraper/manager/manager_api.dart';
+import 'package:mod_repo_scraper/manager/modrepo_service.dart';
 import 'package:mod_repo_scraper/manager/run_history_store.dart';
 import 'package:mod_repo_scraper/manager/run_reporter.dart';
 import 'package:mod_repo_scraper/manager/scraper_service.dart';
@@ -83,6 +84,8 @@ Future<void> main(List<String> args) async {
     configPath: opts['config'] as String,
     wanted: !(opts['no-manager'] as bool),
     viewerDataDir: data.dataDir,
+    viewerRootDir: data.rootDir,
+    viewerOutputsDir: data.outputsDir,
   );
 
   final handler = const Pipeline().addMiddleware(logRequests()).addHandler(
@@ -119,6 +122,8 @@ Future<_ManagerSetup> _buildManager({
   required String configPath,
   required bool wanted,
   required String viewerDataDir,
+  required String viewerRootDir,
+  required String viewerOutputsDir,
 }) async {
   if (!wanted) {
     const reason = 'The manager is off: the server was started with '
@@ -161,7 +166,21 @@ Future<_ManagerSetup> _buildManager({
   await service.load();
 
   final jobManager = JobManager(
-    service: service,
+    // One queue, two pipelines: QB jobs go to the scraper service, merge jobs
+    // to the ModRepo one.
+    service: JobRouter(
+      qb: service,
+      modRepo: ModRepoService(
+        // A merge started here writes where this server reads, so the pages
+        // show what the job just did.
+        environment: ModRepoEnvironment.fromConfig(
+          config,
+          workingPath: viewerRootDir,
+          outputPath: viewerOutputsDir,
+        ),
+        guardrails: ModRepoGuardrails.fromConfig(config),
+      ),
+    ),
     history: RunHistoryStore(config.qbDataPath,
         runsToKeep: config.qbRunsToKeep),
     lock: DataLock(dataPath: config.qbDataPath, label: 'server'),

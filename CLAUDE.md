@@ -42,19 +42,21 @@ Everything is driven by `config.properties` (read by `Common.readConfig()`; fiel
 - `qb_enabled`, `qb_scope` (`new_data` / `all` / `pages` / `topics` / `libraries_only`; camelCase spellings like `newData` also work), `qb_boards` (`main`/`lesser`/`libraries`) — the QB pipeline.
 - `modrepo_use_cached` / `qb_use_cached` — replay from the on-disk raw-HTTP caches instead of hitting the network (see Caching below).
 - `llm_enabled` and the `llm_*` keys — optional LLM post-extraction (off in production by default).
-- `modrepo_merge_debug` — write `merge-debug.json` for the viewer's Merge view.
+- `modrepo_merge_debug` — write `merge-debug.json` for the viewer's Merge view, and save that merge's own snapshot. This decides it for CLI runs only; a merge started from the website always collects it.
+- `modrepo_merges_to_keep` — how many merge snapshots to keep (default 20); older ones are dropped. 0 keeps everything.
 - `qb_manager_url` — environment. Empty (the default) means the CLI runs the QB job itself, exactly as before. Set (e.g. `http://127.0.0.1:8085`) means it hands the job to that server. Unreachable / manager off / different data folder → warn in plain words and run standalone. Production never sets it.
 - `qb_runs_to_keep` — environment. How many runs the history keeps (default 100); older ones are dropped with their log files. 0 keeps everything.
+- `qb_bundles_to_keep` — environment. How many published bundles to keep a snapshot of, for the what-changed page (default 20). About a megabyte each. 0 keeps everything.
 
 ## Architecture
 
-Orchestration lives in `lib/bot/scraper/main_repo_scraper.dart` (`MainRepoScraper.main`), which runs the two pipelines in sequence. The ModRepo pipeline is still inline there; the QB pipeline goes through the manager core in `lib/manager/`.
+Orchestration lives in `lib/bot/scraper/main_repo_scraper.dart` (`MainRepoScraper.main`), which asks for the two pipelines in sequence. Neither is inline any more: both are jobs, submitted to the manager core in `lib/manager/` — one queue, one history, one lock, whether the job was asked for from the command line or from a browser.
 
 ### Manager core (`lib/manager/`)
 
 The QB pipeline is callable, not just runnable. `main()` turns the config file's job-shape keys into one `JobRequest` and hands it to a `JobManager`; everything else lives in the core. The web API and the browser UI sit over that same core.
 
-- `job.dart` — `JobKind` (`fullRun`, `rescrapeTopics`, `resolveDownloads`, `extractLlm`, `llmCoveragePass`, `llmTest`, `rebuildBundle`), `JobRequest` (what to do), `RunRecord` / `RunCounters` / `RunState` (what happened). `dart_mappable`, so `job.mapper.dart` is generated.
+- `job.dart` — `JobKind` (`fullRun`, `rescrapeTopics`, `resolveDownloads`, `extractLlm`, `llmCoveragePass`, `llmTest`, `rebuildBundle`, `mergeModRepo`, `scrapeAndMerge`), `JobRequest` (what to do), `RunRecord` / `RunCounters` / `RunState` (what happened). `dart_mappable`, so `job.mapper.dart` is generated. `runJob` also takes the `runId`, so anything a job saves next to the run's record and log can be filed under the same name — that is how a merge snapshot gets its name.
 - `scraper_settings.dart` — the config split made real. **Environment** (`qb_data_path`, LLM endpoint/model/keys) and **guardrails** (`llm_max_topics`, `qb_delay_ms`, `llm_timeout_seconds`) go into the service's constructor; **job shape** (`qb_scope`, `qb_boards`, page limits, `qb_use_cached`, `llm_enabled`, `llm_reprocess_only`, `llm_test_mode`) is read only by the CLI, to build its request. The service must never read a job-shape key.
 - `scraper_service.dart` — one method per job kind, composing the existing QB pieces. Builds the store, resolver, probe cache and LLM store once; builds the forum HTTP client per job. `fullRun` honours the request's `replayAllowed`; **per-topic kinds always fetch live**, even when `qb_use_cached=true`. Each per-topic kind drops exactly one cache layer's entries for the chosen topics (`QbDownloadResolver.dropTopics`, `DownloadableProbeCache.dropUrls`, `LlmExtractionStore.dropTopics`) and nothing else.
 - `job_manager.dart` — a queue, one job at a time, wired to the service, the history store and a reporter. `cancelCurrent()` sets a flag the service checks between topics.
@@ -70,8 +72,13 @@ The QB pipeline is callable, not just runnable. `main()` turns the config file's
 
 ### ModRepo pipeline (Forum / Discord / Nexus → merge → ModRepo.json)
 
-- Scrapers: `forum_scraper.dart`, `discord_reader.dart`, `nexus_reader.dart`. Forum and Nexus run through `_loadOrRun` (per-source `<name>_cache.json`); Discord uses a raw-HTTP `CachingClient` (`discord_raw_cache.json`).
-- Merge: `mod_merger.dart` — buckets by forum `topic=<id>`, then a trigram index narrows candidates, then subsequence fuzzy match (`fuzzy/fuzzy.dart`) + author aliases (`mod_repo_utils.dart`), then same-source dedup / merge / validate. Optional `MergeDebugCollector` records why each group formed, written to `merge-debug.json`.
+Driven by `lib/manager/modrepo_service.dart` (`ModRepoService`), a second `JobRunner` beside `ScraperService`. `JobRouter` (same file) sends each request to whichever of the two owns that kind, and `JobManager` is given the router — so the two pipelines share a queue, a history and a lock while sharing no code, no files and no secrets. Its settings split the same way as the QB half (`ModRepoEnvironment` / `ModRepoGuardrails` in `scraper_settings.dart`): tokens, folders and the snapshot limit are environment; which sources to fetch, page counts and `collectMergeDebug` ride on the request.
+
+Two kinds: `mergeModRepo` merges what is already saved (no network at all — Discord comes back by replaying `discord_raw_cache.json`), and `scrapeAndMerge` fetches the chosen sources first. `modrepo_use_cached` decides which one the CLI asks for. A source with no token is skipped with a line in the log, not failed. A merge cancelled part-way writes **nothing** — no `ModRepo.json`, no snapshot — because half a merged repo is worse than yesterday's whole one; source caches already written are kept.
+
+- Scrapers: `forum_scraper.dart`, `discord_reader.dart`, `nexus_reader.dart`. Forum and Nexus save a per-source `<name>_cache.json`; Discord uses a raw-HTTP `CachingClient` (`discord_raw_cache.json`).
+- Merge: `mod_merger.dart` — buckets by forum `topic=<id>`, then a trigram index narrows candidates, then subsequence fuzzy match (`fuzzy/fuzzy.dart`) + author aliases (`mod_repo_utils.dart`), then same-source dedup / merge / validate. Optional `MergeDebugCollector` records why each group formed, written to `merge-debug.json` **and** to that run's snapshot.
+- Snapshots: `lib/manager/merge_snapshot_store.dart` — one gzipped file per merge run at `<qb_data_path>/merges/<run id>.json.gz`, plus a small `merge-counts.json` holding each one's headline numbers for the list. Gzipped because a real run's data is around 12 MB written out plainly and about a megabyte squashed. The newest N are kept (`modrepo_merges_to_keep`); the trim follows `RunHistoryStore`'s rules to the letter — only `.json.gz` files sitting directly in `merges/`, never the one just written. `merges/` is paperwork, like `runs/`: no scraped data and no output ever lives there.
 - Model: `scraped_mod.dart` (`ScrapedMod`, `ModSource`, `ModUrlType`, `Image`).
 
 ### QB pipeline (`lib/bot/scraper/qb/`)
@@ -83,6 +90,9 @@ Adapted from a separate C# project (theRoastSuckling's QBMBAMM); its scraper was
 3. `download_resolver.dart` turns links into download candidates using host-specific rules (Google Drive, Dropbox, MediaFire, GitHub, forum attachments…); cached in `assumed-downloads-cache.json`.
 4. Results are persisted incrementally by `json_data_store.dart` into `qb_data_path` as `mods-index.json` plus `mods/<id>/detail.json`.
 5. `bundle_publisher.dart` assembles `forum-data-bundle.json` from the store + resolver + LLM store.
+6. `ScraperService._rebuildBundle()` publishes it and saves a snapshot of it — see below. Every kind except `llmTest` ends here, so every run that changes what TriOS receives leaves something to compare.
+
+**Bundle snapshots** (`lib/manager/bundle_snapshot_store.dart`): one gzipped file per publishing run at `<qb_data_path>/bundles/<run id>.json.gz`, plus `bundle-counts.json` for the list's headline numbers. **A snapshot is not a bundle** — the posts' `contentHtml` is dropped and a short `contentFingerprint` kept in its place, which takes it from 4.3 MB to 1.15 MB and is what makes keeping twenty affordable. So a changed post is reported as changed and no further; the old words are gone. Nothing may publish or serve one as a bundle. The newest N are kept (`qb_bundles_to_keep`, default 20) under the same trim rules as `merges/`: only `.json.gz` directly in `bundles/`, never the one just written. Like `runs/` and `merges/`, this is paperwork — no scraped data and no output lives there. A snapshot that fails to save never fails the run: the bundle went out, and that was the job.
 
 Scraping is pipelined: `onTopicSaved` runs download resolution (and LLM extraction) per topic as it is saved, rather than in separate passes.
 
@@ -119,6 +129,8 @@ The server plants a console log tree and bridges the `logging` package (`Common.
 
 `app.js` is a hash router over view modules that each export `render(root, parts)`; shared DOM/fetch helpers are in `lib.js`.
 
+Every paged list draws `lib.js`'s `pager()`, which also carries the **Show** box for rows per page — 25 to 500, or all on one page. The choice is one setting for the whole site, kept in `localStorage` and read by `pageSizePreference()` when a view builds its state. On the wire, `pageSize=0` means "every row, one page"; a named size over 500 is still capped, and nonsense still falls back to 50. A list that adds a pager should pass the size callback too, and reset `page` to 0 inside it — page 4 of 50 is not page 4 of 250.
+
 `web/manager.js` is the only place the frontend talks to `/api/manager/`. It owns three things:
 
 - **The status poller.** One shared `GET /status` loop — about a second while a run is live or queued, five seconds idle, stopped while the tab is hidden. Views call `subscribe(fn)` and drop the subscription on `hashchange`; nothing else polls. `refresh()` returns the in-flight ask rather than starting a second one, so a view that loads mid-beat still gets a real answer instead of `null`.
@@ -127,7 +139,15 @@ The server plants a console log tree and bridges the `logging` package (`Common.
 
 `mountHeaderChip()` draws the always-on status chip in the top bar (`#status-chip` in `index.html`).
 
-Two views read all this: `views/runs.js` (live run, queue, history, start-a-job form) and `views/run.js` (`#/runs/<id>`: record, log tail, run again). Two gotchas worth keeping: the start-a-job form is only redrawn when the manager goes on or off — redrawing it on the poller's beat would wipe what the user just picked — and the log route's "no log file" answer arrives as a `MissingFile` from `lib.js`'s `api()`, not as a body field.
+Two views read all this: `views/runs.js` (live run, queue, history, start-a-job form, start-a-merge form) and `views/run.js` (`#/runs/<id>`: record, log tail, run again). Two gotchas worth keeping: the start-a-job form is only redrawn when the manager goes on or off — redrawing it on the poller's beat would wipe what the user just picked — and the log route's "no log file" answer arrives as a `MissingFile` from `lib.js`'s `api()`, not as a body field.
+
+Comparing two saved things — two merges' mods, two bundles' topics — is one helper, `lib/viewer/compare_rows.dart`. Callers pass how a record is keyed, which fields are worth looking at, and what to call it on screen; `merge_views.dart` and `bundle_views.dart` are thin over it. A field can carry a `describe` instead of before-and-after values, which is how "the post text changed" says so without the text nobody kept.
+
+The Bundle view has a what-changed page (`views/bundle_compare.js`) built the same way as the merge one, and a run's page links straight into it — "what this run changed" compares that run's bundle with the one before it. The link only appears when there is an older snapshot to compare against.
+
+The topic inspector (`views/topic.js`) and the bundle's own detail page (`views/bundle.js`) show the same facts about one thread, so the pieces they share — the sandboxed post frame, the image and link lists, the rule-based download table, the LLM's mods with their downloads and extras, and the three per-topic job buttons (`topicActionBar`, drawn only when the manager is on) — live in `views/extraction_views.js`. The two pages name their download fields differently: the topic endpoint serves the resolver's `DownloadCandidate` (`sourceUrl` / `resolvedUrl` / `archiveFilename`), the bundle serves the published `AssumedDownloadCandidate` (`originalUrl` / `resolvedDirectUrl` / `fileName`). Each page maps its own rows through `downloadRowFromCandidate` / `downloadRowFromBundle` first, and everything below works on one plain shape. Reach for those when adding a field — a field added to only one of the two is a field the other quietly loses.
+
+The Merge view is three files: `views/merge.js` (routing, summary, groups, removals), `views/merge_shared.js` (which merge is being looked at, the run picker, cell formatting) and `views/merge_compare.js` (before-and-after for one group, and what changed between two merges). Which merge is picked lives in `merge_shared.js`, so it survives moving between the merge pages; every merge API call goes through `withRun()`. The list of saved merges is asked for again on each page load, so one that finished while the tab sat open turns up — but not on a redraw after picking, which would be a wasted request.
 
 **Manager off is a mode, not an error.** When status says off, the chip says "viewing only", the Runs view explains how to turn it on in one sentence, and Topics renders no tick boxes and no buttons — the page reads exactly as the read-only viewer always has.
 

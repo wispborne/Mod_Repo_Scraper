@@ -4,7 +4,9 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../bot/scraper/qb/models/post_extraction.dart';
+import 'bundle_views.dart';
 import 'data_access.dart';
+import 'merge_views.dart';
 
 /// The JSON API for the results viewer. Every handler reads through [DataAccess]
 /// (mtime-cached, read-only) and returns either a list envelope, a single
@@ -21,16 +23,21 @@ class ViewerApi {
     r.get('/topics/<id>', _topicDetail);
     r.get('/llm-test', _llmTest);
 
+    r.get('/merge/runs', _mergeRuns);
     r.get('/merge/summary', _mergeSummary);
     r.get('/merge/groups', _mergeGroups);
     r.get('/merge/groups/<id>', _mergeGroupDetail);
+    r.get('/merge/groups/<id>/fields', _mergeGroupFields);
     r.get('/merge/removals', _mergeRemovals);
+    r.get('/merge/compare', _mergeCompare);
 
     r.get('/modrepo', _modRepo);
     r.get('/modrepo/<index>', _modRepoDetail);
 
     r.get('/bundle/meta', _bundleMeta);
     r.get('/bundle/mods', _bundleMods);
+    r.get('/bundle/runs', _bundleRuns);
+    r.get('/bundle/compare', _bundleCompare);
 
     r.get('/files', _files);
     r.get('/files/<id>', _fileSlice);
@@ -70,10 +77,16 @@ class ViewerApi {
     return v < 0 ? 0 : v;
   }
 
+  /// How many rows one page holds. `pageSize=0` means "all of them on one
+  /// page", which somebody has to ask for on purpose — the built-in answer is
+  /// still a page at a time.
   int _pageSize(Request req) {
-    final v = int.tryParse(req.url.queryParameters['pageSize'] ?? '') ??
-        _defaultPageSize;
-    if (v < 1) return _defaultPageSize;
+    final asked = req.url.queryParameters['pageSize'];
+    if (asked == null || asked.trim().isEmpty) return _defaultPageSize;
+    final v = int.tryParse(asked.trim());
+    if (v == null) return _defaultPageSize;
+    if (v == 0) return 0;
+    if (v < 0) return _defaultPageSize;
     return v > _maxPageSize ? _maxPageSize : v;
   }
 
@@ -91,9 +104,11 @@ class ViewerApi {
   }
 
   /// Slices [rows] to the requested page and wraps them in the list envelope.
+  /// A page size of 0 means every row, on one page.
   Map<String, dynamic> _paged(
       List<Map<String, dynamic>> rows, int page, int pageSize) {
     final total = rows.length;
+    if (pageSize == 0) return _listEnvelope(rows, total, 0, 0);
     final start = page * pageSize;
     final slice = start >= total
         ? const <Map<String, dynamic>>[]
@@ -296,13 +311,45 @@ class ViewerApi {
 
   // --- Merge explorer (3.4) ---
 
-  Map<String, dynamic>? _mergeOrNull() => data.mergeDebug;
+  static const String _noMergeHint =
+      'Run a merge, or a scrape with modrepo_merge_debug enabled.';
+
+  /// The merge a request is about: the one named by `?run=`, the newest saved
+  /// one, or — when no merges have been saved — the latest `merge-debug.json`.
+  Map<String, dynamic>? _mergeOrNull([Request? req]) {
+    final asked = req?.url.queryParameters['run']?.trim() ?? '';
+    if (asked.isNotEmpty) return data.mergeRun(asked);
+
+    final newest = data.mergeSnapshots.newestId;
+    if (newest != null) {
+      final saved = data.mergeRun(newest);
+      if (saved != null) return saved;
+    }
+    return data.mergeDebug;
+  }
+
+  /// Which merge the answer came from, so the page can say so.
+  String? _mergeSourceId(Request req) {
+    final asked = req.url.queryParameters['run']?.trim() ?? '';
+    if (asked.isNotEmpty) return asked;
+    return data.mergeSnapshots.newestId;
+  }
+
+  Response _mergeRuns(Request req) {
+    final runs = data.mergeRuns().map((s) => s.toMap()).toList();
+    return _json({
+      'items': runs,
+      'total': runs.length,
+      // True when there is a `merge-debug.json` to fall back on, so the picker
+      // can offer "latest" even before any merge saved a snapshot.
+      'hasLatestFile': data.mergeDebugExists,
+    });
+  }
 
   Response _mergeSummary(Request req) {
-    final md = _mergeOrNull();
+    final md = _mergeOrNull(req);
     if (md == null) {
-      return _missing('merge-debug',
-          'Run the scraper with modrepo_merge_debug enabled.');
+      return _missing('merge-debug', _noMergeHint);
     }
     final groups = (md['groups'] as List?) ?? const [];
     final multi = groups
@@ -325,6 +372,7 @@ class ViewerApi {
           (md['validationRemovalEntries'] as List?)?.length ?? 0,
       'finalOutputCount': (md['finalOutput'] as List?)?.length ?? 0,
       'timings': md['timings'] ?? const [],
+      'runId': _mergeSourceId(req),
     });
   }
 
@@ -336,10 +384,9 @@ class ViewerApi {
           .toLowerCase();
 
   Response _mergeGroups(Request req) {
-    final md = _mergeOrNull();
+    final md = _mergeOrNull(req);
     if (md == null) {
-      return _missing('merge-debug',
-          'Run the scraper with modrepo_merge_debug enabled.');
+      return _missing('merge-debug', _noMergeHint);
     }
     final q = _q(req);
     final multiOnly =
@@ -367,10 +414,9 @@ class ViewerApi {
   }
 
   Response _mergeGroupDetail(Request req, String id) {
-    final md = _mergeOrNull();
+    final md = _mergeOrNull(req);
     if (md == null) {
-      return _missing('merge-debug',
-          'Run the scraper with modrepo_merge_debug enabled.');
+      return _missing('merge-debug', _noMergeHint);
     }
     final groupIndex = int.tryParse(id);
     if (groupIndex == null) return _notFound('Group id must be an integer.');
@@ -389,11 +435,95 @@ class ViewerApi {
     return _json({'group': group, 'decision': decision});
   }
 
-  Response _mergeRemovals(Request req) {
-    final md = _mergeOrNull();
+  /// Before and after for one group: what each member had, field by field, and
+  /// which of them the merged mod's value came from.
+  Response _mergeGroupFields(Request req, String id) {
+    final md = _mergeOrNull(req);
     if (md == null) {
+      return _missing('merge-debug', _noMergeHint);
+    }
+    final groupIndex = int.tryParse(id);
+    if (groupIndex == null) return _notFound('Group id must be a whole number.');
+
+    final group = ((md['groups'] as List?) ?? const [])
+        .cast<Map>()
+        .where((g) => g['groupIndex'] == groupIndex)
+        .firstOrNull;
+    if (group == null) return _notFound('No group $groupIndex.');
+
+    final decision = ((md['mergeDecisions'] as List?) ?? const [])
+        .cast<Map>()
+        .where((d) => d['groupIndex'] == groupIndex)
+        .firstOrNull;
+
+    return _json({
+      'runId': _mergeSourceId(req),
+      ...fieldsForGroup(group: group, decision: decision),
+    });
+  }
+
+  /// What changed between two saved merges. The rows are worked out once and
+  /// held, since a saved merge never changes.
+  final Map<String, Map<String, dynamic>> _compareCache = {};
+
+  Response _mergeCompare(Request req) {
+    final a = req.url.queryParameters['a']?.trim() ?? '';
+    final b = req.url.queryParameters['b']?.trim() ?? '';
+    if (a.isEmpty || b.isEmpty) {
+      return _notFound('Name two merges to compare, as a= and b=.');
+    }
+
+    final held = _compareCache['$a|$b'];
+    final comparison = held ??
+        () {
+          final older = data.mergeRun(a);
+          final newer = data.mergeRun(b);
+          if (older == null || newer == null) return null;
+          final worked = compareMerges(
+            olderOutput: (older['finalOutput'] as List?) ?? const [],
+            newerOutput: (newer['finalOutput'] as List?) ?? const [],
+          );
+          // Two is plenty: this only saves the work of comparing the same pair
+          // twice while somebody pages through it.
+          if (_compareCache.length >= 2) _compareCache.clear();
+          _compareCache['$a|$b'] = worked;
+          return worked;
+        }();
+
+    if (comparison == null) {
       return _missing('merge-debug',
-          'Run the scraper with modrepo_merge_debug enabled.');
+          'One of those merges is no longer kept. Pick another.');
+    }
+
+    final q = _q(req);
+    final kind = req.url.queryParameters['kind']?.trim() ?? '';
+    var rows = (comparison['rows'] as List).cast<Map<String, dynamic>>();
+    if (kind.isNotEmpty) {
+      rows = rows.where((r) => r['kind'] == kind).toList();
+    }
+    if (q.isNotEmpty) {
+      rows = rows
+          .where((r) =>
+              (r['name'] as String).toLowerCase().contains(q) ||
+              (r['authors'] as String).toLowerCase().contains(q))
+          .toList();
+    }
+
+    return _json({
+      'a': a,
+      'b': b,
+      'sameCount': comparison['sameCount'],
+      'addedCount': comparison['addedCount'],
+      'goneCount': comparison['goneCount'],
+      'changedCount': comparison['changedCount'],
+      ..._paged(rows, _page(req), _pageSize(req)),
+    });
+  }
+
+  Response _mergeRemovals(Request req) {
+    final md = _mergeOrNull(req);
+    if (md == null) {
+      return _missing('merge-debug', _noMergeHint);
     }
     final kind = req.url.queryParameters['kind'] ?? 'preDedup';
     final key = switch (kind) {
@@ -424,6 +554,83 @@ class ViewerApi {
       rows.add(Map<String, dynamic>.from(e));
     }
     return _json(_paged(rows, _page(req), _pageSize(req)));
+  }
+
+  // --- Saved bundles, and what changed between two of them ---
+
+  Response _bundleRuns(Request req) {
+    final runs = data.bundleRuns().map((s) => s.toMap()).toList();
+    return _json({
+      'items': runs,
+      'total': runs.length,
+    });
+  }
+
+  /// What changed between two saved bundles. Worked out once and held, since a
+  /// saved bundle never changes.
+  final Map<String, Map<String, dynamic>> _bundleCompareCache = {};
+
+  Response _bundleCompare(Request req) {
+    var a = req.url.queryParameters['a']?.trim() ?? '';
+    final b = req.url.queryParameters['b']?.trim() ?? '';
+    if (b.isEmpty) {
+      return _notFound('Name two bundles to compare, as a= and b=.');
+    }
+    // "What did this run change?" names only the newer side and lets us work
+    // out the one before it.
+    if (a.isEmpty) {
+      final before = data.bundleRunBefore(b);
+      if (before == null) {
+        return _missing(
+            'bundle-runs',
+            'That is the oldest bundle still kept, so there is nothing to '
+            'compare it against.');
+      }
+      a = before;
+    }
+
+    final held = _bundleCompareCache['$a|$b'];
+    final comparison = held ??
+        () {
+          final older = data.bundleRun(a);
+          final newer = data.bundleRun(b);
+          if (older == null || newer == null) return null;
+          final worked = compareBundles(older: older, newer: newer);
+          // Two is plenty: this only saves comparing the same pair twice while
+          // somebody pages through it.
+          if (_bundleCompareCache.length >= 2) _bundleCompareCache.clear();
+          _bundleCompareCache['$a|$b'] = worked;
+          return worked;
+        }();
+
+    if (comparison == null) {
+      return _missing('bundle-runs',
+          'One of those bundles is no longer kept. Pick another.');
+    }
+
+    final q = _q(req);
+    final kind = req.url.queryParameters['kind']?.trim() ?? '';
+    var rows = (comparison['rows'] as List).cast<Map<String, dynamic>>();
+    if (kind.isNotEmpty) {
+      rows = rows.where((r) => r['kind'] == kind).toList();
+    }
+    if (q.isNotEmpty) {
+      rows = rows
+          .where((r) =>
+              (r['name'] as String).toLowerCase().contains(q) ||
+              (r['authors'] as String).toLowerCase().contains(q))
+          .toList();
+    }
+
+    return _json({
+      'a': a,
+      'b': b,
+      'sameCount': comparison['sameCount'],
+      'addedCount': comparison['addedCount'],
+      'goneCount': comparison['goneCount'],
+      'changedCount': comparison['changedCount'],
+      ..._paged(rows, _page(req), _pageSize(req)),
+    });
   }
 
   // --- ModRepo browser (4.1) ---
