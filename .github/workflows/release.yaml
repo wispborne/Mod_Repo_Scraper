@@ -25,8 +25,20 @@ jobs:
       - name: Compile executable
         run: dart compile exe bin/scraper_main.dart -o mod_repo_scraper
 
+      - name: Compile the viewer and manager server
+        run: dart compile exe bin/viewer_server.dart -o mod_repo_scraper_server
+
+      # The server reads the pages it serves from web/ while it runs, so the
+      # program and that folder ship together or the server is useless. Unpack
+      # this in the same folder as the scraper: both find qb_data/ and outputs/
+      # by looking in the folder they are started from.
+      - name: Pack the server with the pages it serves
+        run: tar czf mod_repo_scraper_server.tar.gz mod_repo_scraper_server web
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: mod_repo_scraper
+          files: |
+            mod_repo_scraper
+            mod_repo_scraper_server.tar.gz
           generate_release_notes: true

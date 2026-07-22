@@ -10,9 +10,13 @@ import * as modrepo from './views/modrepo.js';
 import * as bundle from './views/bundle.js';
 import * as files from './views/files.js';
 import * as log from './views/log.js';
+import * as runs from './views/runs.js';
+import * as run from './views/run.js';
+import { mountHeaderChip } from './manager.js';
 
 const NAV = [
   { id: 'topics', label: 'Topics' },
+  { id: 'runs', label: 'Runs' },
   { id: 'llm-test', label: 'LLM Test' },
   { id: 'merge', label: 'Merge' },
   { id: 'modrepo', label: 'ModRepo' },
@@ -26,6 +30,8 @@ const NAV = [
 const ROUTES = {
   topics: (root, parts) =>
     parts.length ? topic.render(root, parts) : topics.render(root, parts),
+  runs: (root, parts) =>
+    parts.length ? run.render(root, parts) : runs.render(root, parts),
   'llm-test': (root, parts) => llmTest.render(root, parts),
   merge: (root, parts) => merge.render(root, parts),
   modrepo: (root, parts) => modrepo.render(root, parts),
@@ -73,6 +79,7 @@ async function route() {
 
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', () => {
+  mountHeaderChip(document.getElementById('status-chip'));
   if (!location.hash) location.hash = '#/topics';
   else route();
 });

@@ -423,6 +423,12 @@ class DebugTree extends Tree {
   static void Function()? beforeConsoleWrite;
   static void Function()? afterConsoleWrite;
 
+  /// Extra places to copy every formatted log line, on top of each tree's own
+  /// [appenders]. The run history uses this to keep a log file per run while a
+  /// job is going, and takes its entry out again when the job ends.
+  static final List<void Function(LogLevel level, String formattedMessage)>
+      extraAppenders = [];
+
   DebugTree({
     required this.minLogLevelToShow,
     this.appenders = const [],
@@ -485,6 +491,9 @@ class DebugTree extends Tree {
         afterConsoleWrite?.call();
 
         for (var appender in appenders) {
+          appender(priority, formattedMsg);
+        }
+        for (var appender in extraAppenders) {
           appender(priority, formattedMsg);
         }
       });

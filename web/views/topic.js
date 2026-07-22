@@ -1,7 +1,8 @@
 // #/topics/<id> — topic inspector: rendered post beside extraction results
 // (2.4 + 2.5).
 
-import { api, el, clear, esc, errorPanel } from '../lib.js';
+import { api, el, clear, esc, errorPanel, go } from '../lib.js';
+import * as manager from '../manager.js';
 
 // Small forum-ish stylesheet for the sandboxed post frame (D8). Styles the
 // scraped bbc_* classes so the post reads like the forum, dark background.
@@ -45,10 +46,36 @@ export async function render(root, parts) {
     );
   }
 
+  const status = manager.status() || await manager.refresh();
+  if (status && status.on) root.append(actionBar(Number(id)));
+
   const split = el('div', { class: 'split' });
   split.append(buildPostColumn(index, detail));
   split.append(buildExtractionColumn(assumed, llm));
   root.append(split);
+}
+
+// The same three per-stage actions as the Topics list, for this one topic. The
+// ticked-topics set on the list is left alone — this acts on what you are
+// looking at, nothing else.
+function actionBar(topicId) {
+  const run = async (kind) => {
+    try {
+      const record = await manager.confirmAndSubmit({
+        kind,
+        topicIds: [topicId],
+        runLlm: true,
+      });
+      if (record) go('#/runs');
+    } catch (err) {
+      window.alert(err.message);
+    }
+  };
+  return el('div', { class: 'topic-actions' }, [
+    el('button', { class: 'btn', text: 'Re-scrape', onclick: () => run('rescrapeTopics') }),
+    el('button', { class: 'btn', text: 'Re-resolve downloads', onclick: () => run('resolveDownloads') }),
+    el('button', { class: 'btn', text: 'Re-run LLM', onclick: () => run('extractLlm') }),
+  ]);
 }
 
 function buildPostColumn(index, detail) {

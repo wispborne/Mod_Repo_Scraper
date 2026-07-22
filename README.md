@@ -83,15 +83,42 @@ found nothing for that topic), use the rules-based `assumedDownloads`.
 
 `ModRepo.json` is rules-only and carries no AI data.
 
+## Settings
+
+Everything is driven by one file, `config.properties`, sitting next to the
+program. Start from the example:
+
+```
+cp config.example.properties config.properties
+```
+
+`config.example.properties` lists every setting with its default and a note on
+what it does, so it doubles as the reference. Your own `config.properties` is
+ignored by git, because it holds real tokens — keep it that way.
+
+Every setting is optional; leave one out and its default applies. A key that
+isn't recognised is warned about at startup and then ignored, so a typo or an
+old name shows up rather than quietly doing nothing.
+
+The names are grouped by what they belong to: `modrepo_` for the merged-list
+pipeline, `qb_` for the forum-bundle pipeline, `llm_` for the optional AI pass.
+Only `log_level` stands on its own.
+
 ## Results viewer
 
-A small local read-only web page for checking the scraped data.
+A small local web page for checking the scraped data.
 
 Start it:
 
 ```
 dart run bin/viewer_server.dart
 ```
+
+Or, on a machine with no Dart installed, unpack `mod_repo_scraper_server.tar.gz`
+from a release and run `./mod_repo_scraper_server`. Unpack it **in the same
+folder as `mod_repo_scraper`**: the archive holds the program and the `web/`
+folder it serves, and both programs look for `qb_data/`, `outputs/` and
+`config.properties` in the folder they are started from.
 
 Then open http://127.0.0.1:8085/ . Flags (all optional, defaults shown):
 
@@ -101,12 +128,18 @@ Then open http://127.0.0.1:8085/ . Flags (all optional, defaults shown):
 | `--data-dir` | `new_data` | `mods-index.json`, `mods/`, the caches |
 | `--outputs-dir` | `outputs` | `ModRepo.json`, `forum-data-bundle.json` |
 | `--root-dir` | `.` | `merge-debug.json`, `ModRepo.log` |
+| `--config` | `config.properties` | Read only to set up the manager (see below) |
+| `--no-manager` | off | Run as the plain read-only viewer |
+
+The pages themselves only read. The one thing that writes is the manager, and
+only when you ask it to run a job.
 
 The page has these views:
 
 | View | What it shows |
 |------|---------------|
-| Topics | Every forum topic, searchable and filterable (no download, low-confidence only, LLM found downloads the rules missed, more than one mod, placeholder, missing game version, WIP). Open one to see the rendered post beside the rule-based downloads and the LLM's per-mod results. |
+| Topics | Every forum topic, searchable and filterable (no download, low-confidence only, LLM found downloads the rules missed, more than one mod, placeholder, missing game version, WIP). Open one to see the rendered post beside the rule-based downloads and the LLM's per-mod results. When the manager is on, each row has a tick box for picking mods to act on. |
+| Runs | What is running now, what is waiting, and every past run. Start a job, stop the running one, and open a run to read its record and its log. |
 | LLM Test | The LLM test-mode report (`llm-test-output.json`), if you ran a test pass. |
 | Merge | The merge run: summary, phase timings, match groups with reasons, and the pre-dedup / same-source / validation removals. Needs `merge-debug.json` (see below). |
 | ModRepo | The merged `ModRepo.json`, with each mod's contributing sources. |
@@ -121,6 +154,135 @@ When merge debug output is turned on, the scraper writes `merge-debug.json`
 `MergeDebug.html` page — the HTML report is no longer produced.
 
 Turn it on with `modrepo_merge_debug=true` in `config.properties`.
+
+## Jobs and run history
+
+The QB pipeline runs as a **job**: a request that spells out what to do. The
+command line turns your `config.properties` settings into one job and hands it
+to the manager, so running the program works exactly as it always has. The job
+kinds are:
+
+| Kind | What it does |
+|------|--------------|
+| `fullRun` | Walk the boards and scrape, the way a normal run does |
+| `rescrapeTopics` | Fetch the chosen mods fresh and redo everything for them |
+| `resolveDownloads` | Work out the chosen mods' download links again |
+| `extractLlm` | Ask the LLM about the chosen mods again |
+| `llmCoveragePass` | Fill in LLM results for every saved mod, without scraping |
+| `llmTest` | Try the prompt on a few saved posts and write a report |
+| `rebuildBundle` | Build `forum-data-bundle.json` again from what is saved |
+
+Each per-mod kind throws away one layer of saved answers and nothing else, so
+redoing the downloads for one mod never disturbs its LLM results, and never
+touches any other mod.
+
+The config file now has three kinds of setting, and the split is enforced by the
+code:
+
+- **Environment** — where the files live and which services may be used:
+  `qb_data_path`, `qb_manager_url`, `llm_base_url`, `llm_model`, the API keys,
+  `log_level`.
+- **Guardrails** — the limits that bind every job, whoever asked for it:
+  `llm_max_topics`, `qb_delay_ms`, `llm_timeout_seconds`.
+- **Job shape** — what a run should do: `qb_scope`, `qb_boards`, the page
+  limits, `qb_use_cached`, `llm_enabled`, `llm_reprocess_only`, `llm_test_mode`.
+  Only the command line reads these, to build its job.
+
+Every run is recorded in `<qb_data_path>/runs/`: `runs-index.json` holds one
+entry per run (what was asked for, when, how it went, counters, any error), and
+each run also gets its own log file next to it. The record is written as the run
+goes, so a run that is killed still leaves an honest account of how far it got —
+and the next start marks it as interrupted. The viewer's **Runs** view is how you
+read all this without opening the files.
+
+### Running jobs from the browser
+
+With the viewer open, the top bar always says what the manager is doing: the job
+that is running and how far along it is, "manager ready" when nothing is, or
+"viewing only" when this server can't run jobs. Clicking it opens the **Runs**
+view.
+
+From there you can:
+
+- **Watch** the running job — progress, which phase it is in, which mod it is on
+  — and stop it. Stopping happens between mods and keeps everything saved so far.
+- **Look back**: every past run, newest first, with when it ran, how long it
+  took, how it ended, its counters, and a badge when a spending cap cut it short.
+  Open one to read its whole record and its log, and to press **Run this again**,
+  which asks for exactly the same thing over again.
+- **Start a job**: a full run (you pick the scope, the boards, and whether to ask
+  the LLM), an LLM coverage pass, or a bundle rebuild. Every choice is on the
+  form in front of you — nothing is taken from `config.properties` behind your
+  back.
+
+On the **Topics** view, tick the mods you want and use the bar at the top:
+re-scrape, re-resolve downloads, or re-run the LLM on just those. The ticks stay
+put while you page and search, and are cleared once you send the job. A single
+mod's page has the same three buttons for itself alone.
+
+Every button says what it is about to do, and what it costs — network requests,
+LLM budget — before it does it. Jobs started from the browser always fetch fresh
+pages; replaying saved pages stays a command-line option (`qb_use_cached`).
+
+When the server has no config file, none of this appears: no tick boxes, no
+buttons, and the Runs view explains in one sentence how to turn the manager on.
+Viewing-only is a normal way to run the server, not a broken one.
+
+### Running jobs from the server
+
+When the viewer server can read a config file, it also offers a management API
+under `/api/manager/`. Jobs asked for here go through the same queue and land in
+the same run history as jobs started from the command line.
+
+| Route | What it does |
+|-------|--------------|
+| `GET /api/manager/status` | Whether the manager is on, which folder it works on, what is running (with its phase and current item), and what is queued |
+| `POST /api/manager/jobs` | Start a job. The body is a job request, e.g. `{"kind":"extractLlm","topicIds":[123],"runLlm":true}`. Answers straight away with the queued run |
+| `POST /api/manager/jobs/cancel` | Stop the running job. It stops between mods and keeps what it has saved |
+| `GET /api/manager/runs` | Past runs, newest first, paged with `page` and `pageSize` |
+| `GET /api/manager/runs/<id>` | One run's record |
+| `GET /api/manager/runs/<id>/log?tail=N` | The end of that run's own log (200 lines by default) |
+
+A request that can't be read, names a kind that doesn't exist, or asks for a
+per-mod kind with no mods listed is refused with a plain reason and never
+reaches the queue.
+
+If there is no config file to read (or you pass `--no-manager`), the viewer runs
+exactly as before and every manager route answers "the manager is off". The
+server only ever binds to `127.0.0.1`, and **no setting from the config file is
+ever sent over HTTP** — not tokens, endpoints, models or limits. The one
+exception is the data folder, which the command line needs to check both sides
+mean the same folder.
+
+The server reads the config file for the folder to work on (`qb_data_path`). If
+you started it with a `--data-dir` that points somewhere else, it says so at
+startup, because the pages would then be showing a different folder from the one
+jobs write to.
+
+### Running the command line through the server
+
+Set `qb_manager_url` in `config.properties` (for example
+`http://127.0.0.1:8085`) and the command line hands its QB job to that server
+instead of doing the work itself. The console looks the same — same phases, same
+progress bar, fed by asking the server about once a second — and Ctrl-C asks the
+server to stop the job, then waits for it to settle. A second Ctrl-C stops
+watching and leaves the server to finish.
+
+Leave the key blank (the default) and the command line does the work itself,
+exactly as it always has. If the address can't be reached, the server has no
+manager, or it works on a different folder, the command line says so in plain
+words and runs the job itself. A problem handing over the job never means the
+job is quietly skipped.
+
+### One writer at a time
+
+While a job runs, whoever is running it holds a lock file,
+`<qb_data_path>/scraper.lock`, holding their process id, whether they are the
+`server` or the `cli`, and when they started. A second job on the same folder —
+from the other program — waits its turn and says who it is waiting for, rather
+than writing the same files at the same time. A lock left behind by a program
+that has since died is cleared away, with a line in the log saying so. The file
+exists only while a job is running.
 
 ## Scrapers
 

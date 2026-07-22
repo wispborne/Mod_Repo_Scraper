@@ -30,22 +30,35 @@ class QbScraperEngine {
   /// Set for the duration of [run].
   void Function(int processed, int total, String? item)? _onProgress;
 
+  /// [probeCache] and [downloadResolver] can be passed in when the caller keeps
+  /// them across several jobs (the manager does, so the answers loaded once are
+  /// reused). Left out, the engine makes its own, which is what a one-shot run
+  /// wants.
   factory QbScraperEngine({
     required JsonDataStore store,
     required ThrottledClient client,
     Logger? logger,
+    DownloadableProbeCache? probeCache,
+    QbDownloadResolver? downloadResolver,
   }) {
     final downloadClient = IOClient(
       io.HttpClient()..connectionTimeout = const Duration(seconds: 30),
     );
     // Build the "does this link lead to a file?" cache once and share it, so the
     // scrape step and the resolver reuse each other's answers.
-    final probeCache = DownloadableProbeCache(dataPath: store.basePath);
+    final sharedProbeCache =
+        probeCache ?? DownloadableProbeCache(dataPath: store.basePath);
     return QbScraperEngine._(
       store: store,
       client: client,
       downloadClient: downloadClient,
-      probeCache: probeCache,
+      probeCache: sharedProbeCache,
+      downloadResolver: downloadResolver ??
+          QbDownloadResolver(
+            client: downloadClient,
+            dataPath: store.basePath,
+            probeCache: sharedProbeCache,
+          ),
       logger: logger,
     );
   }
@@ -55,22 +68,22 @@ class QbScraperEngine {
     required ThrottledClient client,
     required http.Client downloadClient,
     required DownloadableProbeCache probeCache,
+    required QbDownloadResolver downloadResolver,
     Logger? logger,
   })  : _store = store,
         _client = client,
         _downloadClient = downloadClient,
         probeCache = probeCache,
-        downloadResolver = QbDownloadResolver(
-          client: downloadClient,
-          dataPath: store.basePath,
-          probeCache: probeCache,
-        ),
+        downloadResolver = downloadResolver,
         _log = logger ?? Logger('QbScraperEngine');
 
+  /// [shouldStop] is checked before each topic. Returning true ends the scrape
+  /// tidily: the topics already done stay saved and the index still names them.
   Future<ScrapeResult> run(
     ScrapeScope scope, {
     Future<void> Function(QbModDetail detail)? onTopicSaved,
     void Function(int processed, int total, String? item)? onProgress,
+    bool Function()? shouldStop,
   }) async {
     _onProgress = onProgress;
     final startTime = DateTime.now().toUtc();
@@ -269,6 +282,12 @@ class QbScraperEngine {
       }
 
       for (var i = 0; i < modSummaries.length; i++) {
+        if (shouldStop?.call() ?? false) {
+          _log.info('Stopping the scrape on request after '
+              '${currentJob.processedTopics} topic(s).');
+          break;
+        }
+
         var summary = modSummaries[i];
         summary = _applyCategoryFromModIndex(summary, modIndex);
 

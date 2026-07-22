@@ -123,9 +123,12 @@ class ViewerApi {
     for (final idx in index) {
       final id = idx.topicId;
 
+      // Searching a number finds the thread with that id, as well as any title
+      // or author the number happens to appear in.
       if (q.isNotEmpty &&
           !idx.title.toLowerCase().contains(q) &&
-          !idx.author.toLowerCase().contains(q)) {
+          !idx.author.toLowerCase().contains(q) &&
+          !id.toString().contains(q)) {
         continue;
       }
 
@@ -496,12 +499,13 @@ class ViewerApi {
     for (final row in index) {
       final title = (row['title'] as String?) ?? '';
       final author = (row['author'] as String?) ?? '';
+      final idStr = row['topicId'].toString();
       if (q.isNotEmpty &&
           !title.toLowerCase().contains(q) &&
-          !author.toLowerCase().contains(q)) {
+          !author.toLowerCase().contains(q) &&
+          !idStr.contains(q)) {
         continue;
       }
-      final idStr = row['topicId'].toString();
       rows.add({
         'index': row,
         'detail': details[idStr],

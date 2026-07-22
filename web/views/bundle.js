@@ -26,7 +26,7 @@ export async function render(root, parts) {
   }
 
   const toolbar = el('div', { class: 'toolbar' });
-  const search = el('input', { type: 'search', placeholder: 'Search title or author…', value: state.q });
+  const search = el('input', { type: 'search', placeholder: 'Search title, author or thread id…', value: state.q });
   let d;
   search.addEventListener('input', () => {
     clearTimeout(d);

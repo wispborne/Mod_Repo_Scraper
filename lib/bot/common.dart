@@ -14,7 +14,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_mappable/dart_mappable.dart';
+import 'package:logging/logging.dart';
 import 'package:mod_repo_scraper/timber/log_level.dart';
+import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:mod_repo_scraper/timber/timber.dart' as timber_lib;
 
 part 'common.mapper.dart';
@@ -70,6 +72,8 @@ class Common {
         enableQb: properties['qb_enabled']?.toLowerCase() == 'true',
         qbUseCached: properties['qb_use_cached']?.toLowerCase() == 'true',
         qbDataPath: _trimOrDefault(properties['qb_data_path'], 'qb_data')!,
+        qbRunsToKeep: int.tryParse(properties['qb_runs_to_keep'] ?? '') ?? 100,
+        qbManagerUrl: _trimOrNull(properties['qb_manager_url']),
         qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
         qbBoards: _parseQbBoards(properties['qb_boards']),
         qbDelayMs: int.tryParse(properties['qb_delay_ms'] ?? '') ?? 1500,
@@ -140,6 +144,8 @@ class Common {
     'qb_enabled',
     'qb_use_cached',
     'qb_data_path',
+    'qb_runs_to_keep',
+    'qb_manager_url',
     'qb_scope',
     'qb_boards',
     'qb_delay_ms',
@@ -274,6 +280,34 @@ class Common {
 
     return (logFile: logFile, logOut: logOut);
   }
+
+  /// Sets up logging for a program that has no log file of its own — the
+  /// manager server. Lines go to the console, and to whatever else is listening,
+  /// which is how each run gets its own log file.
+  static void initTimberForConsole(BotConfig botConfig) {
+    final logLevel = LogLevel.values.firstWhere(
+      (e) => e.name.toLowerCase() == botConfig.logLevel.toLowerCase(),
+      orElse: () => LogLevel.info,
+    );
+    timber_lib.Timber.plant(
+        timber_lib.DebugTree(minLogLevelToShow: logLevel));
+  }
+
+  /// The QB code logs through the `logging` package; send those lines to the
+  /// same place everything else goes.
+  static void bridgeLoggingToTimber() {
+    Logger.root.level = Level.ALL;
+    Logger.root.onRecord.listen((record) {
+      final message = '${record.loggerName}: ${record.message}';
+      if (record.level >= Level.SEVERE) {
+        timber.e(message: () => message);
+      } else if (record.level >= Level.WARNING) {
+        timber.w(message: () => message);
+      } else {
+        timber.i(message: () => message);
+      }
+    });
+  }
 }
 
 @MappableClass()
@@ -294,6 +328,19 @@ class BotConfig with BotConfigMappable {
   final bool enableQb;
   final bool qbUseCached;
   final String qbDataPath;
+
+  /// How many runs to keep in the history. The oldest are dropped once there
+  /// are more, along with their log files, which are the bulk of the folder.
+  /// 0 or less keeps every run forever.
+  final int qbRunsToKeep;
+
+  /// Where a manager server is listening, e.g. `http://127.0.0.1:8085`. When
+  /// set, the QB job is handed to that server so a browser and the command line
+  /// share one queue and one history. Blank (the default) means the command line
+  /// does the work itself, exactly as it always has. If the server can't be
+  /// reached, or it is working on a different folder, the run falls back to
+  /// doing the work here and says why.
+  final String? qbManagerUrl;
   final String qbScope;
   final Set<String> qbBoards;
   final int qbDelayMs;
@@ -412,6 +459,8 @@ class BotConfig with BotConfigMappable {
     this.enableQb = false,
     this.qbUseCached = false,
     this.qbDataPath = 'qb_data',
+    this.qbRunsToKeep = 100,
+    this.qbManagerUrl,
     this.qbScope = 'newData',
     this.qbBoards = const {'main', 'libraries'},
     this.qbDelayMs = 1500,

@@ -89,6 +89,18 @@ class DownloadableProbeCache {
     return probe;
   }
 
+  /// Forgets the saved answers for these links, so the next [classify] asks the
+  /// host again. Answers for every other link are left as they are.
+  ///
+  /// This cache is keyed by link, not by topic, so a caller redoing one topic
+  /// passes that topic's links. A link shared with another topic is asked about
+  /// again, which costs one request and gives the same answer.
+  void dropUrls(Iterable<String> urls) {
+    for (final url in urls) {
+      _cache.remove(url);
+    }
+  }
+
   /// Writes the cache in the background once enough new answers have piled up.
   /// Fire-and-forget: a probe should never block on disk I/O, and a failed
   /// write just means we retry at the next threshold (or the final save).

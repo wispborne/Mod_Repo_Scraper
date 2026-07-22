@@ -112,6 +112,11 @@ void main() {
     expect((byTitle['items'] as List).first['topicId'], 100);
   });
 
+  test('text search matches the thread id', () async {
+    final byId = await get('topics?q=400');
+    expect((byId['items'] as List).single['topicId'], 400);
+  });
+
   test('string-keyed caches join to int topic ids', () async {
     // Topic 400's low-confidence entries live under the string keys "400" in
     // both cache files; the join must still find them.

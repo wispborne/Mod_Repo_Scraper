@@ -125,6 +125,19 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: 'qb_data',
   );
+  static int _$qbRunsToKeep(BotConfig v) => v.qbRunsToKeep;
+  static const Field<BotConfig, int> _f$qbRunsToKeep = Field(
+    'qbRunsToKeep',
+    _$qbRunsToKeep,
+    opt: true,
+    def: 100,
+  );
+  static String? _$qbManagerUrl(BotConfig v) => v.qbManagerUrl;
+  static const Field<BotConfig, String> _f$qbManagerUrl = Field(
+    'qbManagerUrl',
+    _$qbManagerUrl,
+    opt: true,
+  );
   static String _$qbScope(BotConfig v) => v.qbScope;
   static const Field<BotConfig, String> _f$qbScope = Field(
     'qbScope',
@@ -232,6 +245,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: false,
   );
+  static bool _$llmStructuredOutput(BotConfig v) => v.llmStructuredOutput;
+  static const Field<BotConfig, bool> _f$llmStructuredOutput = Field(
+    'llmStructuredOutput',
+    _$llmStructuredOutput,
+    opt: true,
+    def: false,
+  );
   static bool _$enableLlmSummaries(BotConfig v) => v.enableLlmSummaries;
   static const Field<BotConfig, bool> _f$enableLlmSummaries = Field(
     'enableLlmSummaries',
@@ -293,6 +313,14 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: false,
   );
+  static bool _$llmFallbackStructuredOutput(BotConfig v) =>
+      v.llmFallbackStructuredOutput;
+  static const Field<BotConfig, bool> _f$llmFallbackStructuredOutput = Field(
+    'llmFallbackStructuredOutput',
+    _$llmFallbackStructuredOutput,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<BotConfig> fields = const {
@@ -313,6 +341,8 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #enableQb: _f$enableQb,
     #qbUseCached: _f$qbUseCached,
     #qbDataPath: _f$qbDataPath,
+    #qbRunsToKeep: _f$qbRunsToKeep,
+    #qbManagerUrl: _f$qbManagerUrl,
     #qbScope: _f$qbScope,
     #qbBoards: _f$qbBoards,
     #qbDelayMs: _f$qbDelayMs,
@@ -329,6 +359,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #llmMaxTokens: _f$llmMaxTokens,
     #llmMaxInputChars: _f$llmMaxInputChars,
     #llmDisableThinking: _f$llmDisableThinking,
+    #llmStructuredOutput: _f$llmStructuredOutput,
     #enableLlmSummaries: _f$enableLlmSummaries,
     #llmSkipScrapeReprocessOnly: _f$llmSkipScrapeReprocessOnly,
     #llmTestMode: _f$llmTestMode,
@@ -338,6 +369,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #llmFallbackModel: _f$llmFallbackModel,
     #llmFallbackApiToken: _f$llmFallbackApiToken,
     #llmFallbackDisableThinking: _f$llmFallbackDisableThinking,
+    #llmFallbackStructuredOutput: _f$llmFallbackStructuredOutput,
   };
 
   static BotConfig _instantiate(DecodingData data) {
@@ -362,6 +394,8 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       enableQb: data.dec(_f$enableQb),
       qbUseCached: data.dec(_f$qbUseCached),
       qbDataPath: data.dec(_f$qbDataPath),
+      qbRunsToKeep: data.dec(_f$qbRunsToKeep),
+      qbManagerUrl: data.dec(_f$qbManagerUrl),
       qbScope: data.dec(_f$qbScope),
       qbBoards: data.dec(_f$qbBoards),
       qbDelayMs: data.dec(_f$qbDelayMs),
@@ -378,6 +412,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       llmMaxTokens: data.dec(_f$llmMaxTokens),
       llmMaxInputChars: data.dec(_f$llmMaxInputChars),
       llmDisableThinking: data.dec(_f$llmDisableThinking),
+      llmStructuredOutput: data.dec(_f$llmStructuredOutput),
       enableLlmSummaries: data.dec(_f$enableLlmSummaries),
       llmSkipScrapeReprocessOnly: data.dec(_f$llmSkipScrapeReprocessOnly),
       llmTestMode: data.dec(_f$llmTestMode),
@@ -387,6 +422,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       llmFallbackModel: data.dec(_f$llmFallbackModel),
       llmFallbackApiToken: data.dec(_f$llmFallbackApiToken),
       llmFallbackDisableThinking: data.dec(_f$llmFallbackDisableThinking),
+      llmFallbackStructuredOutput: data.dec(_f$llmFallbackStructuredOutput),
     );
   }
 
@@ -468,6 +504,8 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     bool? enableQb,
     bool? qbUseCached,
     String? qbDataPath,
+    int? qbRunsToKeep,
+    String? qbManagerUrl,
     String? qbScope,
     Set<String>? qbBoards,
     int? qbDelayMs,
@@ -484,6 +522,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     int? llmMaxTokens,
     int? llmMaxInputChars,
     bool? llmDisableThinking,
+    bool? llmStructuredOutput,
     bool? enableLlmSummaries,
     bool? llmSkipScrapeReprocessOnly,
     bool? llmTestMode,
@@ -493,6 +532,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     String? llmFallbackModel,
     String? llmFallbackApiToken,
     bool? llmFallbackDisableThinking,
+    bool? llmFallbackStructuredOutput,
   });
   BotConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -533,6 +573,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
     bool? enableQb,
     bool? qbUseCached,
     String? qbDataPath,
+    int? qbRunsToKeep,
+    Object? qbManagerUrl = $none,
     String? qbScope,
     Set<String>? qbBoards,
     int? qbDelayMs,
@@ -549,6 +591,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     Object? llmMaxTokens = $none,
     Object? llmMaxInputChars = $none,
     bool? llmDisableThinking,
+    bool? llmStructuredOutput,
     bool? enableLlmSummaries,
     bool? llmSkipScrapeReprocessOnly,
     bool? llmTestMode,
@@ -558,6 +601,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     Object? llmFallbackModel = $none,
     Object? llmFallbackApiToken = $none,
     bool? llmFallbackDisableThinking,
+    bool? llmFallbackStructuredOutput,
   }) => $apply(
     FieldCopyWithData({
       if (lessScraping != null) #lessScraping: lessScraping,
@@ -579,6 +623,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (enableQb != null) #enableQb: enableQb,
       if (qbUseCached != null) #qbUseCached: qbUseCached,
       if (qbDataPath != null) #qbDataPath: qbDataPath,
+      if (qbRunsToKeep != null) #qbRunsToKeep: qbRunsToKeep,
+      if (qbManagerUrl != $none) #qbManagerUrl: qbManagerUrl,
       if (qbScope != null) #qbScope: qbScope,
       if (qbBoards != null) #qbBoards: qbBoards,
       if (qbDelayMs != null) #qbDelayMs: qbDelayMs,
@@ -598,6 +644,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (llmMaxTokens != $none) #llmMaxTokens: llmMaxTokens,
       if (llmMaxInputChars != $none) #llmMaxInputChars: llmMaxInputChars,
       if (llmDisableThinking != null) #llmDisableThinking: llmDisableThinking,
+      if (llmStructuredOutput != null)
+        #llmStructuredOutput: llmStructuredOutput,
       if (enableLlmSummaries != null) #enableLlmSummaries: enableLlmSummaries,
       if (llmSkipScrapeReprocessOnly != null)
         #llmSkipScrapeReprocessOnly: llmSkipScrapeReprocessOnly,
@@ -610,6 +658,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
         #llmFallbackApiToken: llmFallbackApiToken,
       if (llmFallbackDisableThinking != null)
         #llmFallbackDisableThinking: llmFallbackDisableThinking,
+      if (llmFallbackStructuredOutput != null)
+        #llmFallbackStructuredOutput: llmFallbackStructuredOutput,
     }),
   );
   @override
@@ -639,6 +689,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
     enableQb: data.get(#enableQb, or: $value.enableQb),
     qbUseCached: data.get(#qbUseCached, or: $value.qbUseCached),
     qbDataPath: data.get(#qbDataPath, or: $value.qbDataPath),
+    qbRunsToKeep: data.get(#qbRunsToKeep, or: $value.qbRunsToKeep),
+    qbManagerUrl: data.get(#qbManagerUrl, or: $value.qbManagerUrl),
     qbScope: data.get(#qbScope, or: $value.qbScope),
     qbBoards: data.get(#qbBoards, or: $value.qbBoards),
     qbDelayMs: data.get(#qbDelayMs, or: $value.qbDelayMs),
@@ -670,6 +722,10 @@ class _BotConfigCopyWithImpl<$R, $Out>
       #llmDisableThinking,
       or: $value.llmDisableThinking,
     ),
+    llmStructuredOutput: data.get(
+      #llmStructuredOutput,
+      or: $value.llmStructuredOutput,
+    ),
     enableLlmSummaries: data.get(
       #enableLlmSummaries,
       or: $value.enableLlmSummaries,
@@ -693,6 +749,10 @@ class _BotConfigCopyWithImpl<$R, $Out>
     llmFallbackDisableThinking: data.get(
       #llmFallbackDisableThinking,
       or: $value.llmFallbackDisableThinking,
+    ),
+    llmFallbackStructuredOutput: data.get(
+      #llmFallbackStructuredOutput,
+      or: $value.llmFallbackStructuredOutput,
     ),
   );
 

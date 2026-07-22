@@ -43,6 +43,30 @@ a:hover { text-decoration: underline; }
 #nav a:hover { color: var(--text); background: rgba(73, 252, 255, 0.06); text-decoration: none; }
 #nav a.active { color: var(--primary); background: rgba(73, 252, 255, 0.12); }
 
+/* Status chip: what the manager is doing, on every page */
+.status-chip {
+  margin-left: auto; display: inline-flex; flex-direction: column; gap: 3px;
+  justify-content: center;
+  min-width: 150px; max-width: 280px;
+  /* Held steady so the top bar doesn't grow when the progress line appears,
+     which would nudge the whole page down mid-run. */
+  min-height: 35px;
+  padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text-dim); font-size: 0.8rem; text-decoration: none;
+}
+.status-chip:hover { text-decoration: none; border-color: var(--primary); color: var(--text); }
+.status-chip-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-chip.ready { color: var(--secondary); }
+.status-chip.running { color: var(--primary); border-color: var(--primary); }
+.status-chip.off { color: var(--text-dim); font-style: italic; }
+.status-chip-bar { height: 3px; border-radius: 2px; background: rgba(73, 252, 255, 0.12); }
+.status-chip-bar-fill {
+  height: 100%; border-radius: 2px; min-width: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  transition: width 0.4s ease;
+}
+
 main { max-width: 1500px; margin: 0 auto; padding: 20px; }
 
 h1 { color: var(--primary); font-size: 1.5rem; margin: 0 0 12px; }
@@ -61,7 +85,6 @@ h3 { color: var(--text); font-size: 1rem; margin: 14px 0 8px; }
   border: 1px solid var(--border); border-radius: 6px;
   padding: 7px 10px; font-size: 0.9rem; min-width: 240px;
 }
-.filters { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 4px 10px; border-radius: 999px; cursor: pointer;
@@ -92,16 +115,42 @@ tbody tr.clickable { cursor: pointer; }
 .badge-dim { background: rgba(140, 150, 170, 0.15); color: var(--text-dim); }
 .badge-llm { background: rgba(196, 148, 255, 0.18); color: var(--llm); }
 
-/* Flags legend: a collapsible key under the filter bar */
-.legend { margin: -4px 0 16px; font-size: 0.85rem; }
-.legend summary { cursor: pointer; user-select: none; color: var(--text-dim); }
-.legend summary:hover { color: var(--text); }
-.legend-grid {
-  display: grid; grid-template-columns: auto 1fr;
-  gap: 7px 12px; align-items: center;
-  margin-top: 12px; max-width: 620px;
+/* Flags: one control that both filters the list and says what each badge means.
+   Closed, it is a row of buttons; "Explain these" opens each out onto its own
+   line with the meaning beside it. */
+.flag-picker-wrap { margin: 0 0 14px; }
+.flag-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.flag-chip {
+  /* The badge runs right to the outline: no padding on its side, and the pill
+     shape clips its corners. `stretch` is what takes the colour to the top and
+     bottom edges too. */
+  display: inline-flex; align-items: stretch; gap: 8px;
+  padding: 0 12px 0 0; overflow: hidden;
+  border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text-dim); font-size: 0.8rem; font-family: inherit;
+  text-align: left; user-select: none;
 }
-.legend-desc { color: var(--text-dim); }
+.flag-chip > span { display: flex; align-items: center; }
+.flag-chip .badge { border-radius: 0; padding: 4px 10px; }
+.flag-chip:hover { color: var(--text); border-color: var(--secondary); }
+.flag-chip.on { color: var(--text); border-color: var(--primary); background: rgba(73, 252, 255, 0.12); font-weight: 600; }
+.flag-chip-desc { display: none; color: var(--text-dim); font-weight: 400; }
+
+/* Opened out: one flag per line, badge and name in a fixed column so the
+   meanings line up down the page. */
+.flag-picker.explained { flex-direction: column; flex-wrap: nowrap; gap: 4px; max-width: 780px; }
+.flag-picker.explained .flag-chip { width: 100%; border-radius: 6px; }
+.flag-picker.explained .badge { flex-shrink: 0; width: 7em; justify-content: center; }
+.flag-picker.explained .flag-chip-name { flex-shrink: 0; width: 13em; }
+.flag-picker.explained .flag-chip-desc { display: inline; }
+
+.flag-explain {
+  margin-top: 8px; padding: 0; border: 0; background: none;
+  color: var(--text-dim); font-size: 0.8rem; font-family: inherit;
+  cursor: pointer; text-decoration: underline;
+}
+.flag-explain:hover { color: var(--primary); }
 
 /* Support links: one aligned row per link */
 .support-links { display: flex; flex-direction: column; gap: 6px; }
@@ -185,3 +234,49 @@ pre.raw { background: rgb(10, 14, 26); border: 1px solid var(--border); border-r
 .mod-card .dl { display: block; margin-top: 6px; padding: 7px 10px; text-align: center; border-radius: 6px; background: var(--primary); color: var(--surface); font-weight: 600; font-size: 0.82rem; }
 .approx-label { background: rgba(255, 183, 77, 0.15); color: var(--warning); border: 1px dashed var(--warning); border-radius: 6px; padding: 6px 10px; font-size: 0.78rem; margin-bottom: 10px; }
 .meta-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+
+/* Buttons that do something (start a job, stop a run) */
+.btn {
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 14px; font-size: 0.85rem; cursor: pointer;
+}
+.btn:hover:not([disabled]) { border-color: var(--primary); color: var(--primary); }
+.btn[disabled] { opacity: 0.4; cursor: default; }
+.btn-primary { background: rgba(73, 252, 255, 0.12); color: var(--primary); border-color: var(--primary); font-weight: 600; }
+.btn-danger { color: var(--error); border-color: rgba(255, 100, 100, 0.5); }
+.btn-danger:hover:not([disabled]) { color: var(--error); border-color: var(--error); }
+
+/* Runs view */
+.run-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.run-section { margin-bottom: 16px; }
+.panel .field-list { margin-bottom: 12px; }
+.panel .table-wrapper { margin-top: 4px; }
+.panel .pager { margin-bottom: 0; }
+.run-title { font-weight: 700; font-size: 1.05rem; }
+.run-when { color: var(--text-dim); font-size: 0.8rem; }
+.queue-list { margin: 6px 0 0; padding-left: 22px; font-size: 0.85rem; }
+.queue-list li { padding: 2px 0; }
+
+/* Start-a-job form */
+.job-form { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 10px; }
+.job-field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 0; font-size: 0.85rem; }
+.job-check { display: inline-flex; align-items: center; gap: 4px; color: var(--text); cursor: pointer; }
+.job-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.field-input {
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 10px; font-size: 0.85rem; min-width: 320px;
+}
+
+/* Selection bar on the Topics view */
+.selection-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--surface-container); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 14px; margin-bottom: 12px;
+  position: sticky; top: 56px; z-index: 5; /* Just clear of the top bar. */
+}
+.selection-count { color: var(--primary); font-weight: 600; font-size: 0.9rem; }
+.selection-hint { color: var(--text-dim); font-size: 0.8rem; }
+td.pick, th.pick { width: 34px; text-align: center; }
+.topic-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }

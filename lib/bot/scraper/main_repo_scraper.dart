@@ -17,8 +17,15 @@ import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:mod_repo_scraper/bot/common.dart';
 import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:mod_repo_scraper/manager/data_lock.dart';
+import 'package:mod_repo_scraper/manager/delegation_client.dart';
+import 'package:mod_repo_scraper/manager/job.dart';
+import 'package:mod_repo_scraper/manager/job_manager.dart';
+import 'package:mod_repo_scraper/manager/run_history_store.dart';
+import 'package:mod_repo_scraper/manager/run_reporter.dart';
+import 'package:mod_repo_scraper/manager/scraper_service.dart';
+import 'package:mod_repo_scraper/manager/scraper_settings.dart';
 import 'package:mod_repo_scraper/utilities/caching_http_client.dart';
-import 'package:mod_repo_scraper/utilities/console_progress_bar.dart';
 import 'package:mod_repo_scraper/utilities/jsanity.dart';
 
 import 'debug/merge_debug_collector.dart';
@@ -28,18 +35,7 @@ import 'forum_scraper.dart';
 import 'mod_merger.dart';
 import 'mod_repo_cache.dart';
 import 'nexus_reader.dart';
-import 'qb/bundle_publisher.dart';
-import 'qb/download_resolver.dart';
-import 'qb/downloadable_probe_cache.dart';
-import 'qb/json_data_store.dart';
-import 'qb/llm/extraction_store.dart';
-import 'qb/llm/fallback_llm_client.dart';
-import 'qb/llm/llm_client.dart';
-import 'qb/llm/openai_client.dart';
-import 'qb/llm/post_extractor.dart';
 import 'qb/models/scrape_job.dart';
-import 'qb/scraper_engine.dart';
-import 'qb/throttled_client.dart';
 import 'scraped_mod.dart';
 
 class MainRepoScraper {
@@ -89,159 +85,6 @@ class MainRepoScraper {
     }
   }
 
-  /// Runs LLM test mode over posts already saved on disk, so the prompt can be
-  /// tested without re-scraping. Targets [BotConfig.llmTestTopicIds] when set;
-  /// otherwise samples stored posts in index order up to
-  /// [BotConfig.llmTestLimit].
-  static Future<void> _runLlmTestOverStore(
-    BotConfig config,
-    JsonDataStore store,
-    QbDownloadResolver resolver,
-    PostExtractor extractor,
-  ) async {
-    final ids = config.llmTestTopicIds;
-    if (ids != null && ids.isNotEmpty) {
-      final bar = ConsoleProgressBar.start('LLM test', ids.length);
-      var seen = 0;
-      for (final id in ids) {
-        seen++;
-        final detail = await store.loadDetail(id);
-        if (detail == null) {
-          timber.w(
-              message: () =>
-                  "LLM test: topic $id not found in the store; skipping.");
-          bar.update(seen);
-          continue;
-        }
-        await extractor.extractForTopic(
-            detail, resolver.getCachedCandidates(id) ?? const []);
-        bar.update(seen, item: detail.title);
-      }
-      bar.finish();
-    } else {
-      final index = await store.loadIndex();
-      final bar = ConsoleProgressBar.start('LLM test', config.llmTestLimit);
-      for (final summary in index) {
-        if (extractor.testCallCount >= config.llmTestLimit) break;
-        final detail = await store.loadDetail(summary.topicId);
-        if (detail == null) continue;
-        await extractor.extractForTopic(
-            detail, resolver.getCachedCandidates(summary.topicId) ?? const []);
-        bar.update(extractor.testCallCount, item: detail.title);
-      }
-      bar.finish();
-    }
-  }
-
-  /// Saves the QB caches on the failure path. A run that broke has still fetched
-  /// pages, resolved links and probed hosts; keeping that means the next run
-  /// doesn't pay for it twice. Save errors are logged and swallowed so they
-  /// can't hide the failure that got us here.
-  static Future<void> _saveQbCachesQuietly(
-    QbDownloadResolver resolver,
-    DownloadableProbeCache probeCache,
-  ) async {
-    try {
-      await resolver.saveCache();
-      await probeCache.saveCache();
-    } catch (e) {
-      timber.w(message: () => "Could not save QB caches after the failure: $e");
-    }
-  }
-
-  /// Why the extractor will not make any more calls this run, or null while it
-  /// still can.
-  static String? _llmStopReason(PostExtractor extractor) {
-    if (extractor.hasBailed) {
-      return "the LLM kept failing, so it stopped calling";
-    }
-    final cap = extractor.maxTopics;
-    if (cap != null && extractor.liveCallCount >= cap) {
-      return "it hit the per-run limit (llm_max_topics=$cap)";
-    }
-    return null;
-  }
-
-  /// Walks every topic in the mods index and makes sure each one has LLM
-  /// results, whether or not it was scraped this run. A topic whose stored
-  /// result is still good is served from the store and costs nothing, so a
-  /// topic already extracted during the scrape is not paid for twice.
-  ///
-  /// Runs from both the normal path (after the scrape) and the reprocess-only
-  /// path (instead of a scrape), so it says nothing about whether a scrape
-  /// happened.
-  static Future<void> _runLlmCoveragePass(
-    JsonDataStore store,
-    QbDownloadResolver resolver,
-    LlmExtractionStore llmStore,
-    PostExtractor extractor,
-  ) async {
-    final index = await store.loadIndex();
-    final bar = ConsoleProgressBar.start('LLM coverage', index.length);
-
-    var seen = 0;
-    var alreadyHadResults = 0; // results were already stored when we got here
-    var passCalls = 0; // sent to the LLM by this pass
-    var skipped = 0; // no post saved on disk, or a stub post we never send
-    var withoutResults = 0; // ends the run with nothing stored
-    String? stopReason;
-
-    for (final summary in index) {
-      seen++;
-      final detail = await store.loadDetail(summary.topicId);
-      if (detail == null || detail.isPlaceholderDetail) {
-        skipped++;
-        bar.update(seen);
-        continue;
-      }
-
-      // Read the store before the call, not after, so a topic extracted earlier
-      // in this run (during the scrape) is counted as one we already had rather
-      // than one this pass produced.
-      if (llmStore.get(summary.topicId) != null) alreadyHadResults++;
-
-      // Once the extractor has stopped calling, keep walking the index so the
-      // count of what is left is right, but don't ask it for work it will
-      // refuse.
-      stopReason ??= _llmStopReason(extractor);
-      if (stopReason == null) {
-        final callsBefore = extractor.liveCallCount;
-        await extractor.extractForTopic(
-            detail, resolver.getCachedCandidates(summary.topicId) ?? const []);
-        if (extractor.liveCallCount > callsBefore) passCalls++;
-      }
-
-      if (llmStore.get(summary.topicId) == null) withoutResults++;
-
-      bar.update(seen, item: detail.title);
-      if (seen % 50 == 0) {
-        timber.i(
-            message: () => "LLM: covered $seen/${index.length} topics "
-                "($passCalls sent to the LLM so far)...");
-      }
-    }
-    bar.finish();
-
-    // The run's call count, not the pass's: topics scraped this run were sent
-    // to the LLM inside the scrape loop, and those calls count against the same
-    // per-run limit.
-    final runCalls = extractor.liveCallCount;
-    timber.i(
-        message: () => "LLM coverage: ${index.length} topics in the index, "
-            "$alreadyHadResults already had results, $passCalls sent to the LLM "
-            "by this pass ($runCalls this run in total, counting topics done "
-            "during the scrape), $skipped skipped (no post saved).");
-    if (stopReason != null) {
-      timber.w(
-          message: () => "LLM: stopped early because $stopReason. "
-              "$withoutResults topic(s) still have no LLM results; run again to "
-              "carry on where this run stopped.");
-    } else {
-      timber.i(
-          message: () => "LLM: $withoutResults topic(s) still have no LLM "
-              "results.");
-    }
-  }
 
   static Future<void> main(List<String> args) async {
     final config = Common.readConfig();
@@ -367,309 +210,7 @@ class MainRepoScraper {
 
     // --- QB Pipeline ---
     if (config.enableQb) {
-      Logger.root.level = Level.ALL;
-      Logger.root.onRecord.listen((record) {
-        final msg = '${record.loggerName}: ${record.message}';
-        if (record.level >= Level.SEVERE) {
-          timber.e(message: () => msg);
-        } else if (record.level >= Level.WARNING) {
-          timber.w(message: () => msg);
-        } else {
-          timber.i(message: () => msg);
-        }
-      });
-
-      final qbCacheFile = File('${config.qbDataPath}/qb_raw_cache.json');
-      final CachingClient? qbCachingClient;
-
-      if (config.qbUseCached && await qbCacheFile.exists()) {
-        timber.i(message: () => "Loading QB raw HTTP cache...");
-        qbCachingClient = await CachingClient.fromFile(qbCacheFile.path);
-      } else {
-        // Records each response to the cache file as it arrives, rather than
-        // holding the whole run's pages in memory and writing at the end.
-        await qbCacheFile.parent.create(recursive: true);
-        qbCachingClient = CachingClient(http.Client(), recordPath: qbCacheFile.path);
-      }
-
-      final qbClient = ThrottledClient(
-        client: qbCachingClient,
-        delayMs: qbCachingClient.isReplaying ? 0 : config.qbDelayMs,
-      );
-      // Console-only progress bar; it never touches the log file. Started
-      // lazily on the first progress report so it gets the real topic count.
-      ConsoleProgressBar? progressBar;
-
-      final qbStore = JsonDataStore(config.qbDataPath);
-      final qbEngine = QbScraperEngine(
-        store: qbStore,
-        client: qbClient,
-      );
-      final qbResolver = qbEngine.downloadResolver;
-
-      try {
-        timber.i(message: () => "Starting QB pipeline...");
-        final qbStartTime = DateTime.now();
-
-        final parsedScope = parseScopeType(config.qbScope);
-        if (parsedScope == null) {
-          timber.w(
-              message: () =>
-                  "Unrecognized qb_scope '${config.qbScope}'; accepted values "
-                  "are ${ScopeType.values.map((e) => e.name).join(', ')}. "
-                  "Using default '${ScopeType.newData.name}'.");
-        }
-        final scopeType = parsedScope ?? ScopeType.newData;
-
-        final boards = config.qbBoards.map((name) {
-          final board = ScrapeBoard.values.firstWhere(
-            (b) => b.name == name,
-            orElse: () {
-              timber.w(message: () => "Unknown QB board name: '$name', defaulting to 'main'");
-              return ScrapeBoard.main;
-            },
-          );
-          return board;
-        }).toSet();
-
-        final scope = ScrapeScope(
-          type: scopeType,
-          boards: boards,
-          maxPagesMain: config.qbMaxPagesMain,
-          maxPagesLesser: config.qbLesserBoardMaxPages,
-          maxPagesLibraries: config.qbMaxPagesLibraries,
-        );
-
-        await qbResolver.loadCache();
-        await qbEngine.probeCache.loadCache();
-
-        // --- Optional LLM post-extraction ---
-        PostExtractor? extractor;
-        LlmExtractionStore? llmStore;
-        ThrottledClient? llmClient;
-        ThrottledClient? llmFallbackClient;
-        if (config.enableLlm) {
-          llmStore = LlmExtractionStore(config.qbDataPath);
-          // Test mode never touches the real store; load only for real runs so
-          // resume works.
-          if (!config.llmTestMode) {
-            await llmStore.load();
-          }
-          // A dedicated throttled client keeps LLM calls spaced out and off the
-          // scraper's caching HTTP client.
-          llmClient = ThrottledClient(
-            client: http.Client(),
-            delayMs: 250,
-            timeout: Duration(seconds: config.llmTimeoutSeconds),
-          );
-          final primary = OpenAiCompatibleClient(
-            client: llmClient,
-            baseUrl: config.llmBaseUrl,
-            model: config.llmModel,
-            apiToken: config.llmApiToken,
-            disableThinking: config.llmDisableThinking,
-            structuredOutput: config.llmStructuredOutput,
-          );
-          // When a fallback provider is configured, wrap the primary so a post
-          // switches to the fallback only if the primary can't be reached.
-          LlmClient llm = primary;
-          if (config.llmFallbackEnabled) {
-            llmFallbackClient = ThrottledClient(
-              client: http.Client(),
-              delayMs: 250,
-              timeout: Duration(seconds: config.llmTimeoutSeconds),
-            );
-            final fallback = OpenAiCompatibleClient(
-              client: llmFallbackClient,
-              baseUrl: config.llmFallbackBaseUrl!,
-              model: config.llmFallbackModel!,
-              apiToken: config.llmFallbackApiToken,
-              disableThinking: config.llmFallbackDisableThinking,
-              structuredOutput: config.llmFallbackStructuredOutput,
-            );
-            llm = FallbackLlmClient(
-              primary: primary,
-              fallback: fallback,
-              primaryLabel:
-                  '${config.llmModel} @ ${config.llmBaseUrl}',
-              fallbackLabel:
-                  '${config.llmFallbackModel} @ ${config.llmFallbackBaseUrl}',
-            );
-          }
-          extractor = PostExtractor(
-            client: llm,
-            store: llmStore,
-            resolver: qbResolver,
-            dataPath: config.qbDataPath,
-            maxConsecutiveFailures: config.llmMaxConsecutiveFailures,
-            maxTopics: config.llmMaxTopics,
-            maxTokens: config.llmMaxTokens,
-            maxInputChars: config.llmMaxInputChars,
-            generateSummaries: config.enableLlmSummaries,
-            testMode: config.llmTestMode,
-            testLimit: config.llmTestLimit,
-            testTopicIds: config.llmTestTopicIds,
-          );
-          if (config.llmApiToken == null) {
-            timber.i(
-                message: () =>
-                    "LLM: no API key set; sending requests without one "
-                    "(fine for local servers like Ollama).");
-          }
-          final fallbackNote = config.llmFallbackEnabled
-              ? ", fallback ${config.llmFallbackModel} @ "
-                  "${config.llmFallbackBaseUrl} (used only if the primary is "
-                  "unreachable)"
-              : "";
-          final structuredNote = config.llmStructuredOutput
-              ? ", structured output ON (forces valid JSON)"
-              : "";
-          timber.i(
-              message: () => config.llmTestMode
-                  ? "LLM extraction: TEST MODE (limit ${config.llmTestLimit}, "
-                      "model ${config.llmModel}, endpoint ${config.llmBaseUrl}"
-                      "$structuredNote$fallbackNote)"
-                  : "LLM extraction enabled (model ${config.llmModel}, "
-                      "endpoint ${config.llmBaseUrl}$structuredNote$fallbackNote)");
-        }
-
-        if (config.enableLlm && config.llmTestMode && extractor != null) {
-          // Read posts already saved on disk — no scrape, no bundle write.
-          // This is for testing the prompt without touching the real data.
-          timber.i(
-              message: () =>
-                  "LLM TEST MODE: testing over already-stored posts (no scrape).");
-          await _runLlmTestOverStore(config, qbStore, qbResolver, extractor);
-          await extractor.writeTestReport();
-          llmClient?.close();
-          llmFallbackClient?.close();
-          timber.i(
-              message: () =>
-                  "LLM test mode finished; the real bundle and caches were left untouched.");
-        } else if (config.enableLlm &&
-            config.llmSkipScrapeReprocessOnly &&
-            extractor != null) {
-          // Same coverage pass as the normal path, minus the scrape: make sure
-          // every stored topic has LLM results, then rebuild the bundle. Topics
-          // whose results are still good are skipped, so re-runs only pay for
-          // new or changed ones.
-          timber.i(
-              message: () =>
-                  "LLM: covering every stored topic (no scrape this run)...");
-          await _runLlmCoveragePass(qbStore, qbResolver, llmStore!, extractor);
-          await llmStore.flush();
-          // The LLM path checks unknown links through the shared
-          // "does this serve a file?" cache; keep those answers for next time.
-          await qbEngine.probeCache.saveCache();
-          llmClient?.close();
-          llmFallbackClient?.close();
-
-          final publisher = BundlePublisher(
-            store: qbStore,
-            resolver: qbResolver,
-            llmStore: llmStore,
-            outputPath: 'outputs',
-          );
-          final bundle = await publisher.createBundle();
-          await publisher.writeLocal(bundle);
-          timber.i(
-              message: () =>
-                  "LLM over stored posts complete in ${DateTime.now().difference(qbStartTime).inSeconds}s; bundle written.");
-        } else {
-          final qbResult = await qbEngine.run(
-            scope,
-            onProgress: (processed, total, item) {
-              progressBar ??= ConsoleProgressBar.start('Scraping topics', total);
-              progressBar!.update(processed, total: total, item: item);
-            },
-            onTopicSaved: (detail) async {
-              final candidates =
-                  await qbResolver.resolveForTopic(detail.topicId, detail.links);
-              if (extractor != null) {
-                await extractor.extractForTopic(detail, candidates);
-              }
-            },
-          );
-
-          // Entries saved by an older version of the resolver may be missing
-          // its newer rules. Redo them from the links already on disk, so the
-          // bundle stays complete without anyone forcing a full re-scrape.
-          final outdated = qbResolver.outdatedTopicIds;
-          if (outdated.isNotEmpty) {
-            timber.i(
-                message: () =>
-                    "Redoing ${outdated.length} download entries saved by an older version...");
-            final redoBar =
-                ConsoleProgressBar.start('Updating downloads', outdated.length);
-            var redone = 0;
-            for (final topicId in outdated) {
-              final detail = await qbStore.loadDetail(topicId);
-              if (detail != null) {
-                await qbResolver.resolveForTopic(topicId, detail.links);
-              }
-              redoBar.update(++redone);
-            }
-            redoBar.finish();
-          }
-
-          // Topics scraped this run were already sent to the LLM inside the
-          // scrape loop above. This pass catches every other stored topic — the
-          // ones the incremental scope found unchanged, and the ones saved
-          // before the LLM was turned on — so switching the LLM on means the
-          // bundle's LLM data is complete, not that it fills in over months of
-          // re-scrapes. Topics done during the scrape come back as store hits
-          // here, so they are not paid for twice.
-          if (extractor != null) {
-            await _runLlmCoveragePass(qbStore, qbResolver, llmStore!, extractor);
-            // Save LLM results before the caches below, so the bundle written at
-            // the end sees everything this pass produced.
-            await llmStore.flush();
-          }
-
-          // Both caches are written as the run goes; these are the final saves
-          // that pick up whatever came after the last one. The LLM pass checks
-          // the links the model picked, which can add new probe answers, so save
-          // after it rather than before.
-          await qbResolver.saveCache();
-          await qbEngine.probeCache.saveCache();
-
-          llmClient?.close();
-          llmFallbackClient?.close();
-
-          timber.i(
-              message: () => "QB scrape completed: ${qbResult.modsScraped} mods, "
-                  "${qbResult.errors} errors, "
-                  "${DateTime.now().difference(qbStartTime).inSeconds}s.");
-
-          final publisher = BundlePublisher(
-            store: qbStore,
-            resolver: qbResolver,
-            llmStore: llmStore,
-            outputPath: 'outputs',
-          );
-
-          final bundle = await publisher.createBundle(scrapeResult: qbResult);
-          await publisher.writeLocal(bundle);
-
-          timber.i(message: () => "QB pipeline completed in ${DateTime.now().difference(qbStartTime).inSeconds}s.");
-        }
-      } catch (e, st) {
-        timber.e(message: () => "QB pipeline failed: $e\n$st");
-
-        // A failed run has still done real work: pages fetched, links resolved,
-        // links probed. Keep it, so the next run doesn't pay for it again.
-        await _saveQbCachesQuietly(qbResolver, qbEngine.probeCache);
-      } finally {
-        progressBar?.finish();
-        if (!qbCachingClient.isReplaying) {
-          // Responses were written as they arrived; this finishes off the file.
-          timber.i(message: () => "Saving QB raw HTTP cache...");
-          await qbCachingClient.saveToFile(qbCacheFile.path);
-        } else {
-          timber.i(message: () => "QB ran from cache; skipping cache save.");
-        }
-        qbClient.close();
-      }
+      await _runQbThroughManager(config);
     }
 
     final elapsedSeconds = DateTime.now().difference(startTime).inSeconds;
@@ -680,4 +221,145 @@ class MainRepoScraper {
     timber.i(message: () => "Wrote log to ${logFile.absolute.path}.");
     logOut.close();
   }
+
+  /// Turns the config file's job-shape keys into one job request and hands it to
+  /// the manager. This is the only place those keys are read: the manager core
+  /// itself is told what to do, never asked to look it up.
+  ///
+  /// When `qb_manager_url` names a running server, the job goes there instead,
+  /// so a run started here and one started from a browser share one queue and
+  /// one history. Anything that gets in the way of that — nothing answering, a
+  /// server with no manager, a server working on another folder — is reported
+  /// and the job runs here as usual.
+  static Future<void> _runQbThroughManager(BotConfig config) async {
+    _bridgeLoggingToTimber();
+
+    final request = _buildQbRequest(config);
+    final qbStartTime = DateTime.now();
+
+    final managerUrl = config.qbManagerUrl;
+    if (managerUrl != null && managerUrl.trim().isNotEmpty) {
+      final reporter = ConsoleRunReporter();
+      final delegate = ManagerDelegate(
+        managerUrl: managerUrl.trim(),
+        dataPath: config.qbDataPath,
+        reporter: reporter,
+      );
+      try {
+        timber.i(message: () => "Starting QB pipeline on the manager at "
+            "$managerUrl...");
+        final record = await delegate.run(
+          request,
+          interrupts: ProcessSignal.sigint.watch(),
+        );
+        if (record != null) {
+          timber.i(
+              message: () => "QB pipeline completed in "
+                  "${DateTime.now().difference(qbStartTime).inSeconds}s "
+                  "(run ${record.id}, on the manager).");
+          if (record.state == RunState.failed) exitCode = 1;
+          return;
+        }
+      } finally {
+        reporter.finish();
+        delegate.close();
+      }
+      // The delegate handed the job back, having said why. Carry on and run it
+      // here.
+    }
+
+    await _runQbLocally(config, request, qbStartTime);
+  }
+
+  /// Runs the QB job in this process, the way it has always run.
+  static Future<void> _runQbLocally(
+    BotConfig config,
+    JobRequest request,
+    DateTime qbStartTime,
+  ) async {
+    final service = ScraperService(
+      environment: ScraperEnvironment.fromConfig(config),
+      guardrails: ScraperGuardrails.fromConfig(config),
+    );
+    final manager = JobManager(
+      service: service,
+      history: RunHistoryStore(config.qbDataPath,
+          runsToKeep: config.qbRunsToKeep),
+      lock: DataLock(dataPath: config.qbDataPath, label: 'cli'),
+      makeReporter: (_) => ConsoleRunReporter(),
+    );
+    await manager.load();
+
+    timber.i(message: () => "Starting QB pipeline...");
+    try {
+      final record = await manager.submit(request);
+      if (record.errorMessage != null) {
+        timber.e(message: () => "QB pipeline failed: ${record.errorMessage}");
+        exitCode = 1;
+      }
+      timber.i(
+          message: () => "QB pipeline completed in "
+              "${DateTime.now().difference(qbStartTime).inSeconds}s "
+              "(run ${record.id}).");
+    } finally {
+      service.close();
+    }
+  }
+
+  /// The job the config file is asking for.
+  static JobRequest _buildQbRequest(BotConfig config) {
+    if (config.enableLlm && config.llmTestMode) {
+      // Reads posts already saved on disk — no scrape, no bundle write. This is
+      // for testing the prompt without touching the real data.
+      timber.i(
+          message: () =>
+              "LLM TEST MODE: testing over already-stored posts (no scrape).");
+      return JobRequest.llmTest(
+        topicIds: config.llmTestTopicIds?.toList() ?? const [],
+        limit: config.llmTestLimit,
+      );
+    }
+    if (config.enableLlm && config.llmSkipScrapeReprocessOnly) {
+      timber.i(
+          message: () =>
+              "LLM: covering every stored topic (no scrape this run)...");
+      return JobRequest.llmCoveragePass();
+    }
+
+    final parsedScope = parseScopeType(config.qbScope);
+    if (parsedScope == null) {
+      timber.w(
+          message: () =>
+              "Unrecognized qb_scope '${config.qbScope}'; accepted values "
+              "are ${ScopeType.values.map((e) => e.name).join(', ')}. "
+              "Using default '${ScopeType.newData.name}'.");
+    }
+
+    final boards = config.qbBoards.map((name) {
+      return ScrapeBoard.values.firstWhere(
+        (b) => b.name == name,
+        orElse: () {
+          timber.w(
+              message: () =>
+                  "Unknown QB board name: '$name', defaulting to 'main'");
+          return ScrapeBoard.main;
+        },
+      );
+    }).toSet();
+
+    return JobRequest.fullRun(
+      scope: parsedScope ?? ScopeType.newData,
+      boards: boards,
+      maxPagesMain: config.qbMaxPagesMain,
+      maxPagesLesser: config.qbLesserBoardMaxPages,
+      maxPagesLibraries: config.qbMaxPagesLibraries,
+      runLlm: config.enableLlm,
+      replayAllowed: config.qbUseCached,
+    );
+  }
+
+  /// The QB code logs through the `logging` package; send those lines to the
+  /// same place everything else goes. The manager server does the same, so a
+  /// run's own log file reads the same whichever side started it.
+  static void _bridgeLoggingToTimber() => Common.bridgeLoggingToTimber();
 }

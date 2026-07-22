@@ -334,6 +334,16 @@ class QbDownloadResolver {
       .map((e) => e.key)
       .toSet();
 
+  /// Forgets the saved answers for these topics, so the next
+  /// [resolveForTopic] works them out again from scratch. Every other topic's
+  /// entry is left exactly as it was. Nothing is written here — the caller
+  /// saves once it has the new answers.
+  void dropTopics(Iterable<int> topicIds) {
+    for (final id in topicIds) {
+      _cache.remove(id);
+    }
+  }
+
   /// Imports externally-provided candidates with a sentinel fingerprint.
   void importCandidates(int topicId, List<DownloadCandidate> candidates) {
     _cache[topicId] = _CacheEntry(
