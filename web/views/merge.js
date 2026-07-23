@@ -47,7 +47,7 @@ function subnav(parts) {
     tab('Pre-dedup', '#/merge/removals/preDedup', section === 'removals' && (parts[1] || 'preDedup') === 'preDedup'),
     tab('Same-source', '#/merge/removals/sameSource', section === 'removals' && parts[1] === 'sameSource'),
     tab('Validation', '#/merge/removals/validation', section === 'removals' && parts[1] === 'validation'),
-    tab('What changed', '#/merge/changes', section === 'changes')
+    tab('Diff Viewer', '#/merge/changes', section === 'changes')
   );
   return nav;
 }

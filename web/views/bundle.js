@@ -90,7 +90,7 @@ function subnav(parts) {
     el('a', { class: 'chip' + (active ? ' on' : ''), href: hash, text: label });
   return el('div', { class: 'toolbar' }, [
     tab('Browse', '#/bundle', on === 'browse'),
-    tab('What changed', '#/bundle/changes', on === 'changes'),
+    tab('Diff Viewer', '#/bundle/changes', on === 'changes'),
   ]);
 }
 

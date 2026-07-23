@@ -35,9 +35,13 @@ export function forgetRuns() {
 /// missing value reads as a dash rather than as "null".
 export function cellText(value) {
   if (value == null || value === '') return '—';
-  if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
+  if (Array.isArray(value)) {
+    return value.length ? value.map(cellText).join(', ') : '—';
+  }
   if (typeof value === 'object') {
-    const parts = Object.entries(value).map(([k, v]) => `${k}: ${v}`);
+    // Nested values are run through here too, so a list or object inside a
+    // field reads out instead of showing as "[object Object]".
+    const parts = Object.entries(value).map(([k, v]) => `${k}: ${cellText(v)}`);
     return parts.length ? parts.join('\n') : '—';
   }
   const text = String(value);
