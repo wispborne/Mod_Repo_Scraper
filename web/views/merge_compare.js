@@ -176,7 +176,7 @@ export async function changesPage(body) {
     for (const [value, label] of [
       ['', 'Everything'],
       ['added', 'Added'],
-      ['gone', 'Gone'],
+      ['gone', 'Removed'],
       ['changed', 'Changed'],
     ]) {
       kindChips.append(el('span', {
@@ -229,7 +229,7 @@ export async function changesPage(body) {
 function drawCounts(node, answer) {
   for (const [label, value, cls] of [
     ['Added', answer.addedCount, answer.addedCount ? 'warning' : ''],
-    ['Gone', answer.goneCount, answer.goneCount ? 'error' : ''],
+    ['Removed', answer.goneCount, answer.goneCount ? 'error' : ''],
     ['Changed', answer.changedCount, ''],
     ['Unchanged', answer.sameCount, ''],
   ]) {

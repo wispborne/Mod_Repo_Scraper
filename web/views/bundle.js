@@ -3,24 +3,39 @@
 //   #/bundle/<index>      one bundle entry, with a labeled card approximation
 //   #/bundle/changes      what changed between two saved bundles
 
-import { api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go } from '../lib.js';
+import {
+  api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go,
+  noticeDialog, rawJson, hashQuery, buildHash, replaceHash, breadcrumbs,
+} from '../lib.js';
 import * as manager from '../manager.js';
 import { changesPage } from './bundle_compare.js';
 import {
   postFrame, imageList, linkList, fieldList, fold, assumedTable, llmModsBlock,
-  downloadRowFromBundle, downloadRowFromCandidate, normUrl, topicActionBar,
+  downloadRowFromCandidate, normUrl, topicActionBar,
 } from './extraction_views.js';
 
 const state = { q: '', page: 0, pageSize: pageSizePreference() };
 
 export async function render(root, parts) {
   clear(root);
-  if (parts.length && parts[0] !== 'changes') return entry(root, parts[0]);
 
+  // The diff page lives in the sidebar as "Bundle diff".
+  if (parts[0] === 'changes') {
+    root.append(breadcrumbs([{ label: 'Bundle diff' }]));
+    root.append(el('h1', { text: 'Bundle diff' }));
+    return changesPage(root);
+  }
+  if (parts.length) return entry(root, parts[0]);
+
+  root.append(breadcrumbs([{ label: 'Forum Data Bundle' }]));
   root.append(el('h1', { text: 'Forum Data Bundle (what TriOS receives)' }));
-  root.append(subnav(parts));
 
-  if (parts[0] === 'changes') return changesPage(root);
+  // Search and page ride in the URL, so a reload or the back button brings the
+  // same list back.
+  const query = hashQuery();
+  state.q = (query.get('q') || '').trim();
+  state.page = Math.max(0, parseInt(query.get('page'), 10) || 0);
+  state.pageSize = pageSizePreference();
 
   const meta = await api('bundle/meta');
   if (meta instanceof MissingFile) return root.append(missingPanel(meta));
@@ -47,7 +62,12 @@ export async function render(root, parts) {
   const results = el('div', {});
   root.append(results);
 
+  function syncUrl() {
+    replaceHash(buildHash(['bundle'], { q: state.q, page: state.page || '' }));
+  }
+
   async function load() {
+    syncUrl();
     clear(results).append(el('div', { class: 'loading', text: 'Loading…' }));
     const data = await api('bundle/mods', { q: state.q, page: state.page, pageSize: state.pageSize });
     clear(results);
@@ -83,60 +103,136 @@ export async function render(root, parts) {
   load();
 }
 
-/// Two pages: the bundle as published, and what changed since last time.
-function subnav(parts) {
-  const on = parts[0] === 'changes' ? 'changes' : 'browse';
-  const tab = (label, hash, active) =>
-    el('a', { class: 'chip' + (active ? ' on' : ''), href: hash, text: label });
-  return el('div', { class: 'toolbar' }, [
-    tab('Browse', '#/bundle', on === 'browse'),
-    tab('Diff Viewer', '#/bundle/changes', on === 'changes'),
-  ]);
+async function entry(root, topicId) {
+  return renderThreadPage(root, topicId, {
+    parent: { label: 'Forum Data Bundle', href: '#/bundle' },
+  });
 }
 
-async function entry(root, topicId) {
-  root.append(el('a', { class: 'back-link', href: '#/bundle', text: '‹ Back to bundle' }));
-  // Search by the topic's own id rather than pulling the whole bundle down —
-  // the search matches ids too, so this is a handful of rows at most.
-  const data = await api('bundle/mods', { q: String(topicId), pageSize: 500 });
-  if (data instanceof MissingFile) return root.append(missingPanel(data));
+// The one thread page, reached from both Topics and the Forum Data Bundle. It
+// shows the working (on-disk) data for the thread — the latest truth — and, when
+// the published bundle is behind that, says so and offers to rebuild it.
+export async function renderThreadPage(root, topicId, { parent } = {}) {
+  clear(root);
+  const up = parent || { label: 'Topics', href: '#/topics' };
 
-  // Job buttons only exist when there is a manager to send jobs to.
+  const data = await api(`topics/${encodeURIComponent(topicId)}`);
+  if (data instanceof MissingFile) {
+    root.append(breadcrumbs([up, { label: `Topic ${topicId}` }]));
+    return root.append(missingPanel(data));
+  }
+  if (!data || data.error) {
+    root.append(breadcrumbs([up, { label: `Topic ${topicId}` }]));
+    root.append(el('p', {
+      class: 'loading',
+      text: (data && data.error) || 'No data saved for this thread.',
+    }));
+    return;
+  }
+
+  const title = (data.index && data.index.title) || `Topic ${topicId}`;
+  root.append(breadcrumbs([up, { label: title }]));
+
   const status = manager.status() || await manager.refresh();
   const managerOn = !!(status && status.on);
 
-  const match = (data.items || []).find((r) => String((r.index || {}).topicId) === String(topicId));
-  if (match) {
-    const idx = match.index || {};
-    return renderEntry(root, {
-      index: idx,
-      detail: match.detail,
-      // The bundle's own download shape, which names its fields differently
-      // from the resolver's.
-      downloads: (match.assumedDownloads || []).map(downloadRowFromBundle),
-      // In both places the LLM output is a mods list on the topic's `llm` field.
-      llm: match.llm || idx.llm,
-      fromBundle: true,
-      topicId: Number(topicId),
-      managerOn,
-    });
+  // The published bundle, read only to work out whether it is behind this
+  // thread's saved data. Best effort — a page with no bundle still shows fine.
+  const [meta, presence] = await Promise.all([
+    api('bundle/meta').catch(() => null),
+    api('bundle/mods', { q: String(topicId), pageSize: 500 }).catch(() => null),
+  ]);
+  const inBundle = !!(presence && !(presence instanceof MissingFile)
+    && (presence.items || [])
+      .some((r) => String((r.index || {}).topicId) === String(topicId)));
+  const builtAt = (meta && !(meta instanceof MissingFile) && meta.meta)
+    ? meta.meta.generatedAt
+    : null;
+
+  renderEntry(root, {
+    index: data.index || {},
+    detail: data.detail,
+    downloads: (data.assumedDownloads || []).map(downloadRowFromCandidate),
+    llm: data.llm,
+    raw: data,
+    topicId: Number(topicId),
+    managerOn,
+    staleness: bundleStaleness({
+      index: data.index || {},
+      detail: data.detail,
+      builtAt,
+      inBundle,
+      hasBundle: !!builtAt,
+    }),
+  });
+}
+
+/// Whether the published bundle reflects this thread's saved data.
+///   noBundle — nothing published yet
+///   absent   — a bundle exists, but this thread isn't in it
+///   stale    — this thread was scraped after the bundle was built
+///   current  — the bundle is up to date for this thread
+function bundleStaleness({ index, detail, builtAt, inBundle, hasBundle }) {
+  if (!hasBundle) return { state: 'noBundle' };
+  if (!inBundle) return { state: 'absent' };
+  const builtMs = new Date(builtAt).getTime();
+  const scraped = [index.scrapedAt, detail && detail.scrapedAt]
+    .filter(Boolean)
+    .map((s) => new Date(s).getTime())
+    .filter((n) => !Number.isNaN(n));
+  const newest = scraped.length ? Math.max(...scraped) : 0;
+  if (newest && !Number.isNaN(builtMs) && newest > builtMs) {
+    return { state: 'stale', scrapedAt: new Date(newest).toISOString(), builtAt };
+  }
+  return { state: 'current' };
+}
+
+/// The warning shown when the published bundle is behind this thread. Nothing is
+/// drawn when the bundle is already up to date.
+function stalenessBanner(staleness, managerOn) {
+  if (!staleness || staleness.state === 'current') return null;
+
+  let heading;
+  let detail;
+  switch (staleness.state) {
+    case 'stale':
+      heading = 'The published bundle is behind this thread.';
+      detail = `It was scraped ${stamp(staleness.scrapedAt)}, after the Forum Data `
+        + `Bundle was last built ${stamp(staleness.builtAt)}. Rebuild the bundle to `
+        + 'publish these changes to TriOS.';
+      break;
+    case 'absent':
+      heading = 'This thread is not in the published bundle yet.';
+      detail = 'Its data is saved on disk but has not been published. Rebuild the '
+        + 'bundle to include it.';
+      break;
+    default: // noBundle
+      heading = 'No Forum Data Bundle has been published yet.';
+      detail = 'This shows the data saved on disk. Rebuild the bundle to publish it '
+        + 'to TriOS.';
   }
 
-  // Not in the published bundle — fall back to what is on disk for this topic,
-  // so the page still shows something, and say so.
-  const td = await api(`topics/${encodeURIComponent(topicId)}`);
-  if (td && !(td instanceof MissingFile) && !td.error) {
-    return renderEntry(root, {
-      index: td.index || {},
-      detail: td.detail,
-      downloads: (td.assumedDownloads || []).map(downloadRowFromCandidate),
-      llm: td.llm,
-      fromBundle: false,
-      topicId: Number(topicId),
-      managerOn,
-    });
+  const banner = el('div', { class: 'notice-banner' }, [
+    el('div', { class: 'notice-text' }, [
+      el('strong', { text: heading }),
+      el('div', { text: detail }),
+    ]),
+  ]);
+  if (managerOn) {
+    banner.append(el('button', {
+      class: 'btn btn-primary',
+      text: 'Rebuild bundle',
+      onclick: async () => {
+        try {
+          const record = await manager.confirmAndSubmit({ kind: 'rebuildBundle' });
+          if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
+        } catch (err) {
+          noticeDialog('The job was not started', err.message);
+        }
+      },
+    }));
   }
-  root.append(el('p', { class: 'loading', text: 'Entry not found in the bundle.' }));
+  return banner;
 }
 
 // The card preview shows the main mod's summary. Prefer the mod tagged `main`,
@@ -154,32 +250,34 @@ function primaryExtras(llm) {
 // the same post/extraction split the topic inspector uses. Nothing in the
 // entry is left out — this page is how you check what TriOS actually receives.
 function renderEntry(root, entry) {
-  const { index: idx, detail, downloads, llm, fromBundle, topicId, managerOn } = entry;
+  const { index: idx, detail, downloads, llm, raw, topicId, managerOn, staleness } = entry;
   const mods = (llm && llm.mods) || [];
 
-  root.append(el('h1', { text: idx.title || `Topic ${topicId}` }));
+  // Everything below sits in one column with even spacing between blocks, so
+  // the page doesn't need each piece to carry its own margins.
+  const page = el('div', { class: 'thread' });
 
-  const links = el('div', { class: 'toolbar' });
+  page.append(el('h1', { text: idx.title || `Topic ${topicId}` }));
+
+  // The forum link and the per-topic job buttons share one row.
+  const controls = el('div', { class: 'thread-controls' });
   if (idx.topicUrl) {
-    links.append(el('a', { class: 'chip', href: idx.topicUrl, target: '_blank', text: 'Open on the forum ↗' }));
+    controls.append(el('a', {
+      class: 'btn', href: idx.topicUrl, target: '_blank', text: 'Open on the forum ↗',
+    }));
   }
-  links.append(el('a', { class: 'chip', href: `#/topics/${topicId}`, text: 'Topic inspector' }));
-  root.append(links);
+  // A finished job republishes the bundle, so this page shows the new answer
+  // after a reload.
+  if (managerOn) controls.append(topicActionBar(topicId));
+  if (controls.children.length) page.append(controls);
 
-  // The same three per-topic jobs the topic inspector offers, when there is a
-  // manager to send them to. A finished job republishes the bundle, so this
-  // page shows the new answer after a reload.
-  if (managerOn) root.append(topicActionBar(topicId));
+  // When the published bundle is behind this thread, say so and offer to fix it.
+  const banner = stalenessBanner(staleness, managerOn);
+  if (banner) page.append(banner);
 
-  if (!fromBundle) {
-    root.append(el('div', { class: 'approx-label', text: 'This topic is not in the published bundle — showing what is saved on disk for it instead.' }));
-  }
-
-  // Top row: every plain field, beside the card preview.
-  const top = el('div', { class: 'split-side' });
-
+  // The thread and post fields, full width — this is what the page is for.
   const fields = el('div', { class: 'panel' });
-  fields.append(el('h2', { text: 'Bundle fields' }));
+  fields.append(el('h2', { text: 'Thread and post fields' }));
   const cols = el('div', { class: 'field-cols' });
 
   const thumb = thumbUrl(idx.thumbnailPath);
@@ -229,16 +327,9 @@ function renderEntry(root, entry) {
 
   cols.append(threadCol, postCol);
   fields.append(cols);
+  page.append(fields);
 
-  const cardCol = el('div', {});
-  cardCol.append(el('h2', { style: 'margin-top:0', text: 'TriOS card' }));
-  cardCol.append(el('div', { class: 'approx-label', text: 'An approximation — TriOS is the source of truth for how mods display.' }));
-  cardCol.append(card(idx, detail, downloads, primaryExtras(llm)));
-
-  top.append(fields, cardCol);
-  root.append(top);
-
-  // Bottom row: the post itself, beside what was pulled out of it.
+  // The post itself, beside what was pulled out of it.
   const bottom = el('div', { class: 'split' });
 
   const post = el('div', { class: 'panel' });
@@ -266,14 +357,38 @@ function renderEntry(root, entry) {
     found.append(llmModsBlock(mods, ruleUrls));
   } else {
     found.append(el('h3', { text: 'Mods the LLM found' }));
-    found.append(el('p', { class: 'loading', text: 'No LLM results in the bundle for this thread.' }));
+    // Three cases share this empty state, and they mean different things:
+    // the LLM never ran (llm is null), it ran and decided this thread is not a
+    // mod release (isMod false), or it ran and simply found nothing to pull out.
+    let msg;
+    if (!llm) {
+      msg = 'The LLM has not run for this thread yet.';
+    } else if (llm.isMod === false) {
+      msg = 'The LLM read this thread and decided it is not a downloadable mod.';
+    } else {
+      msg = 'The LLM ran but found no mods to pull out of this post.';
+    }
+    found.append(el('p', { class: 'loading', text: msg }));
   }
 
   found.append(el('h3', { text: `Rule-based downloads (${downloads.length})` }));
   found.append(assumedTable(downloads));
 
   bottom.append(post, found);
-  root.append(bottom);
+  page.append(bottom);
+
+  // The TriOS card preview goes last — a rough look at how TriOS would show this
+  // mod, not the working data this page is really about.
+  const cardPanel = el('div', { class: 'panel' });
+  cardPanel.append(el('h2', { text: 'TriOS card' }));
+  cardPanel.append(el('div', { class: 'approx-label', text: 'An approximation — TriOS is the source of truth for how mods display.' }));
+  cardPanel.append(card(idx, detail, downloads, primaryExtras(llm)));
+  page.append(cardPanel);
+
+  // Everything the tidy layout leaves out, one click away.
+  if (raw) page.append(rawJson(raw, 'Show this thread’s raw data (JSON)'));
+
+  root.append(page);
 }
 
 // Timestamps arrive as ISO strings; drop the noise for reading.

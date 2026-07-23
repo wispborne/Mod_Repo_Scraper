@@ -1,13 +1,17 @@
 // #/runs — what is running now, what is waiting, what has already run, and the
 // form for starting a whole-store job.
 
-import { api, el, clear, pager, pageSizePreference, go, errorPanel } from '../lib.js';
+import {
+  api, el, clear, pager, pageSizePreference, go, errorPanel,
+  askDialog, noticeDialog, breadcrumbs,
+} from '../lib.js';
 import * as manager from '../manager.js';
 
 const state = { page: 0, pageSize: pageSizePreference() };
 
 export async function render(root) {
   clear(root);
+  root.append(breadcrumbs([{ label: 'Runs and queue' }]));
   root.append(el('h1', { text: 'Runs' }));
 
   const live = el('div', { class: 'run-section' });
@@ -94,16 +98,20 @@ function drawLive(node, s) {
         class: 'btn btn-danger',
         text: 'Stop this run',
         onclick: async (ev) => {
-          if (!window.confirm(
-            'Stop this run?\n\nIt stops between topics and keeps everything it '
-            + 'has already saved.'
-          )) return;
+          const yes = await askDialog({
+            title: 'Stop this run?',
+            message: 'It stops between topics and keeps everything it has '
+              + 'already saved.',
+            confirmLabel: 'Stop it',
+            danger: true,
+          });
+          if (!yes) return;
           ev.target.disabled = true;
           try {
             const answer = await manager.cancelCurrent();
-            window.alert(answer.message || 'Asked the run to stop.');
+            noticeDialog('Stopping', answer.message || 'Asked the run to stop.');
           } catch (err) {
-            window.alert(err.message);
+            noticeDialog('That didn\'t work', err.message);
           }
         },
       })
@@ -192,12 +200,17 @@ function drawStarter(node, s) {
   panel.append(el('h2', { text: 'Start a job' }));
   panel.append(el('p', {
     class: 'run-when',
-    text: 'What a job will do is written here in full — nothing is taken from '
-      + 'the config file behind your back. Jobs started here always fetch fresh '
-      + 'pages; replaying saved pages stays a command-line option.',
+    text: 'What a job will do is written out in full before it runs — nothing is '
+      + 'taken from the config file behind your back. Jobs started here always '
+      + 'fetch fresh pages; replaying saved pages stays a command-line option.',
   }));
 
-  // Full run.
+  panel.append(el('div', { class: 'job-columns' }, [scrapeCard(), mergeCard()]));
+  node.append(panel);
+}
+
+/// The whole-store scrape and extract jobs, in one card.
+function scrapeCard() {
   const scopeSelect = el('select', { class: 'field-input' });
   for (const [value, label] of SCOPES) {
     scopeSelect.append(el('option', { value, text: label }));
@@ -210,9 +223,9 @@ function drawStarter(node, s) {
   const llmBox = el('input', { type: 'checkbox' });
   llmBox.checked = true;
 
-  const form = el('div', { class: 'job-form' });
-  form.append(el('h3', { text: 'Full run' }));
-  form.append(el('label', { class: 'job-field' }, [
+  const card = el('div', { class: 'job-card' });
+  card.append(el('h3', { text: 'Scrape and extract' }));
+  card.append(el('label', { class: 'job-field' }, [
     el('span', { class: 'field-label', text: 'Scope' }),
     scopeSelect,
   ]));
@@ -222,12 +235,12 @@ function drawStarter(node, s) {
   for (const b of boardBoxes) {
     boardRow.append(el('label', { class: 'job-check' }, [b.box, ' ' + b.label]));
   }
-  form.append(boardRow);
-  form.append(el('div', { class: 'job-field' }, [
+  card.append(boardRow);
+  card.append(el('div', { class: 'job-field' }, [
     el('span', { class: 'field-label', text: 'LLM' }),
     el('label', { class: 'job-check' }, [llmBox, ' Ask the LLM about each topic']),
   ]));
-  form.append(el('button', {
+  card.append(el('button', {
     class: 'btn btn-primary',
     text: 'Start full run',
     onclick: () => start({
@@ -238,12 +251,10 @@ function drawStarter(node, s) {
       replayAllowed: false,
     }),
   }));
-  panel.append(form);
 
-  // The two whole-store jobs that need no choices.
-  const others = el('div', { class: 'job-form' });
-  others.append(el('h3', { text: 'Other jobs' }));
-  others.append(el('div', { class: 'job-buttons' }, [
+  // The two whole-store jobs that need no choices and touch no network.
+  card.append(el('div', { class: 'job-subhead', text: 'Without scraping' }));
+  card.append(el('div', { class: 'job-buttons' }, [
     el('button', {
       class: 'btn',
       text: 'LLM coverage pass',
@@ -257,10 +268,7 @@ function drawStarter(node, s) {
       onclick: () => start({ kind: 'rebuildBundle' }),
     }),
   ]));
-  panel.append(others);
-  panel.append(mergeForm());
-
-  node.append(panel);
+  return card;
 }
 
 const MOD_SOURCES = [
@@ -269,9 +277,10 @@ const MOD_SOURCES = [
   ['nexus', 'Nexus', true],
 ];
 
-/// The merge half of the form. Merging from saved files costs nothing, so it
-/// gets the plain button; scraping first is spelt out and confirmed.
-function mergeForm() {
+/// The merge into ModRepo.json, in one card. Merging from saved files costs
+/// nothing, so it gets the plain button; scraping first is spelt out and
+/// confirmed.
+function mergeCard() {
   const sourceBoxes = MOD_SOURCES.map(([value, label, on]) => {
     const box = el('input', { type: 'checkbox', value });
     box.checked = on;
@@ -279,12 +288,12 @@ function mergeForm() {
   });
   const keepVersionsBox = el('input', { type: 'checkbox' });
 
-  const form = el('div', { class: 'job-form' });
-  form.append(el('h3', { text: 'Merge into ModRepo.json' }));
-  form.append(el('p', {
+  const card = el('div', { class: 'job-card' });
+  card.append(el('h3', { text: 'Merge into ModRepo.json' }));
+  card.append(el('p', {
     class: 'run-when',
     text: 'Merging saves its own copy of the workings, so you can look at this '
-      + 'merge next to an older one on the Merge page.',
+      + 'merge next to an older one in the ModRepo explorer.',
   }));
 
   const sourceRow = el('div', { class: 'job-field' }, [
@@ -293,8 +302,8 @@ function mergeForm() {
   for (const s of sourceBoxes) {
     sourceRow.append(el('label', { class: 'job-check' }, [s.box, ' ' + s.label]));
   }
-  form.append(sourceRow);
-  form.append(el('div', { class: 'job-field' }, [
+  card.append(sourceRow);
+  card.append(el('div', { class: 'job-field' }, [
     el('span', { class: 'field-label', text: 'Versions' }),
     el('label', { class: 'job-check' }, [
       keepVersionsBox,
@@ -302,7 +311,7 @@ function mergeForm() {
     ]),
   ]));
 
-  form.append(el('div', { class: 'job-buttons' }, [
+  card.append(el('div', { class: 'job-buttons' }, [
     el('button', {
       class: 'btn btn-primary',
       text: 'Merge from saved files',
@@ -326,7 +335,7 @@ function mergeForm() {
       }),
     }),
   ]));
-  return form;
+  return card;
 }
 
 async function start(request) {
@@ -334,7 +343,7 @@ async function start(request) {
     const record = await manager.confirmAndSubmit(request);
     if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
   } catch (err) {
-    window.alert(err.message);
+    noticeDialog('The job was not started', err.message);
   }
 }
 

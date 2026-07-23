@@ -2,7 +2,7 @@
 //   #/files          allowlist with size / mtime / exists
 //   #/files/<id>     whole file pretty-printed (< 5 MB), else plain-text slices
 
-import { api, el, clear, missingPanel, MissingFile, fmtBytes, go } from '../lib.js';
+import { api, el, clear, missingPanel, MissingFile, fmtBytes, go, breadcrumbs } from '../lib.js';
 
 const SLICE = 256 * 1024;
 const PRETTY_LIMIT = 5 * 1024 * 1024;
@@ -11,6 +11,7 @@ export async function render(root, parts) {
   clear(root);
   if (parts.length) return viewer(root, parts[0]);
 
+  root.append(breadcrumbs([{ label: 'Files' }]));
   root.append(el('h1', { text: 'Output Files' }));
   const data = await api('files');
   if (data instanceof MissingFile) return root.append(missingPanel(data));
@@ -39,7 +40,7 @@ export async function render(root, parts) {
 }
 
 async function viewer(root, id) {
-  root.append(el('a', { class: 'back-link', href: '#/files', text: '‹ Back to files' }));
+  root.append(breadcrumbs([{ label: 'Files', href: '#/files' }, { label: id }]));
   root.append(el('h1', { text: id }));
   const status = el('p', { class: 'field-value' });
   const pre = el('pre', { class: 'raw' });
@@ -51,7 +52,10 @@ async function viewer(root, id) {
   async function loadSlice(off) {
     const data = await api(`files/${encodeURIComponent(id)}`, { offset: off, length: SLICE });
     if (data instanceof MissingFile) {
-      clear(root).append(el('a', { class: 'back-link', href: '#/files', text: '‹ Back to files' }), missingPanel(data));
+      clear(root).append(
+        breadcrumbs([{ label: 'Files', href: '#/files' }, { label: id }]),
+        missingPanel(data),
+      );
       return;
     }
     offset = data.offset;

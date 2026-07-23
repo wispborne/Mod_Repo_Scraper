@@ -9,7 +9,7 @@
 //
 // Nothing here knows about any particular view, and no view polls on its own.
 
-import { el, clear } from './lib.js';
+import { el, clear, askDialog } from './lib.js';
 
 const STATUS_URL = '/api/manager/status';
 const BASE = '/api/manager';
@@ -291,14 +291,41 @@ function describeScope(scope) {
 /// Describes the job, asks, and sends it if the answer is yes. Returns the new
 /// run record, or null when the user said no.
 export async function confirmAndSubmit(request) {
-  const title = kindLabel(request.kind);
-  if (!window.confirm(`${title}\n\n${describeJob(request)}\n\nStart it?`)) return null;
+  const yes = await askDialog({
+    title: kindLabel(request.kind),
+    message: describeJob(request),
+    confirmLabel: 'Start it',
+  });
+  if (!yes) return null;
   return submitJob(request);
 }
 
 // --- The ticked topics ---
 
-const selected = new Set();
+// The ticked topics survive a reload by riding in sessionStorage — a half-built
+// selection shouldn't vanish just because the page was refreshed. It is cleared
+// when a job is started with it, or by the Clear button.
+const SELECTION_KEY = 'viewerSelectedTopics';
+
+function loadSelection() {
+  try {
+    const raw = sessionStorage.getItem(SELECTION_KEY);
+    if (raw) return new Set(JSON.parse(raw).map(Number));
+  } catch (_) {
+    // A bad or blocked store just means we start with nothing ticked.
+  }
+  return new Set();
+}
+
+function saveSelection() {
+  try {
+    sessionStorage.setItem(SELECTION_KEY, JSON.stringify([...selected]));
+  } catch (_) {
+    // Not being able to save is not worth bothering the user about.
+  }
+}
+
+const selected = loadSelection();
 const selectionListeners = new Set();
 
 export const selection = {
@@ -330,6 +357,7 @@ export const selection = {
 };
 
 function announceSelection() {
+  saveSelection();
   for (const fn of [...selectionListeners]) {
     try {
       fn(selection.count());
@@ -351,28 +379,39 @@ export function mountHeaderChip(node) {
   drawChip(node, status());
 }
 
+/// The chip is a status dot, a short word or two, and — while a job runs — a
+/// progress bar. The dot colour carries the state at a glance: grey when off,
+/// green when ready, amber when jobs wait, cyan and pulsing while one runs.
 function drawChip(node, s) {
   clear(node);
+
+  const row = (stateClass, dotClass, text) => {
+    node.className = 'status-chip ' + stateClass;
+    node.append(el('div', { class: 'status-chip-row' }, [
+      el('span', { class: 'status-dot ' + dotClass }),
+      el('span', { class: 'status-chip-text', text }),
+    ]));
+  };
+
   if (!s) {
-    node.className = 'status-chip loading-chip';
-    node.append(el('span', { class: 'status-chip-text', text: 'Checking…' }));
+    row('loading-chip', 'pulse', 'Checking…');
     return;
   }
   if (!s.on) {
-    node.className = 'status-chip off';
-    node.append(el('span', { class: 'status-chip-text', text: 'Viewing only' }));
+    row('off', '', 'Viewing only');
     node.title = s.reason || 'The manager is off on this server.';
     return;
   }
   const current = s.current;
   if (!current) {
     const waiting = (s.queued || []).length;
-    node.className = 'status-chip ready';
-    node.append(el('span', {
-      class: 'status-chip-text',
-      text: waiting ? `${waiting} waiting` : 'Manager ready',
-    }));
-    node.title = 'Nothing is running. Click to start a job.';
+    if (waiting) {
+      row('waiting', '', `${waiting} waiting`);
+      node.title = 'Jobs are queued but nothing is running yet. Click to see them.';
+    } else {
+      row('ready', '', 'Ready');
+      node.title = 'Nothing is running. Click to start a job.';
+    }
     return;
   }
 
@@ -380,16 +419,14 @@ function drawChip(node, s) {
   const done = current.itemsDone || 0;
   const total = current.itemsTotal || 0;
   const label = kindLabel(record.request && record.request.kind);
-  const counts = total > 0 ? ` — ${done}/${total}` : '';
-  node.className = 'status-chip running';
-  node.append(el('span', { class: 'status-chip-text', text: label + counts }));
-  const fill = el('div', { class: 'status-chip-bar' }, [
+  const counts = total > 0 ? ` ${done}/${total}` : '';
+  row('running', 'pulse', label + counts);
+  node.append(el('div', { class: 'status-chip-bar' }, [
     el('div', {
       class: 'status-chip-bar-fill',
       style: `width: ${total > 0 ? Math.min(100, (done / total) * 100) : 0}%`,
     }),
-  ]);
-  node.append(fill);
+  ]));
   node.title = [current.phase, current.item].filter(Boolean).join(' — ')
     || 'A job is running. Click to watch it.';
 }

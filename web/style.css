@@ -25,41 +25,81 @@ body {
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* Top bar + nav */
-.topbar {
-  display: flex; align-items: center; gap: 24px;
-  padding: 10px 20px;
-  background: var(--surface-container);
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 10;
-  flex-wrap: wrap;
+/* Scrollbars in the theme's colours, everywhere they appear. */
+* { scrollbar-width: thin; scrollbar-color: rgba(73, 252, 255, 0.3) var(--surface-2); }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: var(--surface-2); }
+::-webkit-scrollbar-thumb {
+  background: rgba(73, 252, 255, 0.28); border-radius: 7px;
+  border: 3px solid var(--surface-2);
 }
-.brand { color: var(--primary); font-weight: 700; font-size: 1.1rem; }
-#nav { display: flex; gap: 4px; flex-wrap: wrap; }
+::-webkit-scrollbar-thumb:hover { background: rgba(73, 252, 255, 0.55); }
+::-webkit-scrollbar-corner { background: var(--surface-2); }
+
+/* Sidebar + nav. The sidebar holds the brand, the grouped nav, and the status
+   chip; it stays put while the page scrolls. */
+.layout { display: flex; align-items: stretch; min-height: 100vh; }
+.sidebar {
+  width: 200px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: var(--surface-container);
+  border-right: 1px solid var(--border);
+  padding: 14px 0 12px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.brand {
+  display: block; padding: 0 16px 10px;
+  color: var(--primary); font-weight: 700; font-size: 1.05rem;
+}
+.brand:hover { text-decoration: none; }
+#nav { display: flex; flex-direction: column; }
+.nav-section-title {
+  padding: 16px 16px 4px;
+  color: var(--text-dim); font-size: 0.7rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
 #nav a {
-  padding: 6px 12px; border-radius: 6px; color: var(--text-dim);
-  font-size: 0.9rem;
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 16px 6px 14px; color: var(--text-dim);
+  font-size: 0.9rem; border-left: 2px solid transparent;
 }
 #nav a:hover { color: var(--text); background: rgba(73, 252, 255, 0.06); text-decoration: none; }
-#nav a.active { color: var(--primary); background: rgba(73, 252, 255, 0.12); }
+#nav a.active { color: var(--primary); background: rgba(73, 252, 255, 0.12); border-left-color: var(--primary); }
+/* The icon is dimmer than the label until the row is active or hovered, so the
+   words stay the thing you read. */
+.icon { width: 18px; height: 18px; flex-shrink: 0; }
+#nav a .icon { color: var(--text-dim); }
+#nav a:hover .icon, #nav a.active .icon { color: inherit; }
 
-/* Status chip: what the manager is doing, on every page */
+/* Status chip: what the manager is doing, on every page. Sits at the bottom
+   of the sidebar. */
 .status-chip {
-  margin-left: auto; display: inline-flex; flex-direction: column; gap: 3px;
-  justify-content: center;
-  min-width: 150px; max-width: 280px;
-  /* Held steady so the top bar doesn't grow when the progress line appears,
-     which would nudge the whole page down mid-run. */
-  min-height: 35px;
-  padding: 5px 12px; border-radius: 999px;
+  margin: auto 12px 0; /* The auto pushes it to the bottom. */
+  display: flex; flex-direction: column; gap: 6px;
+  /* Held steady so the chip doesn't jump when the progress line appears. */
+  min-height: 34px; justify-content: center;
+  padding: 8px 12px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--surface-2);
-  color: var(--text-dim); font-size: 0.8rem; text-decoration: none;
+  color: var(--text); font-size: 0.8rem; text-decoration: none;
 }
-.status-chip:hover { text-decoration: none; border-color: var(--primary); color: var(--text); }
+.status-chip:hover { text-decoration: none; border-color: var(--primary); }
+.status-chip-row { display: flex; align-items: center; gap: 8px; }
 .status-chip-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.status-chip.ready { color: var(--secondary); }
-.status-chip.running { color: var(--primary); border-color: var(--primary); }
-.status-chip.off { color: var(--text-dim); font-style: italic; }
+
+/* The dot is the state at a glance. */
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: var(--text-dim);
+}
+.status-chip.ready .status-dot { background: var(--success); }
+.status-chip.waiting .status-dot { background: var(--warning); }
+.status-chip.running .status-dot,
+.status-chip.running { border-color: var(--primary); }
+.status-chip.running .status-dot { background: var(--primary); }
+.status-chip.off { color: var(--text-dim); }
+.status-dot.pulse { animation: status-pulse 1.3s ease-in-out infinite; }
+@keyframes status-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
 .status-chip-bar { height: 3px; border-radius: 2px; background: rgba(73, 252, 255, 0.12); }
 .status-chip-bar-fill {
   height: 100%; border-radius: 2px; min-width: 2px;
@@ -67,11 +107,35 @@ a:hover { text-decoration: underline; }
   transition: width 0.4s ease;
 }
 
-main { max-width: 1500px; margin: 0 auto; padding: 20px; }
+main { flex: 1; min-width: 0; max-width: 1500px; margin: 0 auto; padding: 20px 24px; }
+
+/* On a narrow window the sidebar becomes a wrapping bar across the top. */
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .sidebar {
+    width: auto; height: auto; position: static;
+    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px;
+    border-right: none; border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+  }
+  .brand { padding: 0 10px 0 0; }
+  #nav { flex-direction: row; flex-wrap: wrap; gap: 2px; }
+  #nav a { border-left: none; border-radius: 6px; padding: 5px 10px; }
+  .nav-section-title { display: none; }
+  .status-chip { margin: 0 0 0 auto; }
+}
 
 h1 { color: var(--primary); font-size: 1.5rem; margin: 0 0 12px; }
 h2 { color: var(--secondary); font-size: 1.2rem; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
 h3 { color: var(--text); font-size: 1rem; margin: 14px 0 8px; }
+
+/* Breadcrumbs at the top of every page. Ancestors are links; the current page
+   is plain text. */
+.breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 0.82rem; }
+.crumb { color: var(--text-dim); }
+a.crumb:hover { color: var(--primary); text-decoration: none; }
+.crumb-current { color: var(--text); }
+.crumb-sep { color: var(--text-dim); opacity: 0.5; }
 
 .loading { color: var(--text-dim); padding: 24px; font-style: italic; }
 .missing { background: var(--surface-container); border: 1px solid var(--border); border-radius: 8px; padding: 24px; text-align: center; color: var(--text-dim); }
@@ -206,10 +270,58 @@ tbody tr.clickable { cursor: pointer; }
 .llm-summary-sentence { color: var(--text); font-size: 0.92rem; font-weight: 600; margin: 4px 0 8px; }
 .llm-summary-paragraph { color: var(--text-dim); font-size: 0.85rem; line-height: 1.5; margin: 0 0 12px; }
 
+/* A single column of blocks with even space between them, so no one block has
+   to carry its own margins. Used by the thread page and the run detail page. */
+.thread > *, .stack > * { margin: 0; }
+.thread > * + *, .stack > * + * { margin-top: 16px; }
+/* A block that a loader has emptied takes no space, so a section that isn't
+   there leaves no gap. */
+.thread > *:empty, .stack > *:empty { margin-top: 0; }
+.thread h1 { margin-bottom: 0; }
+/* A section's own leading heading shouldn't add to the gap the container
+   already provides. */
+.stack > * > h2:first-child, .thread > * > h2:first-child { margin-top: 0; }
+/* The action buttons act on the thing the title names, so they hug it. */
+.thread > .thread-controls { margin-top: 10px; }
+/* The warning banner is a distinct alert, so it sits clearly apart from the
+   buttons above it. */
+.thread > .notice-banner { margin-top: 24px; }
+/* The forum link and the per-topic job buttons on one wrapping row. */
+.thread-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.thread-controls .topic-actions { margin: 0; }
+
 .post-frame { width: 100%; height: 70vh; border: 1px solid var(--border); border-radius: 8px; background: rgb(24, 26, 30); }
 
 .dl-row.llm { background: rgba(196, 148, 255, 0.08); }
+/* URLs in tables show a shortened form; keep them on a line or two, never one
+   character per line. */
+.url-cell { word-break: break-word; }
+/* Download tables live in narrow half-width panels. Keep every cell on one
+   line — a long file name or URL scrolls the table sideways (its wrapper
+   handles that) instead of stacking one character to a line. */
+.dl-table td, .dl-table th { white-space: nowrap; }
+
+/* "Show the raw data" fold on detail pages. */
+details.raw-fold { margin: 18px 0 4px; }
+details.raw-fold > summary {
+  cursor: pointer; user-select: none;
+  color: var(--text-dim); font-size: 0.85rem; font-weight: 600;
+}
+details.raw-fold > summary:hover { color: var(--primary); }
+details.raw-fold[open] > summary { margin-bottom: 8px; }
 .back-link { display: inline-block; margin-bottom: 12px; color: var(--text-dim); }
+
+/* A warning banner with room for a button — used when the published bundle is
+   behind a thread's saved data. */
+.notice-banner {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: rgba(255, 183, 77, 0.1);
+  border: 1px solid var(--warning); border-radius: 8px;
+  padding: 12px 16px; margin: 0 0 16px;
+}
+.notice-text { flex: 1; min-width: 260px; font-size: 0.88rem; }
+.notice-text strong { color: var(--warning); display: block; margin-bottom: 2px; }
+.notice-text div { color: var(--text-dim); }
 
 /* Long lists folded away until asked for (post images, post links). */
 details.fold { margin: 12px 0; }
@@ -230,6 +342,34 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 .stat-card .value { color: var(--primary); font-size: 1.7rem; font-weight: 700; }
 .stat-card.warning .value { color: var(--warning); }
 .stat-card.error .value { color: var(--error); }
+/* A stat card that is also a link into a filtered list. */
+.stat-card-link { display: block; text-decoration: none; }
+.stat-card-link:hover { text-decoration: none; border-color: var(--primary); }
+
+/* Home page: the big search, its results, and the stat cards above. */
+.home-search { margin: 4px 0 20px; }
+.home-search-input {
+  width: 100%; box-sizing: border-box;
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; font-size: 1rem;
+}
+.home-search-input:focus { outline: none; border-color: var(--primary); }
+.home-search-results { margin-top: 10px; display: flex; flex-direction: column; gap: 14px; }
+.home-result-group { }
+.home-result-head {
+  color: var(--secondary); font-size: 0.8rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;
+}
+.home-result {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 7px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface-container);
+  margin-bottom: 4px;
+}
+.home-result:hover { text-decoration: none; border-color: var(--primary); background: rgba(73, 252, 255, 0.05); }
+.home-result-title { color: var(--text); font-weight: 600; font-size: 0.9rem; }
+.home-result-sub { color: var(--text-dim); font-size: 0.8rem; }
 
 .timing-bar-container { margin-bottom: 8px; }
 .timing-bar-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 2px; }
@@ -252,6 +392,17 @@ pre.raw { background: rgb(10, 14, 26); border: 1px solid var(--border); border-r
 .mod-card .dl { display: block; margin-top: 6px; padding: 7px 10px; text-align: center; border-radius: 6px; background: var(--primary); color: var(--surface); font-weight: 600; font-size: 0.82rem; }
 .approx-label { background: rgba(255, 183, 77, 0.15); color: var(--warning); border: 1px dashed var(--warning); border-radius: 6px; padding: 6px 10px; font-size: 0.78rem; margin-bottom: 10px; }
 .meta-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+
+/* The in-page yes-or-no box (job confirmations, stop-a-run, error notices) */
+dialog.ask-dialog {
+  background: var(--surface-container); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 20px 22px; max-width: 460px;
+}
+dialog.ask-dialog::backdrop { background: rgba(6, 10, 20, 0.65); }
+dialog.ask-dialog h3 { margin: 0 0 10px; color: var(--primary); font-size: 1.05rem; }
+dialog.ask-dialog p { margin: 0 0 10px; font-size: 0.9rem; line-height: 1.5; }
+.dialog-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
 
 /* Buttons that do something (start a job, stop a run) */
 .btn {
@@ -276,7 +427,22 @@ pre.raw { background: rgb(10, 14, 26); border: 1px solid var(--border); border-r
 .queue-list { margin: 6px 0 0; padding-left: 22px; font-size: 0.85rem; }
 .queue-list li { padding: 2px 0; }
 
-/* Start-a-job form */
+/* Start-a-job form: two cards side by side (scrape/extract, and merge). */
+.job-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+@media (max-width: 900px) { .job-columns { grid-template-columns: 1fr; } }
+.job-card {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 16px; background: var(--surface-2); min-width: 0;
+}
+.job-card h3 { margin-top: 0; }
+.job-card .btn-primary { margin-top: 4px; }
+/* A quiet divider inside a card, e.g. "Without scraping" above the no-choice
+   buttons. */
+.job-subhead {
+  color: var(--text-dim); font-size: 0.72rem; text-transform: uppercase;
+  letter-spacing: 0.05em; margin: 16px 0 8px;
+  border-top: 1px solid var(--border); padding-top: 12px;
+}
 .job-form { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 10px; }
 .job-field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 0; font-size: 0.85rem; }
 .job-check { display: inline-flex; align-items: center; gap: 4px; color: var(--text); cursor: pointer; }
@@ -292,7 +458,7 @@ pre.raw { background: rgb(10, 14, 26); border: 1px solid var(--border); border-r
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   background: var(--surface-container); border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 14px; margin-bottom: 12px;
-  position: sticky; top: 56px; z-index: 5; /* Just clear of the top bar. */
+  position: sticky; top: 8px; z-index: 5; /* Nothing above it any more. */
 }
 .selection-count { color: var(--primary); font-weight: 600; font-size: 0.9rem; }
 .selection-hint { color: var(--text-dim); font-size: 0.8rem; }

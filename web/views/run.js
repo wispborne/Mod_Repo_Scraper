@@ -1,6 +1,6 @@
 // #/runs/<id> — one run in full: what was asked for, how it went, and its log.
 
-import { api, el, clear, go, errorPanel, MissingFile } from '../lib.js';
+import { api, el, clear, go, errorPanel, MissingFile, noticeDialog, rawJson, breadcrumbs } from '../lib.js';
 import * as manager from '../manager.js';
 import { progressBar, managerOffPanel } from './runs.js';
 import { compareRuns } from './bundle_compare.js';
@@ -11,9 +11,9 @@ const MORE_TAIL = 2000;
 export async function render(root, parts) {
   const id = parts[0];
   clear(root);
-  root.append(el('a', { class: 'back-link', href: '#/runs', text: '‹ Back to runs' }));
+  root.append(breadcrumbs([{ label: 'Runs and queue', href: '#/runs' }, { label: `Run ${id}` }]));
 
-  const body = el('div', {});
+  const body = el('div', { class: 'stack' });
   root.append(body);
 
   let tail = DEFAULT_TAIL;
@@ -62,6 +62,7 @@ export async function render(root, parts) {
       tail = tail === DEFAULT_TAIL ? MORE_TAIL : tail * 5;
       draw();
     }));
+    body.append(rawJson(record, 'Show this run’s raw record (JSON)'));
   }
 
   await draw();
@@ -99,7 +100,7 @@ function header(record) {
           const again = await manager.confirmAndSubmit(record.request);
           if (again) go(`#/runs/${encodeURIComponent(again.id)}`);
         } catch (err) {
-          window.alert(err.message);
+          noticeDialog('The job was not started', err.message);
         }
       },
     }),
@@ -112,7 +113,7 @@ function header(record) {
 /// A link to what this run changed, but only when it saved a bundle and there
 /// is an older one to compare it against. A link that leads to "nothing to
 /// compare" is worse than no link.
-async function addWhatChangedLink(row, runId) {
+export async function addWhatChangedLink(row, runId) {
   const saved = await api('bundle/runs');
   if (saved instanceof MissingFile) return;
   const ids = (saved.items || []).map((r) => r.id);

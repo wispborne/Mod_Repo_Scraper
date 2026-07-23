@@ -1,11 +1,12 @@
 // #/log — ModRepo.log viewer with text filter and jump-to-end (4.7).
 
-import { api, el, clear, missingPanel, MissingFile } from '../lib.js';
+import { api, el, clear, missingPanel, MissingFile, breadcrumbs } from '../lib.js';
 
 const state = { q: '', tail: 500 };
 
 export async function render(root) {
   clear(root);
+  root.append(breadcrumbs([{ label: 'Log' }]));
   root.append(el('h1', { text: 'Run Log (ModRepo.log)' }));
 
   const toolbar = el('div', { class: 'toolbar' });

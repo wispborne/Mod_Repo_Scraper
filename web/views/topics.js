@@ -1,6 +1,9 @@
 // #/topics — searchable, sortable, filterable topic index (2.3).
 
-import { api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go } from '../lib.js';
+import {
+  api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go,
+  noticeDialog, hashQuery, buildHash, replaceHash, breadcrumbs,
+} from '../lib.js';
 import * as manager from '../manager.js';
 
 // True only when the server can actually run jobs. When it can't, none of the
@@ -51,8 +54,43 @@ const state = {
   pageSize: pageSizePreference(),
 };
 
+// The flag names the topics endpoint understands, so only a real one from the
+// URL is trusted as a filter.
+const FLAG_KEYS = new Set(FLAGS.map((f) => f.key));
+
+/// Fills `state` from the address bar, so a reload, a bookmark, or the back
+/// button brings back the same search, filters, sort and page. Anything not in
+/// the URL falls back to its default. Rows-per-page is a site-wide preference,
+/// not part of the URL.
+function readStateFromUrl() {
+  const query = hashQuery();
+  state.q = (query.get('q') || '').trim();
+  state.filters = new Set(
+    (query.get('filters') || '').split(',').map((s) => s.trim())
+      .filter((s) => FLAG_KEYS.has(s))
+  );
+  state.sort = query.get('sort') || 'lastPostDate';
+  state.dir = query.get('dir') === 'asc' ? 'asc' : 'desc';
+  state.page = Math.max(0, parseInt(query.get('page'), 10) || 0);
+  state.pageSize = pageSizePreference();
+}
+
+/// Reflects `state` back into the address bar, without adding history or
+/// re-routing. Defaults are left out so the URL stays short.
+function syncUrl() {
+  replaceHash(buildHash(['topics'], {
+    q: state.q,
+    filters: [...state.filters].join(','),
+    sort: state.sort === 'lastPostDate' ? '' : state.sort,
+    dir: state.dir === 'desc' ? '' : state.dir,
+    page: state.page || '',
+  }));
+}
+
 export async function render(root) {
   clear(root);
+  readStateFromUrl();
+  root.append(breadcrumbs([{ label: 'Topics' }]));
   root.append(el('h1', { text: 'Topics' }));
 
   const status = manager.status() || await manager.refresh();
@@ -87,6 +125,7 @@ export async function render(root) {
   root.append(results);
 
   async function load() {
+    syncUrl();
     clear(results).append(el('div', { class: 'loading', text: 'Loading…' }));
     const data = await api('topics', {
       q: state.q,
@@ -183,7 +222,7 @@ async function act(kind) {
     manager.selection.clear();
     go('#/runs');
   } catch (err) {
-    window.alert(err.message);
+    noticeDialog('The job was not started', err.message);
   }
 }
 

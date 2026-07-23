@@ -9,7 +9,7 @@
 // Every page reads one merge: the one picked at the top, or the newest when
 // nothing is picked. The pick survives moving between the pages.
 
-import { api, el, clear, esc, missingPanel, MissingFile, pager, pageSizePreference, go } from '../lib.js';
+import { api, el, clear, esc, missingPanel, MissingFile, pager, pageSizePreference, go, rawJson, breadcrumbs } from '../lib.js';
 import { withRun, drawPicker, forgetRuns } from './merge_shared.js';
 import { groupFields, changesPage } from './merge_compare.js';
 
@@ -18,7 +18,21 @@ export async function render(root, parts, { keepRuns = false } = {}) {
   // open turns up. Redrawing after a pick keeps the list we already have.
   if (!keepRuns) forgetRuns();
   clear(root);
-  root.append(el('h1', { text: 'Merge Explorer' }));
+
+  // The diff page compares two merges with pickers of its own, so it gets its
+  // own title and none of the single-merge chrome. It lives in the sidebar as
+  // "Merge diff".
+  const section = parts[0] || 'summary';
+  if (section === 'changes') {
+    root.append(breadcrumbs([{ label: 'ModRepo diff' }]));
+    root.append(el('h1', { text: 'ModRepo diff' }));
+    const diffBody = el('div', {});
+    root.append(diffBody);
+    return changesPage(diffBody);
+  }
+
+  root.append(breadcrumbs([{ label: 'ModRepo explorer' }]));
+  root.append(el('h1', { text: 'ModRepo explorer' }));
   const pickerRow = el('div', {});
   root.append(pickerRow);
   root.append(subnav(parts));
@@ -26,9 +40,6 @@ export async function render(root, parts, { keepRuns = false } = {}) {
   root.append(body);
 
   drawPicker(pickerRow, () => render(root, parts, { keepRuns: true }));
-
-  const section = parts[0] || 'summary';
-  if (section === 'changes') return changesPage(body);
   if (section === 'groups' && parts[2] === 'fields') return groupFields(body, parts[1]);
   if (section === 'groups' && parts[1] != null) return groupDetail(body, parts[1]);
   if (section === 'groups') return groupsList(body);
@@ -46,8 +57,7 @@ function subnav(parts) {
     tab('Groups', '#/merge/groups', section === 'groups'),
     tab('Pre-dedup', '#/merge/removals/preDedup', section === 'removals' && (parts[1] || 'preDedup') === 'preDedup'),
     tab('Same-source', '#/merge/removals/sameSource', section === 'removals' && parts[1] === 'sameSource'),
-    tab('Validation', '#/merge/removals/validation', section === 'removals' && parts[1] === 'validation'),
-    tab('Diff Viewer', '#/merge/changes', section === 'changes')
+    tab('Validation', '#/merge/removals/validation', section === 'removals' && parts[1] === 'validation')
   );
   return nav;
 }
@@ -219,6 +229,8 @@ async function groupDetail(body, id) {
   } else {
     body.append(el('p', { class: 'loading', text: 'No merge steps (singleton group).' }));
   }
+
+  body.append(rawJson(data, 'Show this group’s raw data (JSON)'));
 }
 
 function reasonLabel(reason) {

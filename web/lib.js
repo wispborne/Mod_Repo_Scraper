@@ -80,6 +80,33 @@ export function loading() {
   return el('div', { class: 'loading', text: 'Loading…' });
 }
 
+/// A breadcrumb trail for the top of a page. `trail` is the crumbs after Home
+/// (Home is prepended for you), each `{ label, href }`. The last crumb is the
+/// current page and is drawn as plain text; the rest are links, so the trail
+/// doubles as the page's way back. Example:
+///   breadcrumbs([{ label: 'Topics', href: '#/topics' }, { label: title }])
+export function breadcrumbs(trail = []) {
+  const full = [{ label: 'Home', href: '#/home' }, ...trail];
+  const nav = el('nav', { class: 'breadcrumbs', 'aria-label': 'Breadcrumb' });
+  full.forEach((crumb, i) => {
+    if (i) nav.append(el('span', { class: 'crumb-sep', text: '›' }));
+    const isLast = i === full.length - 1;
+    nav.append(!isLast && crumb.href
+      ? el('a', { class: 'crumb', href: crumb.href, text: crumb.label })
+      : el('span', { class: 'crumb crumb-current', text: crumb.label }));
+  });
+  return nav;
+}
+
+/// A closed-by-default "show the raw data" fold for detail pages, so anything
+/// the tidy layout leaves out is still one click away. Pretty-prints the object.
+export function rawJson(obj, label = 'Show the raw data (JSON)') {
+  return el('details', { class: 'raw-fold' }, [
+    el('summary', { text: label }),
+    el('pre', { class: 'raw', text: JSON.stringify(obj, null, 2) }),
+  ]);
+}
+
 // --- How many rows to a page ---
 
 /// The choices in the "rows" box. 0 means all of them on one page.
@@ -161,14 +188,88 @@ function pageSizePicker(pageSize, onPageSize) {
   ]);
 }
 
-/// Reads `#/foo/bar` into ['foo','bar'].
+// --- Asking before doing, without the browser's own popups ---
+
+/// Asks a yes-or-no question in a proper in-page box. Resolves true on yes,
+/// false on no or Escape. Blank lines in the message become paragraph breaks.
+/// The yes button starts focused, so Enter still says yes as fast as the old
+/// browser popup did.
+export function askDialog({ title, message, confirmLabel = 'Yes', cancelLabel = 'Cancel', danger = false }) {
+  return new Promise((resolve) => {
+    const box = el('dialog', { class: 'ask-dialog' });
+    const yes = el('button', {
+      class: danger ? 'btn btn-danger' : 'btn btn-primary',
+      text: confirmLabel,
+    });
+    const buttons = el('div', { class: 'dialog-buttons' });
+    if (cancelLabel != null) {
+      const no = el('button', { class: 'btn', text: cancelLabel });
+      no.addEventListener('click', () => box.close(''));
+      buttons.append(no);
+    }
+    buttons.append(yes);
+    yes.addEventListener('click', () => box.close('yes'));
+
+    box.append(el('h3', { text: title }));
+    for (const para of String(message || '').split('\n\n')) {
+      if (para.trim()) box.append(el('p', { text: para }));
+    }
+    box.append(buttons);
+
+    box.addEventListener('close', () => {
+      const said = box.returnValue === 'yes';
+      box.remove();
+      resolve(said);
+    });
+    document.body.append(box);
+    box.showModal();
+    yes.focus();
+  });
+}
+
+/// Tells the user one thing, with just an OK button.
+export function noticeDialog(title, message) {
+  return askDialog({ title, message, confirmLabel: 'OK', cancelLabel: null });
+}
+
+/// Reads the path part of `#/foo/bar?x=1` into ['foo','bar']. The query, if any,
+/// is left for `hashQuery`.
 export function hashParts() {
-  const h = location.hash.replace(/^#\/?/, '');
+  const h = location.hash.replace(/^#\/?/, '').split('?')[0];
   return h.length ? h.split('/').map(decodeURIComponent) : [];
+}
+
+/// The query part of the current hash, e.g. `?q=foo&page=2`, as URLSearchParams.
+export function hashQuery() {
+  const i = location.hash.indexOf('?');
+  return new URLSearchParams(i >= 0 ? location.hash.slice(i + 1) : '');
+}
+
+/// Builds a hash from path parts and a params object, dropping empty values so
+/// the URL stays short: `buildHash(['topics'], {q:'foo', page:2})` →
+/// `#/topics?q=foo&page=2`.
+export function buildHash(parts, params = {}) {
+  const path = parts.map(encodeURIComponent).join('/');
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v == null || v === '') continue;
+    q.set(k, String(v));
+  }
+  const qs = q.toString();
+  return `#/${path}${qs ? '?' + qs : ''}`;
 }
 
 export function go(hash) {
   location.hash = hash;
+}
+
+/// Updates the address bar to `hash` without adding a history entry or setting
+/// off a re-route. A view calls this as its own state (search, filters, page)
+/// changes, so a reload or a bookmark brings the same view back, and the back
+/// button returns to the list as it was left — without every keystroke piling
+/// up in the history.
+export function replaceHash(hash) {
+  history.replaceState(null, '', hash);
 }
 
 export function fmtBytes(n) {

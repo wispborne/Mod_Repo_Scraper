@@ -2,7 +2,10 @@
 //   #/modrepo            searchable, paged mod table
 //   #/modrepo/<index>    one merged mod, with source provenance
 
-import { api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go } from '../lib.js';
+import {
+  api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go,
+  noticeDialog, rawJson, hashQuery, buildHash, replaceHash, breadcrumbs,
+} from '../lib.js';
 import * as manager from '../manager.js';
 
 const state = { q: '', page: 0, pageSize: pageSizePreference() };
@@ -11,6 +14,14 @@ export async function render(root, parts) {
   clear(root);
   if (parts.length) return detail(root, parts[0]);
 
+  // Search and page ride in the URL, so a reload or the back button brings the
+  // same list back.
+  const query = hashQuery();
+  state.q = (query.get('q') || '').trim();
+  state.page = Math.max(0, parseInt(query.get('page'), 10) || 0);
+  state.pageSize = pageSizePreference();
+
+  root.append(breadcrumbs([{ label: 'ModRepo' }]));
   root.append(el('h1', { text: 'ModRepo (merged output)' }));
   const toolbar = el('div', { class: 'toolbar' });
   const search = el('input', { type: 'search', placeholder: 'Search name or author…', value: state.q });
@@ -24,7 +35,12 @@ export async function render(root, parts) {
   const results = el('div', {});
   root.append(results);
 
+  function syncUrl() {
+    replaceHash(buildHash(['modrepo'], { q: state.q, page: state.page || '' }));
+  }
+
   async function load() {
+    syncUrl();
     clear(results).append(el('div', { class: 'loading', text: 'Loading…' }));
     const data = await api('modrepo', { q: state.q, page: state.page, pageSize: state.pageSize });
     clear(results);
@@ -57,11 +73,17 @@ export async function render(root, parts) {
 }
 
 async function detail(root, index) {
-  root.append(el('a', { class: 'back-link', href: '#/modrepo', text: '‹ Back to ModRepo' }));
   const mod = await api(`modrepo/${encodeURIComponent(index)}`);
-  if (mod instanceof MissingFile) return root.append(missingPanel(mod));
-  if (mod.error) return root.append(el('div', { class: 'missing error' }, el('h3', { text: mod.error })));
+  if (mod instanceof MissingFile) {
+    root.append(breadcrumbs([{ label: 'ModRepo', href: '#/modrepo' }]));
+    return root.append(missingPanel(mod));
+  }
+  if (mod.error) {
+    root.append(breadcrumbs([{ label: 'ModRepo', href: '#/modrepo' }]));
+    return root.append(el('div', { class: 'missing error' }, el('h3', { text: mod.error })));
+  }
 
+  root.append(breadcrumbs([{ label: 'ModRepo', href: '#/modrepo' }, { label: mod.name || '(empty)' }]));
   root.append(el('h1', { text: mod.name || '(empty)' }));
 
   // This page's data comes from the merge, so the button here is the merge —
@@ -82,7 +104,7 @@ async function detail(root, index) {
             });
             if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
           } catch (err) {
-            window.alert(err.message);
+            noticeDialog('The job was not started', err.message);
           }
         },
       }),
@@ -127,4 +149,6 @@ async function detail(root, index) {
         onclick: () => sessionStorage.setItem('mergeGroupSearch', mod.name || ''),
       })));
   }
+
+  root.append(rawJson(mod, 'Show this mod’s raw data (JSON)'));
 }

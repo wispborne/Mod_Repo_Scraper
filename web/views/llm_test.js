@@ -1,10 +1,37 @@
 // #/llm-test — renders llm-test-output.json as a readable report (2.6).
 
-import { api, el, clear, missingPanel, MissingFile } from '../lib.js';
+import { api, el, clear, missingPanel, MissingFile, go, noticeDialog, breadcrumbs } from '../lib.js';
+import * as manager from '../manager.js';
 
 export async function render(root) {
   clear(root);
+  root.append(breadcrumbs([{ label: 'LLM test report' }]));
   root.append(el('h1', { text: 'LLM Test Report' }));
+
+  // The LLM test is the one job with no other way in — start it here. It tries
+  // the prompt on a few topics and writes a fresh report; nothing else is saved.
+  const status = manager.status() || await manager.refresh();
+  if (status && status.on) {
+    root.append(el('div', { class: 'topic-actions' }, [
+      el('button', {
+        class: 'btn btn-primary',
+        text: 'Run LLM test',
+        title: 'Try the LLM prompt on a few topics and write a fresh report.',
+        onclick: async () => {
+          try {
+            const record = await manager.confirmAndSubmit({ kind: 'llmTest' });
+            if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
+          } catch (err) {
+            noticeDialog('The job was not started', err.message);
+          }
+        },
+      }),
+      el('span', {
+        class: 'selection-hint',
+        text: 'The report below refreshes once the job finishes.',
+      }),
+    ]));
+  }
 
   const data = await api('llm-test');
   if (data instanceof MissingFile) {

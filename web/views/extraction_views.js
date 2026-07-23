@@ -8,12 +8,17 @@
 // `downloadRow*` first, and everything below works on one plain shape:
 //   { url, directUrl, host, fileName, confidence, requiresManualStep, linkText }
 
-import { el, esc, go } from '../lib.js';
+import { el, esc, go, noticeDialog } from '../lib.js';
 import * as manager from '../manager.js';
 
 // Small forum-ish stylesheet for the sandboxed post frame. Styles the scraped
 // bbc_* classes so the post reads like the forum, dark background.
 const FRAME_CSS = `
+  * { scrollbar-width: thin; scrollbar-color: rgba(73, 252, 255, 0.3) rgb(24, 26, 30); }
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-track { background: rgb(24, 26, 30); }
+  ::-webkit-scrollbar-thumb { background: rgba(73, 252, 255, 0.28); border-radius: 7px; border: 3px solid rgb(24, 26, 30); }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(73, 252, 255, 0.55); }
   body { background: rgb(24, 26, 30); color: rgb(220, 225, 240);
     font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.5;
     padding: 14px; margin: 0; font-size: 14px; }
@@ -42,7 +47,7 @@ export function topicActionBar(topicId) {
       });
       if (record) go('#/runs');
     } catch (err) {
-      window.alert(err.message);
+      noticeDialog('The job was not started', err.message);
     }
   };
   return el('div', { class: 'topic-actions' }, [
@@ -90,6 +95,36 @@ export function downloadRowFromBundle(c) {
 export function normUrl(u) {
   return String(u || '').trim().toLowerCase()
     .replace(/^https?:\/\//, '').replace(/\/+$/, '');
+}
+
+/// A URL short enough to sit in a table cell without stacking one character to a
+/// line. Keeps the start and the tail — the filename at the end is usually the
+/// part worth seeing — and drops the middle. The full URL still rides along as
+/// the link and its hover text.
+function shortUrl(u, max = 52) {
+  const s = String(u || '');
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 16)}…${s.slice(-14)}`;
+}
+
+/// A link that shows a shortened URL but opens and hovers the full one.
+function urlLink(display, href) {
+  return el('a', {
+    class: 'url-cell',
+    href,
+    target: '_blank',
+    title: href,
+    text: display,
+  });
+}
+
+/// Any long cell text (link text is often a bare URL), shortened for the cell
+/// with the full text kept as hover. Returns a node so the title can ride along.
+function clampCell(text, max = 40) {
+  const s = String(text || '');
+  if (!s) return '—';
+  if (s.length <= max) return s;
+  return el('span', { title: s, text: `${s.slice(0, max - 1)}…` });
 }
 
 /// A closed-by-default section for a long list, so the page stays short.
@@ -167,7 +202,7 @@ export function assumedTable(rows) {
     return el('p', { class: 'loading', text: 'No rule-based downloads.' });
   }
   const wrap = el('div', { class: 'table-wrapper' });
-  const table = el('table');
+  const table = el('table', { class: 'dl-table' });
   table.append(el('thead', {}, el('tr', {}, [
     el('th', { text: 'Confidence' }),
     el('th', { text: 'Host' }),
@@ -181,14 +216,11 @@ export function assumedTable(rows) {
     const tr = el('tr');
     tr.append(el('td', { class: 'conf-' + (r.confidence || ''), text: r.confidence || '—' }));
     tr.append(el('td', { text: r.host || '—' }));
-    tr.append(el('td', { text: r.fileName || '—' }));
+    tr.append(el('td', {}, clampCell(r.fileName)));
     tr.append(el('td', { text: r.requiresManualStep ? 'yes' : '' }));
-    tr.append(el('td', { text: r.linkText || '—' }));
-    tr.append(el('td', {}, el('a', {
-      href: r.directUrl || r.url,
-      target: '_blank',
-      text: r.url || r.directUrl || '',
-    })));
+    tr.append(el('td', {}, clampCell(r.linkText)));
+    const url = r.url || r.directUrl || '';
+    tr.append(el('td', {}, url ? urlLink(shortUrl(url), r.directUrl || r.url) : '—'));
     tbody.append(tr);
   }
   table.append(tbody);
@@ -233,7 +265,7 @@ export function llmDownloadsTable(downloads, assumedUrls) {
     return el('p', { class: 'loading', text: 'No downloads.' });
   }
   const wrap = el('div', { class: 'table-wrapper' });
-  const table = el('table');
+  const table = el('table', { class: 'dl-table' });
   table.append(el('thead', {}, el('tr', {}, [
     el('th', { text: 'Kind' }),
     el('th', { text: 'Found by' }),
@@ -253,13 +285,10 @@ export function llmDownloadsTable(downloads, assumedUrls) {
       : el('span', { class: 'badge badge-secondary', text: 'rules' })));
     tr.append(el('td', { class: 'conf-' + (d.confidence || ''), text: d.confidence || '—' }));
     tr.append(el('td', { text: d.sourceHost || '—' }));
-    tr.append(el('td', { text: d.fileName || '—' }));
+    tr.append(el('td', {}, clampCell(d.fileName)));
     tr.append(el('td', { text: d.requiresManualStep ? 'yes' : '' }));
-    tr.append(el('td', {}, el('a', {
-      href: d.resolvedDirectUrl || d.url,
-      target: '_blank',
-      text: d.label ? `${d.label} — ${d.url}` : d.url,
-    })));
+    const display = d.label ? `${d.label} — ${shortUrl(d.url)}` : shortUrl(d.url);
+    tr.append(el('td', {}, d.url ? urlLink(display, d.resolvedDirectUrl || d.url) : '—'));
     tbody.append(tr);
   }
   table.append(tbody);
