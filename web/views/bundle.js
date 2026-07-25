@@ -5,13 +5,15 @@
 
 import {
   api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go,
-  noticeDialog, rawJson, hashQuery, buildHash, replaceHash, breadcrumbs,
+  rawJson, hashQuery, buildHash, replaceHash, breadcrumbs,
 } from '../lib.js';
 import * as manager from '../manager.js';
 import { changesPage } from './bundle_compare.js';
+import { render as renderHistory } from './topic_history.js';
 import {
   postFrame, imageList, linkList, fieldList, fold, assumedTable, llmModsBlock,
-  downloadRowFromCandidate, normUrl, topicActionBar,
+  downloadRowFromCandidate, normUrl, topicActionBar, topicStaleness,
+  rebuildBundleButton,
 } from './extraction_views.js';
 
 const state = { q: '', page: 0, pageSize: pageSizePreference() };
@@ -24,6 +26,11 @@ export async function render(root, parts) {
     root.append(breadcrumbs([{ label: 'Bundle diff' }]));
     root.append(el('h1', { text: 'Bundle diff' }));
     return changesPage(root);
+  }
+  if (parts[1] === 'history') {
+    return renderHistory(root, parts[0], {
+      parent: { label: 'Forum Data Bundle', href: '#/bundle' },
+    });
   }
   if (parts.length) return entry(root, parts[0]);
 
@@ -136,19 +143,6 @@ export async function renderThreadPage(root, topicId, { parent } = {}) {
   const status = manager.status() || await manager.refresh();
   const managerOn = !!(status && status.on);
 
-  // The published bundle, read only to work out whether it is behind this
-  // thread's saved data. Best effort — a page with no bundle still shows fine.
-  const [meta, presence] = await Promise.all([
-    api('bundle/meta').catch(() => null),
-    api('bundle/mods', { q: String(topicId), pageSize: 500 }).catch(() => null),
-  ]);
-  const inBundle = !!(presence && !(presence instanceof MissingFile)
-    && (presence.items || [])
-      .some((r) => String((r.index || {}).topicId) === String(topicId)));
-  const builtAt = (meta && !(meta instanceof MissingFile) && meta.meta)
-    ? meta.meta.generatedAt
-    : null;
-
   renderEntry(root, {
     index: data.index || {},
     detail: data.detail,
@@ -157,34 +151,11 @@ export async function renderThreadPage(root, topicId, { parent } = {}) {
     raw: data,
     topicId: Number(topicId),
     managerOn,
-    staleness: bundleStaleness({
-      index: data.index || {},
-      detail: data.detail,
-      builtAt,
-      inBundle,
-      hasBundle: !!builtAt,
-    }),
+    staleness: await topicStaleness(topicId, data.index || {}, data.detail),
+    // The history page is reached from whichever list this thread was, so the
+    // trail back stays the one the reader came in on.
+    historyBase: parent && parent.href === '#/bundle' ? 'bundle' : 'topics',
   });
-}
-
-/// Whether the published bundle reflects this thread's saved data.
-///   noBundle — nothing published yet
-///   absent   — a bundle exists, but this thread isn't in it
-///   stale    — this thread was scraped after the bundle was built
-///   current  — the bundle is up to date for this thread
-function bundleStaleness({ index, detail, builtAt, inBundle, hasBundle }) {
-  if (!hasBundle) return { state: 'noBundle' };
-  if (!inBundle) return { state: 'absent' };
-  const builtMs = new Date(builtAt).getTime();
-  const scraped = [index.scrapedAt, detail && detail.scrapedAt]
-    .filter(Boolean)
-    .map((s) => new Date(s).getTime())
-    .filter((n) => !Number.isNaN(n));
-  const newest = scraped.length ? Math.max(...scraped) : 0;
-  if (newest && !Number.isNaN(builtMs) && newest > builtMs) {
-    return { state: 'stale', scrapedAt: new Date(newest).toISOString(), builtAt };
-  }
-  return { state: 'current' };
 }
 
 /// The warning shown when the published bundle is behind this thread. Nothing is
@@ -218,20 +189,7 @@ function stalenessBanner(staleness, managerOn) {
       el('div', { text: detail }),
     ]),
   ]);
-  if (managerOn) {
-    banner.append(el('button', {
-      class: 'btn btn-primary',
-      text: 'Rebuild bundle',
-      onclick: async () => {
-        try {
-          const record = await manager.confirmAndSubmit({ kind: 'rebuildBundle' });
-          if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
-        } catch (err) {
-          noticeDialog('The job was not started', err.message);
-        }
-      },
-    }));
-  }
+  if (managerOn) banner.append(rebuildBundleButton());
   return banner;
 }
 
@@ -250,7 +208,10 @@ function primaryExtras(llm) {
 // the same post/extraction split the topic inspector uses. Nothing in the
 // entry is left out — this page is how you check what TriOS actually receives.
 function renderEntry(root, entry) {
-  const { index: idx, detail, downloads, llm, raw, topicId, managerOn, staleness } = entry;
+  const {
+    index: idx, detail, downloads, llm, raw, topicId, managerOn, staleness,
+    historyBase,
+  } = entry;
   const mods = (llm && llm.mods) || [];
 
   // Everything below sits in one column with even spacing between blocks, so
@@ -266,6 +227,12 @@ function renderEntry(root, entry) {
       class: 'btn', href: idx.topicUrl, target: '_blank', text: 'Open on the forum ↗',
     }));
   }
+  controls.append(el('a', {
+    class: 'btn',
+    href: `#/${historyBase || 'topics'}/${encodeURIComponent(topicId)}/history`,
+    text: 'History',
+    title: 'Every run that changed this thread.',
+  }));
   // A finished job republishes the bundle, so this page shows the new answer
   // after a reload.
   if (managerOn) controls.append(topicActionBar(topicId));

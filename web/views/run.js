@@ -1,9 +1,8 @@
 // #/runs/<id> — one run in full: what was asked for, how it went, and its log.
 
-import { api, el, clear, go, errorPanel, MissingFile, noticeDialog, rawJson, breadcrumbs } from '../lib.js';
+import { api, el, clear, go, errorPanel, MissingFile, noticeDialog, rawJson, breadcrumbs, buildHash } from '../lib.js';
 import * as manager from '../manager.js';
 import { progressBar, managerOffPanel } from './runs.js';
-import { compareRuns } from './bundle_compare.js';
 
 const DEFAULT_TAIL = 200;
 const MORE_TAIL = 2000;
@@ -120,12 +119,12 @@ export async function addWhatChangedLink(row, runId) {
   const at = ids.indexOf(runId);
   if (at < 0 || at + 1 >= ids.length) return;
 
+  // The two runs ride in the link itself, so it also works opened in a new tab.
   row.append(el('a', {
     class: 'btn',
-    href: '#/bundle/changes',
+    href: buildHash(['bundle', 'changes'], { a: ids[at + 1], b: runId }),
     text: 'What this run changed',
     title: 'Compare the bundle this run published with the one before it.',
-    onclick: () => compareRuns(ids[at + 1], runId),
   }));
 }
 

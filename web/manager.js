@@ -29,6 +29,7 @@ export const KIND_LABELS = {
   rebuildBundle: 'Rebuild bundle',
   mergeModRepo: 'Merge from saved files',
   scrapeAndMerge: 'Scrape then merge',
+  publishOutputs: 'Publish to GitHub',
 };
 
 export function kindLabel(kind) {
@@ -247,6 +248,10 @@ export function describeJob(request) {
       return `Fetch ${listSources(request.modSources)} fresh, then merge them `
         + 'into ModRepo.json. This one goes out to the mod sites and can take a '
         + 'few minutes. No LLM spending.';
+    case 'publishOutputs':
+      return 'Push the current ModRepo.json and forum-data-bundle.json to the '
+        + 'GitHub repo TriOS reads. Publishes whatever is in outputs/ right now. '
+        + 'If nothing changed since last time, nothing is pushed.';
     default:
       return `Run a "${request.kind}" job.`;
   }

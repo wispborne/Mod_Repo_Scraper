@@ -65,7 +65,7 @@ class BundleSnapshotStore {
   /// How many snapshots to keep. 0 or less keeps them all.
   final int bundlesToKeep;
 
-  BundleSnapshotStore(this.dataPath, {this.bundlesToKeep = 20});
+  BundleSnapshotStore(this.dataPath, {this.bundlesToKeep = 500});
 
   String get bundlesPath => p.join(dataPath, 'bundles');
 

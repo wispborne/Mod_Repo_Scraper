@@ -367,8 +367,13 @@ class ModRepoService implements JobRunner {
 class JobRouter implements JobRunner {
   final JobRunner qb;
   final JobRunner modRepo;
+  final JobRunner publish;
 
-  const JobRouter({required this.qb, required this.modRepo});
+  const JobRouter({
+    required this.qb,
+    required this.modRepo,
+    required this.publish,
+  });
 
   @override
   Future<JobOutcome> runJob(
@@ -377,8 +382,14 @@ class JobRouter implements JobRunner {
     CancelToken? cancel,
     String? runId,
   }) =>
-      (request.isMergeKind ? modRepo : qb)
+      _runnerFor(request)
           .runJob(request, reporter: reporter, cancel: cancel, runId: runId);
+
+  JobRunner _runnerFor(JobRequest request) {
+    if (request.isPublishKind) return publish;
+    if (request.isMergeKind) return modRepo;
+    return qb;
+  }
 }
 
 /// The plain-English name of a job kind, for logs and confirm boxes.
@@ -392,4 +403,5 @@ String jobKindLabel(JobKind kind) => switch (kind) {
       JobKind.rebuildBundle => 'rebuild the bundle',
       JobKind.mergeModRepo => 'merge from saved files',
       JobKind.scrapeAndMerge => 'scrape then merge',
+      JobKind.publishOutputs => 'publish to GitHub',
     };

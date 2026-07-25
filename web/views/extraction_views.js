@@ -8,7 +8,7 @@
 // `downloadRow*` first, and everything below works on one plain shape:
 //   { url, directUrl, host, fileName, confidence, requiresManualStep, linkText }
 
-import { el, esc, go, noticeDialog } from '../lib.js';
+import { api, el, esc, go, MissingFile, noticeDialog } from '../lib.js';
 import * as manager from '../manager.js';
 
 // Small forum-ish stylesheet for the sandboxed post frame. Styles the scraped
@@ -360,4 +360,69 @@ export function extrasBlock(extras) {
     box.append(el('p', { class: 'loading', text: 'No extras found.' }));
   }
   return box;
+}
+
+// --- Is the published bundle behind this thread? ---
+//
+// Both the thread page and the history page need this answer, and both offer the
+// same way out of it, so the check and the button live here with the other
+// shared pieces.
+
+/// Whether the published bundle reflects this thread's saved data.
+///   noBundle — nothing published yet
+///   absent   — a bundle exists, but this thread isn't in it
+///   stale    — this thread was scraped after the bundle was built
+///   current  — the bundle is up to date for this thread
+export function bundleStaleness({ index, detail, builtAt, inBundle, hasBundle }) {
+  if (!hasBundle) return { state: 'noBundle' };
+  if (!inBundle) return { state: 'absent' };
+  const builtMs = new Date(builtAt).getTime();
+  const scraped = [index.scrapedAt, detail && detail.scrapedAt]
+    .filter(Boolean)
+    .map((s) => new Date(s).getTime())
+    .filter((n) => !Number.isNaN(n));
+  const newest = scraped.length ? Math.max(...scraped) : 0;
+  if (newest && !Number.isNaN(builtMs) && newest > builtMs) {
+    return { state: 'stale', scrapedAt: new Date(newest).toISOString(), builtAt };
+  }
+  return { state: 'current' };
+}
+
+/// The same answer, having read the published bundle to work it out. Best effort:
+/// a viewer with nothing published yet still gets a state back.
+export async function topicStaleness(topicId, index, detail) {
+  const [meta, presence] = await Promise.all([
+    api('bundle/meta').catch(() => null),
+    api('bundle/mods', { q: String(topicId), pageSize: 500 }).catch(() => null),
+  ]);
+  const inBundle = !!(presence && !(presence instanceof MissingFile)
+    && (presence.items || [])
+      .some((r) => String((r.index || {}).topicId) === String(topicId)));
+  const builtAt = (meta && !(meta instanceof MissingFile) && meta.meta)
+    ? meta.meta.generatedAt
+    : null;
+
+  return bundleStaleness({
+    index: index || {},
+    detail,
+    builtAt,
+    inBundle,
+    hasBundle: !!builtAt,
+  });
+}
+
+/// The "Rebuild bundle" button, wherever unpublished changes are pointed out.
+export function rebuildBundleButton() {
+  return el('button', {
+    class: 'btn btn-primary',
+    text: 'Rebuild bundle',
+    onclick: async () => {
+      try {
+        const record = await manager.confirmAndSubmit({ kind: 'rebuildBundle' });
+        if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
+      } catch (err) {
+        noticeDialog('The job was not started', err.message);
+      }
+    },
+  });
 }

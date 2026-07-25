@@ -6,6 +6,7 @@ import 'package:mod_repo_scraper/manager/data_lock.dart';
 import 'package:mod_repo_scraper/manager/job_manager.dart';
 import 'package:mod_repo_scraper/manager/manager_api.dart';
 import 'package:mod_repo_scraper/manager/modrepo_service.dart';
+import 'package:mod_repo_scraper/manager/publish_service.dart';
 import 'package:mod_repo_scraper/manager/run_history_store.dart';
 import 'package:mod_repo_scraper/manager/run_reporter.dart';
 import 'package:mod_repo_scraper/manager/scraper_service.dart';
@@ -179,6 +180,14 @@ Future<_ManagerSetup> _buildManager({
           outputPath: viewerOutputsDir,
         ),
         guardrails: ModRepoGuardrails.fromConfig(config),
+      ),
+      // Publishing pushes the same output files this server reads, so what goes
+      // out is what the pages show.
+      publish: PublishService(
+        environment: PublishEnvironment.fromConfig(
+          config,
+          outputPath: viewerOutputsDir,
+        ),
       ),
     ),
     history: RunHistoryStore(config.qbDataPath,

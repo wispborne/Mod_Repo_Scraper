@@ -139,6 +139,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: 100,
   );
+  static int _$qbBundlesToKeep(BotConfig v) => v.qbBundlesToKeep;
+  static const Field<BotConfig, int> _f$qbBundlesToKeep = Field(
+    'qbBundlesToKeep',
+    _$qbBundlesToKeep,
+    opt: true,
+    def: 20,
+  );
   static String? _$qbManagerUrl(BotConfig v) => v.qbManagerUrl;
   static const Field<BotConfig, String> _f$qbManagerUrl = Field(
     'qbManagerUrl',
@@ -328,6 +335,19 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: false,
   );
+  static String _$publishRepoUrl(BotConfig v) => v.publishRepoUrl;
+  static const Field<BotConfig, String> _f$publishRepoUrl = Field(
+    'publishRepoUrl',
+    _$publishRepoUrl,
+    opt: true,
+    def: 'git@github.com:wispborne/StarsectorModRepo.git',
+  );
+  static String? _$publishCloneDir(BotConfig v) => v.publishCloneDir;
+  static const Field<BotConfig, String> _f$publishCloneDir = Field(
+    'publishCloneDir',
+    _$publishCloneDir,
+    opt: true,
+  );
 
   @override
   final MappableFields<BotConfig> fields = const {
@@ -350,6 +370,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #qbUseCached: _f$qbUseCached,
     #qbDataPath: _f$qbDataPath,
     #qbRunsToKeep: _f$qbRunsToKeep,
+    #qbBundlesToKeep: _f$qbBundlesToKeep,
     #qbManagerUrl: _f$qbManagerUrl,
     #qbScope: _f$qbScope,
     #qbBoards: _f$qbBoards,
@@ -378,6 +399,8 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #llmFallbackApiToken: _f$llmFallbackApiToken,
     #llmFallbackDisableThinking: _f$llmFallbackDisableThinking,
     #llmFallbackStructuredOutput: _f$llmFallbackStructuredOutput,
+    #publishRepoUrl: _f$publishRepoUrl,
+    #publishCloneDir: _f$publishCloneDir,
   };
 
   static BotConfig _instantiate(DecodingData data) {
@@ -404,6 +427,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       qbUseCached: data.dec(_f$qbUseCached),
       qbDataPath: data.dec(_f$qbDataPath),
       qbRunsToKeep: data.dec(_f$qbRunsToKeep),
+      qbBundlesToKeep: data.dec(_f$qbBundlesToKeep),
       qbManagerUrl: data.dec(_f$qbManagerUrl),
       qbScope: data.dec(_f$qbScope),
       qbBoards: data.dec(_f$qbBoards),
@@ -432,6 +456,8 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       llmFallbackApiToken: data.dec(_f$llmFallbackApiToken),
       llmFallbackDisableThinking: data.dec(_f$llmFallbackDisableThinking),
       llmFallbackStructuredOutput: data.dec(_f$llmFallbackStructuredOutput),
+      publishRepoUrl: data.dec(_f$publishRepoUrl),
+      publishCloneDir: data.dec(_f$publishCloneDir),
     );
   }
 
@@ -515,6 +541,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     bool? qbUseCached,
     String? qbDataPath,
     int? qbRunsToKeep,
+    int? qbBundlesToKeep,
     String? qbManagerUrl,
     String? qbScope,
     Set<String>? qbBoards,
@@ -543,6 +570,8 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     String? llmFallbackApiToken,
     bool? llmFallbackDisableThinking,
     bool? llmFallbackStructuredOutput,
+    String? publishRepoUrl,
+    String? publishCloneDir,
   });
   BotConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -585,6 +614,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     bool? qbUseCached,
     String? qbDataPath,
     int? qbRunsToKeep,
+    int? qbBundlesToKeep,
     Object? qbManagerUrl = $none,
     String? qbScope,
     Set<String>? qbBoards,
@@ -613,6 +643,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
     Object? llmFallbackApiToken = $none,
     bool? llmFallbackDisableThinking,
     bool? llmFallbackStructuredOutput,
+    String? publishRepoUrl,
+    Object? publishCloneDir = $none,
   }) => $apply(
     FieldCopyWithData({
       if (lessScraping != null) #lessScraping: lessScraping,
@@ -637,6 +669,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (qbUseCached != null) #qbUseCached: qbUseCached,
       if (qbDataPath != null) #qbDataPath: qbDataPath,
       if (qbRunsToKeep != null) #qbRunsToKeep: qbRunsToKeep,
+      if (qbBundlesToKeep != null) #qbBundlesToKeep: qbBundlesToKeep,
       if (qbManagerUrl != $none) #qbManagerUrl: qbManagerUrl,
       if (qbScope != null) #qbScope: qbScope,
       if (qbBoards != null) #qbBoards: qbBoards,
@@ -673,6 +706,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
         #llmFallbackDisableThinking: llmFallbackDisableThinking,
       if (llmFallbackStructuredOutput != null)
         #llmFallbackStructuredOutput: llmFallbackStructuredOutput,
+      if (publishRepoUrl != null) #publishRepoUrl: publishRepoUrl,
+      if (publishCloneDir != $none) #publishCloneDir: publishCloneDir,
     }),
   );
   @override
@@ -707,6 +742,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     qbUseCached: data.get(#qbUseCached, or: $value.qbUseCached),
     qbDataPath: data.get(#qbDataPath, or: $value.qbDataPath),
     qbRunsToKeep: data.get(#qbRunsToKeep, or: $value.qbRunsToKeep),
+    qbBundlesToKeep: data.get(#qbBundlesToKeep, or: $value.qbBundlesToKeep),
     qbManagerUrl: data.get(#qbManagerUrl, or: $value.qbManagerUrl),
     qbScope: data.get(#qbScope, or: $value.qbScope),
     qbBoards: data.get(#qbBoards, or: $value.qbBoards),
@@ -771,6 +807,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
       #llmFallbackStructuredOutput,
       or: $value.llmFallbackStructuredOutput,
     ),
+    publishRepoUrl: data.get(#publishRepoUrl, or: $value.publishRepoUrl),
+    publishCloneDir: data.get(#publishCloneDir, or: $value.publishCloneDir),
   );
 
   @override

@@ -201,6 +201,12 @@ class ScraperService implements JobRunner {
         throw ArgumentError(
             'The QB service cannot run ${request.kind.name}; that is a ModRepo '
             'job.');
+      case JobKind.publishOutputs:
+        // Publishing belongs to the publish service, reached through a
+        // JobRouter. This service only sees it if it was wired up on its own.
+        throw ArgumentError(
+            'The QB service cannot run ${request.kind.name}; that is a publish '
+            'job.');
     }
   }
 

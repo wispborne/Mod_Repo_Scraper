@@ -116,6 +116,32 @@ llm_skip_scrape_reprocess_only=true
     });
   });
 
+  group('publish keys', () {
+    test('the two publish keys load', () {
+      final config = readConfigFrom('''
+publish_repo_url=git@example.com:me/repo.git
+publish_clone_dir=/tmp/my-clone
+''');
+      expect(config, isNotNull);
+      expect(config!.publishRepoUrl, 'git@example.com:me/repo.git');
+      expect(config.publishCloneDir, '/tmp/my-clone');
+    });
+
+    test('absent keys fall back to defaults', () {
+      final config = readConfigFrom('log_level=INFO\n');
+      expect(config, isNotNull);
+      expect(config!.publishRepoUrl,
+          'git@github.com:wispborne/StarsectorModRepo.git');
+      // Blank means "work it out from qb_data_path", so the field stays null.
+      expect(config.publishCloneDir, isNull);
+    });
+
+    test('a misspelled publish key is reported', () {
+      expect(Common.unknownConfigKeys(['publish_repo_ur', 'publish_repo_url']),
+          ['publish_repo_ur']);
+    });
+  });
+
   group('unknown config keys', () {
     test('a typo is reported', () {
       expect(Common.unknownConfigKeys(['qb_delay_sm', 'qb_delay_ms']),

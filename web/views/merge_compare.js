@@ -1,8 +1,15 @@
 // The two "before and after" pages of the Merge Explorer:
 //   #/merge/groups/<id>/fields   what each source put in, and what came out
 //   #/merge/changes              what changed between two saved merges
+//
+// Which two merges are compared, the search, the filter and the page all ride
+// in the hash query (#/merge/changes?a=…&b=…), so a comparison can be
+// bookmarked and shared.
 
-import { api, el, clear, missingPanel, MissingFile, pager, pageSizePreference } from '../lib.js';
+import {
+  api, el, clear, missingPanel, MissingFile, pager, pageSizePreference,
+  hashQuery, buildHash, replaceHash,
+} from '../lib.js';
 import { withRun, loadRuns, runLabel, cellText } from './merge_shared.js';
 
 // --- Before and after, field by field ---
@@ -108,14 +115,22 @@ function fromCell(row, members) {
 
 // --- What changed between two merges ---
 
-const state = { a: '', b: '', q: '', kind: '', page: 0, pageSize: pageSizePreference() };
+const state = { a: '', b: '', q: '', kind: '', page: 0, pageSize: 50 };
 
 export async function changesPage(body) {
+  const query = hashQuery();
+  state.a = query.get('a') || '';
+  state.b = query.get('b') || '';
+  state.q = (query.get('q') || '').trim();
+  state.kind = query.get('kind') || '';
+  state.page = Math.max(0, parseInt(query.get('page'), 10) || 0);
+  state.pageSize = pageSizePreference();
+
   const data = await loadRuns();
   const runs = data.items || [];
   if (runs.length < 2) {
     return body.append(el('div', { class: 'missing' }, [
-      el('h3', { text: 'Two merges are needed to compare' }),
+      el('h3', { text: 'Two saved merges are needed to compare' }),
       el('p', {
         text: runs.length === 1
           ? 'Only one merge has been saved so far. Run another one and this page '
@@ -127,8 +142,17 @@ export async function changesPage(body) {
 
   // Newest against the one before it — the comparison people want most.
   if (!runs.some((r) => r.id === state.b)) state.b = runs[0].id;
-  if (!runs.some((r) => r.id === state.a)) state.a = runs[1].id;
+  if (!runs.some((r) => r.id === state.a) || state.a === state.b) {
+    state.a = runs.find((r) => r.id !== state.b).id;
+  }
 
+  body.append(el('p', {
+    class: 'run-when',
+    text: 'Every merge keeps a snapshot of what came out of it. '
+      + 'Pick two and see what changed between them.',
+  }));
+
+  const selects = {};
   const pickerFor = (which) => {
     const select = el('select', { class: 'field-input' });
     for (const run of runs) {
@@ -136,16 +160,38 @@ export async function changesPage(body) {
     }
     select.value = state[which];
     select.addEventListener('change', () => {
+      // Picking the merge already on the other side swaps the two, rather
+      // than comparing a merge with itself.
+      const other = which === 'a' ? 'b' : 'a';
+      if (select.value === state[other]) {
+        selects[other].value = state[which];
+        state[other] = state[which];
+      }
       state[which] = select.value;
       state.page = 0;
       load();
     });
+    selects[which] = select;
     return select;
   };
+
+  const swap = el('button', {
+    class: 'btn',
+    text: 'Swap',
+    title: 'Switch which merge counts as older and which as newer.',
+    onclick: () => {
+      [state.a, state.b] = [state.b, state.a];
+      selects.a.value = state.a;
+      selects.b.value = state.b;
+      state.page = 0;
+      load();
+    },
+  });
 
   body.append(el('div', { class: 'toolbar' }, [
     el('span', { class: 'field-label', text: 'Older' }),
     pickerFor('a'),
+    swap,
     el('span', { class: 'field-label', text: 'Newer' }),
     pickerFor('b'),
   ]));
@@ -165,34 +211,23 @@ export async function changesPage(body) {
     }, 250);
   });
 
-  const kindChips = el('span', {});
   const counts = el('div', { class: 'stat-grid' });
   const results = el('div', {});
-  body.append(el('div', { class: 'toolbar' }, [search, kindChips]));
+  body.append(el('div', { class: 'toolbar' }, [search]));
   body.append(counts, results);
 
-  function drawKindChips() {
-    clear(kindChips);
-    for (const [value, label] of [
-      ['', 'Everything'],
-      ['added', 'Added'],
-      ['gone', 'Removed'],
-      ['changed', 'Changed'],
-    ]) {
-      kindChips.append(el('span', {
-        class: 'chip' + (state.kind === value ? ' on' : ''),
-        text: label,
-        onclick: () => {
-          state.kind = value;
-          state.page = 0;
-          load();
-        },
-      }));
-    }
+  function syncUrl() {
+    replaceHash(buildHash(['merge', 'changes'], {
+      a: state.a,
+      b: state.b,
+      q: state.q,
+      kind: state.kind,
+      page: state.page || '',
+    }));
   }
 
   async function load() {
-    drawKindChips();
+    syncUrl();
     clear(results).append(el('div', { class: 'loading', text: 'Loading…' }));
     const answer = await api('merge/compare', {
       a: state.a,
@@ -207,11 +242,24 @@ export async function changesPage(body) {
     if (answer instanceof MissingFile) return results.append(missingPanel(answer));
 
     drawCounts(counts, answer);
+    if (state.kind) {
+      results.append(el('p', {
+        class: 'run-when',
+        text: `Showing only the ${kindWord(state.kind)} mods — click the `
+          + 'highlighted card again to show everything.',
+      }));
+    }
     for (const row of answer.items || []) {
       results.append(changeCard(row));
     }
     if (!(answer.items || []).length) {
-      results.append(el('p', { class: 'loading', text: 'Nothing to show here.' }));
+      results.append(el('p', {
+        class: 'loading',
+        text: state.q || state.kind
+          ? 'Nothing matches this search or filter.'
+          : 'These two merges are the same — nothing was added, removed '
+            + 'or changed.',
+      }));
     }
     results.append(pager(answer.page, answer.pageSize, answer.total, (p) => {
       state.page = p;
@@ -223,58 +271,117 @@ export async function changesPage(body) {
     }));
   }
 
+  function drawCounts(node, answer) {
+    for (const [kind, label, value, cls] of [
+      ['added', 'Added', answer.addedCount, 'success'],
+      ['gone', 'Removed', answer.goneCount, 'error'],
+      ['changed', 'Changed', answer.changedCount, 'warning'],
+      ['', 'Unchanged', answer.sameCount, ''],
+    ]) {
+      const filtering = kind !== '';
+      node.append(el('div', {
+        class: 'stat-card'
+          + (value ? ` ${cls}` : '')
+          + (filtering ? ' stat-card-filter' : '')
+          + (filtering && state.kind === kind ? ' on' : ''),
+        title: filtering ? `Show only the ${kindWord(kind)} mods.` : null,
+        onclick: filtering ? () => {
+          state.kind = state.kind === kind ? '' : kind;
+          state.page = 0;
+          load();
+        } : null,
+      }, [
+        el('div', { class: 'label', text: label }),
+        el('div', { class: 'value', text: String(value ?? '—') }),
+      ]));
+    }
+  }
+
   load();
 }
 
-function drawCounts(node, answer) {
-  for (const [label, value, cls] of [
-    ['Added', answer.addedCount, answer.addedCount ? 'warning' : ''],
-    ['Removed', answer.goneCount, answer.goneCount ? 'error' : ''],
-    ['Changed', answer.changedCount, ''],
-    ['Unchanged', answer.sameCount, ''],
-  ]) {
-    node.append(el('div', { class: 'stat-card ' + cls }, [
-      el('div', { class: 'label', text: label }),
-      el('div', { class: 'value', text: String(value ?? '—') }),
-    ]));
-  }
-}
+const forumTopic = /topic=(\d+)/;
 
 function changeCard(row) {
-  const card = el('details', { class: 'panel', style: 'margin-bottom:8px;' });
+  const mod = row.mod || {};
+  const changes = row.changes || [];
+  const card = el('details', { class: 'change-card' });
   card.append(el('summary', {}, [
     el('span', { class: 'badge ' + kindBadge(row.kind), text: kindWord(row.kind) }),
-    ` ${row.name || '(no name)'} `,
-    el('span', { class: 'field-value', text: row.authors || '' }),
+    el('span', { class: 'change-name', text: row.name || '(no name)' }),
+    el('span', { class: 'change-author', text: row.authors || '' }),
+    el('span', {
+      class: 'change-hint',
+      text: changes.length
+        ? `${changes.length} field${changes.length === 1 ? '' : 's'}`
+        : '',
+    }),
+    el('span', { class: 'chev', text: '▸' }),
   ]));
 
-  const inner = el('div', {});
-  if (row.note) inner.append(el('p', { class: 'field-value', text: row.note }));
-  for (const change of row.changes || []) {
-    inner.append(el('div', { class: 'field-value' }, [
-      el('strong', { text: change.field }),
-      el('div', { text: `before: ${cellText(change.before)}` }),
-      el('div', { text: `after: ${cellText(change.after)}` }),
-    ]));
-  }
-  if (row.kind !== 'changed') {
-    inner.append(el('div', {
-      class: 'field-value',
-      text: cellText((row.mod || {}).urls),
+  const inner = el('div', { class: 'change-body' });
+  const topic = (((mod.urls || {}).Forum || '').match(forumTopic) || [])[1];
+  if (topic) {
+    inner.append(el('a', {
+      href: `#/topics/${encodeURIComponent(topic)}`,
+      text: `Open thread ${topic}`,
     }));
+  }
+  if (row.note) inner.append(el('p', { class: 'change-note', text: row.note }));
+  if (changes.length) inner.append(diffTable(changes));
+  if (!changes.length && mod.urls) {
+    // An added or removed mod has no field changes; its links say which mod
+    // this is.
+    inner.append(el('p', { class: 'change-note', text: cellText(mod.urls) }));
   }
   card.append(inner);
   return card;
 }
 
+/// One row per changed field, the older value beside the newer one.
+function diffTable(changes) {
+  const table = el('table', { class: 'diff-table' });
+  table.append(el('thead', {}, el('tr', {}, [
+    el('th', { text: 'Field' }),
+    el('th', { text: 'Older' }),
+    el('th', { text: 'Newer' }),
+  ])));
+  const tbody = el('tbody');
+  for (const change of changes) {
+    const tr = el('tr', {});
+    tr.append(el('td', { class: 'diff-field', text: change.field }));
+    if (change.note) {
+      // A field where the two values are no use on screen.
+      tr.append(el('td', { class: 'change-note', colspan: '2', text: change.note }));
+    } else {
+      tr.append(el('td', { class: 'diff-before', text: diffText(change.before) }));
+      tr.append(el('td', { class: 'diff-after', text: diffText(change.after) }));
+    }
+    tbody.append(tr);
+  }
+  table.append(tbody);
+  return el('div', { class: 'table-wrapper' }, table);
+}
+
+/// Like cellText, but tells "not there" apart from "there but empty" — a row
+/// where both sides read "—" would look like nothing changed — and reads
+/// booleans out as words.
+function diffText(value) {
+  if (Array.isArray(value) && !value.length) return '(empty list)';
+  if (value === '') return '(empty)';
+  if (value === true) return 'yes';
+  if (value === false) return 'no';
+  return cellText(value);
+}
+
 function kindWord(kind) {
-  return { added: 'new', gone: 'gone', changed: 'changed' }[kind] || kind;
+  return { added: 'added', gone: 'removed', changed: 'changed' }[kind] || kind;
 }
 
 function kindBadge(kind) {
   return {
-    added: 'badge-primary',
+    added: 'badge-success',
     gone: 'badge-error',
-    changed: 'badge-secondary',
+    changed: 'badge-warning',
   }[kind] || 'badge-dim';
 }

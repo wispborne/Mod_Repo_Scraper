@@ -205,7 +205,9 @@ function drawStarter(node, s) {
       + 'fetch fresh pages; replaying saved pages stays a command-line option.',
   }));
 
-  panel.append(el('div', { class: 'job-columns' }, [scrapeCard(), mergeCard()]));
+  panel.append(el('div', { class: 'job-columns' }, [
+    scrapeCard(), mergeCard(), publishCard(),
+  ]));
   node.append(panel);
 }
 
@@ -333,6 +335,29 @@ function mergeCard() {
         collectMergeDebug: true,
         replayAllowed: false,
       }),
+    }),
+  ]));
+  return card;
+}
+
+/// Publishing the current outputs to GitHub, in one card. It needs no choices —
+/// it pushes whatever is in outputs/ right now — so it is just the one button,
+/// with the confirm dialog spelling out what will happen.
+function publishCard() {
+  const card = el('div', { class: 'job-card' });
+  card.append(el('h3', { text: 'Publish to GitHub' }));
+  card.append(el('p', {
+    class: 'run-when',
+    text: 'Push the current ModRepo.json and forum-data-bundle.json to the '
+      + 'GitHub repo TriOS reads. If nothing changed since last time, nothing '
+      + 'is pushed.',
+  }));
+  card.append(el('div', { class: 'job-buttons' }, [
+    el('button', {
+      class: 'btn btn-primary',
+      text: 'Publish to GitHub',
+      title: 'Push the current outputs to the GitHub repo TriOS reads.',
+      onclick: () => start({ kind: 'publishOutputs' }),
     }),
   ]));
   return card;

@@ -76,7 +76,7 @@ class Common {
         qbDataPath: _trimOrDefault(properties['qb_data_path'], 'qb_data')!,
         qbRunsToKeep: int.tryParse(properties['qb_runs_to_keep'] ?? '') ?? 100,
         qbBundlesToKeep:
-            int.tryParse(properties['qb_bundles_to_keep'] ?? '') ?? 20,
+            int.tryParse(properties['qb_bundles_to_keep'] ?? '') ?? 500,
         qbManagerUrl: _trimOrNull(properties['qb_manager_url']),
         qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
         qbBoards: _parseQbBoards(properties['qb_boards']),
@@ -119,6 +119,10 @@ class Common {
         llmFallbackStructuredOutput:
             properties['llm_fallback_structured_output']?.toLowerCase() ==
                 'true',
+        // Publishing outputs to GitHub.
+        publishRepoUrl: _trimOrDefault(properties['publish_repo_url'],
+            'git@github.com:wispborne/StarsectorModRepo.git')!,
+        publishCloneDir: _trimOrNull(properties['publish_clone_dir']),
       );
     } catch (e) {
       stderr.writeln(e);
@@ -180,6 +184,9 @@ class Common {
     'llm_fallback_api_token',
     'llm_fallback_disable_thinking',
     'llm_fallback_structured_output',
+    // Publishing outputs to GitHub.
+    'publish_repo_url',
+    'publish_clone_dir',
   };
 
   /// Every key `readConfig` knows how to read. `config.example.properties` is
@@ -456,6 +463,17 @@ class BotConfig with BotConfigMappable {
   /// server known to support it.
   final bool llmFallbackStructuredOutput;
 
+  // --- Publishing outputs to GitHub ---
+  /// The repo a publish job pushes the output files to. Defaults to the SSH URL
+  /// of the public repo TriOS reads. Auth is the host user's own git/SSH — there
+  /// is no token key.
+  final String publishRepoUrl;
+
+  /// The folder the server keeps its working clone of [publishRepoUrl] in. Blank
+  /// (the default) means a `publish-clone` folder under `qb_data_path`, kept well
+  /// apart from any folder a cron script wipes.
+  final String? publishCloneDir;
+
   /// True when the fallback provider is configured (both URL and model set).
   bool get llmFallbackEnabled =>
       (llmFallbackBaseUrl?.trim().isNotEmpty ?? false) &&
@@ -509,5 +527,7 @@ class BotConfig with BotConfigMappable {
     this.llmFallbackApiToken,
     this.llmFallbackDisableThinking = false,
     this.llmFallbackStructuredOutput = false,
+    this.publishRepoUrl = 'git@github.com:wispborne/StarsectorModRepo.git',
+    this.publishCloneDir,
   });
 }

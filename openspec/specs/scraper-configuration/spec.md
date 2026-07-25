@@ -57,7 +57,7 @@ The system SHALL match the `qb_scope` value against the scope types after lowerc
 - **THEN** a startup warning names the unrecognized key and the default of twenty applies
 
 ### Requirement: How many bundle snapshots to keep is a config key
-`config.properties` SHALL have a `qb_bundles_to_keep` key setting how many bundle snapshots the system keeps, defaulting to 20, where 0 keeps everything. It SHALL be listed among the recognized keys and documented in `config.example.properties` with its default and a plain-English note saying roughly how much disk each snapshot costs.
+`config.properties` SHALL have a `qb_bundles_to_keep` key setting how many bundle snapshots the system keeps, defaulting to 500, where 0 keeps everything. It SHALL be listed among the recognized keys and documented in `config.example.properties` with its default and a plain-English note saying roughly how much disk each snapshot costs.
 
 #### Scenario: Key is read
 - **WHEN** a config file sets `qb_bundles_to_keep=5`
@@ -65,11 +65,11 @@ The system SHALL match the `qb_scope` value against the scope types after lowerc
 
 #### Scenario: Key is left out
 - **WHEN** the key is absent
-- **THEN** twenty snapshots are kept and no warning is given
+- **THEN** five hundred snapshots are kept and no warning is given
 
 #### Scenario: Key is misspelled
 - **WHEN** a config file sets `qb_bundle_to_keep=5`
-- **THEN** a startup warning names the unrecognized key and the default of twenty applies
+- **THEN** a startup warning names the unrecognized key and the default of five hundred applies
 
 ### Requirement: modrepo_merge_debug decides debug collection for CLI runs only
 `modrepo_merge_debug` SHALL decide whether a merge started by the CLI collects merge debug data. A merge started from the website SHALL always collect it, so a run asked for from the browser can always be looked at afterwards. Whether to collect SHALL travel on the job request, not be read from the config file by the service.
@@ -81,4 +81,19 @@ The system SHALL match the `qb_scope` value against the scope types after lowerc
 #### Scenario: Website merge is always inspectable
 - **WHEN** the user starts a merge from the website while `modrepo_merge_debug=false`
 - **THEN** debug data is collected and that run's snapshot is saved
+
+### Requirement: The publish target is set by config keys
+`config.properties` SHALL have a `publish_` group setting where a publish sends the output files and where it keeps its working clone: `publish_repo_url` (the target repo, defaulting to the SSH URL of `wispborne/StarsectorModRepo`) and `publish_clone_dir` (the folder the server keeps its clone in, kept apart from any folder the cron script wipes). These keys SHALL be manager environment — read where the publish service is built, never served to the browser — and SHALL be listed among the recognized keys and documented in `config.example.properties` with their defaults and a plain-English note. There SHALL be no token key; publishing SHALL use the host's existing git/SSH auth.
+
+#### Scenario: Keys are read
+- **WHEN** a config file sets `publish_repo_url` and `publish_clone_dir`
+- **THEN** the publish service is built to push to that repo using that folder for its clone
+
+#### Scenario: Keys are left out
+- **WHEN** the `publish_` keys are absent
+- **THEN** the built-in defaults apply and no warning is given
+
+#### Scenario: Key is misspelled
+- **WHEN** a config file sets `publish_repo_ur=...`
+- **THEN** a startup warning names the unrecognized key and the default applies
 

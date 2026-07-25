@@ -181,6 +181,11 @@ class DataAccess {
   final Map<String, Map<String, dynamic>> _snapshotCache = {};
   final List<String> _snapshotOrder = [];
 
+  /// Which snapshots are being held, oldest use first. Read only, and only so a
+  /// test can check that walking every snapshot for a topic's history does not
+  /// push out the pair a comparison is working with.
+  List<String> get heldSnapshots => List.unmodifiable(_snapshotOrder);
+
   /// Every saved merge, newest first.
   List<MergeSnapshotInfo> mergeRuns() => mergeSnapshots.list();
 
@@ -201,6 +206,14 @@ class DataAccess {
   /// One saved bundle, or null when there is no such run or it can't be read.
   Map<String, dynamic>? bundleRun(String id) =>
       _held('bundle:$id', () => bundleSnapshots.readRaw(id));
+
+  /// One saved bundle, read straight from disk and not held.
+  ///
+  /// Working out a topic's history reads every snapshot in turn. Putting them
+  /// all through the small holding pen below would push out the pair the
+  /// compare page is working with and gain nothing, since each is wanted once.
+  Map<String, dynamic>? bundleRunUncached(String id) =>
+      bundleSnapshots.readRaw(id);
 
   /// Reads a snapshot through the small holding pen above.
   Map<String, dynamic>? _held(

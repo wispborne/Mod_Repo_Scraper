@@ -1,3 +1,5 @@
+import 'package:path/path.dart' as p;
+
 import '../bot/common.dart';
 
 /// Everything needed to talk to an LLM service. All of it is environment: no
@@ -122,7 +124,7 @@ class ScraperGuardrails {
     this.llmTimeoutSeconds = 120,
     this.llmMaxTokens,
     this.llmMaxInputChars,
-    this.bundlesToKeep = 20,
+    this.bundlesToKeep = 500,
   });
 
   factory ScraperGuardrails.fromConfig(BotConfig config) => ScraperGuardrails(
@@ -232,5 +234,45 @@ class ModRepoGuardrails {
 
   factory ModRepoGuardrails.fromConfig(BotConfig config) => ModRepoGuardrails(
         mergesToKeep: config.modRepoMergesToKeep,
+      );
+}
+
+/// Where a publish job sends the output files and where it keeps its working
+/// clone.
+///
+/// The same split as the other pipelines: this is the part of the config file a
+/// publish job can never argue with. No request can name the repo, the folder,
+/// or a credential. There is no token here — publishing uses the host user's own
+/// git and SSH key.
+class PublishEnvironment {
+  /// The folder holding the output files a publish reads (`ModRepo.json`,
+  /// `forum-data-bundle.json`).
+  final String outputPath;
+
+  /// The repo the output files are pushed to.
+  final String repoUrl;
+
+  /// The folder the server keeps its working clone in. Kept apart from any
+  /// folder a cron script wipes.
+  final String cloneDir;
+
+  const PublishEnvironment({
+    required this.outputPath,
+    required this.repoUrl,
+    required this.cloneDir,
+  });
+
+  /// Reads only environment keys. When no clone folder is set, a `publish-clone`
+  /// folder under `qb_data_path` is used — inside the data folder, and well away
+  /// from any folder a cron run wipes.
+  factory PublishEnvironment.fromConfig(
+    BotConfig config, {
+    String outputPath = 'outputs',
+  }) =>
+      PublishEnvironment(
+        outputPath: outputPath,
+        repoUrl: config.publishRepoUrl,
+        cloneDir: config.publishCloneDir ??
+            p.join(config.qbDataPath, 'publish-clone'),
       );
 }

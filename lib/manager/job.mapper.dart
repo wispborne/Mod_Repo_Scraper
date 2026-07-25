@@ -45,6 +45,8 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return JobKind.mergeModRepo;
       case r'scrapeAndMerge':
         return JobKind.scrapeAndMerge;
+      case r'publishOutputs':
+        return JobKind.publishOutputs;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -71,6 +73,8 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return r'mergeModRepo';
       case JobKind.scrapeAndMerge:
         return r'scrapeAndMerge';
+      case JobKind.publishOutputs:
+        return r'publishOutputs';
     }
   }
 }

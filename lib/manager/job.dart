@@ -36,6 +36,10 @@ enum JobKind {
 
   /// Fetch the chosen mod sources, then merge them into `ModRepo.json`.
   scrapeAndMerge,
+
+  /// Publish the current output files to the target GitHub repo. No scrape, no
+  /// merge — copies what is already in `outputs/` into a git clone and pushes.
+  publishOutputs,
 }
 
 /// The places ModRepo mods are scraped from. Which of these a job wants is job
@@ -219,9 +223,18 @@ class JobRequest with JobRequestMappable {
         replayAllowed: replayAllowed,
       );
 
+  /// Publishes the current `outputs/` files to the target GitHub repo. Carries
+  /// no repo, no folder and no token: where it publishes is environment, so no
+  /// caller can point it somewhere else.
+  factory JobRequest.publishOutputs() =>
+      const JobRequest(kind: JobKind.publishOutputs);
+
   /// True for the two kinds that end in a merge.
   bool get isMergeKind =>
       kind == JobKind.mergeModRepo || kind == JobKind.scrapeAndMerge;
+
+  /// True for the one kind the publish service owns.
+  bool get isPublishKind => kind == JobKind.publishOutputs;
 }
 
 /// How much a run got through. Saved as the run goes, so a run that dies still

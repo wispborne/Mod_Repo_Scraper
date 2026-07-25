@@ -345,6 +345,109 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 /* A stat card that is also a link into a filtered list. */
 .stat-card-link { display: block; text-decoration: none; }
 .stat-card-link:hover { text-decoration: none; border-color: var(--primary); }
+.stat-card.success .value { color: var(--success); }
+
+/* Diff pages: the count cards double as the filter — click one to see only
+   those rows, click it again for everything. */
+.stat-card-filter { cursor: pointer; user-select: none; }
+.stat-card-filter:hover { border-color: var(--primary); }
+.stat-card-filter.on { border-color: var(--primary); background: rgba(73, 252, 255, 0.08); }
+
+/* One difference between two saved bundles or merges: a fold-out card with an
+   older/newer table inside. */
+.change-card {
+  background: var(--surface-container); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 8px;
+}
+.change-card > summary {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer; user-select: none; list-style: none;
+}
+.change-card > summary::-webkit-details-marker { display: none; }
+.change-card > summary:hover { background: rgba(73, 252, 255, 0.04); }
+.change-name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.change-author { color: var(--text-dim); font-size: 0.82rem; }
+.change-hint { margin-left: auto; color: var(--text-dim); font-size: 0.8rem; white-space: nowrap; }
+.change-card .chev { color: var(--text-dim); transition: transform 0.15s; }
+.change-card[open] > summary .chev { transform: rotate(90deg); }
+.change-body { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.change-body > .table-wrapper { align-self: stretch; }
+.change-note { color: var(--text-dim); font-size: 0.85rem; margin: 0; font-style: italic; }
+
+/* The older value beside the newer one, tinted like a diff. */
+.diff-table { table-layout: fixed; }
+.diff-table th { background: var(--surface-2); }
+.diff-table td { white-space: pre-wrap; }
+.diff-table .diff-field { width: 140px; color: var(--text-dim); white-space: nowrap; }
+.diff-before { background: rgba(255, 100, 100, 0.06); }
+.diff-after { background: rgba(100, 255, 150, 0.05); }
+
+/* One topic's history: a log down a rail, a dot per run that changed it. A
+   topic has no branches, so the "graph" is a straight line — the rail's job is
+   to tie the entries together and to show where history stops. */
+.log { margin-top: 4px; }
+.log-entry { display: grid; grid-template-columns: 20px 1fr; column-gap: 14px; }
+/* No row gap: the rail's line is drawn per entry, so a gap would break it. The
+   space between entries comes from the body's padding instead. */
+.log-body { padding-bottom: 14px; min-width: 0; }
+.log-rail { position: relative; }
+.log-rail::before {
+  content: ''; position: absolute; top: 0; bottom: 0;
+  left: 50%; transform: translateX(-50%);
+  width: 2px; background: var(--border);
+}
+/* The first entry's line starts at its dot rather than above it. */
+.log-entry:first-child .log-rail::before { top: 17px; }
+
+.log-dot, .log-cap {
+  position: absolute; left: 50%; top: 17px;
+  transform: translate(-50%, -50%);
+}
+.log-dot {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--secondary); border: 2px solid var(--surface);
+}
+/* Not published yet — hollow, the way a git viewer marks uncommitted work. */
+.log-dot.hollow { background: var(--surface); border-color: var(--warning); }
+.log-dot.dim { background: var(--text-dim); }
+/* The cap at the foot: the trail stops here because older runs are not kept. */
+.log-cap { width: 10px; height: 2px; background: var(--text-dim); }
+.log-tail .log-rail::before { bottom: 50%; }
+.log-tail .log-body { padding-bottom: 0; }
+
+/* The unpublished entry has no fold — it is one short block, not a diff. */
+.log-unpublished .log-body {
+  border-left: 2px solid var(--warning); border-radius: 0 8px 8px 0;
+  background: rgba(255, 183, 77, 0.06);
+  padding: 10px 14px 12px; margin-bottom: 14px;
+}
+.log-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.log-unpublished .thread-controls { margin-top: 10px; }
+
+/* A list field's differences: one line per item that was added, removed or
+   changed, instead of two blocks of JSON nobody can read. */
+.item-diff { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; }
+.item-diff .item-diff { margin: 4px 0 0 22px; }
+.item-diff > li { padding: 3px 0; }
+.item-mark {
+  display: inline-block; width: 14px; font-weight: 700;
+  font-family: Consolas, monospace;
+}
+.item-added > .item-mark { color: var(--success); }
+.item-removed > .item-mark { color: var(--error); }
+.item-changed > .item-mark { color: var(--warning); }
+.item-label { overflow-wrap: anywhere; }
+.item-removed > .item-label { color: var(--text-dim); text-decoration: line-through; }
+/* What moved inside one item, indented under it. */
+.item-part {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin: 2px 0 2px 22px;
+}
+.item-part-name { color: var(--text-dim); min-width: 110px; }
+.item-part .diff-before, .item-part .diff-after {
+  padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere;
+}
+.item-arrow { color: var(--text-dim); }
 
 /* Home page: the big search, its results, and the stat cards above. */
 .home-search { margin: 4px 0 20px; }

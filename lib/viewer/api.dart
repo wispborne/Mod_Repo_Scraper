@@ -21,6 +21,7 @@ class ViewerApi {
 
     r.get('/topics', _topics);
     r.get('/topics/<id>', _topicDetail);
+    r.get('/topics/<id>/history', _topicHistory);
     r.get('/llm-test', _llmTest);
 
     r.get('/merge/runs', _mergeRuns);
@@ -296,6 +297,48 @@ class ViewerApi {
           ? null
           : {...llm.toThreadData().toMap(), 'isMod': llm.isMod},
     });
+  }
+
+  // --- One topic's history across the saved bundles ---
+
+  /// Histories worked out already, kept until the set of saved bundles changes.
+  /// Each answer is a few kilobytes at most, so holding one per topic looked at
+  /// costs little; a run saving a new snapshot empties the lot.
+  final Map<int, Map<String, dynamic>> _topicHistoryCache = {};
+  String _topicHistoryFor = '';
+
+  Response _topicHistory(Request req, String id) {
+    final topicId = int.tryParse(id);
+    if (topicId == null) return _notFound('Topic id must be an integer.');
+
+    // Newest first, as the list comes; the walk wants them the other way round.
+    final saved = data.bundleRuns();
+    if (saved.isEmpty) {
+      return _missing(
+          'bundle-runs',
+          'No bundles have been saved yet, so there is nothing to compare. '
+          'Run the scraper and one will be saved for you.');
+    }
+
+    final stamp = saved.map((s) => s.id).join('|');
+    if (stamp != _topicHistoryFor) {
+      _topicHistoryCache.clear();
+      _topicHistoryFor = stamp;
+    }
+
+    final held = _topicHistoryCache[topicId];
+    if (held != null) return _json(held);
+
+    final worked = topicHistory(
+      topicId: topicId,
+      snapshots: [
+        for (final snapshot in saved.reversed)
+          HistorySnapshot(snapshot.id, snapshot.savedAt,
+              () => data.bundleRunUncached(snapshot.id)),
+      ],
+    );
+    _topicHistoryCache[topicId] = worked;
+    return _json(worked);
   }
 
   // --- LLM test report (2.6) ---

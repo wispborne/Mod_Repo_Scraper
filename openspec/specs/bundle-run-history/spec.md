@@ -40,7 +40,7 @@ A bundle snapshot SHALL NOT contain the posts' HTML. Each detail SHALL instead c
 - **THEN** it is a fraction of the size of the published bundle, in the same range as a merge snapshot
 
 ### Requirement: Only the newest bundle snapshots are kept
-The store SHALL keep only the newest `qb_bundles_to_keep` snapshots (default 20; 0 keeps everything) and SHALL drop the rest when it saves a new one. A snapshot belonging to a run that has not ended SHALL never be dropped. The store SHALL delete a file only when its name ends in `.json.gz` and it sits directly inside `bundles/`.
+The store SHALL keep only the newest `qb_bundles_to_keep` snapshots (default 500; 0 keeps everything) and SHALL drop the rest when it saves a new one. A snapshot belonging to a run that has not ended SHALL never be dropped. The store SHALL delete a file only when its name ends in `.json.gz` and it sits directly inside `bundles/`.
 
 #### Scenario: Old snapshot is dropped
 - **WHEN** the limit is 20, twenty snapshots are on disk, and a new run publishes a bundle
