@@ -12,6 +12,7 @@
 
 import {
   api, el, clear, missingPanel, MissingFile, breadcrumbs, rawJson, loading,
+  expandAllButton, changedFieldsLine, changedFieldsTitle,
 } from '../lib.js';
 import * as manager from '../manager.js';
 import { topicStaleness, rebuildBundleButton } from './extraction_views.js';
@@ -53,9 +54,10 @@ export async function render(root, topicId, { parent } = {}) {
 
   const page = el('div', { class: 'stack' });
   page.append(el('h1', { text: title }));
-  page.append(el('div', { class: 'thread-controls' }, [
+  const controls = el('div', { class: 'thread-controls' }, [
     el('a', { class: 'btn', href: threadHref, text: '‹ Back to the thread' }),
-  ]));
+  ]);
+  page.append(controls);
 
   const entries = history.entries || [];
   page.append(el('p', {
@@ -83,6 +85,13 @@ export async function render(root, topicId, { parent } = {}) {
 
   log.append(historyEndsHere(history));
   page.append(log);
+
+  // Built after the log, so the button knows straight away how many entries
+  // there are to open.
+  if (entries.length) {
+    controls.append(expandAllButton(log, 'details.change-card'));
+  }
+
   page.append(rawJson(history));
   root.append(page);
 }
@@ -200,8 +209,15 @@ function logEntry(entry, threadHref) {
     el('span', { class: `badge ${kindBadge(entry.kind)}`, text: kindWord(entry.kind) }),
     el('span', { class: 'change-name', text: when(entry.savedAt) || entry.runId }),
     el('span', { class: 'change-author', text: jobWord(entry.runId) }),
-    el('span', { class: 'change-hint', text: fieldsMoved(entry) }),
     el('span', { class: 'chev', text: '▸' }),
+    // After the chevron so the chevron stays up on the first line; the CSS
+    // drops the field names onto a second one, under the date. Left out when
+    // there is nothing to say — a first-seen or dropped entry lists no fields.
+    changes.length ? el('span', {
+      class: 'change-hint',
+      text: changedFieldsLine(changes),
+      title: changedFieldsTitle(changes),
+    }) : null,
   ]));
 
   const body = el('div', { class: 'change-body' });
@@ -238,16 +254,6 @@ function logEntry(entry, threadHref) {
     el('div', { class: 'log-rail' }, el('span', { class: 'log-dot' })),
     el('div', { class: 'log-body' }, card),
   ]);
-}
-
-/// The collapsed summary: the names of the fields that moved, so the log can be
-/// read without opening anything.
-function fieldsMoved(entry) {
-  const changes = entry.changes || [];
-  if (!changes.length) return '';
-  const names = changes.map((c) => c.field);
-  if (names.length <= 3) return names.join(', ');
-  return `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
 }
 
 /// One row per changed field. A field holding a list gets its own small table

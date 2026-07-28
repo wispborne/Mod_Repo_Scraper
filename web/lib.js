@@ -107,6 +107,65 @@ export function rawJson(obj, label = 'Show the raw data (JSON)') {
   ]);
 }
 
+// --- Folds that open and close together ---
+
+/// A button that opens or closes every fold in `container` at once.
+///
+/// `selector` picks out which folds count, because the folds *inside* a fold are
+/// not what anybody means by "all of them". The label says what a press would
+/// do, and keeps up with folds opened one at a time. Call `refresh()` after
+/// redrawing the list — new folds arrive without a toggle to notice them.
+export function expandAllButton(container, selector = 'details') {
+  const button = el('button', { class: 'btn fold-all' });
+  const folds = () => Array.from(container.querySelectorAll(selector));
+
+  button.refresh = () => {
+    const all = folds();
+    const anyShut = all.some((fold) => !fold.open);
+    button.textContent = anyShut ? 'Expand all' : 'Collapse all';
+    button.title = anyShut
+      ? 'Open all of these at once.'
+      : 'Close all of these at once.';
+    if (all.length) button.removeAttribute('disabled');
+    else button.setAttribute('disabled', 'true');
+  };
+
+  button.addEventListener('click', () => {
+    const open = folds().some((fold) => !fold.open);
+    for (const fold of folds()) fold.open = open;
+    button.refresh();
+  });
+
+  // A fold's own toggle event does not bubble, so it is caught on the way down.
+  container.addEventListener('toggle', () => button.refresh(), true);
+
+  button.refresh();
+  return button;
+}
+
+// --- Saying what changed, in one line ---
+
+/// The names of the fields that changed, short enough to sit on a shut row:
+/// "name, downloads and 3 more". Empty when nothing changed, so a row that only
+/// carries a note says nothing rather than "0 fields".
+export function changedFieldsLine(changes, limit = 3) {
+  const names = allChangedFields(changes);
+  if (!names.length) return '';
+  if (names.length <= limit) return names.join(', ');
+  return `${names.slice(0, limit).join(', ')} and ${names.length - limit} more`;
+}
+
+/// Every changed field's name, for the hover that shows what the shortened
+/// line left out. Null when there is nothing to say.
+export function changedFieldsTitle(changes) {
+  const names = allChangedFields(changes);
+  return names.length ? names.join(', ') : null;
+}
+
+function allChangedFields(changes) {
+  return (changes || []).map((change) => change.field).filter(Boolean);
+}
+
 // --- How many rows to a page ---
 
 /// The choices in the "rows" box. 0 means all of them on one page.

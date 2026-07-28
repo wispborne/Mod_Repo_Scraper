@@ -9,7 +9,7 @@
 // Every page reads one merge: the one picked at the top, or the newest when
 // nothing is picked. The pick survives moving between the pages.
 
-import { api, el, clear, esc, missingPanel, MissingFile, pager, pageSizePreference, go, rawJson, breadcrumbs } from '../lib.js';
+import { api, el, clear, esc, missingPanel, MissingFile, pager, pageSizePreference, go, rawJson, breadcrumbs, expandAllButton } from '../lib.js';
 import { withRun, drawPicker, forgetRuns } from './merge_shared.js';
 import { groupFields, changesPage } from './merge_compare.js';
 
@@ -125,9 +125,10 @@ async function groupsList(body) {
     text: 'Multi-member only',
     onclick: () => { groupsState.multiOnly = !groupsState.multiOnly; multi.classList.toggle('on'); groupsState.page = 0; load(); },
   });
-  toolbar.append(search, multi);
-  body.append(toolbar);
   const results = el('div', {});
+  const foldAll = expandAllButton(results, 'details.panel');
+  toolbar.append(search, multi, foldAll);
+  body.append(toolbar);
   body.append(results);
 
   async function load() {
@@ -161,6 +162,7 @@ async function groupsList(body) {
       results.append(card);
     }
     if (!data.items.length) results.append(el('p', { class: 'loading', text: 'No groups match.' }));
+    foldAll.refresh();
     results.append(pager(data.page, data.pageSize, data.total,
       (p) => { groupsState.page = p; load(); },
       (size) => { groupsState.pageSize = size; groupsState.page = 0; load(); }));

@@ -12,7 +12,8 @@
 
 import {
   api, el, clear, missingPanel, MissingFile, pager, pageSizePreference,
-  hashQuery, buildHash, replaceHash,
+  hashQuery, buildHash, replaceHash, expandAllButton, changedFieldsLine,
+  changedFieldsTitle,
 } from '../lib.js';
 import { cellText } from './merge_shared.js';
 
@@ -115,7 +116,8 @@ export async function changesPage(body) {
 
   const counts = el('div', { class: 'stat-grid' });
   const results = el('div', {});
-  body.append(el('div', { class: 'toolbar' }, [search]));
+  const foldAll = expandAllButton(results, 'details.change-card');
+  body.append(el('div', { class: 'toolbar' }, [search, foldAll]));
   body.append(counts, results);
 
   function syncUrl() {
@@ -163,6 +165,7 @@ export async function changesPage(body) {
             + 'or changed.',
       }));
     }
+    foldAll.refresh();
     results.append(pager(answer.page, answer.pageSize, answer.total, (p) => {
       state.page = p;
       load();
@@ -232,13 +235,17 @@ function changeCard(row) {
     el('span', { class: 'badge ' + kindBadge(row.kind), text: kindWord(row.kind) }),
     el('span', { class: 'change-name', text: row.name || '(no title)' }),
     el('span', { class: 'change-author', text: row.authors || '' }),
-    el('span', {
-      class: 'change-hint',
-      text: changes.length
-        ? `${changes.length} field${changes.length === 1 ? '' : 's'}`
-        : '',
-    }),
     el('span', { class: 'chev', text: '▸' }),
+    // Which fields moved, not just how many — the whole point of the shut row
+    // is to be read without opening it. It comes after the chevron so that the
+    // chevron stays up on the first line; the CSS drops this onto a second.
+    // Left out when there is nothing to say, so an added or removed topic
+    // doesn't carry an empty second line.
+    changes.length ? el('span', {
+      class: 'change-hint',
+      text: changedFieldsLine(changes),
+      title: changedFieldsTitle(changes),
+    }) : null,
   ]));
 
   const inner = el('div', { class: 'change-body' });

@@ -360,15 +360,23 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
   border-radius: 8px; margin-bottom: 8px;
 }
 .change-card > summary {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 3px 10px;
   padding: 10px 14px; cursor: pointer; user-select: none; list-style: none;
 }
 .change-card > summary::-webkit-details-marker { display: none; }
 .change-card > summary:hover { background: rgba(73, 252, 255, 0.04); }
 .change-name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 .change-author { color: var(--text-dim); font-size: 0.82rem; }
-.change-hint { margin-left: auto; color: var(--text-dim); font-size: 0.8rem; white-space: nowrap; }
-.change-card .chev { color: var(--text-dim); transition: transform 0.15s; }
+.change-hint {
+  margin-left: auto; color: var(--text-dim); font-size: 0.8rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+/* On a shut card, the names of the fields that changed get a second line of
+   their own, under the mod name and lined up with it. Off on the right, past
+   the author, nobody reads them. Still one line, cut off with an ellipsis when
+   there are too many to fit — the full list is on hover. */
+.change-card > summary .change-hint { flex-basis: 100%; margin-left: 0; }
+.change-card .chev { margin-left: auto; color: var(--text-dim); transition: transform 0.15s; }
 .change-card[open] > summary .chev { transform: rotate(90deg); }
 .change-body { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .change-body > .table-wrapper { align-self: stretch; }
@@ -518,6 +526,10 @@ dialog.ask-dialog p { margin: 0 0 10px; font-size: 0.9rem; line-height: 1.5; }
 .btn-primary { background: rgba(73, 252, 255, 0.12); color: var(--primary); border-color: var(--primary); font-weight: 600; }
 .btn-danger { color: var(--error); border-color: rgba(255, 100, 100, 0.5); }
 .btn-danger:hover:not([disabled]) { color: var(--error); border-color: var(--error); }
+/* Open or close every fold on the page. In a toolbar it sits at the far end,
+   away from the search box and the filters. */
+.btn.fold-all { white-space: nowrap; }
+.toolbar > .btn.fold-all { margin-left: auto; }
 
 /* Runs view */
 .run-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }

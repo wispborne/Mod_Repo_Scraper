@@ -1,6 +1,6 @@
 // #/llm-test — renders llm-test-output.json as a readable report (2.6).
 
-import { api, el, clear, missingPanel, MissingFile, go, noticeDialog, breadcrumbs } from '../lib.js';
+import { api, el, clear, missingPanel, MissingFile, go, noticeDialog, breadcrumbs, expandAllButton } from '../lib.js';
 import * as manager from '../manager.js';
 
 export async function render(root) {
@@ -54,9 +54,17 @@ export async function render(root) {
     return;
   }
 
+  // The topics go in a box of their own so the button has something to point
+  // at. Only the topic blocks open and close together — the folds inside one
+  // (the input sent, the raw answer) are not what "all" means here.
+  const list = el('div', {});
   for (const t of topics) {
-    root.append(topicBlock(t));
+    list.append(topicBlock(t));
   }
+  root.append(el('div', { class: 'toolbar' }, [
+    expandAllButton(list, ':scope > details'),
+  ]));
+  root.append(list);
 }
 
 function topicBlock(t) {
