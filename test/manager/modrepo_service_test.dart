@@ -52,6 +52,57 @@ void main() {
             {'NexusMods': 'https://www.nexusmods.com/starsector/mods/1'}),
       ],
     }));
+    File(p.join(workDir.path, 'discord_cache.json')).writeAsStringSync(jsonEncode({
+      'items': [
+        mod('Discord Only Mod', 'Discord Author', 'Discord',
+            {'Discord': 'https://discord.com/channels/1/2/3'}),
+      ],
+    }));
+  }
+
+  /// A recording of Discord's own answers, holding one mod that is nowhere in
+  /// `discord_cache.json`. Standing in for the file a dev machine leaves behind
+  /// when `modrepo_use_cached` was on months ago.
+  void writeDiscordRecording() {
+    const serverId = '1';
+    const channelId = '10';
+    const threadId = '1000';
+    final lines = <String>[];
+
+    void record(String url, Object body) {
+      lines.add(jsonEncode({
+        'method': 'GET',
+        'url': url,
+        'statusCode': 200,
+        'headers': <String, String>{},
+        'body': jsonEncode(body),
+      }));
+    }
+
+    record('https://discord.com/api/channels/$channelId',
+        {'id': channelId, 'name': 'mod_updates'});
+    record('https://discord.com/api/guilds/$serverId/threads/active', {
+      'threads': [
+        {'id': threadId, 'name': 'Stale Discord Mod', 'parent_id': channelId},
+      ],
+    });
+    record(
+      'https://discord.com/api/channels/$channelId/threads/archived/public?limit=100',
+      {'threads': <dynamic>[], 'has_more': false},
+    );
+    record('https://discord.com/api/channels/$threadId',
+        {'id': threadId, 'name': 'Stale Discord Mod', 'parent_id': channelId});
+    record('https://discord.com/api/channels/$threadId/messages?limit=100', [
+      {
+        'id': '2000',
+        'content': 'Stale Discord Mod\nAn old release.',
+        'timestamp': '2026-01-01T00:00:00.000Z',
+        'author': {'id': '3000', 'username': 'Discord Author'},
+      },
+    ]);
+
+    File(p.join(workDir.path, 'discord_raw_cache.json'))
+        .writeAsStringSync('${lines.join('\n')}\n');
   }
 
   setUp(() async {
@@ -87,13 +138,48 @@ void main() {
 
     expect(outcome.cancelled, isFalse);
     expect(outcome.errors, 0);
-    // Three went in, two came out.
-    expect(outcome.itemsTotal, 3);
-    expect(outcome.itemsDone, 2);
+    // Four went in (2 Forum, 1 Nexus, 1 Discord), three came out (the Forum
+    // "Test Mod" and the Nexus "Test Mod" merge into one group).
+    expect(outcome.itemsTotal, 4);
+    expect(outcome.itemsDone, 3);
 
     final repo = readJson(outputFile(p.join('outputs', 'ModRepo.json')));
-    expect(repo['totalCount'], 2);
+    expect(repo['totalCount'], 3);
     expect(repo['lastUpdated'], isNotNull);
+  });
+
+  test('the saved Discord file wins over an older recording of the API',
+      () async {
+    writeSourceCaches();
+    writeDiscordRecording();
+
+    // Same environment, plus the Discord credentials the recording needs to be
+    // read back. Nothing here reaches the network: the recording answers
+    // everything, and anything it does not answer throws.
+    final withDiscord = ModRepoService(
+      environment: ModRepoEnvironment(
+        workingPath: workDir.path,
+        outputPath: p.join(workDir.path, 'outputs'),
+        snapshotPath: p.join(workDir.path, 'qb_data'),
+        discordAuthToken: 'not-a-real-token',
+        discordServerId: '1',
+        discordForumChannels: const {'10': '0.98a'},
+      ),
+      createNetworkClient: _NoNetworkClient.new,
+    );
+
+    await withDiscord.runJob(JobRequest.mergeModRepo(), reporter: reporter);
+
+    final names = (readJson(outputFile(p.join('outputs', 'ModRepo.json')))
+            ['items'] as List)
+        .map((m) => (m as Map<String, dynamic>)['name'])
+        .toList();
+    expect(names, contains('Discord Only Mod'),
+        reason: 'discord_cache.json is written after every successful scrape, '
+            'so it is the fresher of the two');
+    expect(names, isNot(contains('Stale Discord Mod')),
+        reason: 'the recording is only ever written on a dev machine and can '
+            'be months behind');
   });
 
   test('a merge saves its own snapshot as well as merge-debug.json', () async {
@@ -111,8 +197,8 @@ void main() {
     expect(snapshots.list().map((s) => s.id),
         ['20260722T120000Z-mergeModRepo']);
     final saved = snapshots.read('20260722T120000Z-mergeModRepo');
-    expect(saved!.inputCount, 3);
-    expect(saved.finalCount, 2);
+    expect(saved!.inputCount, 4);
+    expect(saved.finalCount, 3);
   });
 
   test('debug collection off writes neither the debug file nor a snapshot',

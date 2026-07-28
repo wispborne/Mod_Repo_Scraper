@@ -189,15 +189,25 @@ class ModRepoService implements JobRunner {
     }
   }
 
-  /// What a source last left on disk. For the forum and Nexus that is their
-  /// cache file; for Discord it is the recorded API answers, played back
-  /// without asking Discord anything.
+  /// What a source last left on disk: its `<name>_cache.json`, written after
+  /// every successful scrape. That is the freshest thing we have for any of the
+  /// three, Discord included.
+  ///
+  /// Discord has a second way back — `discord_raw_cache.json`, a recording of
+  /// Discord's own answers — but it is only reached for when the cache file has
+  /// nothing to give. The recording is only written by a job that was allowed
+  /// to replay, which production never is, so on a real server it is either
+  /// missing or months behind the cache file.
   Future<List<ScrapedMod>> _loadSaved(
       ModSourceKind source, RunReporter reporter) async {
-    if (source == ModSourceKind.discord) {
-      return _replayDiscord(reporter);
-    }
     final cached = await _readCache(source, reporter);
+    if (cached != null && cached.isNotEmpty) return cached;
+
+    if (source == ModSourceKind.discord) {
+      final replayed = await _replayDiscord(reporter);
+      if (replayed.isNotEmpty) return replayed;
+    }
+
     if (cached == null) {
       reporter.log('No saved ${_sourceName(source)} results to merge. Run a '
           'scrape to get some.');
@@ -252,15 +262,14 @@ class ModRepoService implements JobRunner {
     }
   }
 
-  /// Rebuilds the Discord mods from the recorded API answers. No network: if
-  /// there is no recording, there are no Discord mods this time.
+  /// Rebuilds the Discord mods from the recorded raw API answers, when there is
+  /// a recording. Asks Discord nothing.
+  ///
+  /// No recording is the normal case and says nothing: the caller has already
+  /// tried the cache file, and it is the one that reports coming up empty.
   Future<List<ScrapedMod>> _replayDiscord(RunReporter reporter) async {
     final cacheFile = _discordRawCacheFile;
-    if (!cacheFile.existsSync()) {
-      reporter.log('No saved Discord answers to merge. Run a scrape to get '
-          'some.');
-      return const [];
-    }
+    if (!cacheFile.existsSync()) return const [];
     try {
       final client = await CachingClient.fromFile(cacheFile.path);
       final mods = await DiscordReader.readAllMessages(
