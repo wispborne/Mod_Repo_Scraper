@@ -6,6 +6,8 @@ TBD - created by archiving change merge-from-website. Update Purpose after archi
 ### Requirement: Before and after for one mod
 For any group in a saved merge, the system SHALL be able to show a field-by-field table: what each member that went in had for that field, what the merged mod ended up with, and which source that value came from. The winning source SHALL be worked out from the merge steps already recorded, without changing the merge code. When a field's value cannot be pinned to one source, the row SHALL say it could not be told rather than guessing.
 
+The name-comparison step now tries a second, version-stripped reading of a pair of names when the names as scraped do not match. This means some groups will contain members they previously did not (e.g. a Discord entry whose version-inflated name used to fail the 0.85 ratio gate); no group loses a member it had before, because the scraped names are still compared first. The comparison views SHALL continue to display the original names from each member, not the stripped names.
+
 #### Scenario: Reading where each field came from
 - **WHEN** the user opens the before-and-after view for a group with a Forum entry and a Nexus entry
 - **THEN** each field shows both members' values, the final value, and a mark on the source that supplied it
@@ -17,6 +19,10 @@ For any group in a saved merge, the system SHALL be able to show a field-by-fiel
 #### Scenario: Singleton group
 - **WHEN** the group has one member
 - **THEN** the view says nothing was merged and shows that member's fields as the final values
+
+#### Scenario: A group formed by the version-stripped reading
+- **WHEN** a group contains a Forum entry named `Hazard Mining Incorporated` and a Discord entry named `Hazard Mining Incorporated 0.4.0e "Please be fixed Ed."`
+- **THEN** the before-and-after view shows both original names in full, and the merged name follows the existing source-priority rules
 
 ### Requirement: What changed between two merges
 The system SHALL be able to compare two saved merges and report mods **added** (in the newer, not the older), **gone** (in the older, not the newer), and **changed** (in both, with at least one differing field, naming the fields and both values). Mods that are the same in both SHALL be counted but not listed. The comparison SHALL be searchable by mod name and author and served paged, and MUST NOT return a whole snapshot to the browser.

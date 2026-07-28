@@ -33,7 +33,7 @@ class PreDedupEntry with PreDedupEntryMappable {
 
 /// Why two mods were matched during grouping.
 @MappableEnum()
-enum GroupMatchReason { nameAndAuthor, forumUrl }
+enum GroupMatchReason { nameAndAuthor, strippedNameAndAuthor, forumUrl }
 
 /// A single match decision within a group.
 @MappableClass()
@@ -45,6 +45,10 @@ class GroupMatchEntry with GroupMatchEntryMappable {
   final int? authorScore;
   final double? nameLengthRatio;
   final String? matchedForumTopicId;
+  final String? outerStrippedName;
+  final String? innerStrippedName;
+  final int? strippedNameScore;
+  final double? strippedNameLengthRatio;
 
   GroupMatchEntry({
     required this.outerMod,
@@ -54,6 +58,10 @@ class GroupMatchEntry with GroupMatchEntryMappable {
     this.authorScore,
     this.nameLengthRatio,
     this.matchedForumTopicId,
+    this.outerStrippedName,
+    this.innerStrippedName,
+    this.strippedNameScore,
+    this.strippedNameLengthRatio,
   });
 }
 

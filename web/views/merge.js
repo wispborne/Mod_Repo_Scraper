@@ -181,6 +181,13 @@ function matchReason(mm) {
     if (mm.nameScore != null) parts.push(`name ${mm.nameScore} `);
     if (mm.authorScore != null) parts.push(`author ${mm.authorScore} `);
   }
+  if (reasons.includes('strippedNameAndAuthor')) {
+    parts.push(`<span class="badge badge-primary">Name+Author (version stripped)</span> `);
+    if (mm.outerStrippedName != null) parts.push(`"${esc(mm.outerStrippedName)}" ↔ "${esc(mm.innerStrippedName)}" `);
+    if (mm.strippedNameScore != null) parts.push(`name ${mm.strippedNameScore} `);
+    if (mm.strippedNameLengthRatio != null) parts.push(`ratio ${(mm.strippedNameLengthRatio * 100).toFixed(0)}% `);
+    if (mm.authorScore != null) parts.push(`author ${mm.authorScore} `);
+  }
   if (reasons.includes('forumUrl')) {
     parts.push(`<span class="badge badge-secondary">Forum URL</span> `);
     if (mm.matchedForumTopicId) parts.push(`topic ${esc(mm.matchedForumTopicId)} `);

@@ -14,6 +14,17 @@ import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import '../../utilities/parallel_map.dart';
 import 'fuzzy/fuzzy.dart';
 
+final _versionNoiseRe = RegExp(r'^(?:\[[^\]]*\]\s*)?(.*?)(?:\s*[(\[]?[vV]?\.?\d+\.\d+.*)?$');
+final _trailingSeparatorsRe = RegExp(r'[-–|:,\s]+$');
+
+String stripVersionNoise(String name) {
+  final m = _versionNoiseRe.firstMatch(name);
+  if (m == null) return name;
+  var stripped = m.group(1)!;
+  stripped = stripped.replaceAll(_trailingSeparatorsRe, '');
+  return stripped.isEmpty ? name : stripped;
+}
+
 class ModRepoUtils {
   static const List<List<String>> authorAliases = [
     ["Soren", "Søren", "Harmful Mechanic"],

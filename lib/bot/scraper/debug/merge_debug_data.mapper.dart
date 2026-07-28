@@ -29,6 +29,8 @@ class GroupMatchReasonMapper extends EnumMapper<GroupMatchReason> {
     switch (value) {
       case r'nameAndAuthor':
         return GroupMatchReason.nameAndAuthor;
+      case r'strippedNameAndAuthor':
+        return GroupMatchReason.strippedNameAndAuthor;
       case r'forumUrl':
         return GroupMatchReason.forumUrl;
       default:
@@ -41,6 +43,8 @@ class GroupMatchReasonMapper extends EnumMapper<GroupMatchReason> {
     switch (self) {
       case GroupMatchReason.nameAndAuthor:
         return r'nameAndAuthor';
+      case GroupMatchReason.strippedNameAndAuthor:
+        return r'strippedNameAndAuthor';
       case GroupMatchReason.forumUrl:
         return r'forumUrl';
     }
@@ -465,6 +469,28 @@ class GroupMatchEntryMapper extends ClassMapperBase<GroupMatchEntry> {
     _$matchedForumTopicId,
     opt: true,
   );
+  static String? _$outerStrippedName(GroupMatchEntry v) => v.outerStrippedName;
+  static const Field<GroupMatchEntry, String> _f$outerStrippedName = Field(
+    'outerStrippedName',
+    _$outerStrippedName,
+    opt: true,
+  );
+  static String? _$innerStrippedName(GroupMatchEntry v) => v.innerStrippedName;
+  static const Field<GroupMatchEntry, String> _f$innerStrippedName = Field(
+    'innerStrippedName',
+    _$innerStrippedName,
+    opt: true,
+  );
+  static int? _$strippedNameScore(GroupMatchEntry v) => v.strippedNameScore;
+  static const Field<GroupMatchEntry, int> _f$strippedNameScore = Field(
+    'strippedNameScore',
+    _$strippedNameScore,
+    opt: true,
+  );
+  static double? _$strippedNameLengthRatio(GroupMatchEntry v) =>
+      v.strippedNameLengthRatio;
+  static const Field<GroupMatchEntry, double> _f$strippedNameLengthRatio =
+      Field('strippedNameLengthRatio', _$strippedNameLengthRatio, opt: true);
 
   @override
   final MappableFields<GroupMatchEntry> fields = const {
@@ -475,6 +501,10 @@ class GroupMatchEntryMapper extends ClassMapperBase<GroupMatchEntry> {
     #authorScore: _f$authorScore,
     #nameLengthRatio: _f$nameLengthRatio,
     #matchedForumTopicId: _f$matchedForumTopicId,
+    #outerStrippedName: _f$outerStrippedName,
+    #innerStrippedName: _f$innerStrippedName,
+    #strippedNameScore: _f$strippedNameScore,
+    #strippedNameLengthRatio: _f$strippedNameLengthRatio,
   };
 
   static GroupMatchEntry _instantiate(DecodingData data) {
@@ -486,6 +516,10 @@ class GroupMatchEntryMapper extends ClassMapperBase<GroupMatchEntry> {
       authorScore: data.dec(_f$authorScore),
       nameLengthRatio: data.dec(_f$nameLengthRatio),
       matchedForumTopicId: data.dec(_f$matchedForumTopicId),
+      outerStrippedName: data.dec(_f$outerStrippedName),
+      innerStrippedName: data.dec(_f$innerStrippedName),
+      strippedNameScore: data.dec(_f$strippedNameScore),
+      strippedNameLengthRatio: data.dec(_f$strippedNameLengthRatio),
     );
   }
 
@@ -561,6 +595,10 @@ abstract class GroupMatchEntryCopyWith<$R, $In extends GroupMatchEntry, $Out>
     int? authorScore,
     double? nameLengthRatio,
     String? matchedForumTopicId,
+    String? outerStrippedName,
+    String? innerStrippedName,
+    int? strippedNameScore,
+    double? strippedNameLengthRatio,
   });
   GroupMatchEntryCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -590,6 +628,10 @@ class _GroupMatchEntryCopyWithImpl<$R, $Out>
     Object? authorScore = $none,
     Object? nameLengthRatio = $none,
     Object? matchedForumTopicId = $none,
+    Object? outerStrippedName = $none,
+    Object? innerStrippedName = $none,
+    Object? strippedNameScore = $none,
+    Object? strippedNameLengthRatio = $none,
   }) => $apply(
     FieldCopyWithData({
       if (outerMod != null) #outerMod: outerMod,
@@ -600,6 +642,11 @@ class _GroupMatchEntryCopyWithImpl<$R, $Out>
       if (nameLengthRatio != $none) #nameLengthRatio: nameLengthRatio,
       if (matchedForumTopicId != $none)
         #matchedForumTopicId: matchedForumTopicId,
+      if (outerStrippedName != $none) #outerStrippedName: outerStrippedName,
+      if (innerStrippedName != $none) #innerStrippedName: innerStrippedName,
+      if (strippedNameScore != $none) #strippedNameScore: strippedNameScore,
+      if (strippedNameLengthRatio != $none)
+        #strippedNameLengthRatio: strippedNameLengthRatio,
     }),
   );
   @override
@@ -613,6 +660,22 @@ class _GroupMatchEntryCopyWithImpl<$R, $Out>
     matchedForumTopicId: data.get(
       #matchedForumTopicId,
       or: $value.matchedForumTopicId,
+    ),
+    outerStrippedName: data.get(
+      #outerStrippedName,
+      or: $value.outerStrippedName,
+    ),
+    innerStrippedName: data.get(
+      #innerStrippedName,
+      or: $value.innerStrippedName,
+    ),
+    strippedNameScore: data.get(
+      #strippedNameScore,
+      or: $value.strippedNameScore,
+    ),
+    strippedNameLengthRatio: data.get(
+      #strippedNameLengthRatio,
+      or: $value.strippedNameLengthRatio,
     ),
   );
 

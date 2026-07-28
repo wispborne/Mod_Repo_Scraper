@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 import 'package:mod_repo_scraper/bot/scraper/mod_merger.dart';
+import 'package:mod_repo_scraper/bot/scraper/mod_repo_utils.dart';
 import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 
 void main() {
@@ -592,6 +593,189 @@ void main() {
 
       final result = await merger.merge(mods);
       expect(result.length, equals(20), reason: 'All distinct mods should remain separate');
+    });
+  });
+
+  group('stripVersionNoise', () {
+    test('version and subtitle', () {
+      expect(
+        stripVersionNoise('Hazard Mining Incorporated 0.4.0e "Please be fixed Ed."'),
+        equals('Hazard Mining Incorporated'),
+      );
+    });
+
+    test('leading game-version tag', () {
+      expect(
+        stripVersionNoise('[0.97a] Combat Docking Module v0.0.6'),
+        equals('Combat Docking Module'),
+      );
+    });
+
+    test('leading non-version tag', () {
+      expect(
+        stripVersionNoise('[WIP] Arcahv Empire'),
+        equals('Arcahv Empire'),
+      );
+    });
+
+    test('v-dot prefix', () {
+      expect(
+        stripVersionNoise("Caymon's Ship pack v.1.2.4- Full stop to life"),
+        equals("Caymon's Ship pack"),
+      );
+    });
+
+    test('no version', () {
+      expect(
+        stripVersionNoise('Chatter Expansion Project'),
+        equals('Chatter Expansion Project'),
+      );
+    });
+
+    test('number that is not a version', () {
+      expect(
+        stripVersionNoise('Warhammer 40000: Banished Imperium 1.0'),
+        equals('Warhammer 40000: Banished Imperium'),
+      );
+    });
+
+    test('empty result falls back to original', () {
+      expect(stripVersionNoise('v1.0.0'), equals('v1.0.0'));
+    });
+  });
+
+  group('stripVersionNoise known weaknesses', () {
+    test('version mid-title takes the tail with it', () {
+      expect(
+        stripVersionNoise('Substance.Abuse 1.1.c - Consumable Alcohol'),
+        equals('Substance.Abuse'),
+      );
+    });
+
+    test('spaced marker survives', () {
+      expect(
+        stripVersionNoise('Agrean Breakers, ver 3.0'),
+        equals('Agrean Breakers, ver'),
+      );
+    });
+  });
+
+  group('Version-stripped name matching', () {
+    final merger = ModMerger();
+
+    test('HMI entries merge into one group', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Hazard Mining Incorporated',
+          authorsList: ['King Alfonzo'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=11111.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Hazard Mining Incorporated',
+          authorsList: ['King Alfonzo'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=22222.0'},
+          sources: [ModSource.ModdingSubforum],
+        ),
+        const ScrapedMod(
+          name: 'Hazard Mining Incorporated 0.4.0e "Please be fixed Ed."',
+          authorsList: ['King Alfonzo'],
+          urls: {ModUrlType.Discord: 'https://discord.com/channels/1'},
+          sources: [ModSource.Discord],
+        ),
+        const ScrapedMod(
+          name: 'Hazard Mining Incorporated 0.3.5a "Kalisma Patch"',
+          authorsList: ['King Alfonzo'],
+          urls: {ModUrlType.Discord: 'https://discord.com/channels/2'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.length, equals(1), reason: 'All four HMI entries should merge into one group');
+    });
+
+    test('Substance.Abuse regression — scraped names still match', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Substance.Abuse - Consumable Alcohol',
+          authorsList: ['TobiaF'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=33333.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Substance.Abuse 1.1.c - Consumable Alcohol',
+          authorsList: ['TobiaF'],
+          urls: {ModUrlType.Discord: 'https://discord.com/channels/3'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.length, equals(1), reason: 'Substance.Abuse pair must still merge on scraped names');
+    });
+
+    test('SSMSControllerEx regression — scraped names still match', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'SSMSControllerEx - Controller Support',
+          authorsList: ['Soren'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=44444.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: '[0.98a]SSMSControllerEx v1.1 - Controller support',
+          authorsList: ['Harmful Mechanic'],
+          urls: {ModUrlType.Discord: 'https://discord.com/channels/4'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.length, equals(1), reason: 'SSMSControllerEx pair must still merge on scraped names');
+    });
+
+    test("Kon's regression — shared forum thread path still works", () async {
+      final mods = [
+        const ScrapedMod(
+          name: "Kon's Multi-Pack v.6.0.6 - 13th Battlegroup Player Faction",
+          authorsList: ['Kon'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=25040.0'},
+          sources: [ModSource.ModdingSubforum],
+        ),
+        const ScrapedMod(
+          name: "Kon's Player Faction Bundles",
+          authorsList: ['Kon'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=25040.0'},
+          sources: [ModSource.Index],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.length, equals(1), reason: "Kon's mods share a forum thread and related names");
+    });
+
+    test('Domain Historical Society — dedup safety check uses stripped reading', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Domain Historical Society-0.97 Achi edition (original edition attached below)',
+          authorsList: ['Achi'],
+          gameVersionReq: '0.97a',
+          urls: {ModUrlType.Discord: 'https://discord.com/channels/5'},
+          sources: [ModSource.Discord],
+        ),
+        const ScrapedMod(
+          name: 'Domain Historical Society-0.98',
+          authorsList: ['Achi'],
+          gameVersionReq: '0.98a',
+          urls: {ModUrlType.Discord: 'https://discord.com/channels/6'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.length, equals(1), reason: 'Should merge and dedup, keeping newer game version');
+      expect(result.first.gameVersionReq, equals('0.98a'));
     });
   });
 }

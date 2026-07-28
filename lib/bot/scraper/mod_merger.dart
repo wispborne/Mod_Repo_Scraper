@@ -48,6 +48,7 @@ class ModMerger {
 
     // Build indexes for fast candidate generation instead of O(n²) pairwise comparison.
     final cleanedNames = <int, String?>{};
+    final strippedNames = <int, String?>{};
     final forumTopicIds = <int, String?>{};
     final topicBuckets = <String, List<int>>{};
     final nameBuckets = <String, List<int>>{};
@@ -58,6 +59,7 @@ class ModMerger {
 
       final cleanName = _prepForMatching(mod.name);
       cleanedNames[i] = cleanName;
+      strippedNames[i] = _prepForMatching(stripVersionNoise(mod.name));
 
       final topicId = extractForumTopicId(mod.getUrls()[ModUrlType.Forum]);
       forumTopicIds[i] = topicId;
@@ -178,36 +180,51 @@ class ModMerger {
 
         if (outer == null || inner == null) continue;
 
-        // Check the mod names.
+        // --- First reading: names as scraped ---
         final bestNameResult = await ModRepoUtils.compareToFindBestMatch(
           leftList: [outer],
           rightList: [inner],
         );
+        final scrapedRatio = _nameLengthRatio(outer, inner);
+        final scrapedNamePasses = bestNameResult.isMatch && scrapedRatio >= 0.85;
 
-        // If the names are similar, check the authors.
+        // --- Second reading: version-stripped names ---
+        final outerStripped = strippedNames[index];
+        final innerStripped = strippedNames[candidateIdx];
+        MatchResult? strippedNameResult;
+        double? strippedRatio;
+        var strippedNamePasses = false;
+
+        if (!scrapedNamePasses &&
+            outerStripped != null &&
+            innerStripped != null &&
+            (outerStripped != outer || innerStripped != inner)) {
+          strippedNameResult = await ModRepoUtils.compareToFindBestMatch(
+            leftList: [outerStripped],
+            rightList: [innerStripped],
+          );
+          strippedRatio = _nameLengthRatio(outerStripped, innerStripped);
+          strippedNamePasses = strippedNameResult.isMatch && strippedRatio >= 0.85;
+        }
+
+        final nameMatchPasses = scrapedNamePasses || strippedNamePasses;
+
         final bestAuthorsResult = await ModRepoUtils.compareToFindBestMatch(
           leftList: authorNames[index],
           rightList: authorNames[candidateIdx],
         );
 
         final innerTopicId = forumTopicIds[candidateIdx];
-        // One forum thread usually means one mod, but not always: some authors
-        // keep several mods in one thread, and some entries point at the wrong
-        // thread. Only trust a shared thread when the names also look related.
         final doForumLinksMatch = outerTopicId != null &&
             outerTopicId == innerTopicId &&
             _namesLookRelated(outerLoopMod.name, innerLoopMod.name, outer, inner);
 
-        // Guard against fuzzy subsequence false positives.
-        final shorterLength = outer.length < inner.length ? outer.length : inner.length;
-        final longerLength = outer.length > inner.length ? outer.length : inner.length;
-        final isNameLengthSimilar = shorterLength / longerLength >= 0.85;
-        final doNameAndAuthorMatch = bestNameResult.isMatch && isNameLengthSimilar && bestAuthorsResult.isMatch;
+        final doNameAndAuthorMatch = nameMatchPasses && bestAuthorsResult.isMatch;
 
         final isMatch = doNameAndAuthorMatch || doForumLinksMatch;
 
         if (doNameAndAuthorMatch) {
-          timber.d(message: () => "Matched names $bestNameResult and authors $bestAuthorsResult.");
+          timber.d(message: () => "Matched names (${strippedNamePasses ? 'stripped' : 'scraped'}) and authors $bestAuthorsResult.");
         }
 
         if (doForumLinksMatch) {
@@ -219,7 +236,11 @@ class ModMerger {
 
           if (debugPairEntries != null) {
             final reasons = <GroupMatchReason>{};
-            if (doNameAndAuthorMatch) reasons.add(GroupMatchReason.nameAndAuthor);
+            if (doNameAndAuthorMatch) {
+              reasons.add(strippedNamePasses
+                  ? GroupMatchReason.strippedNameAndAuthor
+                  : GroupMatchReason.nameAndAuthor);
+            }
             if (doForumLinksMatch) reasons.add(GroupMatchReason.forumUrl);
             debugPairEntries.add((
               index,
@@ -229,8 +250,12 @@ class ModMerger {
                 reasons: reasons,
                 nameScore: bestNameResult.isMatch ? bestNameResult.score : null,
                 authorScore: bestAuthorsResult.isMatch ? bestAuthorsResult.score : null,
-                nameLengthRatio: shorterLength / longerLength,
+                nameLengthRatio: scrapedRatio,
                 matchedForumTopicId: doForumLinksMatch ? outerTopicId : null,
+                outerStrippedName: stripVersionNoise(outerLoopMod.name),
+                innerStrippedName: stripVersionNoise(innerLoopMod.name),
+                strippedNameScore: strippedNameResult?.isMatch == true ? strippedNameResult!.score : null,
+                strippedNameLengthRatio: strippedRatio,
               )
             ));
           }
@@ -539,12 +564,17 @@ class ModMerger {
           final bestName = _prepForMatching(best.name);
           final modName = _prepForMatching(mod.name);
           if (bestName != null && modName != null) {
-            final shorter = bestName.length < modName.length ? bestName.length : modName.length;
-            final longer = bestName.length > modName.length ? bestName.length : modName.length;
-            if (shorter / longer < 0.70) {
+            final scrapedOk = _nameLengthRatio(bestName, modName) >= 0.70;
+            final bestStripped = _prepForMatching(stripVersionNoise(best.name));
+            final modStripped = _prepForMatching(stripVersionNoise(mod.name));
+            final strippedOk = bestStripped != null &&
+                modStripped != null &&
+                _nameLengthRatio(bestStripped, modStripped) >= 0.70;
+            if (!scrapedOk && !strippedOk) {
+              final safetyRatio = _nameLengthRatio(bestName, modName);
               timber.w(
                   message: () =>
-                      "Dedup safety: NOT discarding '${mod.name}' in favor of '${best.name}' — names too different (${(shorter / longer * 100).toStringAsFixed(0)}% length ratio).");
+                      "Dedup safety: NOT discarding '${mod.name}' in favor of '${best.name}' — names too different (${(safetyRatio * 100).toStringAsFixed(0)}% length ratio).");
               debugCollector?.recordSameSourceDedup(SameSourceDedupEntry(
                 kept: best,
                 discarded: mod,
@@ -552,7 +582,7 @@ class ModMerger {
                 keptGameVersion: best.gameVersionReq,
                 discardedGameVersion: mod.gameVersionReq,
                 wasSafetyBlocked: true,
-                nameLengthRatio: shorter / longer,
+                nameLengthRatio: safetyRatio,
               ));
               continue;
             }
@@ -630,6 +660,12 @@ class ModMerger {
   String? _prepForMatching(String str) {
     final cleaned = str.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
     return cleaned.isEmpty ? null : cleaned;
+  }
+
+  static double _nameLengthRatio(String a, String b) {
+    final shorter = a.length < b.length ? a.length : b.length;
+    final longer = a.length > b.length ? a.length : b.length;
+    return shorter / longer;
   }
 
   /// Whether two names look like versions of the same mod name.
