@@ -778,4 +778,183 @@ void main() {
       expect(result.first.gameVersionReq, equals('0.98a'));
     });
   });
+
+  group('a forum link that points at another mod is dropped', () {
+    final merger = ModMerger();
+
+    ScrapedMod? findByName(List<ScrapedMod> mods, String name) =>
+        mods.where((mod) => mod.name == name).firstOrNull;
+
+    test('Moci ship pack linking Box Util loses the link', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Box Util',
+          authorsList: ['Shiozakana & Mycophobia'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=32003.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: '-Moci ship pack first translation-',
+          authorsList: ['alfmannerheim'],
+          urls: {
+            ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=32003.0',
+            ModUrlType.Discord: 'https://discord.com/channels/1/2/3',
+          },
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+
+      expect(result.length, equals(2));
+      final shipPack = findByName(result, '-Moci ship pack first translation-');
+      expect(shipPack, isNotNull);
+      expect(shipPack!.getUrls()[ModUrlType.Forum], isNull);
+      expect(shipPack.getUrls()[ModUrlType.Discord], isNotNull);
+      expect(findByName(result, 'Box Util')?.getUrls()[ModUrlType.Forum], isNotNull);
+    });
+
+    test('a download page pointing at the same rejected thread goes too', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Box Util',
+          authorsList: ['Shiozakana'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=32003.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Gundam Ship Compilation',
+          authorsList: ['alfmannerheim'],
+          urls: {
+            ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=32003.0',
+            ModUrlType.DownloadPage: 'https://fractalsoftworks.com/forum/index.php?topic=32003.0',
+          },
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      final shipPack = findByName(result, 'Gundam Ship Compilation');
+      expect(shipPack?.getUrls()[ModUrlType.Forum], isNull);
+      expect(shipPack?.getUrls()[ModUrlType.DownloadPage], isNull);
+    });
+
+    test('a shared author keeps the link, even with a very different name', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Ship and Weapon Pack',
+          authorsList: ['DarkRevenant'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=6449.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'SWP',
+          authorsList: ['DarkRevenant'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=6449.0'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.every((mod) => mod.getUrls()[ModUrlType.Forum] != null), isTrue);
+    });
+
+    test('a thread we never scraped is left alone', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Some Discord Mod',
+          authorsList: ['Somebody'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=99999.0'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.single.getUrls()[ModUrlType.Forum], contains('topic=99999'));
+    });
+
+    test('Bultach: shared trigrams keep the link, even with a different author', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Bultach Coalition',
+          authorsList: ['Nerzhull_AI'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=24616.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Bultach 1.1.7 "Of Humanity."',
+          authorsList: ['someoneelse'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=24616.0'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.every((mod) => mod.getUrls()[ModUrlType.Forum] != null), isTrue);
+    });
+
+    test('Custom Chatter: zero-overlap link to Take No Prisoners is dropped', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Take No Prisoners',
+          authorsList: ['Kaysaar'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=30039.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Custom Chatter, a community driven combat chatter addon.',
+          authorsList: ['somebody'],
+          urls: {
+            ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=30039.0',
+            ModUrlType.Discord: 'https://discord.com/channels/1/2/3',
+          },
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      final chatter = findByName(result, 'Custom Chatter, a community driven combat chatter addon.');
+      expect(chatter?.getUrls()[ModUrlType.Forum], isNull);
+    });
+
+    test('SWP initials match Ship and Weapon Pack, link kept', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Ship and Weapon Pack',
+          authorsList: ['DarkRevenant'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=6449.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'SWP',
+          authorsList: ['somebody'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=6449.0'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.every((mod) => mod.getUrls()[ModUrlType.Forum] != null), isTrue);
+    });
+
+    test('a related name keeps the link', () async {
+      final mods = [
+        const ScrapedMod(
+          name: 'Oculian Armada',
+          authorsList: ['Nia'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=12345.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Oculian Armada AKA Red',
+          authorsList: ['SomebodyElse'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=12345.0'},
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result.every((mod) => mod.getUrls()[ModUrlType.Forum] != null), isTrue);
+    });
+  });
 }

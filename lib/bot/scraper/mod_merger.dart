@@ -36,7 +36,9 @@ class ModMerger {
     debugCollector?.setInputCount(preprocessedMods.length);
 
     var stepStartTime = DateTime.now();
-    final dedupedInput = _removeDuplicateInputs(preprocessedMods, debugCollector: debugCollector);
+    final dedupedInput = await _dropForumLinksToOtherMods(
+      _removeDuplicateInputs(preprocessedMods, debugCollector: debugCollector),
+    );
     debugCollector?.addTiming('Pre-dedup', DateTime.now().difference(stepStartTime).inMilliseconds);
     debugCollector?.setAfterPreDedupCount(dedupedInput.length);
     timber.i(
@@ -107,19 +109,10 @@ class ModMerger {
       groupOf[findGroup(a)] = findGroup(b);
     }
 
-    // The names an author credit can match under: the credit itself, each
-    // person named in it, and every known alias of each.
-    final authorNames = List<List<String>>.generate(dedupedInput.length, (i) {
-      final names = <String>{};
-      for (final author in dedupedInput[i].getAuthors()) {
-        names.add(author);
-        names.addAll(ModRepoUtils.splitAuthorNames(author));
-      }
-      for (final name in names.toList()) {
-        names.addAll(ModRepoUtils.getOtherMatchingAliases(name));
-      }
-      return names.map(_prepForMatching).whereType<String>().toList();
-    });
+    final authorNames = List<List<String>>.generate(
+      dedupedInput.length,
+      (i) => _authorMatchNames(dedupedInput[i]),
+    );
 
     // Matches found, remembered by their lower-index side for the debug view.
     final debugPairEntries = debugCollector != null ? <(int, GroupMatchEntry)>[] : null;
@@ -704,6 +697,108 @@ class ModMerger {
       buffer.write(isAllCaps ? word.toLowerCase() : word[0].toLowerCase());
     }
     return buffer.toString();
+  }
+
+  /// If a Discord/Nexus entry claims a forum thread we also scraped, and that
+  /// thread is clearly a different mod (no name overlap, no author overlap),
+  /// strip the forum link. Threads we never scraped are left alone.
+  ///
+  /// Much looser than grouping — only drops when the names share *nothing*.
+  /// "Bultach 'Of Humanity.'" keeps its link to "Bultach Coalition" (shared
+  /// trigrams); "-Moci ship pack-" loses its link to "Box Util" (zero shared).
+  Future<List<ScrapedMod>> _dropForumLinksToOtherMods(List<ScrapedMod> mods) async {
+    final threadsByTopicId = <String, ScrapedMod>{};
+    for (final mod in mods) {
+      if (!_isFromTheForum(mod)) continue;
+      final topicId = extractForumTopicId(mod.getUrls()[ModUrlType.Forum]);
+      if (topicId != null) threadsByTopicId.putIfAbsent(topicId, () => mod);
+    }
+    if (threadsByTopicId.isEmpty) return mods;
+
+    final kept = <ScrapedMod>[];
+    var droppedCount = 0;
+
+    for (final mod in mods) {
+      final urls = mod.getUrls();
+      final topicId = extractForumTopicId(urls[ModUrlType.Forum]);
+      final thread = topicId == null ? null : threadsByTopicId[topicId];
+
+      if (_isFromTheForum(mod) || thread == null || await _couldBeTheSameMod(mod, thread)) {
+        kept.add(mod);
+        continue;
+      }
+
+      // The download page is often just the forum link repeated.
+      final trimmedUrls = Map<ModUrlType, String>.from(urls)..remove(ModUrlType.Forum);
+      if (extractForumTopicId(trimmedUrls[ModUrlType.DownloadPage]) == topicId) {
+        trimmedUrls.remove(ModUrlType.DownloadPage);
+      }
+
+      droppedCount++;
+      timber.i(
+          message: () => "Dropped the forum link on '${mod.name}' "
+              "(${mod.getSources().map((s) => s.name).join(", ")}): topic $topicId is "
+              "'${thread.name}', a different mod.");
+      kept.add(mod.copyWith(urls: trimmedUrls));
+    }
+
+    if (droppedCount > 0) {
+      timber.i(message: () => "Dropped $droppedCount forum link(s) that pointed at another mod's thread.");
+    }
+
+    return kept;
+  }
+
+  static bool _isFromTheForum(ScrapedMod mod) =>
+      mod.getSources().any((source) => source == ModSource.Index || source == ModSource.ModdingSubforum);
+
+  /// Errs towards yes — only returns false when names share nothing *and* no
+  /// author matches.
+  Future<bool> _couldBeTheSameMod(ScrapedMod a, ScrapedMod b) async {
+    final cleanedA = _prepForMatching(a.name);
+    final cleanedB = _prepForMatching(b.name);
+    if (cleanedA == null || cleanedB == null) return true;
+    if (!_namesShareNothing(a.name, b.name, cleanedA, cleanedB)) return true;
+
+    final authors = await ModRepoUtils.compareToFindBestMatch(
+      leftList: _authorMatchNames(a),
+      rightList: _authorMatchNames(b),
+    );
+    return authors.isMatch;
+  }
+
+  /// True when the two names share zero trigrams and neither is the other's
+  /// initials. Much weaker than [_namesLookRelated] — that's on purpose, since
+  /// this decides whether to *delete* a link, not whether to merge.
+  static bool _namesShareNothing(String rawA, String rawB, String cleanedA, String cleanedB) {
+    final shorter = cleanedA.length <= cleanedB.length ? cleanedA : cleanedB;
+    final longer = cleanedA.length <= cleanedB.length ? cleanedB : cleanedA;
+    // Too short to split into trigrams — can't tell, so say no.
+    if (shorter.length < 3) return false;
+
+    for (var t = 0; t <= shorter.length - 3; t++) {
+      if (longer.contains(shorter.substring(t, t + 3))) return false;
+    }
+
+    // "SWP" shares no trigrams with "Ship and Weapon Pack" but is its initials.
+    final acronymA = _acronymOf(rawA);
+    final acronymB = _acronymOf(rawB);
+    final initialsMatch = (acronymA.length >= 2 && cleanedB.startsWith(acronymA)) ||
+        (acronymB.length >= 2 && cleanedA.startsWith(acronymB));
+    return !initialsMatch;
+  }
+
+  /// All cleaned names an author credit can match under, including aliases.
+  List<String> _authorMatchNames(ScrapedMod mod) {
+    final names = <String>{};
+    for (final author in mod.getAuthors()) {
+      names.add(author);
+      names.addAll(ModRepoUtils.splitAuthorNames(author));
+    }
+    for (final name in names.toList()) {
+      names.addAll(ModRepoUtils.getOtherMatchingAliases(name));
+    }
+    return names.map(_prepForMatching).whereType<String>().toList();
   }
 
   /// Removes duplicate input entries that have the same cleaned name, source, and forum URL.

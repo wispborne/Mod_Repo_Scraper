@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Check with the user first if you're not Opus 4.6 and offer to switch using `/model claude-opus-4-6[1m]`.
+
 ## What this is
 
 A Dart CLI that scrapes Starsector mod metadata from several sources and produces two outputs consumed by the TriOS launcher:
