@@ -7,6 +7,7 @@ import '../bot/scraper/qb/models/post_extraction.dart';
 import 'bundle_views.dart';
 import 'data_access.dart';
 import 'merge_views.dart';
+import 'site_version.dart';
 
 /// The JSON API for the results viewer. Every handler reads through [DataAccess]
 /// (mtime-cached, read-only) and returns either a list envelope, a single
@@ -43,6 +44,8 @@ class ViewerApi {
     r.get('/files', _files);
     r.get('/files/<id>', _fileSlice);
     r.get('/log', _log);
+
+    r.get('/version', _version);
 
     return r.call;
   }
@@ -850,6 +853,14 @@ class ViewerApi {
       'tail': tail,
     });
   }
+
+  // --- Which version is running ---
+
+  /// The newest git tag in the checkout the server was started from, so the
+  /// foot of the sidebar can say which version you are looking at. An answer of
+  /// `{}` means there is no tag to report — the site then shows nothing, which
+  /// is the right amount of fuss to make about it.
+  Response _version(Request req) => _json(SiteVersion(data.rootDir).read() ?? const {});
 }
 
 /// A small extension so handlers can read the first match or null cleanly.

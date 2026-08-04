@@ -1,7 +1,7 @@
 // Router: hash-based view switching (D3). Each view module exports
 // `render(root, parts)`, where `parts` are the hash segments after the view id.
 
-import { el, clear, hashParts, errorPanel, loading } from './lib.js';
+import { el, clear, hashParts, errorPanel, loading, api } from './lib.js';
 import * as home from './views/home.js';
 import * as topics from './views/topics.js';
 import * as topic from './views/topic.js';
@@ -132,29 +132,31 @@ async function route() {
   }
 }
 
-// Which build of the site this is, in small dim type at the foot of the
-// sidebar. It is there so a bug report can say which build it came from, so it
-// stays quiet and says nothing at all when there is no version file to read.
-async function showBuildNumber(element) {
+// Which version this is, in small dim type at the foot of the sidebar: the
+// newest git tag, and how many commits have landed since it. It is there so a
+// bug report can say which version it came from, so it stays quiet — an
+// untagged checkout, or one the server cannot ask git about, shows no line at
+// all rather than an error.
+async function showVersion(element) {
   if (!element) return;
   try {
-    const response = await fetch('version.json', { cache: 'no-store' });
-    if (!response.ok) return;
-    const version = await response.json();
-    if (!Number.isFinite(version?.build) || version.build <= 0) return;
+    const version = await api('version');
+    if (!version || !version.tag) return;
 
-    element.textContent = `build ${version.build}`;
-    const updated = String(version.updated || '').slice(0, 10);
-    if (updated) element.title = `Built ${updated}`;
+    const since = Number(version.commitsSince) || 0;
+    element.textContent = since > 0 ? `${version.tag} +${since}` : version.tag;
+    element.title = since > 0
+      ? `${version.described} — ${since} commit${since === 1 ? '' : 's'} since the ${version.tag} tag`
+      : `Tagged ${version.tag}`;
   } catch {
-    // No version file, or nothing readable in it — leave the line empty.
+    // Nothing to say about the version — leave the line empty.
   }
 }
 
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', () => {
   mountHeaderChip(document.getElementById('status-chip'));
-  showBuildNumber(document.getElementById('site-version'));
+  showVersion(document.getElementById('site-version'));
   if (!location.hash) location.hash = '#/home';
   else route();
 });

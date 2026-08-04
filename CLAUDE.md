@@ -36,16 +36,6 @@ dart run build_runner build --delete-conflicting-outputs
 
 Do not hand-edit `*.mapper.dart` files — they are overwritten by the build.
 
-### Git hooks (`githooks/`)
-
-Checked into the repo, so they need switching on once per clone:
-
-```bash
-git config core.hooksPath githooks
-```
-
-`pre-commit` counts `web/version.json`'s build number up by one and stages it, so every commit is one build on. The number is shown small and dim under the status chip at the foot of the viewer's sidebar (`showBuildNumber` in `web/app.js`), purely so a bug report can say which build it came from — it is not a version of the program and means nothing on its own. Nothing depends on it: an unreadable or missing file starts the count again rather than blocking a commit, and the site says nothing at all when the number is missing or zero.
-
 ## Configuration
 
 Everything is driven by `config.properties` (read by `Common.readConfig()`; fields live on `BotConfig` in `lib/bot/common.dart`). It holds real auth tokens and is **gitignored** — never commit it, and do not paste its contents anywhere external. `config.example.properties` is the committed stand-in: every key with its default and a plain-English note. **Keep it in step** — a key added, renamed or given a new default here means editing that file too, and `Common._recognizedKeys` is the list to check it against. Every key is snake_case and starts with its group prefix (`modrepo_`, `qb_`, `llm_`); only `log_level` is global. Unknown keys are warned about at startup, so a typo or an old (pre-rename) key name is caught right away. Key switches:
@@ -139,6 +129,8 @@ The old "the server never reads `config.properties`" rule is now narrower: it **
 `lib/viewer/server_app.dart` (`buildServerHandler`) composes the parts. It picks the `api/manager` subtree off *before* the router/cascade rather than mounting it — a mounted handler's 404 ("no run by that name") is read as "no such route" and falls through to the static files, losing the reason.
 
 The server plants a console log tree and bridges the `logging` package (`Common.initTimberForConsole` / `Common.bridgeLoggingToTimber`); without that, `RunLogCapture` would write empty per-run logs for server-started jobs.
+
+**Which version is running** (`lib/viewer/site_version.dart`, `GET /api/version`): versions are tagged by hand, so the tag is the only place the number lives. The route runs `git describe --tags --long` in `--root-dir` and returns the tag, how many commits have landed since, and git's full answer; `showVersion` in `web/app.js` shows it small and dim under the status chip ("3.4.2", or "3.4.2 +3", with the detail on hover). It is for bug reports, so it never makes a fuss: no git, no repository or no tags gives `{}` and the site shows no line at all. Nothing is cached — the tag is read fresh each time, so tagging while the server is up shows on the next page load.
 
 #### Frontend (`web/`, no build step, plain ES modules)
 
