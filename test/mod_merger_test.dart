@@ -1002,6 +1002,12 @@ void main() {
       expect(ModRepoUtils.tidyAuthorNames(['LngA7Gw', 'hakureireimu6512']), equals(['LngA7Gw']));
     });
 
+    test('folds together the aliases added for known pairs', () {
+      expect(ModRepoUtils.tidyAuthorNames(['Genir', 'halke1986']), equals(['Genir']));
+      expect(ModRepoUtils.tidyAuthorNames(['Dalton', 'lord_dalton']), equals(['Dalton']));
+      expect(ModRepoUtils.tidyAuthorNames(['Audax', 'AudaxI', 'Audaxl']), equals(['Audax']));
+    });
+
     test('splits a credit that names several people', () {
       expect(
         ModRepoUtils.tidyAuthorNames(['FluffyRabbit', 'Kentington & FluffyRabbit', 'Kentington, FluffyRabbit']),
