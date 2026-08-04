@@ -132,9 +132,29 @@ async function route() {
   }
 }
 
+// Which build of the site this is, in small dim type at the foot of the
+// sidebar. It is there so a bug report can say which build it came from, so it
+// stays quiet and says nothing at all when there is no version file to read.
+async function showBuildNumber(element) {
+  if (!element) return;
+  try {
+    const response = await fetch('version.json', { cache: 'no-store' });
+    if (!response.ok) return;
+    const version = await response.json();
+    if (!Number.isFinite(version?.build) || version.build <= 0) return;
+
+    element.textContent = `build ${version.build}`;
+    const updated = String(version.updated || '').slice(0, 10);
+    if (updated) element.title = `Built ${updated}`;
+  } catch {
+    // No version file, or nothing readable in it — leave the line empty.
+  }
+}
+
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', () => {
   mountHeaderChip(document.getElementById('status-chip'));
+  showBuildNumber(document.getElementById('site-version'));
   if (!location.hash) location.hash = '#/home';
   else route();
 });

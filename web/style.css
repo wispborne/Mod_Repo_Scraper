@@ -107,6 +107,15 @@ a:hover { text-decoration: underline; }
   transition: width 0.4s ease;
 }
 
+/* Which build of the site this is, under the status chip. Deliberately quiet —
+   it is there for bug reports, not for reading. */
+.site-version {
+  margin: 7px 12px 0;
+  color: var(--text-dim); font-size: 0.68rem;
+  opacity: 0.55; text-align: center; letter-spacing: 0.04em;
+}
+.site-version:empty { display: none; }
+
 main { flex: 1; min-width: 0; max-width: 1500px; margin: 0 auto; padding: 20px 24px; }
 
 /* On a narrow window the sidebar becomes a wrapping bar across the top. */
@@ -123,6 +132,7 @@ main { flex: 1; min-width: 0; max-width: 1500px; margin: 0 auto; padding: 20px 2
   #nav a { border-left: none; border-radius: 6px; padding: 5px 10px; }
   .nav-section-title { display: none; }
   .status-chip { margin: 0 0 0 auto; }
+  .site-version { margin: 0 0 0 10px; }
 }
 
 h1 { color: var(--primary); font-size: 1.5rem; margin: 0 0 12px; }
