@@ -350,7 +350,11 @@ class ModMerger {
     timber.i(message: () => "Validation completed (removed ${mergedMods.length - cleanedMods.length} invalid mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
     debugCollector?.addTiming('Validation', DateTime.now().difference(stepStartTime).inMilliseconds);
 
-    for (final mod in cleanedMods) {
+    stepStartTime = DateTime.now();
+    final tidiedMods = _tidyAuthorNames(cleanedMods);
+    debugCollector?.addTiming('Author names', DateTime.now().difference(stepStartTime).inMilliseconds);
+
+    for (final mod in tidiedMods) {
       timber.v(message: () => mod.toString());
     }
 
@@ -359,11 +363,44 @@ class ModMerger {
         message: () =>
             "Total time to merge ${mods.length} mods: ${DateTime.now().difference(startTime).inMilliseconds}ms.");
 
-    debugCollector?.setFinalCount(cleanedMods.length);
-    debugCollector?.setFinalOutput(cleanedMods);
+    debugCollector?.setFinalCount(tidiedMods.length);
+    debugCollector?.setFinalOutput(tidiedMods);
     debugCollector?.addTiming('Total', DateTime.now().difference(startTime).inMilliseconds);
 
-    return cleanedMods;
+    return tidiedMods;
+  }
+
+  /// Last pass: make sure each mod names each of its authors once.
+  ///
+  /// Merging brings the same person in from every source at once, so Nexerelin
+  /// came out credited to "Histidine", "Histidine, Zaphide" and "histidine_my"
+  /// — two people written three ways. This runs at the very end, so matching
+  /// and grouping still see every spelling a source gave us.
+  List<ScrapedMod> _tidyAuthorNames(List<ScrapedMod> mods) {
+    var changedCount = 0;
+
+    final result = mods.map((mod) {
+      final before = mod.getAuthors();
+      final after = ModRepoUtils.tidyAuthorNames(before);
+      if (_sameNames(before, after)) return mod;
+
+      changedCount++;
+      timber.d(
+          message: () => "Tidied the authors of '${mod.name}': "
+              "'${before.join("', '")}' -> '${after.join("', '")}'.");
+      return mod.copyWith(authorsList: after);
+    }).toList();
+
+    timber.i(message: () => "Tidied the author names on $changedCount of ${mods.length} mods.");
+    return result;
+  }
+
+  static bool _sameNames(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// Merges two mods, determining priority, and returns the result along with

@@ -957,4 +957,104 @@ void main() {
       expect(result.every((mod) => mod.getUrls()[ModUrlType.Forum] != null), isTrue);
     });
   });
+
+  group('tidyAuthorNames', () {
+    test('Nexerelin: three spellings of two people become two names', () {
+      expect(
+        ModRepoUtils.tidyAuthorNames(['Histidine', 'Histidine, Zaphide', 'histidine_my']),
+        equals(['Histidine', 'Zaphide']),
+      );
+    });
+
+    test('keeps the spelling with capitals', () {
+      expect(ModRepoUtils.tidyAuthorNames(['Kaysaar', 'kaysaar']), equals(['Kaysaar']));
+      expect(ModRepoUtils.tidyAuthorNames(['criowo', 'CriOwO']), equals(['CriOwO']));
+    });
+
+    test('drops the digits some people carry on the end of a Discord name', () {
+      expect(ModRepoUtils.tidyAuthorNames(['Sundog', 'sundog3161']), equals(['Sundog']));
+      expect(ModRepoUtils.tidyAuthorNames(['Dal', 'dal041']), equals(['Dal']));
+    });
+
+    test('a name that is mostly digits is not worn down to nothing', () {
+      // All three are the same person, so they still fold together — but on
+      // spelling, not by having "111164" chopped off and everything matching
+      // whatever else starts with an "a".
+      expect(
+        ModRepoUtils.tidyAuthorNames(['A-111164', 'A111164', 'a111164']),
+        equals(['A111164']),
+      );
+      expect(ModRepoUtils.tidyAuthorNames(['A111164', 'Astarat']), equals(['A111164', 'Astarat']));
+    });
+
+    test('ignores leading punctuation', () {
+      expect(ModRepoUtils.tidyAuthorNames(['.vicegrip', 'vicegrip']), equals(['vicegrip']));
+      expect(ModRepoUtils.tidyAuthorNames(['Astarat', 'astarat.']), equals(['Astarat']));
+    });
+
+    test('folds together names listed as aliases', () {
+      expect(ModRepoUtils.tidyAuthorNames(['Nes', 'nescom']), equals(['Nes']));
+      expect(ModRepoUtils.tidyAuthorNames(['Ed, Nick XR', 'Nick XR', 'nick7884']), equals(['Ed', 'Nick XR']));
+    });
+
+    test('finds an alias row even when the name has digits on the end', () {
+      // The table lists "hakureireimu"; Discord hands us "hakureireimu6512".
+      expect(ModRepoUtils.tidyAuthorNames(['LngA7Gw', 'hakureireimu6512']), equals(['LngA7Gw']));
+    });
+
+    test('splits a credit that names several people', () {
+      expect(
+        ModRepoUtils.tidyAuthorNames(['FluffyRabbit', 'Kentington & FluffyRabbit', 'Kentington, FluffyRabbit']),
+        equals(['FluffyRabbit', 'Kentington']),
+      );
+      expect(
+        ModRepoUtils.tidyAuthorNames(['Thule / lechibang / joaonunes']),
+        equals(['joaonunes', 'lechibang', 'Thule']),
+      );
+      expect(ModRepoUtils.tidyAuthorNames(['by IonDragonX & MrDavidhoff']), equals(['IonDragonX', 'MrDavidhoff']));
+    });
+
+    test('does not split a name that carries a title', () {
+      expect(
+        ModRepoUtils.tidyAuthorNames(['Snrasha, the tinkerer', 'Snrasha']),
+        equals(['Snrasha']),
+      );
+    });
+
+    test('leaves a list of different people alone', () {
+      expect(
+        ModRepoUtils.tidyAuthorNames(['Selkie', 'Dal', 'Starficz']),
+        equals(['Dal', 'Selkie', 'Starficz']),
+      );
+    });
+
+    test('an empty list stays empty', () {
+      expect(ModRepoUtils.tidyAuthorNames([]), isEmpty);
+    });
+
+    test('the merge tidies the authors of what it publishes', () async {
+      final merger = ModMerger();
+      final mods = [
+        const ScrapedMod(
+          name: 'Nexerelin',
+          authorsList: ['Histidine, Zaphide'],
+          urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=9175.0'},
+          sources: [ModSource.Index],
+        ),
+        const ScrapedMod(
+          name: 'Nexerelin',
+          authorsList: ['histidine_my'],
+          urls: {
+            ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+            ModUrlType.Discord: 'https://discord.com/channels/1/2/3',
+          },
+          sources: [ModSource.Discord],
+        ),
+      ];
+
+      final result = await merger.merge(mods);
+      expect(result, hasLength(1));
+      expect(result.first.getAuthors(), equals(['Histidine', 'Zaphide']));
+    });
+  });
 }

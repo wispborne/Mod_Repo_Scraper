@@ -73,6 +73,170 @@ class ModRepoUtils {
         .toList();
   }
 
+  /// Tidies a mod's author list so that each person is named once, in one
+  /// spelling.
+  ///
+  /// Merging pulls the same person in from every source at once — a forum
+  /// name, a Discord name, and a credit that names the whole team — and all
+  /// of them would otherwise be published side by side. Nexerelin came out as
+  /// "Histidine", "Histidine, Zaphide" and "histidine_my", which is two people
+  /// written three ways.
+  ///
+  /// So: credits that name several people are split into the individual
+  /// names, then names that mean the same person are folded together — the
+  /// same name in different capitals or punctuation ("Kaysaar" / "kaysaar"),
+  /// a name with a tag on the end ("Sundog" / "sundog3161"), and names listed
+  /// together in [authorAliases] ("Nes" / "nescom"). The best-looking spelling
+  /// of each person is the one kept.
+  static List<String> tidyAuthorNames(List<String> authors) {
+    final names = <String>[];
+    for (final credit in authors) {
+      for (final name in _peopleNamedIn(credit)) {
+        if (!names.contains(name)) names.add(name);
+      }
+    }
+    // Nothing usable to work with — leave the list as it was found.
+    if (names.isEmpty) return authors;
+
+    // Which names turned out to be the same person.
+    final groupOf = List<int>.generate(names.length, (i) => i);
+
+    int rootOf(int i) {
+      var root = i;
+      while (groupOf[root] != root) {
+        root = groupOf[root];
+      }
+      return root;
+    }
+
+    final plainNames = names.map(_plainName).toList();
+    final plainNamesWithoutTag = names.map(_plainNameWithoutTag).toList();
+    final aliasRows = names.map(_aliasRowFor).toList();
+
+    for (var i = 0; i < names.length; i++) {
+      for (var j = i + 1; j < names.length; j++) {
+        final sameSpelling = plainNames[i] != null && plainNames[i] == plainNames[j];
+        final sameOnceTagsAreDropped = plainNamesWithoutTag[i] != null &&
+            plainNamesWithoutTag[i] == plainNamesWithoutTag[j];
+        final sameAliasRow =
+            aliasRows[i].isNotEmpty && aliasRows[j].isNotEmpty && aliasRows[i].first == aliasRows[j].first;
+
+        if (sameSpelling || sameOnceTagsAreDropped || sameAliasRow) {
+          final rootA = rootOf(i);
+          final rootB = rootOf(j);
+          if (rootA != rootB) groupOf[rootA] = rootB;
+        }
+      }
+    }
+
+    // Keep the best-looking spelling from each group.
+    final bestOfGroup = <int, int>{};
+    for (var i = 0; i < names.length; i++) {
+      final root = rootOf(i);
+      final best = bestOfGroup[root];
+      if (best == null || _isBetterSpelling(names[i], names[best])) {
+        bestOfGroup[root] = i;
+      }
+    }
+
+    return bestOfGroup.values.map((i) => names[i]).toList()..sort(_byNameIgnoringCase);
+  }
+
+  static final _leadingByRe = RegExp(r'^by\s+', caseSensitive: false);
+  static final _endsInDigitsRe = RegExp(r'\d+$');
+  static final _capitalRe = RegExp(r'[A-Z]');
+  static final _notALetterOrDigitRe = RegExp(r'[^A-Za-z0-9]');
+
+  /// Words that never start a name of their own, so a piece beginning with one
+  /// belongs to the name before it: "Snrasha, the tinkerer" is one person.
+  static const _notANameStart = {'the', 'a', 'an', 'of'};
+
+  /// The individual people named by one author credit.
+  static List<String> _peopleNamedIn(String credit) {
+    final trimmed = credit.trim().replaceFirst(_leadingByRe, '').trim();
+    if (trimmed.isEmpty) return const [];
+
+    final parts = splitAuthorNames(trimmed);
+    if (parts.length < 2) return [trimmed];
+
+    for (final part in parts) {
+      final firstWord = part.split(RegExp(r'\s+')).first.toLowerCase();
+      if (_notANameStart.contains(firstWord)) return [trimmed];
+    }
+    return parts.map((part) => part.replaceFirst(_leadingByRe, '').trim()).where((part) => part.isNotEmpty).toList();
+  }
+
+  /// A name reduced to what it has in common with other spellings of itself:
+  /// lowercase, letters and digits only. "Dark.Revenant" and "dark.revenant"
+  /// both come out as "darkrevenant". Null when nothing is left.
+  static String? _plainName(String name) {
+    final plain = name.toLowerCase().replaceAll(_notALetterOrDigitRe, '');
+    return plain.isEmpty ? null : plain;
+  }
+
+  /// The same, with the digits some people carry on the end of a Discord name
+  /// dropped, so "sundog3161" lines up with "Sundog". Only used when at least
+  /// three characters are left, so a name that is mostly digits ("A-111164")
+  /// is never worn down to nothing.
+  static String? _plainNameWithoutTag(String name) {
+    final plain = _plainName(name);
+    if (plain == null) return null;
+    final withoutTag = plain.replaceFirst(_endsInDigitsRe, '');
+    return withoutTag.length >= 3 ? withoutTag : plain;
+  }
+
+  /// Whether [candidate] is a nicer way of writing the person's name than
+  /// [current]. In order: one with capitals in it beats one without
+  /// ("Kaysaar" over "kaysaar"), one without digits on the end beats one with
+  /// ("Sundog" over "sundog3161"), fewer odd characters beats more
+  /// ("vicegrip" over ".vicegrip"), then the order the name is listed in
+  /// [authorAliases], then the shorter name, then alphabetical so the answer
+  /// never depends on which name happened to arrive first.
+  static bool _isBetterSpelling(String candidate, String current) {
+    final candidateRank = _spellingRank(candidate);
+    final currentRank = _spellingRank(current);
+    for (var i = 0; i < candidateRank.length; i++) {
+      if (candidateRank[i] != currentRank[i]) return candidateRank[i] < currentRank[i];
+    }
+    return _byNameIgnoringCase(candidate, current) < 0;
+  }
+
+  /// How good a spelling looks, lower being better, compared piece by piece.
+  static List<int> _spellingRank(String name) => [
+        name.contains(_capitalRe) ? 0 : 1,
+        _endsInDigitsRe.hasMatch(name) ? 1 : 0,
+        _notALetterOrDigitRe.allMatches(name).length,
+        _aliasRank(name),
+        name.length,
+      ];
+
+  /// The row of [authorAliases] a name belongs to, if any.
+  ///
+  /// A name with digits on the end is tried again without them, so
+  /// "hakureireimu6512" finds the row that lists "hakureireimu".
+  static List<String> _aliasRowFor(String name) {
+    final row = getOtherMatchingAliases(name);
+    if (row.isNotEmpty) return row;
+
+    final withoutTag = name.replaceFirst(_endsInDigitsRe, '');
+    if (withoutTag.length < 3 || withoutTag == name) return const [];
+    return getOtherMatchingAliases(withoutTag);
+  }
+
+  /// Where a name sits in its row of [authorAliases] — the first name in a row
+  /// is the one that row prefers. A name in no row sorts last.
+  static int _aliasRank(String name) {
+    final row = _aliasRowFor(name);
+    if (row.isEmpty) return 999;
+    final index = row.indexOf(name.toLowerCase());
+    return index < 0 ? 999 : index;
+  }
+
+  static int _byNameIgnoringCase(String a, String b) {
+    final ignoringCase = a.toLowerCase().compareTo(b.toLowerCase());
+    return ignoringCase != 0 ? ignoringCase : a.compareTo(b);
+  }
+
   static List<String> getOtherMatchingAliases(
     String author, {
     bool fuzzyMatchAliases = false,
