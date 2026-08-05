@@ -10,11 +10,14 @@
  * The full license is available from <https://www.gnu.org/licenses/gpl-3.0.txt>.
  */
 
+import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
 import '../../timber/ktx/timber_kt.dart' as timber;
 import '../../utilities/console_progress_bar.dart';
 import '../../utilities/parallel_map.dart';
+import 'qb/legacy_category_map.dart';
 import 'scraped_mod.dart';
 import 'main_repo_scraper.dart';
 
@@ -43,42 +46,7 @@ class ForumScraper {
       final response = await http.get(Uri.parse("https://fractalsoftworks.com/forum/index.php?topic=177.0"));
       final doc = html_parser.parse(response.body);
 
-      final categories = doc.querySelectorAll("ul.bbc_list").where((el) => el.parent?.localName != 'li').toList();
-
-      final mods = await Future.wait(categories.expand((categoryElement) {
-        var category = "";
-        var prev = categoryElement.previousElementSibling?.previousElementSibling?.previousElementSibling;
-        if (prev != null) {
-          category = prev.text.trimRight().replaceAll(RegExp(r':$'), '');
-        }
-
-        return categoryElement.querySelectorAll("li").map((modElement) async {
-          final link = modElement.querySelector("a.bbc_link");
-          if (link == null) {
-            return null;
-          }
-
-          final forumPostLink = link.attributes["href"]?.trim();
-          final cleanedLink = forumPostLink?.isNotEmpty == true ? _cleanForumUrl(forumPostLink!) : null;
-
-          return ScrapedMod(
-            name: link.text,
-            summary: null,
-            description: null,
-            modVersion: null,
-            gameVersionReq: modElement.querySelector("strong span")?.text ?? "",
-            authorsList: [modElement.querySelector("em strong")?.text ?? ""],
-            urls: cleanedLink != null ? {ModUrlType.Forum: cleanedLink} : null,
-            sources: [ModSource.Index],
-            categories: [category],
-            images: {},
-            dateTimeCreated: null,
-            dateTimeEdited: null,
-          );
-        });
-      }).toList());
-
-      final result = mods.whereType<ScrapedMod>().toList();
+      final result = parseModIndex(doc);
       timber.i(message: () => "Mod Index scraped: ${result.length} mods in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
       return result;
     } catch (e, stackTrace) {
@@ -111,6 +79,129 @@ class ForumScraper {
     );
     timber.i(message: () => "Mod Forum scraped: ${result?.length ?? 0} mods in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
     return result;
+  }
+
+  static final _trailingColonRegex = RegExp(r':+$');
+
+  /// Reads the mod index post: a run of lists, each one under a bold heading that names its category.
+  ///
+  /// Two traps in that page's HTML, both of which used to put a mod name where a category should be:
+  ///  - A list can hold a smaller list of add-ons. The forum writes that inner list as a sibling of the
+  ///    entries around it, not inside one, so it looks like a list of its own with a mod entry just above it.
+  ///    Its mods are already picked up by the list that holds it, so skip it.
+  ///  - The number of line breaks between a heading and its list varies, so we look back for the nearest
+  ///    bold text rather than counting a fixed number of steps.
+  ///
+  /// A list with no heading above it is not a list of mods (the "how to get your mod added" steps are
+  /// written as one), so it is skipped and counted in the log.
+  ///
+  /// The index post is followed by one post per past game version, and those still use the category
+  /// names of their day, so their headings go through [currentCategoryName] — the same table and rule
+  /// the QB scraper uses. A name that table doesn't know is kept as it was written, and logged.
+  @visibleForTesting
+  static List<ScrapedMod> parseModIndex(Document doc) {
+    final areas = _indexPosts(doc);
+    // The first post is today's index, so its headings are the category names still in use.
+    final categoriesInUse = areas.isEmpty ? <String>{} : _headingsIn(areas.first);
+
+    final mods = <ScrapedMod>[];
+    var listsWithoutHeading = 0;
+    final oldNamesNotInTheTable = <String>{};
+
+    for (final area in areas) {
+      for (final listElement in area.querySelectorAll("ul.bbc_list")) {
+        if (_isInsideAnotherList(listElement)) continue;
+
+        final heading = _headingAbove(listElement);
+        if (heading == null) {
+          listsWithoutHeading++;
+          continue;
+        }
+
+        var category = currentCategoryName(heading, categoriesInUse);
+        if (category == null) {
+          oldNamesNotInTheTable.add(heading);
+          category = heading;
+        }
+
+        for (final modElement in listElement.querySelectorAll("li")) {
+          final link = modElement.querySelector("a.bbc_link");
+          if (link == null) continue;
+
+          final forumPostLink = link.attributes["href"]?.trim();
+          final cleanedLink = forumPostLink?.isNotEmpty == true ? _cleanForumUrl(forumPostLink!) : null;
+
+          mods.add(ScrapedMod(
+            name: link.text,
+            summary: null,
+            description: null,
+            modVersion: null,
+            gameVersionReq: modElement.querySelector("strong span")?.text ?? "",
+            authorsList: [modElement.querySelector("em strong")?.text ?? ""],
+            urls: cleanedLink != null ? {ModUrlType.Forum: cleanedLink} : null,
+            sources: [ModSource.Index],
+            categories: [category],
+            images: {},
+            dateTimeCreated: null,
+            dateTimeEdited: null,
+          ));
+        }
+      }
+    }
+
+    if (listsWithoutHeading > 0) {
+      timber.i(message: () => "Mod Index: skipped $listsWithoutHeading list(s) with no category heading above them.");
+    }
+    if (oldNamesNotInTheTable.isNotEmpty) {
+      final names = oldNamesNotInTheTable.toList()..sort();
+      timber.w(
+          message: () => "Mod Index: kept ${names.length} category name(s) the index no longer uses "
+              "(add them to lib/bot/scraper/qb/legacy_category_map.dart): ${names.join(', ')}");
+    }
+
+    return mods;
+  }
+
+  /// The index post and the older posts kept below it. Falls back to the whole page when the forum's
+  /// usual wrapper isn't there, so a layout change costs categories rather than every mod.
+  static List<Element> _indexPosts(Document doc) {
+    final posts = doc.querySelectorAll("#forumposts .post .inner");
+    if (posts.isNotEmpty) return posts;
+
+    final wholePage = doc.documentElement;
+    return wholePage == null ? [] : [wholePage];
+  }
+
+  static Set<String> _headingsIn(Element area) {
+    final headings = <String>{};
+    for (final listElement in area.querySelectorAll("ul.bbc_list")) {
+      if (_isInsideAnotherList(listElement)) continue;
+      final heading = _headingAbove(listElement);
+      if (heading != null) headings.add(heading);
+    }
+    return headings;
+  }
+
+  static bool _isInsideAnotherList(Element listElement) {
+    for (Element? parent = listElement.parent; parent != null; parent = parent.parent) {
+      if (parent.localName == 'li') return true;
+      if (parent.localName == 'ul' && parent.classes.contains('bbc_list')) return true;
+    }
+    return false;
+  }
+
+  /// The nearest bold text above a list, skipping the line breaks in between. Null if there isn't one.
+  static String? _headingAbove(Element listElement) {
+    for (Element? previous = listElement.previousElementSibling;
+        previous != null;
+        previous = previous.previousElementSibling) {
+      if (previous.localName == 'br') continue;
+      if (previous.localName != 'strong') return null;
+
+      final heading = previous.text.trim().replaceAll(_trailingColonRegex, '').trim();
+      return heading.isEmpty ? null : heading;
+    }
+    return null;
   }
 
   static String? _cleanForumUrl(String? url) {

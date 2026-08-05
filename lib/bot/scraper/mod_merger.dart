@@ -14,6 +14,7 @@ import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:mod_repo_scraper/utilities/console_progress_bar.dart';
 import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
+import 'category_aliases.dart';
 import 'debug/merge_debug_collector.dart';
 import 'debug/merge_debug_data.dart';
 import 'main_repo_scraper.dart';
@@ -351,8 +352,12 @@ class ModMerger {
     debugCollector?.addTiming('Validation', DateTime.now().difference(stepStartTime).inMilliseconds);
 
     stepStartTime = DateTime.now();
-    final tidiedMods = _tidyAuthorNames(cleanedMods);
+    final namedMods = _tidyAuthorNames(cleanedMods);
     debugCollector?.addTiming('Author names', DateTime.now().difference(stepStartTime).inMilliseconds);
+
+    stepStartTime = DateTime.now();
+    final tidiedMods = _tidyCategoryNames(namedMods);
+    debugCollector?.addTiming('Category names', DateTime.now().difference(stepStartTime).inMilliseconds);
 
     for (final mod in tidiedMods) {
       timber.v(message: () => mod.toString());
@@ -392,6 +397,35 @@ class ModMerger {
     }).toList();
 
     timber.i(message: () => "Tidied the author names on $changedCount of ${mods.length} mods.");
+    return result;
+  }
+
+  /// Last pass too: say each category once, in the forum's wording.
+  ///
+  /// Discord tags a mod "Faction" where the forum's index calls the same shelf "Faction Mods", so a mod
+  /// on both came out labelled twice. Like the author names, this runs at the very end — grouping and
+  /// matching are done by then, and the log below is the only place a new Discord tag shows up.
+  List<ScrapedMod> _tidyCategoryNames(List<ScrapedMod> mods) {
+    var changedCount = 0;
+
+    final result = mods.map((mod) {
+      final before = mod.getCategories().toList();
+      final after = tidyCategoryNames(before);
+      if (_sameNames(before, after)) return mod;
+
+      changedCount++;
+      timber.d(
+          message: () => "Tidied the categories of '${mod.name}': "
+              "'${before.join("', '")}' -> '${after.join("', '")}'.");
+      return mod.copyWith(categories: after);
+    }).toList();
+
+    final allNames = <String>{for (final mod in result) ...mod.getCategories()}.toList()..sort();
+    timber.i(message: () => "Tidied the categories on $changedCount of ${mods.length} mods.");
+    timber.i(
+        message: () => "Categories in use (${allNames.length}); a new one here means a source added a tag, "
+            "which may belong in lib/bot/scraper/category_aliases.dart: ${allNames.join(', ')}");
+
     return result;
   }
 

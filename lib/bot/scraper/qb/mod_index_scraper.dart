@@ -70,19 +70,13 @@ class QbModIndexScraper {
         for (final entry in archivedMap.entries) {
           if (mainMap.containsKey(entry.key)) continue;
 
-          var normalized = _normalizeCategory(entry.value);
-          if (!result.mainCategoriesLower.contains(normalized.toLowerCase())) {
-            // Try legacy map (case-insensitive lookup)
-            final legacyMapped = _lookupLegacy(normalized);
-            if (legacyMapped != null && result.mainCategoriesLower.contains(legacyMapped.toLowerCase())) {
-              normalized = legacyMapped;
-            } else {
-              result.unknownLegacyCategories.add(normalized);
-              normalized = ForumConstants.uncategorizedCategory;
-            }
+          final normalized = _normalizeCategory(entry.value);
+          final current = currentCategoryName(normalized, result.mainCategories);
+          if (current == null) {
+            result.unknownLegacyCategories.add(normalized);
           }
 
-          result.archivedTopicCategoryMap[entry.key] = normalized;
+          result.archivedTopicCategoryMap[entry.key] = current ?? ForumConstants.uncategorizedCategory;
         }
       }
 
@@ -119,15 +113,6 @@ class QbModIndexScraper {
       return ForumConstants.libraryCategory;
     }
     return cleaned;
-  }
-
-  static String? _lookupLegacy(String category) {
-    for (final entry in legacyCategoryMap.entries) {
-      if (entry.key.toLowerCase() == category.toLowerCase()) {
-        return entry.value;
-      }
-    }
-    return null;
   }
 
   @visibleForTesting
