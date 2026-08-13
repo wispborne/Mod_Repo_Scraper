@@ -585,6 +585,136 @@ void main() {
     });
   });
 
+  group('source code', () {
+    test('a repository link in the post is kept', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"sourceCode":"https://github.com/someone/theirmod"}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(130,
+            'Code is here: <a href="https://github.com/someone/theirmod">GitHub</a>'),
+        [],
+      );
+      expect(extrasOf(130)!.sourceCode, 'https://github.com/someone/theirmod');
+    });
+
+    test('a link that is not in the post is dropped', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"","role":"main",'
+            '"sourceCode":"https://github.com/someone/guessed"}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(131, 'A mod with some ships. No repository linked.'),
+        [],
+      );
+      expect(extrasOf(131)?.sourceCode, isNull);
+    });
+
+    test('a file inside the repository proves the repository', () async {
+      // The post links a zip held in the repo, never the repo's own page. The
+      // link still says which repo it is, so the repo counts as stated — and
+      // the post's spelling of it is what gets kept, not the model's.
+      const zip = 'https://github.com/connortron7/keruvim-shipyards/raw/'
+          'master/keruvim%20shipyards%200.6.1.zip';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"sourceCode":"https://github.com/connortron7/Keruvim-Shipyards",'
+            '"downloads":[{"url":"$zip","label":"Download","kind":"direct"}]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(133, '<a href="$zip">Download</a>'),
+        [],
+      );
+      expect(extrasOf(133)!.sourceCode,
+          'https://github.com/connortron7/keruvim-shipyards');
+    });
+
+    test('a clone link names the same repository', () async {
+      // The post gives the link you would hand to git, ending in ".git". That
+      // is the same repository, and what is stored is the page, not the clone
+      // link.
+      const clone = 'https://github.com/Dhunt05/Guardian-Prototype.git';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"sourceCode":"https://github.com/Dhunt05/Guardian-Prototype"}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(136, 'Clone it: <a href="$clone">$clone</a>'),
+        [],
+      );
+      expect(extrasOf(136)!.sourceCode,
+          'https://github.com/Dhunt05/Guardian-Prototype');
+    });
+
+    test('the clone link itself is stored as the repository page', () async {
+      const clone = 'https://github.com/Dhunt05/Guardian-Prototype.git';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","sourceCode":"$clone"}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(137, 'Clone it: <a href="$clone">$clone</a>'),
+        [],
+      );
+      expect(extrasOf(137)!.sourceCode,
+          'https://github.com/Dhunt05/Guardian-Prototype');
+    });
+
+    test('a link to someone else\'s repository is still dropped', () async {
+      const zip = 'https://github.com/connortron7/keruvim-shipyards/raw/'
+          'master/mod.zip';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"sourceCode":"https://github.com/someoneelse/otherthing",'
+            '"downloads":[{"url":"$zip","label":"Download","kind":"direct"}]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(134, '<a href="$zip">Download</a>'),
+        [],
+      );
+      expect(extrasOf(134)?.sourceCode, isNull);
+    });
+
+    test('an author page is not a repository', () async {
+      const zip = 'https://github.com/connortron7/keruvim-shipyards/raw/'
+          'master/mod.zip';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"sourceCode":"https://github.com/connortron7",'
+            '"downloads":[{"url":"$zip","label":"Download","kind":"direct"}]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(135, '<a href="$zip">Download</a>'),
+        [],
+      );
+      expect(extrasOf(135)?.sourceCode, isNull);
+    });
+
+    test('a release file is not treated as the source code', () async {
+      const asset =
+          'https://github.com/someone/theirmod/releases/download/v1.0/mod.zip';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","sourceCode":"$asset",'
+            '"downloads":[{"url":"$asset","label":"Download","kind":"direct"}]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(132, '<a href="$asset">Download</a>'),
+        [],
+      );
+      expect(extrasOf(132)?.sourceCode, isNull);
+      // The same link is still a perfectly good download.
+      expect(downloadsOf(132).map((d) => d.url), [asset]);
+    });
+  });
+
   group('resolving downloads', () {
     test('a download the rules already resolved reuses the resolved fields',
         () async {

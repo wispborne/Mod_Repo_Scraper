@@ -320,6 +320,14 @@ export function extrasBlock(extras) {
   if (extras.license) {
     list.append(field('License', extras.license));
   }
+  if (extras.sourceCode) {
+    list.append(el('li', {}, [
+      el('span', { class: 'field-label', text: 'Source code' }),
+      el('span', { class: 'field-value' }, [
+        el('a', { href: extras.sourceCode, target: '_blank', text: extras.sourceCode }),
+      ]),
+    ]));
+  }
   if (extras.saveCompatibility) {
     list.append(field('Save compatibility', extras.saveCompatibility));
   }

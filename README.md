@@ -54,6 +54,7 @@ each `index` item: `llm`.
       "image": "ext:https://.../banner.png",  // a picture for this mod, or absent
       "version": "...", "changelog": {...}, "supportLinks": [...],
       "license": "...",
+      "sourceCode": "https://github.com/someone/theirmod",  // where the code is kept, or absent
       "saveCompatibility": "Save compatible",  // the post's own words, or absent
       "summary": {...}
     } ] }
@@ -61,8 +62,8 @@ each `index` item: `llm`.
   ```
 
   Each mod carries its own `downloads` and its own extras (mod version, changelog,
-  support links like Patreon/Ko-fi, license, whether it can be added to an
-  existing save, and a short written summary). Each
+  support links like Patreon/Ko-fi, license, a link to where the code is kept,
+  whether it can be added to an existing save, and a short written summary). Each
   download is filled out the same way the rules do it, so it has a
   direct URL, file name, and manual-step flag and can be used on its own.
   A single-mod thread is just a one-item `mods` list.

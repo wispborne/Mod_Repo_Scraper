@@ -451,6 +451,12 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     _$license,
     opt: true,
   );
+  static String? _$sourceCode(LlmExtras v) => v.sourceCode;
+  static const Field<LlmExtras, String> _f$sourceCode = Field(
+    'sourceCode',
+    _$sourceCode,
+    opt: true,
+  );
   static String? _$saveCompatibility(LlmExtras v) => v.saveCompatibility;
   static const Field<LlmExtras, String> _f$saveCompatibility = Field(
     'saveCompatibility',
@@ -470,6 +476,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     #changelog: _f$changelog,
     #supportLinks: _f$supportLinks,
     #license: _f$license,
+    #sourceCode: _f$sourceCode,
     #saveCompatibility: _f$saveCompatibility,
     #summary: _f$summary,
   };
@@ -482,6 +489,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
       changelog: data.dec(_f$changelog),
       supportLinks: data.dec(_f$supportLinks),
       license: data.dec(_f$license),
+      sourceCode: data.dec(_f$sourceCode),
       saveCompatibility: data.dec(_f$saveCompatibility),
       summary: data.dec(_f$summary),
     );
@@ -559,6 +567,7 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
     LlmChangelog? changelog,
     List<LlmSupportLink>? supportLinks,
     String? license,
+    String? sourceCode,
     String? saveCompatibility,
     LlmModSummary? summary,
   });
@@ -598,6 +607,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     Object? changelog = $none,
     Object? supportLinks = $none,
     Object? license = $none,
+    Object? sourceCode = $none,
     Object? saveCompatibility = $none,
     Object? summary = $none,
   }) => $apply(
@@ -606,6 +616,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
       if (changelog != $none) #changelog: changelog,
       if (supportLinks != $none) #supportLinks: supportLinks,
       if (license != $none) #license: license,
+      if (sourceCode != $none) #sourceCode: sourceCode,
       if (saveCompatibility != $none) #saveCompatibility: saveCompatibility,
       if (summary != $none) #summary: summary,
     }),
@@ -616,6 +627,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     changelog: data.get(#changelog, or: $value.changelog),
     supportLinks: data.get(#supportLinks, or: $value.supportLinks),
     license: data.get(#license, or: $value.license),
+    sourceCode: data.get(#sourceCode, or: $value.sourceCode),
     saveCompatibility: data.get(
       #saveCompatibility,
       or: $value.saveCompatibility,

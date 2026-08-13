@@ -395,6 +395,7 @@ List<Map<String, dynamic>> _llmItems(Object? was, Object? now) {
 const Map<String, String> _extraNames = {
   'version': 'version',
   'license': 'license',
+  'sourceCode': 'source code',
   'saveCompatibility': 'save compatibility',
   'summary.sentence': 'summary — one line',
   'summary.paragraph': 'summary — paragraph',

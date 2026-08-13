@@ -7,7 +7,7 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 9;
+  static const int promptVersion = 11;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -103,6 +103,7 @@ Return this JSON object:
       "version": "<the mod's own current version string, or null>",
       "supportLinks": ["<Patreon/Ko-fi/donate URL from the post>", "..."],
       "license": "<the license exactly as stated in the post, or null>",
+      "sourceCode": "<the URL of the page where this mod's code is kept, copied from the post, or null>",
       "saveCompatibility": "<the post's own words on whether it can be added to an existing save or needs a new game, copied exactly, or null>"$summaryField
     }
   ]
@@ -163,6 +164,23 @@ Guidance:
   - Do NOT use badges or icons (license shields, version badges, forum smileys).
   - Leave it null when the post ties no clear picture to this mod. A single-mod
     thread usually needs no image here — the thread already has one.
+- "sourceCode" is where the mod's code is kept — a GitHub, GitLab, Bitbucket or
+  similar repository page:
+  - Give the repository's own page (e.g. "https://github.com/someone/theirmod"),
+    never a file you download from it. A release, a release asset, a .zip, or a
+    "download" link is not the source code, even on GitHub. A link to one file
+    in the repository (a LICENSE file, a changelog, one source file) is not it
+    either.
+  - This is the ONE place you may shorten a link rather than copy it whole: when
+    the post links a file inside the repository but never the repository itself,
+    give the repository that link is part of. Keep the host and the owner and
+    repository names exactly as the post writes them, and drop everything after.
+    Example: the post links
+    "https://github.com/someone/theirmod/raw/master/theirmod%201.2.zip", so
+    "sourceCode" is "https://github.com/someone/theirmod".
+  - Never take a repository from anywhere but a link in the post, and never
+    change how the post spells it. Leave it null when the post links nothing on
+    a code site.
 - "saveCompatibility" is the post's own words on adding the mod to a game in
   progress:
   - Copy the exact phrase or sentence that says whether you can add the mod to an
@@ -230,6 +248,7 @@ Guidance:
         'items': {'type': 'string'},
       },
       'license': nullableString(),
+      'sourceCode': nullableString(),
       'saveCompatibility': nullableString(),
     };
 
@@ -243,6 +262,7 @@ Guidance:
       'version',
       'supportLinks',
       'license',
+      'sourceCode',
       'saveCompatibility',
     ];
 

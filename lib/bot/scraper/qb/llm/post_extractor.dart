@@ -43,6 +43,10 @@ class _RawMod {
   final String? version;
   final List<String> supportLinks;
   final String? license;
+
+  /// A link to where the mod's code is kept, before it is checked against the
+  /// post's links.
+  final String? sourceCode;
   final String? saveCompatibility;
 
   /// The generated summary, when summaries are on and the model returned one.
@@ -60,6 +64,7 @@ class _RawMod {
     this.version,
     required this.supportLinks,
     this.license,
+    this.sourceCode,
     this.saveCompatibility,
     this.summary,
   });
@@ -97,6 +102,7 @@ class PostExtractor {
     'version',
     'supportLinks',
     'license',
+    'sourceCode',
     'saveCompatibility',
   ];
 
@@ -253,8 +259,9 @@ class PostExtractor {
 
     final postUrls = _postUrls(detail, reduced, ruleCandidates);
     final postImages = _postImages(detail);
-    final checked = _checkAgainstPost(
-        detail.topicId, attempt.answer, reduced, postUrls, postImages,
+    final postRepoUrls = _postRepoUrls(detail, reduced, ruleCandidates);
+    final checked = _checkAgainstPost(detail.topicId, attempt.answer, reduced,
+        postUrls, postImages, postRepoUrls,
         truncated: attempt.response.wasTruncated, postTitle: detail.title);
     final mods = await _resolveMods(checked, ruleCandidates);
 
@@ -472,6 +479,7 @@ class PostExtractor {
       version: asString(m['version']),
       supportLinks: supportLinks,
       license: asString(m['license']),
+      sourceCode: asString(m['sourceCode']),
       saveCompatibility: asString(m['saveCompatibility']),
       summary: summary,
     );
@@ -541,7 +549,8 @@ class PostExtractor {
     _LlmAnswer answer,
     ReducedPost reduced,
     Set<String> postUrls,
-    Map<String, String> postImages, {
+    Map<String, String> postImages,
+    List<Uri> postRepoUrls, {
     required bool truncated,
     required String postTitle,
   }) {
@@ -553,7 +562,8 @@ class PostExtractor {
 
     final checked = <_CheckedMod>[];
     for (final mod in answer.mods) {
-      final c = _checkMod(topicId, mod, postUrls, postImages, corpus,
+      final c = _checkMod(topicId, mod, postUrls, postImages, postRepoUrls,
+          corpus,
           truncated: truncated);
       if (!c.isEmpty) checked.add(c);
     }
@@ -565,6 +575,7 @@ class PostExtractor {
     _RawMod mod,
     Set<String> postUrls,
     Map<String, String> postImages,
+    List<Uri> postRepoUrls,
     String corpus, {
     required bool truncated,
   }) {
@@ -646,6 +657,10 @@ class PostExtractor {
       }
     }
 
+    final sourceCode = mod.sourceCode == null
+        ? null
+        : _groundSourceCode(topicId, mod.sourceCode!, postUrls, postRepoUrls);
+
     // Save compatibility: copied word-for-word, so it must be found in the post.
     String? saveCompatibility;
     if (mod.saveCompatibility != null) {
@@ -683,11 +698,140 @@ class PostExtractor {
       version: version,
       supportLinks: supportLinks,
       license: license,
+      sourceCode: sourceCode,
       saveCompatibility: saveCompatibility,
       // Passed through as-is: the summary is written, not copied, so there is
       // nothing to find in the post.
       summary: mod.summary,
     );
+  }
+
+  /// The source-code link to keep, or null when the post does not back it up.
+  ///
+  /// A post rarely links the repository's own page: it links a file inside it —
+  /// a raw file, a release, a page of the code. That file's own URL says which
+  /// repository it belongs to, so a repository link the model returns counts as
+  /// stated when the post links something inside it. What gets kept is then the
+  /// post's own spelling of that repository, cut out of the longer link, rather
+  /// than the model's copy — the same rule the mod image follows.
+  String? _groundSourceCode(
+    int topicId,
+    String candidate,
+    Set<String> postUrls,
+    List<Uri> postRepoUrls,
+  ) {
+    // A file to download is never the answer, even when the post has it.
+    if (_isDownloadLink(candidate)) {
+      _log.warning('Dropped source-code link that is a download rather than a '
+          'repository (topic $topicId): $candidate');
+      return null;
+    }
+    // Spelled out in the post: kept as written, except for a clone link's
+    // ".git" tail, which is the same repository written for git rather than
+    // for a reader.
+    if (_urlInPost(candidate, postUrls)) return _withoutGitTail(candidate.trim());
+
+    final wanted = Uri.tryParse(candidate.trim());
+    final wantedPath = _pathParts(wanted);
+    // Two parts is owner and repository. One is a person's page, which says
+    // nothing about where this mod's code is.
+    if (wanted != null && _isCodeHost(wanted.host) && wantedPath.length >= 2) {
+      for (final url in postRepoUrls) {
+        if (url.host.toLowerCase() != wanted.host.toLowerCase()) continue;
+        final path = _pathParts(url);
+        if (path.length < wantedPath.length) continue;
+        var same = true;
+        for (var i = 0; i < wantedPath.length; i++) {
+          if (_samePathPart(path[i], wantedPath[i])) continue;
+          same = false;
+          break;
+        }
+        if (!same) continue;
+        final kept = path.take(wantedPath.length).toList();
+        // A clone link ends in ".git". That is the same repository, but it is
+        // not what anyone wants to be sent to, so the tail comes off.
+        kept[kept.length - 1] = _withoutGitTail(kept.last);
+        final root = Uri(
+          scheme: url.scheme,
+          host: url.host,
+          pathSegments: kept,
+        ).toString();
+        _log.info('Source code "$root" confirmed by a link inside that '
+            'repository (topic $topicId)');
+        return root;
+      }
+    }
+
+    _log.warning(
+        'Dropped source-code link not found in post (topic $topicId): '
+        '$candidate');
+    return null;
+  }
+
+  /// Whether two parts of a link's path name the same thing. Case is ignored,
+  /// and so is the ".git" a clone link ends in: a post that says
+  /// `.../Guardian-Prototype.git` is naming the same repository as
+  /// `.../Guardian-Prototype`.
+  static bool _samePathPart(String a, String b) =>
+      _withoutGitTail(a).toLowerCase() == _withoutGitTail(b).toLowerCase();
+
+  /// The same text without a clone link's ".git" tail. Works on one part of a
+  /// path or on a whole link, since either way the tail is at the end.
+  static String _withoutGitTail(String text) =>
+      text.toLowerCase().endsWith('.git')
+          ? text.substring(0, text.length - 4)
+          : text;
+
+  static List<String> _pathParts(Uri? url) =>
+      url == null ? const [] : url.pathSegments.where((s) => s.isNotEmpty).toList();
+
+  /// The code-hosting sites we can read a repository out of a link's path on.
+  /// Anywhere else, only a link the post spells out in full is kept.
+  static const List<String> _codeHosts = [
+    'github.com',
+    'gitlab.com',
+    'bitbucket.org',
+    'codeberg.org',
+  ];
+
+  static bool _isCodeHost(String host) {
+    final h = host.toLowerCase();
+    return _codeHosts.any((c) => h == c || h.endsWith('.$c'));
+  }
+
+  /// The links to code-hosting sites the post really has, kept as written, so
+  /// [_groundSourceCode] can tell which repository each one belongs to.
+  List<Uri> _postRepoUrls(
+    QbModDetail detail,
+    ReducedPost reduced,
+    List<DownloadCandidate> ruleCandidates,
+  ) {
+    final urls = <String, Uri>{};
+    void add(String raw) {
+      final u = HtmlProcessor.decodeEntities(raw.trim());
+      if (u.isEmpty) return;
+      final parsed = Uri.tryParse(u);
+      if (parsed == null || !_isCodeHost(parsed.host)) return;
+      urls.putIfAbsent(PostReducer.normalizeForMatching(u), () => parsed);
+    }
+
+    // The links as written come first, so the post's own spelling is what gets
+    // kept. The reducer's URL set is lowercased for matching, so it goes last:
+    // it is the only place a URL written as bare text turns up, and a
+    // lowercased repository link still works, but it is not what the post says.
+    for (final l in detail.links) {
+      add(l.url);
+    }
+    for (final l in reduced.links) {
+      add(l.url);
+    }
+    for (final c in ruleCandidates) {
+      add(c.sourceUrl);
+    }
+    for (final u in reduced.urlSet) {
+      add(u);
+    }
+    return urls.values.toList();
   }
 
   bool _urlInPost(String url, Set<String> postUrls) {
@@ -784,6 +928,15 @@ class PostExtractor {
   /// page, a shields.io license badge, and the like.
   bool _hasLicenseLink(Set<String> postUrls) =>
       postUrls.any(_licenseUrlHint.hasMatch);
+
+  /// A link to a file you download rather than a page you read: a GitHub
+  /// release asset, a source zip, or any archive. Used to keep such a link out
+  /// of the source-code field, which wants the repository's own page.
+  static final RegExp _downloadUrlHint = RegExp(
+      r'/releases/download/|/archive/|\.(zip|7z|rar|jar|tgz|gz)(\?|#|$)',
+      caseSensitive: false);
+
+  static bool _isDownloadLink(String url) => _downloadUrlHint.hasMatch(url);
 
   // A non-breaking space in any form the post or the model might use: the
   // literal `&nbsp;` entity, its numeric forms (`&#160;` / `&#xa0;`), or the
@@ -906,6 +1059,7 @@ class PostExtractor {
           ? null
           : g.supportLinks.map(LlmSupportLink.fromUrl).toList(),
       license: g.license,
+      sourceCode: g.sourceCode,
       saveCompatibility: g.saveCompatibility,
       summary: summary,
     );
@@ -992,8 +1146,9 @@ class PostExtractor {
     if (answer != null) {
       final postUrls = _postUrls(detail, reduced, ruleCandidates);
       final postImages = _postImages(detail);
+      final postRepoUrls = _postRepoUrls(detail, reduced, ruleCandidates);
       final checked = _checkAgainstPost(
-          detail.topicId, answer, reduced, postUrls, postImages,
+          detail.topicId, answer, reduced, postUrls, postImages, postRepoUrls,
           truncated: response?.wasTruncated ?? false, postTitle: detail.title);
       final mods = await _resolveMods(checked, ruleCandidates);
       record['isMod'] = answer.isMod;
@@ -1067,6 +1222,9 @@ class _CheckedMod {
   final String? version;
   final List<String> supportLinks;
   final String? license;
+
+  /// The link to where the mod's code is kept, once checked against the post.
+  final String? sourceCode;
   final String? saveCompatibility;
   final LlmModSummary? summary;
 
@@ -1081,6 +1239,7 @@ class _CheckedMod {
     this.version,
     required this.supportLinks,
     this.license,
+    this.sourceCode,
     this.saveCompatibility,
     this.summary,
   });
@@ -1096,6 +1255,7 @@ class _CheckedMod {
       version == null &&
       supportLinks.isEmpty &&
       license == null &&
+      sourceCode == null &&
       saveCompatibility == null &&
       (summary == null || summary!.isEmpty);
 }

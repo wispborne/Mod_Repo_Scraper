@@ -19,6 +19,19 @@ export async function render(root, parts) {
   let live = false;
   let drawing = false;
 
+  // The log panel is made once and then only added to. A live run redraws every
+  // second, and rebuilding the log would throw away where the reader had
+  // scrolled to and anything they had selected — which makes a running log
+  // impossible to read. Everything else on the page is cheap to redraw.
+  const logView = newLogView();
+
+  // The three blocks that are replaced on each draw. They are held by name so
+  // they can be swapped in place, leaving the log panel where it is: taking it
+  // out of the page, even for a moment, is what loses the scroll position.
+  let headEl = null;
+  let recordEl = null;
+  let rawEl = null;
+
   async function draw() {
     if (drawing) return; // A redraw is already on its way; let it finish.
     drawing = true;
@@ -29,15 +42,33 @@ export async function render(root, parts) {
     }
   }
 
+  /// Puts the page back to its four blocks after an error or a manager-off
+  /// notice replaced them.
+  function layOutBlocks() {
+    clear(body);
+    headEl = el('div', {});
+    recordEl = el('div', {});
+    rawEl = el('div', {});
+    body.append(headEl, recordEl, logView.panel, rawEl);
+  }
+
+  /// Swaps one of the redrawn blocks for its new version, keeping its place.
+  function swap(oldEl, newEl) {
+    body.replaceChild(newEl, oldEl);
+    return newEl;
+  }
+
   async function drawOnce() {
     let record;
     try {
       record = await api(`manager/runs/${encodeURIComponent(id)}`);
     } catch (err) {
+      headEl = null;
       clear(body).append(errorPanel(err));
       return;
     }
     if (record.error) {
+      headEl = null;
       clear(body).append(errorPanel(new Error(record.error)));
       return;
     }
@@ -54,14 +85,14 @@ export async function render(root, parts) {
       // A log we cannot read is not worth an error page; the panel says so.
     }
 
-    clear(body);
-    body.append(header(record));
-    body.append(recordPanel(record));
-    body.append(logPanel(log, tail, () => {
+    if (!headEl) layOutBlocks();
+    headEl = swap(headEl, header(record));
+    recordEl = swap(recordEl, recordPanel(record));
+    rawEl = swap(rawEl, rawJson(record, 'Show this run’s raw record (JSON)'));
+    updateLog(logView, log, () => {
       tail = tail === DEFAULT_TAIL ? MORE_TAIL : tail * 5;
       draw();
-    }));
-    body.append(rawJson(record, 'Show this run’s raw record (JSON)'));
+    }, live);
   }
 
   await draw();
@@ -69,6 +100,7 @@ export async function render(root, parts) {
   // While this run is still going, follow it on the shared poller's beat.
   const unsubscribe = manager.subscribe((s) => {
     if (!s.on) {
+      headEl = null;
       clear(body).append(managerOffPanel(s));
       return;
     }
@@ -184,29 +216,116 @@ function requestFields(request) {
   return list;
 }
 
-function logPanel(log, tail, onMore) {
+// --- The log panel ---
+//
+// The panel and its scrolling box are made once and kept for the life of the
+// page. Each draw only changes what has actually changed: the count line, the
+// Show more button, and the lines themselves. That is what lets a reader scroll
+// through a log while the run it belongs to is still writing to it.
+
+function newLogView() {
   const panel = el('div', { class: 'panel' });
   panel.append(el('h2', { text: 'Log' }));
+  return {
+    panel,
+    box: null,     // the scrolling <pre>, once there are lines to put in it
+    lines: [],     // the lines the box is showing
+    note: null,    // "showing the last N of M lines"
+    more: null,    // the Show more button
+    message: null, // shown instead of the box when there is no log
+    filled: false, // has the box been filled at least once?
+  };
+}
+
+function updateLog(view, log, onMore, live) {
   const lines = log.lines || [];
-  if (log.missing) {
-    panel.append(el('p', { class: 'loading', text: 'This run has no log file on disk.' }));
-    return panel;
+  const nothingToShow = log.missing
+    ? 'This run has no log file on disk.'
+    : (lines.length ? null : 'Nothing logged yet.');
+
+  if (nothingToShow) {
+    for (const name of ['box', 'note', 'more']) {
+      if (view[name]) { view[name].remove(); view[name] = null; }
+    }
+    view.lines = [];
+    view.filled = false;
+    if (!view.message) {
+      view.message = el('p', { class: 'loading' });
+      view.panel.append(view.message);
+    }
+    view.message.textContent = nothingToShow;
+    return;
   }
-  if (!lines.length) {
-    panel.append(el('p', { class: 'loading', text: 'Nothing logged yet.' }));
-    return panel;
+  if (view.message) { view.message.remove(); view.message = null; }
+
+  // Anything that belongs above the box has to be put there by hand: the box
+  // is made first and stays put, so a plain append would land under it.
+  const putAboveBox = (node) =>
+    view.box ? view.panel.insertBefore(node, view.box) : view.panel.append(node);
+
+  if (!view.note) {
+    view.note = el('p', { class: 'run-when' });
+    putAboveBox(view.note);
   }
-  panel.append(el('p', {
-    class: 'run-when',
-    text: `Showing the last ${lines.length} of ${log.total} lines.`,
-  }));
-  if (log.total > lines.length) {
-    panel.append(el('button', { class: 'btn', text: 'Show more', onclick: onMore }));
+  view.note.textContent = `Showing the last ${lines.length} of ${log.total} lines.`;
+
+  const hasMore = log.total > lines.length;
+  if (hasMore && !view.more) {
+    view.more = el('button', { class: 'btn', text: 'Show more', onclick: onMore });
+    putAboveBox(view.more);
+  } else if (!hasMore && view.more) {
+    view.more.remove();
+    view.more = null;
   }
-  const box = el('pre', { class: 'raw' });
-  for (const line of lines) {
-    box.append(el('div', { class: 'log-line', text: line }));
+
+  if (!view.box) {
+    view.box = el('pre', { class: 'raw' });
+    view.panel.append(view.box);
   }
-  panel.append(box);
-  return panel;
+
+  // How far the reader is sitting from the bottom. New lines arrive at the
+  // bottom and old ones fall off the top, so keeping that distance keeps the
+  // same lines under their eyes — and someone sitting at the bottom is left
+  // there, so the log follows itself.
+  const box = view.box;
+  const fromBottom = Math.max(0, box.scrollHeight - box.scrollTop - box.clientHeight);
+
+  const dropped = linesDroppedFromTop(view.lines, lines);
+  for (let i = 0; i < dropped && box.firstChild; i++) box.firstChild.remove();
+  for (let i = view.lines.length - dropped; i < lines.length; i++) {
+    box.append(logLine(lines[i]));
+  }
+  view.lines = lines;
+
+  if (!view.filled) {
+    // First look at this log: a run still going is read from its newest line,
+    // a finished one from the top of what is shown.
+    view.filled = true;
+    box.scrollTop = live ? box.scrollHeight : 0;
+  } else {
+    box.scrollTop = Math.max(0, box.scrollHeight - box.clientHeight - fromBottom);
+  }
+}
+
+function logLine(text) {
+  return el('div', { class: 'log-line', text });
+}
+
+/// How many of the lines now on the page have fallen off the top of the log
+/// window since the last look. The window holds the last N lines, so as a run
+/// writes, new lines arrive at the bottom and the oldest drop off the top;
+/// lining the two windows up is what lets the lines they share stay in the page
+/// untouched. When they share nothing — the tail was made longer, or the file
+/// was written over — the answer is "all of them", which rebuilds the box.
+function linesDroppedFromTop(shown, next) {
+  for (let dropped = 0; dropped < shown.length; dropped++) {
+    const kept = shown.length - dropped;
+    if (kept > next.length) continue;
+    let same = true;
+    for (let i = 0; i < kept; i++) {
+      if (shown[dropped + i] !== next[i]) { same = false; break; }
+    }
+    if (same) return dropped;
+  }
+  return shown.length;
 }

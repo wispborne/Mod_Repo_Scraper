@@ -136,6 +136,29 @@ The system SHALL, for each mod, copy word-for-word the post's own statement abou
 - **WHEN** the model returns save-compatibility text that is not found in the post
 - **THEN** that mod SHALL have no `saveCompatibility`
 
+### Requirement: Each mod carries a link to where its code is kept
+The system SHALL, for each mod, capture the link the post gives to where the mod's code is kept — a GitHub, GitLab, Bitbucket or similar repository page — as a `sourceCode` extra. It SHALL ground the link against the post, counting it as stated when either the post spells the link out or the post links something inside that repository on a known code-hosting site (a raw file, a release, a page of the code); in the second case the repository SHALL be taken from the post's own link, keeping the post's spelling, and the returned link SHALL be used only to decide which repository is meant. A link naming a different owner or repository than the post shows, a link to an owner's page rather than a repository, and a link to a file to download (a release asset, a source archive, or any zip/7z/rar/jar/tgz/gz) SHALL all be dropped. A mod SHALL have no `sourceCode` when the post links no repository.
+
+#### Scenario: The post links a repository
+- **WHEN** a post links the mod's GitHub repository
+- **THEN** that mod's `sourceCode` SHALL hold that link
+
+#### Scenario: The post only links a file inside the repository
+- **WHEN** a post links a zip held in the mod's repository but never the repository's own page
+- **THEN** that mod's `sourceCode` SHALL hold that repository, spelled as the post's link spells it
+
+#### Scenario: A different repository is dropped
+- **WHEN** the model returns a repository that neither appears in the post nor matches one the post links inside
+- **THEN** that mod SHALL have no `sourceCode`
+
+#### Scenario: An owner's page is not a repository
+- **WHEN** the model returns a link naming only an owner, with no repository
+- **THEN** that mod SHALL have no `sourceCode`
+
+#### Scenario: A release file is not the source code
+- **WHEN** the model returns a release file or archive as the source code
+- **THEN** that mod SHALL have no `sourceCode`, and the link SHALL still be usable as a download
+
 ### Requirement: The LLM extracts changelog, version, support links, and license
 When the feature is enabled, the system SHALL extract, when present and grounded in the post: a changelog (a link, or the post text copied word-for-word), the mod's own current version (kept separate from the game version), support links (e.g. Patreon, Ko-fi, donate), and the license as stated. A changelog link SHALL be preferred over copied changelog text when the post offers one.
 

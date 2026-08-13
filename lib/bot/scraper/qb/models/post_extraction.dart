@@ -92,11 +92,16 @@ class LlmModSummary with LlmModSummaryMappable {
 }
 
 /// The optional extras the LLM produces from a single post read: the mod's own
-/// version, a changelog, support links, the license, whether it can be added to
-/// an existing save, and (only when the summaries option is on) a generated
-/// [summary]. Every copied field is filled only when the post actually states
-/// it; [summary] is written in the model's own words, so it is the one field not
-/// taken verbatim from the post.
+/// version, a changelog, support links, the license, where the source code
+/// lives, whether it can be added to an existing save, and (only when the
+/// summaries option is on) a generated [summary]. Every copied field is filled
+/// only when the post actually states it; [summary] is written in the model's
+/// own words, so it is the one field not taken verbatim from the post.
+/// - [sourceCode]: a link to where the mod's code is kept (a GitHub, GitLab or
+///   Bitbucket repository, and the like). It is the repository's own page, not
+///   a link to a release file — taken from the post, and where the post only
+///   links a file inside the repository, cut back to the repository with the
+///   post's spelling kept. Null when the post links none.
 /// - [saveCompatibility]: the post's own words on whether the mod can be added to
 ///   an ongoing game or needs a new one (e.g. "Save compatible", "Requires a new
 ///   game"), copied word-for-word. Null when the post does not say.
@@ -106,6 +111,7 @@ class LlmExtras with LlmExtrasMappable {
   final LlmChangelog? changelog;
   final List<LlmSupportLink>? supportLinks;
   final String? license;
+  final String? sourceCode;
   final String? saveCompatibility;
   final LlmModSummary? summary;
 
@@ -114,6 +120,7 @@ class LlmExtras with LlmExtrasMappable {
     this.changelog,
     this.supportLinks,
     this.license,
+    this.sourceCode,
     this.saveCompatibility,
     this.summary,
   });
@@ -124,6 +131,7 @@ class LlmExtras with LlmExtrasMappable {
       (changelog == null || changelog!.isEmpty) &&
       (supportLinks == null || supportLinks!.isEmpty) &&
       (license == null || license!.isEmpty) &&
+      (sourceCode == null || sourceCode!.isEmpty) &&
       (saveCompatibility == null || saveCompatibility!.isEmpty) &&
       (summary == null || summary!.isEmpty);
 }
