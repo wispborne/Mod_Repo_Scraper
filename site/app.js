@@ -5,9 +5,9 @@
 // files, fetched off this site's own origin.
 
 import {
-  aiSummariesOn, buildHash, clear, el, errorPanel, formatDay, go, hashParts,
-  loading, modHref, modList, modName, notePageScroll, setAiSummaries,
-  takeScrollPlaced, thumbnail,
+  aiSummariesOn, buildHash, clear, el, errorPanel, everyOtherName, formatDay,
+  go, hashParts, loading, modHref, modList, modName, notePageScroll,
+  setAiSummaries, takeScrollPlaced, thumbnail,
 } from './lib.js';
 import * as home from './views/home.js';
 import * as browse from './views/browse.js';
@@ -236,7 +236,7 @@ function matchStrength(mod, wanted) {
   const name = modName(mod).toLowerCase();
   if (name.startsWith(wanted)) return 3;
   if (name.includes(wanted)) return 2;
-  const people = [...(mod.authors || []), ...(mod.otherAuthorNames || [])];
+  const people = [...(mod.authors || []), ...everyOtherName(mod)];
   if (people.some((p) => p.toLowerCase().includes(wanted))) return 1;
   return 0;
 }

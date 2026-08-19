@@ -136,3 +136,57 @@ and its spacing tidied.
 #### Scenario: The summary is a download link
 - **WHEN** a mod's copied summary is "Download: https://github.com/x/y"
 - **THEN** the AI sentence is published instead, marked as AI-written
+
+### Requirement: The site has its own short set of categories
+The site SHALL publish each mod under a fixed set of about a dozen categories of
+its own, mapped from the names the forum's index and Discord's tags use. A raw
+name that is not in the table SHALL leave the mod with no category rather than a
+guessed one. The names each source used SHALL be kept on the mod's own page.
+
+"Discord Only" SHALL NOT be a category. Where a mod was found SHALL be published
+separately, as `forum`, `discord` or `nexus`.
+
+#### Scenario: Names that mean the same thing
+- **WHEN** a mod is filed under "Utility mods" by the forum and "Standalone Utilities" elsewhere
+- **THEN** it is published under one category, "Utilities", and both raw names are on its page
+
+#### Scenario: A tag nobody has seen before
+- **WHEN** a source uses a name the table does not hold
+- **THEN** the mod is published with no category for it, and the raw name is still on its page
+
+#### Scenario: A mod only on Discord
+- **WHEN** a mod was found on Discord and nowhere else
+- **THEN** its sources are `["discord"]`, and "Discord Only" appears nowhere as a category
+
+### Requirement: A mod says what it will not run without
+Each mod SHALL publish the other mods it needs, by name, taken from what the
+post says. A name SHALL be dropped unless the post itself names it. Where a
+needed mod is one this site publishes, its id SHALL be published beside the name
+so the site can link it; where it is not, the name SHALL still be published.
+
+#### Scenario: A mod that needs a library
+- **WHEN** the post says "Requires LazyLib and MagicLib"
+- **THEN** both are published, each pointed at its own page
+
+#### Scenario: A requirement the post never mentions
+- **WHEN** the reading names a mod that does not appear in the post
+- **THEN** it is dropped, because a wrong requirement sends a reader to install something they do not need
+
+#### Scenario: A mod that names itself
+- **WHEN** the reading names the mod itself as a requirement
+- **THEN** it is left out
+
+### Requirement: The releases are published as a feed
+The releases SHALL also be written as an Atom file beside `updates.json`, and it
+SHALL go out with every publish. Every link in it SHALL be relative, so the feed
+works from whatever folder the site is served from. Each entry SHALL keep the
+same name for ever, so a reader is never shown the same release twice. The file
+SHALL carry only the newest releases, so it cannot grow without limit.
+
+#### Scenario: Subscribing
+- **WHEN** a reader gives their feed reader the site's address
+- **THEN** the feed is offered from every page, and following an entry opens that mod's page
+
+#### Scenario: The same release seen twice
+- **WHEN** the feed is fetched again after another run
+- **THEN** entries already shown carry the same names as before, and are not shown again

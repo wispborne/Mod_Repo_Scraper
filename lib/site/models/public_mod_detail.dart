@@ -34,6 +34,16 @@ class PublicModDetail with PublicModDetailMappable {
   /// in progress. Null when the post does not say.
   final String? saveCompatibilityText;
 
+  /// The shelves the forum's index and Discord's tags file this mod under. The
+  /// list page shows the site's own short set instead; these are here so the
+  /// mod's own page can still say how the sources file it.
+  ///
+  /// The merge has already folded plain synonyms together, so these are the
+  /// sources' names as the merge holds them, not the exact words each source
+  /// used. Anything that says where a mod was found rather than what it is —
+  /// "Discord Only" — is left out, and published as a source instead.
+  final List<String> rawCategories;
+
   /// Screenshots and other pictures from the post.
   final List<PublicImage> gallery;
 
@@ -84,6 +94,7 @@ class PublicModDetail with PublicModDetailMappable {
     this.descriptionHtml,
     this.descriptionIsGenerated = false,
     this.saveCompatibilityText,
+    this.rawCategories = const [],
     this.gallery = const [],
     this.downloads = const [],
     this.changelog = const {},

@@ -274,6 +274,59 @@ void main() {
       expect(extrasOf(2)?.version, isNull);
     });
 
+    test('the mods a post says are needed are kept', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main",'
+            '"needs":["LazyLib","MagicLib"]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(70, 'My cool mod. Requires LazyLib and MagicLib to run.'),
+        [],
+      );
+      expect(extrasOf(70)?.needs, ['LazyLib', 'MagicLib']);
+    });
+
+    test('a needed mod the post never names is dropped', () async {
+      // Asked what a mod needs, a model will offer LazyLib whether the post
+      // said so or not — so the post has to say so.
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main","needs":["LazyLib"]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(71, 'My cool mod. It stands on its own.'),
+        [],
+      );
+      expect(extrasOf(71)?.needs, isNull);
+    });
+
+    test('a mod does not need itself', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main",'
+            '"needs":["My Mod","LazyLib"]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(72, 'My Mod is here. Requires LazyLib.'),
+        [],
+      );
+      expect(extrasOf(72)?.needs, ['LazyLib']);
+    });
+
+    test('a mod named twice is only needed once', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main",'
+            '"needs":["LazyLib","lazylib"]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(73, 'My cool mod. Requires LazyLib.'),
+        [],
+      );
+      expect(extrasOf(73)?.needs, hasLength(1));
+    });
+
     test('version found only in the thread title still grounds', () async {
       final client = _FakeLlmClient([
         _json('{"mods":[{"name":"My Mod","role":"main","version":"1.2.3"}]}'),

@@ -51,6 +51,7 @@ class PublishService implements JobRunner {
   static const List<String> websiteFiles = [
     'mods.json',
     'updates.json',
+    'updates.xml',
   ];
 
   @override

@@ -12,6 +12,7 @@ import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
+import 'days.dart';
 import 'display_name.dart';
 import 'gallery_filter.dart';
 import 'mod_id_store.dart';
@@ -19,6 +20,8 @@ import 'models/mod_release.dart';
 import 'models/public_mod.dart';
 import 'models/public_mod_detail.dart';
 import 'post_html.dart';
+import 'public_categories.dart';
+import 'release_feed_xml.dart';
 import 'release_state_store.dart';
 import 'summary_text.dart';
 
@@ -120,6 +123,10 @@ class PublicDataBuilder {
 
   String get updatesFilePath => p.join(siteDir, 'updates.json');
 
+  /// The same releases as a feed file, for anyone who would rather subscribe
+  /// than visit.
+  String get updatesXmlFilePath => p.join(siteDir, 'updates.xml');
+
   String get modsDir => p.join(siteDir, 'mods');
 
   /// Turns the merged mods and the bundle into the three files' contents.
@@ -160,6 +167,13 @@ class PublicDataBuilder {
       joined.add(_JoinedMod(mod: mod, id: id, topicId: topicId));
     }
 
+    // Which mod each name belongs to, so "Requires LazyLib" can be a link.
+    // Built from every mod at once, so it has to wait until they all have ids.
+    final modsByName = <String, _JoinedMod>{};
+    for (final entry in joined) {
+      modsByName.putIfAbsent(ModIdStore.cleanName(entry.mod.name), () => entry);
+    }
+
     final releasesByMod = _releasesByMod(threadReleases, joined);
     final feed = _feedOrder(releasesByMod);
 
@@ -193,6 +207,7 @@ class PublicDataBuilder {
         post: post,
         threadDownloads: threadDownloads,
         releases: modReleases,
+        modsByName: modsByName,
       );
       listRecords.add(record);
       details[id] = _detailRecord(
@@ -275,6 +290,7 @@ class PublicDataBuilder {
     await File(modsFilePath).writeAsString(encoder.convert(data.list.toMap()));
     await File(updatesFilePath)
         .writeAsString(encoder.convert(data.feed.toMap()));
+    await File(updatesXmlFilePath).writeAsString(buildReleaseFeedXml(data.feed));
 
     for (final entry in data.details.entries) {
       await File(p.join(modsDir, '${entry.key}.json'))
@@ -307,6 +323,7 @@ class PublicDataBuilder {
     required _ReadPost post,
     required List<AssumedDownloadCandidate> threadDownloads,
     required List<ModRelease> releases,
+    required Map<String, _JoinedMod> modsByName,
   }) {
     final extras = chosen?.extras;
     final downloads = _downloadsFor(chosen, threadDownloads);
@@ -321,7 +338,8 @@ class PublicDataBuilder {
       displayName: shownName == mod.name ? null : shownName,
       authors: mod.getAuthors(),
       otherAuthorNames: _otherNamesFor(mod.getAuthors()),
-      categories: mod.getCategories(),
+      categories: publicCategoriesFor(mod.getCategories()),
+      sources: _sourcesFor(mod),
       gameVersion: _firstNonEmpty([mod.gameVersionReq, thread?.gameVersion]),
       modVersion: _firstNonEmpty([extras?.version, mod.modVersion]),
       imageUrl: _imageUrlFor(mod, chosen, thread, post),
@@ -333,7 +351,39 @@ class PublicDataBuilder {
       isWorkInProgress: thread?.isWip ?? false,
       lastReleaseDate: releases.isEmpty ? null : _lastReleaseDate(releases),
       addedOn: idStore.firstSeenFor(mod.name, mark: markFor(mod, topicId)),
+      needs: _neededMods(extras?.needs, id, modsByName),
     );
+  }
+
+  /// The mods this one needs, each pointed at its own page where we have one.
+  ///
+  /// A mod we publish is called what this site calls it, not what this post
+  /// happened to write — "Lazy Lib" and "LazyLib" are the same mod, and the
+  /// site's filter would otherwise offer both. A name we have no page for is
+  /// still listed as the post wrote it: knowing a mod needs "Kadur Remnant" is
+  /// useful whether or not this site can link it. A mod that names itself is
+  /// left out.
+  static List<PublicNeededMod> _neededMods(
+    List<String>? names,
+    String ownId,
+    Map<String, _JoinedMod> modsByName,
+  ) {
+    if (names == null || names.isEmpty) return const [];
+
+    final needed = <PublicNeededMod>[];
+    final seen = <String>{};
+    for (final raw in names) {
+      final written = raw.trim();
+      if (written.isEmpty) continue;
+
+      final known = modsByName[ModIdStore.cleanName(written)];
+      if (known != null && known.id == ownId) continue;
+
+      final name = known == null ? written : displayName(known.mod.name);
+      if (!seen.add((known?.id ?? name).toLowerCase())) continue;
+      needed.add(PublicNeededMod(name: name, id: known?.id));
+    }
+    return needed;
   }
 
   PublicModDetail _detailRecord({
@@ -365,6 +415,7 @@ class PublicDataBuilder {
           plainTextAsHtml(copiedDescription ?? generatedDescription),
       descriptionIsGenerated: isGenerated,
       saveCompatibilityText: _firstNonEmpty([extras?.saveCompatibility]),
+      rawCategories: _shelvesFor(mod),
       gallery: _galleryFor(mod, detail, post.pictureSizes),
       downloads: _downloadsFor(chosen, threadDownloads),
       changelog: extras?.changelog?.entries ?? const {},
@@ -524,19 +575,6 @@ class PublicDataBuilder {
     return newest;
   }
 
-  /// A `YYYY-MM-DD` day read as that day in UTC. Parsing it the ordinary way
-  /// would read it as local midnight, which lands on the day before or after
-  /// once it is written back out.
-  static DateTime? readDay(String day) {
-    final parts = day.split('-');
-    if (parts.length != 3) return null;
-    final year = int.tryParse(parts[0]);
-    final month = int.tryParse(parts[1]);
-    final date = int.tryParse(parts[2]);
-    if (year == null || month == null || date == null) return null;
-    return DateTime.utc(year, month, date);
-  }
-
   /// What tells one mod apart from another of the same name: its forum thread
   /// where it has one, and failing that the person credited. A dozen real mods
   /// share their name with something unrelated, and each of them needs its own
@@ -548,18 +586,60 @@ class PublicDataBuilder {
     return '';
   }
 
+  /// The shelves the sources file a mod under, for its own page. The merge has
+  /// already folded plain synonyms together ("Faction" into "Faction Mods"), so
+  /// these are the sources' names as the merge holds them rather than the exact
+  /// words each source used. Anything that says where a mod was found rather
+  /// than what it is comes out — that is published as a source instead.
+  static List<String> _shelvesFor(ScrapedMod mod) => [
+        for (final name in mod.getCategories())
+          if (!isSourceMarker(name)) name,
+      ];
+
+  /// Where a mod was found, in plain words. The merge's own source list is a
+  /// mix of how it was found ("Index", "ModdingSubforum") and where; the site
+  /// only cares where, so the two forum ones fold into one.
+  static List<String> _sourcesFor(ScrapedMod mod) {
+    final found = <String>{};
+    for (final source in mod.sources ?? const <ModSource>[]) {
+      switch (source) {
+        case ModSource.Index:
+        case ModSource.ModdingSubforum:
+          found.add('forum');
+        case ModSource.Discord:
+          found.add('discord');
+        case ModSource.NexusMods:
+          found.add('nexus');
+      }
+    }
+    return [
+      for (final name in const ['forum', 'discord', 'nexus'])
+        if (found.contains(name)) name,
+    ];
+  }
+
   /// The other names a mod's authors go by, from the alias table the merge
-  /// already keeps. The site searches these as well as the credited names, so
-  /// looking for "histidine_my" still finds Histidine's mods.
-  static List<String> _otherNamesFor(List<String> authors) {
+  /// already keeps, kept one list per person. The site searches these as well
+  /// as the credited names, so looking for "histidine_my" still finds
+  /// Histidine's mods.
+  ///
+  /// Each person gets their own list because a mod can credit two people. When
+  /// this was one list for the whole mod, the site read it as "these are all
+  /// the same person": Kaleidoscope credits SirHartley and pixel_rice_bowl,
+  /// and SirHartley's page said he was also known as pixel_rice_bowl.
+  ///
+  /// A person with no other names is left out rather than given an empty list.
+  static Map<String, List<String>> _otherNamesFor(List<String> authors) {
     final credited = {for (final a in authors) a.toLowerCase()};
-    final others = <String>{};
+    final byAuthor = <String, List<String>>{};
     for (final author in authors) {
+      final others = <String>{};
       for (final alias in ModRepoUtils.getOtherMatchingAliases(author)) {
         if (!credited.contains(alias.toLowerCase())) others.add(alias);
       }
+      if (others.isNotEmpty) byAuthor[author] = others.toList()..sort();
     }
-    return others.toList()..sort();
+    return byAuthor;
   }
 
   static String? _firstNonEmpty(List<String?> values) {

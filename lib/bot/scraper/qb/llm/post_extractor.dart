@@ -53,6 +53,9 @@ class _RawMod {
   /// Not checked against the post (it is written, not copied).
   final LlmModSummary? summary;
 
+  /// The other mods this one needs, before they are checked against the post.
+  final List<String> needs;
+
   _RawMod({
     required this.name,
     required this.role,
@@ -67,6 +70,7 @@ class _RawMod {
     this.sourceCode,
     this.saveCompatibility,
     this.summary,
+    this.needs = const [],
   });
 }
 
@@ -104,6 +108,7 @@ class PostExtractor {
     'license',
     'sourceCode',
     'saveCompatibility',
+    'needs',
   ];
 
   final LlmClient _client;
@@ -458,6 +463,15 @@ class PostExtractor {
       }
     }
 
+    final needs = <String>[];
+    final rawNeeds = m['needs'];
+    if (rawNeeds is List) {
+      for (final n in rawNeeds) {
+        final name = asString(n);
+        if (name != null) needs.add(name);
+      }
+    }
+
     LlmModSummary? summary;
     final rawSummary = generateSummaries ? m['summary'] : null;
     if (rawSummary is Map<String, dynamic>) {
@@ -482,6 +496,7 @@ class PostExtractor {
       sourceCode: asString(m['sourceCode']),
       saveCompatibility: asString(m['saveCompatibility']),
       summary: summary,
+      needs: needs,
     );
   }
 
@@ -703,7 +718,38 @@ class PostExtractor {
       // Passed through as-is: the summary is written, not copied, so there is
       // nothing to find in the post.
       summary: mod.summary,
+      needs: _groundNeeds(topicId, mod.needs, corpus, mod.name),
     );
+  }
+
+  /// The needed mods the post really names.
+  ///
+  /// A name the post never mentions is dropped: nearly every Starsector mod
+  /// needs LazyLib, so a model asked what a mod needs will happily say LazyLib
+  /// whether the post did or not, and a wrong requirement sends a reader off to
+  /// install something they do not need.
+  List<String> _groundNeeds(
+    int topicId,
+    List<String> names,
+    String corpus,
+    String ownName,
+  ) {
+    final kept = <String>[];
+    final seen = <String>{};
+    for (final raw in names) {
+      final name = raw.trim();
+      if (name.length < 2) continue;
+      // A mod does not need itself.
+      if (name.toLowerCase() == ownName.trim().toLowerCase()) continue;
+      if (!seen.add(name.toLowerCase())) continue;
+      if (_textInPost(name, corpus)) {
+        kept.add(name);
+      } else {
+        _log.warning('Dropped a needed mod not named in the post '
+            '(topic $topicId): $name');
+      }
+    }
+    return kept;
   }
 
   /// The source-code link to keep, or null when the post does not back it up.
@@ -1062,6 +1108,7 @@ class PostExtractor {
       sourceCode: g.sourceCode,
       saveCompatibility: g.saveCompatibility,
       summary: summary,
+      needs: g.needs.isEmpty ? null : g.needs,
     );
     return extras.isEmpty ? null : extras;
   }
@@ -1228,6 +1275,9 @@ class _CheckedMod {
   final String? saveCompatibility;
   final LlmModSummary? summary;
 
+  /// The other mods this one needs, once checked against the post.
+  final List<String> needs;
+
   _CheckedMod({
     required this.name,
     required this.role,
@@ -1242,6 +1292,7 @@ class _CheckedMod {
     this.sourceCode,
     this.saveCompatibility,
     this.summary,
+    this.needs = const [],
   });
 
   /// True when nothing downloadable or factual survived grounding. A name alone
@@ -1257,5 +1308,6 @@ class _CheckedMod {
       license == null &&
       sourceCode == null &&
       saveCompatibility == null &&
+      needs.isEmpty &&
       (summary == null || summary!.isEmpty);
 }

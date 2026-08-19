@@ -61,6 +61,13 @@ export async function render(root) {
         + 'copied from the post, not written.',
     ]),
 
+    section('Getting told about new releases', [
+      'Every new release shows up on the home page, and the same list is '
+        + 'written out as a feed file any feed reader can follow. Nothing is '
+        + 'sent to you and nothing about you is collected — a feed reader asks '
+        + 'this site for the file, the same way your browser asks for a page.',
+    ]),
+
     section('How releases are worked out', [
       'A release means a mod\'s version actually moved forward — not that '
         + 'somebody replied to its thread.',
@@ -84,6 +91,12 @@ export async function render(root) {
     ]),
 
     el('p', {}, [
+      el('a', {
+        class: 'btn',
+        href: 'updates.xml',
+        text: 'The release feed',
+      }),
+      el('span', { text: ' ' }),
       el('a', {
         class: 'btn btn-primary',
         href: PROBLEM_REPORT_BASE,

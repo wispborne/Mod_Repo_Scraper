@@ -41,12 +41,23 @@ class PublicMod with PublicModMappable {
   /// Every person credited, tidied and folded together across sources.
   final List<String> authors;
 
-  /// The other names these people are known by, so a search for an old or
-  /// Discord-only spelling still finds their mods. It never repeats a name
-  /// already in [authors].
-  final List<String> otherAuthorNames;
+  /// The other names each of these people is known by, keyed by the name in
+  /// [authors], so a search for an old or Discord-only spelling still finds
+  /// their mods. It never repeats a name already in [authors].
+  ///
+  /// Kept per person, not as one list for the mod: on a mod by two people, a
+  /// flat list made each of them look like another name for the other.
+  final Map<String, List<String>> otherAuthorNames;
 
+  /// The site's own short set of categories — see `public_categories.dart`.
+  /// The names each source gave the mod are kept on its own page instead, so
+  /// nothing is lost, and this stays a list a reader can browse by.
   final List<String> categories;
+
+  /// Where the mod was found: `forum`, `discord`, `nexus`. It is what tells a
+  /// reader that a mod with no forum thread is a Discord one, which used to be
+  /// published as a category called "Discord Only".
+  final List<String> sources;
 
   /// The game version the mod is for, e.g. "0.98a".
   final String? gameVersion;
@@ -87,13 +98,19 @@ class PublicMod with PublicModMappable {
   /// before we started keeping the day.
   final String? addedOn;
 
+  /// The other mods this one will not run without. Nearly every Starsector mod
+  /// needs LazyLib, MagicLib, GraphicsLib or Nexerelin, and knowing which is
+  /// the single most useful thing a reader can be told before they download.
+  final List<PublicNeededMod> needs;
+
   PublicMod({
     required this.id,
     required this.name,
     this.displayName,
     this.authors = const [],
-    this.otherAuthorNames = const [],
+    this.otherAuthorNames = const {},
     this.categories = const [],
+    this.sources = const [],
     this.gameVersion,
     this.modVersion,
     this.imageUrl,
@@ -105,5 +122,19 @@ class PublicMod with PublicModMappable {
     this.isWorkInProgress = false,
     this.lastReleaseDate,
     this.addedOn,
+    this.needs = const [],
   });
+}
+
+/// One mod another mod needs.
+///
+/// [name] is what the post called it. [id] is the page it belongs to on this
+/// site, where the name matched a mod we publish — so most of these are links,
+/// and the rest are still worth naming.
+@MappableClass(ignoreNull: true)
+class PublicNeededMod with PublicNeededModMappable {
+  final String name;
+  final String? id;
+
+  PublicNeededMod({required this.name, this.id});
 }

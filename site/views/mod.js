@@ -7,8 +7,8 @@
 
 import {
   aiSummariesOn, breadcrumbs, clear, currentGameVersion, el, errorPanel,
-  formatDay, joinNames, modDetail, modList, modName, picture,
-  PROBLEM_REPORT_BASE, versionStanding, versionStandingNote,
+  formatDay, joinNames, modDetail, modHref, modList, modName, picture,
+  PROBLEM_REPORT_BASE, sourceName, versionStanding, versionStandingNote,
 } from '../lib.js';
 
 /// Plain names for the support links, keyed by the type the scraper works out.
@@ -66,6 +66,7 @@ export async function render(root, parts) {
   ]));
   root.append(el('div', { class: 'stack' }, [
     header(mod, shownName, currentVersion),
+    needsLine(mod),
     downloads(detail),
     description(detail),
     gallery(detail),
@@ -109,6 +110,33 @@ function header(mod, shownName, currentVersion) {
       : el('span', { class: 'sub thread-title', text: mod.name }),
     (mod.authors || []).length ? authors : null,
     meta,
+  ]);
+}
+
+/// What this mod will not run without, right under the header.
+///
+/// Nearly every Starsector mod needs LazyLib, MagicLib, GraphicsLib or
+/// Nexerelin, and finding that out after the download — from a crash on
+/// startup — is the oldest annoyance in Starsector modding. Each one we have a
+/// page for is a link; the rest are still named.
+function needsLine(mod) {
+  const needs = mod.needs || [];
+  if (!needs.length) return null;
+
+  // The names sit in one span of their own, so the commas stay against the
+  // name in front of them rather than being spaced out as flex children.
+  const names = el('span', { class: 'needs-list' });
+  needs.forEach((needed, i) => {
+    if (i) names.append(document.createTextNode(', '));
+    names.append(needed.id
+      ? el('a', { class: 'needed', href: modHref(needed.id), text: needed.name })
+      : el('span', { class: 'needed unknown', text: needed.name,
+          title: 'This site has no page for that one.' }));
+  });
+
+  return el('div', { class: 'needs-line' }, [
+    el('span', { class: 'needs-label', text: 'Needs' }),
+    names,
   ]);
 }
 
@@ -298,8 +326,22 @@ function facts(detail) {
     rows.push(['Save compatibility',
       el('span', { text: detail.saveCompatibilityText })]);
   }
-  if (detail.listing && detail.listing.categories && detail.listing.categories.length) {
-    rows.push(['Category', el('span', { text: joinNames(detail.listing.categories) })]);
+  const listing = detail.listing || {};
+  if ((listing.categories || []).length) {
+    rows.push(['Category', el('span', { text: joinNames(listing.categories) })]);
+  }
+  // What each source actually called it, which is not always what the site
+  // does. Left out when it says nothing the line above did not.
+  const raw = detail.rawCategories || [];
+  if (raw.length && joinNames(raw) !== joinNames(listing.categories || [])) {
+    rows.push(['Filed under', el('span', {
+      class: 'dim', text: joinNames(raw),
+      title: 'The shelves the forum and Discord file this mod under.',
+    })]);
+  }
+  if ((listing.sources || []).length) {
+    rows.push(['Found on',
+      el('span', { text: joinNames(listing.sources.map(sourceName)) })]);
   }
 
   const support = detail.supportLinks || [];

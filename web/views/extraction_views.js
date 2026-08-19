@@ -331,6 +331,9 @@ export function extrasBlock(extras) {
   if (extras.saveCompatibility) {
     list.append(field('Save compatibility', extras.saveCompatibility));
   }
+  if (extras.needs && extras.needs.length) {
+    list.append(field('Needs', extras.needs.join(', ')));
+  }
   if (extras.supportLinks && extras.supportLinks.length) {
     const rows = extras.supportLinks.map((s) => el('div', { class: 'support-link' }, [
       el('span', { class: `support-type support-type-${esc(s.type || 'other')}`, text: s.type || 'other' }),

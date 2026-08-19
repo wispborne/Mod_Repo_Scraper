@@ -5,8 +5,8 @@
 // comparing saved copies of the data over time.
 
 import {
-  buildHash, clear, currentGameVersion, el, formatDay, go, howLongAgo, modHref,
-  modList, modName, releaseFeed, thumbnail,
+  buildHash, categoryChips, clear, currentGameVersion, el, formatDay, go,
+  howLongAgo, modHref, modList, modName, releaseFeed, thumbnail,
 } from '../lib.js';
 import { modCard } from './browse.js';
 
@@ -23,6 +23,8 @@ export async function render(root) {
   clear(root);
   root.append(el('div', { class: 'stack' }, [
     searchPanel(mods.length),
+    browseByKind(mods),
+    feedLine(),
     recentlyAdded(mods, currentVersion),
     releasesPanel(releases, byId),
   ]));
@@ -51,6 +53,30 @@ function searchPanel(total) {
       }),
     ]),
     el('div', { class: 'search-row' }, [box, button]),
+  ]);
+}
+
+/// The line offering the release feed. Feed readers are where a lot of modders
+/// and server admins actually live, so this is the one way somebody hears about
+/// a release without coming back to look. It is on the page whether or not
+/// anything has been released yet — that is exactly when subscribing helps.
+function feedLine() {
+  return el('p', { class: 'feed-note' }, [
+    el('span', { text: 'Would rather be told? ' }),
+    el('a', { href: 'updates.xml', text: 'Subscribe to the release feed' }),
+    el('span', { text: ' in any feed reader.' }),
+  ]);
+}
+
+/// The categories, as a row of chips, right under the search box. It is the
+/// front door for a reader who does not know what they are looking for yet.
+function browseByKind(mods) {
+  const chips = categoryChips(mods);
+  if (!chips) return null;
+
+  return el('section', { class: 'stack' }, [
+    el('h2', { text: 'Browse by kind' }),
+    chips,
   ]);
 }
 

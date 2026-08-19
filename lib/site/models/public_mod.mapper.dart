@@ -160,6 +160,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
   static PublicModMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = PublicModMapper._());
+      PublicNeededModMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -184,17 +185,21 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     opt: true,
     def: const [],
   );
-  static List<String> _$otherAuthorNames(PublicMod v) => v.otherAuthorNames;
-  static const Field<PublicMod, List<String>> _f$otherAuthorNames = Field(
-    'otherAuthorNames',
-    _$otherAuthorNames,
-    opt: true,
-    def: const [],
-  );
+  static Map<String, List<String>> _$otherAuthorNames(PublicMod v) =>
+      v.otherAuthorNames;
+  static const Field<PublicMod, Map<String, List<String>>> _f$otherAuthorNames =
+      Field('otherAuthorNames', _$otherAuthorNames, opt: true, def: const {});
   static List<String> _$categories(PublicMod v) => v.categories;
   static const Field<PublicMod, List<String>> _f$categories = Field(
     'categories',
     _$categories,
+    opt: true,
+    def: const [],
+  );
+  static List<String> _$sources(PublicMod v) => v.sources;
+  static const Field<PublicMod, List<String>> _f$sources = Field(
+    'sources',
+    _$sources,
     opt: true,
     def: const [],
   );
@@ -268,6 +273,13 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     _$addedOn,
     opt: true,
   );
+  static List<PublicNeededMod> _$needs(PublicMod v) => v.needs;
+  static const Field<PublicMod, List<PublicNeededMod>> _f$needs = Field(
+    'needs',
+    _$needs,
+    opt: true,
+    def: const [],
+  );
 
   @override
   final MappableFields<PublicMod> fields = const {
@@ -277,6 +289,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #authors: _f$authors,
     #otherAuthorNames: _f$otherAuthorNames,
     #categories: _f$categories,
+    #sources: _f$sources,
     #gameVersion: _f$gameVersion,
     #modVersion: _f$modVersion,
     #imageUrl: _f$imageUrl,
@@ -288,6 +301,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #isWorkInProgress: _f$isWorkInProgress,
     #lastReleaseDate: _f$lastReleaseDate,
     #addedOn: _f$addedOn,
+    #needs: _f$needs,
   };
   @override
   final bool ignoreNull = true;
@@ -300,6 +314,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       authors: data.dec(_f$authors),
       otherAuthorNames: data.dec(_f$otherAuthorNames),
       categories: data.dec(_f$categories),
+      sources: data.dec(_f$sources),
       gameVersion: data.dec(_f$gameVersion),
       modVersion: data.dec(_f$modVersion),
       imageUrl: data.dec(_f$imageUrl),
@@ -311,6 +326,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       isWorkInProgress: data.dec(_f$isWorkInProgress),
       lastReleaseDate: data.dec(_f$lastReleaseDate),
       addedOn: data.dec(_f$addedOn),
+      needs: data.dec(_f$needs),
     );
   }
 
@@ -374,16 +390,29 @@ extension PublicModValueCopy<$R, $Out> on ObjectCopyWith<$R, PublicMod, $Out> {
 abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get authors;
-  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  MapCopyWith<
+    $R,
+    String,
+    List<String>,
+    ObjectCopyWith<$R, List<String>, List<String>>
+  >
   get otherAuthorNames;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get categories;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get sources;
+  ListCopyWith<
+    $R,
+    PublicNeededMod,
+    PublicNeededModCopyWith<$R, PublicNeededMod, PublicNeededMod>
+  >
+  get needs;
   $R call({
     String? id,
     String? name,
     String? displayName,
     List<String>? authors,
-    List<String>? otherAuthorNames,
+    Map<String, List<String>>? otherAuthorNames,
     List<String>? categories,
+    List<String>? sources,
     String? gameVersion,
     String? modVersion,
     String? imageUrl,
@@ -395,6 +424,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     bool? isWorkInProgress,
     DateTime? lastReleaseDate,
     String? addedOn,
+    List<PublicNeededMod>? needs,
   });
   PublicModCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -415,8 +445,13 @@ class _PublicModCopyWithImpl<$R, $Out>
         (v) => call(authors: v),
       );
   @override
-  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
-  get otherAuthorNames => ListCopyWith(
+  MapCopyWith<
+    $R,
+    String,
+    List<String>,
+    ObjectCopyWith<$R, List<String>, List<String>>
+  >
+  get otherAuthorNames => MapCopyWith(
     $value.otherAuthorNames,
     (v, t) => ObjectCopyWith(v, $identity, t),
     (v) => call(otherAuthorNames: v),
@@ -429,13 +464,32 @@ class _PublicModCopyWithImpl<$R, $Out>
         (v) => call(categories: v),
       );
   @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get sources =>
+      ListCopyWith(
+        $value.sources,
+        (v, t) => ObjectCopyWith(v, $identity, t),
+        (v) => call(sources: v),
+      );
+  @override
+  ListCopyWith<
+    $R,
+    PublicNeededMod,
+    PublicNeededModCopyWith<$R, PublicNeededMod, PublicNeededMod>
+  >
+  get needs => ListCopyWith(
+    $value.needs,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(needs: v),
+  );
+  @override
   $R call({
     String? id,
     String? name,
     Object? displayName = $none,
     List<String>? authors,
-    List<String>? otherAuthorNames,
+    Map<String, List<String>>? otherAuthorNames,
     List<String>? categories,
+    List<String>? sources,
     Object? gameVersion = $none,
     Object? modVersion = $none,
     Object? imageUrl = $none,
@@ -447,6 +501,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     bool? isWorkInProgress,
     Object? lastReleaseDate = $none,
     Object? addedOn = $none,
+    List<PublicNeededMod>? needs,
   }) => $apply(
     FieldCopyWithData({
       if (id != null) #id: id,
@@ -455,6 +510,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (authors != null) #authors: authors,
       if (otherAuthorNames != null) #otherAuthorNames: otherAuthorNames,
       if (categories != null) #categories: categories,
+      if (sources != null) #sources: sources,
       if (gameVersion != $none) #gameVersion: gameVersion,
       if (modVersion != $none) #modVersion: modVersion,
       if (imageUrl != $none) #imageUrl: imageUrl,
@@ -466,6 +522,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (isWorkInProgress != null) #isWorkInProgress: isWorkInProgress,
       if (lastReleaseDate != $none) #lastReleaseDate: lastReleaseDate,
       if (addedOn != $none) #addedOn: addedOn,
+      if (needs != null) #needs: needs,
     }),
   );
   @override
@@ -476,6 +533,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     authors: data.get(#authors, or: $value.authors),
     otherAuthorNames: data.get(#otherAuthorNames, or: $value.otherAuthorNames),
     categories: data.get(#categories, or: $value.categories),
+    sources: data.get(#sources, or: $value.sources),
     gameVersion: data.get(#gameVersion, or: $value.gameVersion),
     modVersion: data.get(#modVersion, or: $value.modVersion),
     imageUrl: data.get(#imageUrl, or: $value.imageUrl),
@@ -493,11 +551,142 @@ class _PublicModCopyWithImpl<$R, $Out>
     isWorkInProgress: data.get(#isWorkInProgress, or: $value.isWorkInProgress),
     lastReleaseDate: data.get(#lastReleaseDate, or: $value.lastReleaseDate),
     addedOn: data.get(#addedOn, or: $value.addedOn),
+    needs: data.get(#needs, or: $value.needs),
   );
 
   @override
   PublicModCopyWith<$R2, PublicMod, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   ) => _PublicModCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class PublicNeededModMapper extends ClassMapperBase<PublicNeededMod> {
+  PublicNeededModMapper._();
+
+  static PublicNeededModMapper? _instance;
+  static PublicNeededModMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = PublicNeededModMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'PublicNeededMod';
+
+  static String _$name(PublicNeededMod v) => v.name;
+  static const Field<PublicNeededMod, String> _f$name = Field('name', _$name);
+  static String? _$id(PublicNeededMod v) => v.id;
+  static const Field<PublicNeededMod, String> _f$id = Field(
+    'id',
+    _$id,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<PublicNeededMod> fields = const {
+    #name: _f$name,
+    #id: _f$id,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static PublicNeededMod _instantiate(DecodingData data) {
+    return PublicNeededMod(name: data.dec(_f$name), id: data.dec(_f$id));
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static PublicNeededMod fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<PublicNeededMod>(map);
+  }
+
+  static PublicNeededMod fromJson(String json) {
+    return ensureInitialized().decodeJson<PublicNeededMod>(json);
+  }
+}
+
+mixin PublicNeededModMappable {
+  String toJson() {
+    return PublicNeededModMapper.ensureInitialized()
+        .encodeJson<PublicNeededMod>(this as PublicNeededMod);
+  }
+
+  Map<String, dynamic> toMap() {
+    return PublicNeededModMapper.ensureInitialized().encodeMap<PublicNeededMod>(
+      this as PublicNeededMod,
+    );
+  }
+
+  PublicNeededModCopyWith<PublicNeededMod, PublicNeededMod, PublicNeededMod>
+  get copyWith =>
+      _PublicNeededModCopyWithImpl<PublicNeededMod, PublicNeededMod>(
+        this as PublicNeededMod,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return PublicNeededModMapper.ensureInitialized().stringifyValue(
+      this as PublicNeededMod,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return PublicNeededModMapper.ensureInitialized().equalsValue(
+      this as PublicNeededMod,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return PublicNeededModMapper.ensureInitialized().hashValue(
+      this as PublicNeededMod,
+    );
+  }
+}
+
+extension PublicNeededModValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, PublicNeededMod, $Out> {
+  PublicNeededModCopyWith<$R, PublicNeededMod, $Out> get $asPublicNeededMod =>
+      $base.as((v, t, t2) => _PublicNeededModCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class PublicNeededModCopyWith<$R, $In extends PublicNeededMod, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? name, String? id});
+  PublicNeededModCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _PublicNeededModCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, PublicNeededMod, $Out>
+    implements PublicNeededModCopyWith<$R, PublicNeededMod, $Out> {
+  _PublicNeededModCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<PublicNeededMod> $mapper =
+      PublicNeededModMapper.ensureInitialized();
+  @override
+  $R call({String? name, Object? id = $none}) => $apply(
+    FieldCopyWithData({
+      if (name != null) #name: name,
+      if (id != $none) #id: id,
+    }),
+  );
+  @override
+  PublicNeededMod $make(CopyWithData data) => PublicNeededMod(
+    name: data.get(#name, or: $value.name),
+    id: data.get(#id, or: $value.id),
+  );
+
+  @override
+  PublicNeededModCopyWith<$R2, PublicNeededMod, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _PublicNeededModCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 

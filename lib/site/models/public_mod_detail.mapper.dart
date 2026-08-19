@@ -66,6 +66,13 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     _$saveCompatibilityText,
     opt: true,
   );
+  static List<String> _$rawCategories(PublicModDetail v) => v.rawCategories;
+  static const Field<PublicModDetail, List<String>> _f$rawCategories = Field(
+    'rawCategories',
+    _$rawCategories,
+    opt: true,
+    def: const [],
+  );
   static List<PublicImage> _$gallery(PublicModDetail v) => v.gallery;
   static const Field<PublicModDetail, List<PublicImage>> _f$gallery = Field(
     'gallery',
@@ -155,6 +162,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     #descriptionHtml: _f$descriptionHtml,
     #descriptionIsGenerated: _f$descriptionIsGenerated,
     #saveCompatibilityText: _f$saveCompatibilityText,
+    #rawCategories: _f$rawCategories,
     #gallery: _f$gallery,
     #downloads: _f$downloads,
     #changelog: _f$changelog,
@@ -180,6 +188,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       descriptionHtml: data.dec(_f$descriptionHtml),
       descriptionIsGenerated: data.dec(_f$descriptionIsGenerated),
       saveCompatibilityText: data.dec(_f$saveCompatibilityText),
+      rawCategories: data.dec(_f$rawCategories),
       gallery: data.dec(_f$gallery),
       downloads: data.dec(_f$downloads),
       changelog: data.dec(_f$changelog),
@@ -259,6 +268,8 @@ extension PublicModDetailValueCopy<$R, $Out>
 abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   PublicModCopyWith<$R, PublicMod, PublicMod> get listing;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get rawCategories;
   ListCopyWith<
     $R,
     PublicImage,
@@ -300,6 +311,7 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     String? descriptionHtml,
     bool? descriptionIsGenerated,
     String? saveCompatibilityText,
+    List<String>? rawCategories,
     List<PublicImage>? gallery,
     List<PublicDownload>? downloads,
     Map<String, String>? changelog,
@@ -330,6 +342,13 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
   @override
   PublicModCopyWith<$R, PublicMod, PublicMod> get listing =>
       $value.listing.copyWith.$chain((v) => call(listing: v));
+  @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get rawCategories => ListCopyWith(
+    $value.rawCategories,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(rawCategories: v),
+  );
   @override
   ListCopyWith<
     $R,
@@ -407,6 +426,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     Object? descriptionHtml = $none,
     bool? descriptionIsGenerated,
     Object? saveCompatibilityText = $none,
+    List<String>? rawCategories,
     List<PublicImage>? gallery,
     List<PublicDownload>? downloads,
     Map<String, String>? changelog,
@@ -430,6 +450,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
         #descriptionIsGenerated: descriptionIsGenerated,
       if (saveCompatibilityText != $none)
         #saveCompatibilityText: saveCompatibilityText,
+      if (rawCategories != null) #rawCategories: rawCategories,
       if (gallery != null) #gallery: gallery,
       if (downloads != null) #downloads: downloads,
       if (changelog != null) #changelog: changelog,
@@ -459,6 +480,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       #saveCompatibilityText,
       or: $value.saveCompatibilityText,
     ),
+    rawCategories: data.get(#rawCategories, or: $value.rawCategories),
     gallery: data.get(#gallery, or: $value.gallery),
     downloads: data.get(#downloads, or: $value.downloads),
     changelog: data.get(#changelog, or: $value.changelog),

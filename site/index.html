@@ -10,6 +10,9 @@
   <title>Starmodder — Starsector mods</title>
   <meta name="description" content="Every Starsector mod, with recent releases, downloads, changelogs and screenshots.">
   <link rel="stylesheet" href="style.css">
+  <!-- The release feed, so a feed reader offers to subscribe on any page. -->
+  <link rel="alternate" type="application/atom+xml"
+        title="Starmodder — new Starsector mod releases" href="updates.xml">
 </head>
 <body>
   <a class="skip-link" href="#app">Skip to the page</a>
@@ -23,6 +26,8 @@
                aria-label="Search mods" autocomplete="off">
         <div id="search-suggestions" class="suggestions" hidden></div>
       </div>
+      <a class="feed-link" href="updates.xml"
+         title="Subscribe to new releases in a feed reader">Feed</a>
       <label class="ai-toggle" title="Some descriptions were written by an AI rather than copied from the author's post. Untick this to hide them.">
         <input type="checkbox" id="ai-summaries">
         <span>AI summaries</span>
@@ -35,6 +40,7 @@
   <footer class="site-footer">
     <span id="freshness" class="freshness"></span>
     <a href="#/about">About this site</a>
+    <a href="updates.xml">Release feed</a>
     <span class="footer-note">A read-only view of mods posted on the Starsector forum, Discord and Nexus Mods.</span>
   </footer>
 

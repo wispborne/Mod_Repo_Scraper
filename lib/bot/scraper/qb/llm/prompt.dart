@@ -7,7 +7,7 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 11;
+  static const int promptVersion = 12;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -104,7 +104,8 @@ Return this JSON object:
       "supportLinks": ["<Patreon/Ko-fi/donate URL from the post>", "..."],
       "license": "<the license exactly as stated in the post, or null>",
       "sourceCode": "<the URL of the page where this mod's code is kept, copied from the post, or null>",
-      "saveCompatibility": "<the post's own words on whether it can be added to an existing save or needs a new game, copied exactly, or null>"$summaryField
+      "saveCompatibility": "<the post's own words on whether it can be added to an existing save or needs a new game, copied exactly, or null>",
+      "needs": ["<the name of another mod this one will not run without>", "..."]$summaryField
     }
   ]
 }
@@ -189,6 +190,18 @@ Guidance:
     "Requires a new game", or "Not save-game compatible".
   - Copy it word-for-word. Do not summarize, judge, or decide it yourself. Leave
     it null when the post does not say either way.
+- "needs" is the other mods this one will not run without:
+  - Nearly every Starsector mod needs a library — LazyLib, MagicLib,
+    GraphicsLib, LunaLib, ShaderLib — and many need Nexerelin. The post nearly
+    always says so, in a line like "Requires LazyLib and MagicLib" or under a
+    "Requirements" or "Dependencies" heading.
+  - Give the mod's NAME only, as the post writes it. Not a link, not a version,
+    not a sentence. One entry per mod.
+  - Only mods the post says are REQUIRED. A mod that is merely recommended,
+    supported, compatible, or "works well with" is NOT a requirement, and nor is
+    the game itself or a Java version.
+  - Leave it as an empty list when the post names no requirement. Do not guess a
+    library from what the mod appears to do.
 - Leave any field null/empty when the post does not state it. Do not guess.$summaryGuidance
 ''';
   }
@@ -250,6 +263,10 @@ Guidance:
       'license': nullableString(),
       'sourceCode': nullableString(),
       'saveCompatibility': nullableString(),
+      'needs': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
     };
 
     final modRequired = <String>[
@@ -264,6 +281,7 @@ Guidance:
       'license',
       'sourceCode',
       'saveCompatibility',
+      'needs',
     ];
 
     if (includeSummary) {

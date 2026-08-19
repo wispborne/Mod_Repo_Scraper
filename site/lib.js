@@ -256,6 +256,72 @@ export function takeScrollPlaced() {
   return placed;
 }
 
+/// A row of category chips, each with how many mods are on it, each a link to
+/// that category on the browse page.
+///
+/// This is the only way to browse by kind that a reader can actually use. The
+/// dropdown it replaces held 26 overlapping names; the site publishes thirteen
+/// and shows them all at once.
+/// Counts how often each value turns up across the mods, biggest first.
+///
+/// Biggest first rather than alphabetical, so what a reader's eye lands on is
+/// what is worth trying. It also means no list of its own to be kept in step
+/// with the builder's.
+export function countedAcross(mods, pick) {
+  const counts = new Map();
+  for (const mod of mods || []) {
+    for (const value of pick(mod) || []) {
+      if (value) counts.set(value, (counts.get(value) || 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+}
+
+export function categoryChips(mods, opts = {}) {
+  const { chosen = null, onPick = null } = opts;
+
+  const inOrder = countedAcross(mods, (mod) => mod.categories);
+  if (!inOrder.length) return null;
+
+  const row = el('div', { class: 'chips' });
+  for (const [category, count] of inOrder) {
+    const on = category === chosen;
+    const chip = el(onPick ? 'button' : 'a', {
+      class: on ? 'chip on' : 'chip',
+      href: onPick ? null : buildHash(['browse'], { category }),
+      'aria-pressed': onPick ? String(on) : null,
+    }, [
+      el('span', { text: category }),
+      el('span', { class: 'chip-count', text: String(count) }),
+    ]);
+    // A chip that is already on turns itself off, so a reader is never stuck
+    // inside one category with no way out but the browser's back button.
+    if (onPick) chip.addEventListener('click', () => onPick(on ? '' : category));
+    row.append(chip);
+  }
+  return row;
+}
+
+/// A plain name for each place a mod was found.
+const SOURCE_NAMES = {
+  forum: 'Starsector forum',
+  discord: 'Discord',
+  nexus: 'Nexus Mods',
+};
+
+/// True when Discord is the only place this mod was found. Those used to be
+/// published under a category called "Discord Only", which said where a mod
+/// came from rather than what kind of mod it is.
+export function isDiscordOnly(mod) {
+  const sources = (mod && mod.sources) || [];
+  return sources.length === 1 && sources[0] === 'discord';
+}
+
+export function sourceName(source) {
+  return SOURCE_NAMES[source] || source;
+}
+
 // --- Names and versions ---
 
 /// The name to show for a mod.
@@ -266,6 +332,26 @@ export function takeScrollPlaced() {
 /// the name.
 export function modName(mod) {
   return (mod && (mod.displayName || mod.name)) || '';
+}
+
+/// The other names one credited person goes by on this mod.
+///
+/// `otherAuthorNames` is keyed by the name in `authors`, because a mod can
+/// credit two people and their other names must not be mixed up together.
+export function otherNamesOf(mod, author) {
+  const map = (mod && mod.otherAuthorNames) || {};
+  const wanted = String(author).toLowerCase();
+  for (const [name, others] of Object.entries(map)) {
+    if (name.toLowerCase() === wanted) return others || [];
+  }
+  return [];
+}
+
+/// Every other name anyone credited on this mod goes by, in one list. For
+/// searching, where it does not matter whose name is whose.
+export function everyOtherName(mod) {
+  const map = (mod && mod.otherAuthorNames) || {};
+  return Object.values(map).flat();
 }
 
 /// The address of a mod's own page.

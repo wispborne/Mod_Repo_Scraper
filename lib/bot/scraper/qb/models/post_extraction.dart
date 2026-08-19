@@ -105,6 +105,10 @@ class LlmModSummary with LlmModSummaryMappable {
 /// - [saveCompatibility]: the post's own words on whether the mod can be added to
 ///   an ongoing game or needs a new one (e.g. "Save compatible", "Requires a new
 ///   game"), copied word-for-word. Null when the post does not say.
+/// - [needs]: the other mods this one will not run without, by name, as the post
+///   writes them. Nearly every Starsector mod needs LazyLib, MagicLib,
+///   GraphicsLib or Nexerelin, and the post nearly always says so. Empty when
+///   the post names none.
 @MappableClass(ignoreNull: true)
 class LlmExtras with LlmExtrasMappable {
   final String? version;
@@ -115,6 +119,9 @@ class LlmExtras with LlmExtrasMappable {
   final String? saveCompatibility;
   final LlmModSummary? summary;
 
+  /// The other mods this one will not run without, by name.
+  final List<String>? needs;
+
   LlmExtras({
     this.version,
     this.changelog,
@@ -123,6 +130,7 @@ class LlmExtras with LlmExtrasMappable {
     this.sourceCode,
     this.saveCompatibility,
     this.summary,
+    this.needs,
   });
 
   /// True when none of the extra fields were produced.
@@ -133,7 +141,8 @@ class LlmExtras with LlmExtrasMappable {
       (license == null || license!.isEmpty) &&
       (sourceCode == null || sourceCode!.isEmpty) &&
       (saveCompatibility == null || saveCompatibility!.isEmpty) &&
-      (summary == null || summary!.isEmpty);
+      (summary == null || summary!.isEmpty) &&
+      (needs == null || needs!.isEmpty);
 }
 
 /// What kind of link a download is. Plain, lowercase words so the viewer and

@@ -228,6 +228,112 @@ void main() {
     expect(mod.summaryIsGenerated, isTrue);
   });
 
+  test('the mods a mod needs are published, pointed at their own pages', () {
+    final data = builder.build(
+      mods: [
+        forumMod(name: 'Nexerelin', topicId: 9175),
+        forumMod(name: 'LazyLib', topicId: 5444),
+      ],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            extras: LlmExtras(needs: const ['LazyLib', 'Kadur Remnant']),
+          ),
+        ]),
+      ]),
+    );
+
+    final nexerelin =
+        data.list.mods.firstWhere((m) => m.id == 'nexerelin');
+    expect(nexerelin.needs.map((n) => n.name), ['LazyLib', 'Kadur Remnant']);
+    expect(nexerelin.needs.first.id, 'lazylib',
+        reason: 'a mod we have a page for becomes a link');
+    expect(nexerelin.needs.last.id, isNull,
+        reason: 'a mod we do not publish is still worth naming');
+  });
+
+  test('a mod that names itself as a requirement is left alone', () {
+    final data = builder.build(
+      mods: [forumMod(name: 'Nexerelin')],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            extras: LlmExtras(needs: const ['Nexerelin', 'LazyLib']),
+          ),
+        ]),
+      ]),
+    );
+
+    expect(data.list.mods.single.needs.map((n) => n.name), ['LazyLib']);
+  });
+
+  test('a mod named twice is only needed once', () {
+    final data = builder.build(
+      mods: [forumMod(name: 'Nexerelin', topicId: 9175),
+        forumMod(name: 'LazyLib', topicId: 5444)],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            extras: LlmExtras(needs: const ['LazyLib', 'lazylib v3.0']),
+          ),
+        ]),
+      ]),
+    );
+
+    expect(
+        data.list.mods.firstWhere((m) => m.id == 'nexerelin').needs, hasLength(1));
+  });
+
+  test('the site has its own categories, and keeps the raw names on the page',
+      () {
+    final data = builder.build(
+      mods: [
+        ScrapedMod(
+          name: 'Nexerelin',
+          authorsList: const ['Histidine'],
+          categories: const ['Ship Pack', 'Weapon/Fighter Pack', 'Discord Only'],
+          sources: const [ModSource.Index, ModSource.Discord],
+          urls: const {
+            ModUrlType.Forum:
+                'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+          },
+        ),
+      ],
+      bundle: bundleOf(),
+    );
+
+    final mod = data.list.mods.single;
+    expect(mod.categories, ['Ships and weapons'],
+        reason: '"Discord Only" says where a mod was found, not what it is');
+    expect(mod.sources, ['forum', 'discord']);
+
+    expect(data.details['nexerelin']!.rawCategories,
+        ['Ship Pack', 'Weapon/Fighter Pack'],
+        reason: 'the page says which shelves it is filed under, and "Discord '
+            'Only" is not one — it is published as a source instead');
+  });
+
+  test('a category nobody has seen before is left off rather than guessed', () {
+    final data = builder.build(
+      mods: [
+        ScrapedMod(
+          name: 'Some Mod',
+          authorsList: const ['Someone'],
+          categories: const ['Something New'],
+          sources: const [ModSource.Discord],
+          urls: const {ModUrlType.Discord: 'https://discord.com/channels/1/2'},
+        ),
+      ],
+      bundle: bundleOf(),
+    );
+
+    expect(data.list.mods.single.categories, isEmpty);
+    expect(data.details['some-mod']!.rawCategories, ['Something New']);
+  });
+
   test('a mod is joined to its thread on the forum topic id', () {
     final data = builder.build(
       mods: [forumMod()],
@@ -479,6 +585,27 @@ void main() {
     expect(File(p.join(builder.modsDir, 'second-mod.json')).existsSync(), isTrue);
   });
 
+  test('the release feed is written out beside the rest', () async {
+    final data = builder.build(
+      mods: [forumMod()],
+      bundle: bundleOf(),
+      threadReleases: [
+        const ThreadRelease(
+          topicId: 9175,
+          modName: 'Nexerelin',
+          seenOn: '2026-08-14',
+          newVersion: '0.12.2',
+        ),
+      ],
+    );
+    await builder.write(data);
+
+    final feed = File(p.join(builder.siteDir, 'updates.xml'));
+    expect(feed.existsSync(), isTrue,
+        reason: 'a reader who subscribed has nothing to read without it');
+    expect(feed.readAsStringSync(), contains('<title>Nexerelin 0.12.2</title>'));
+  });
+
   test('a mod that is gone loses its page on the next write', () async {
     await builder.write(builder.build(
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
@@ -490,6 +617,35 @@ void main() {
     expect(File(p.join(builder.modsDir, 'nexerelin.json')).existsSync(), isTrue);
     expect(
         File(p.join(builder.modsDir, 'second-mod.json')).existsSync(), isFalse);
+  });
+
+  test("other names are kept per person, not pooled across a mod's authors",
+      () {
+    // Kaleidoscope credits two people: SirHartley made the mod, pixel_rice_bowl
+    // made the textures. When other names were one list for the whole mod, the
+    // author page read it as one person and said SirHartley was also known as
+    // pixel_rice_bowl.
+    final mod = ScrapedMod(
+      name: 'Nexerelin',
+      gameVersionReq: '0.98a',
+      authorsList: const ['Histidine', 'Zaphide'],
+      sources: const [ModSource.Index],
+      urls: {
+        ModUrlType.Forum:
+            'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+      },
+    );
+
+    final record = builder.build(mods: [mod], bundle: bundleOf()).list.mods
+        .single;
+
+    expect(record.otherAuthorNames.keys, ['Histidine']);
+    expect(record.otherAuthorNames['Histidine'], contains('histidine_my'));
+    expect(record.otherAuthorNames.containsKey('Zaphide'), isFalse);
+    expect(
+      record.otherAuthorNames.values.expand((names) => names),
+      isNot(contains('Zaphide')),
+    );
   });
 
   test('mods.json stays under 2 MB for a mod set the size of the real one', () {

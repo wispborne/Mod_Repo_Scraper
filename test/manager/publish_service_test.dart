@@ -91,6 +91,8 @@ void main() {
           .writeAsStringSync('{"mods": []}');
       File(p.join(outputs, 'site', 'updates.json'))
           .writeAsStringSync('{"releases": []}');
+      File(p.join(outputs, 'site', 'updates.xml'))
+          .writeAsStringSync('<feed/>');
       for (final id in modIds) {
         File(p.join(site.path, '$id.json')).writeAsStringSync('{"id": "$id"}');
       }
@@ -190,6 +192,8 @@ void main() {
       // And the files the site asks for, at the addresses it asks for them.
       expect(inRemote('mods.json'), isTrue);
       expect(inRemote('updates.json'), isTrue);
+      expect(inRemote('updates.xml'), isTrue,
+          reason: 'the feed people subscribe to has to go out too');
       expect(inRemote('mods/nexerelin.json'), isTrue);
     }, skip: _gitIsThere() ? false : 'git is not installed');
 

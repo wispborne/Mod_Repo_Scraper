@@ -16,6 +16,7 @@ Online at: https://github.com/wispborne/StarsectorModRepo
 | `outputs/site/mods.json` | One record per mod, enough to search, filter and draw a card |
 | `outputs/site/mods/<id>.json` | One file per mod, holding its whole page |
 | `outputs/site/updates.json` | The mods that put out a new version, newest first |
+| `outputs/site/updates.xml` | The same releases as a feed anyone can subscribe to |
 
 The last three are for the public website — see below. The first two are
 unchanged by them, and TriOS keeps reading the bundle exactly as it did.
@@ -32,6 +33,10 @@ its own origin.
 
 Browse opens on mods built for the current game release, most recently released
 first. Older ones are one click away, and the page says how many there are.
+
+Mods are filed under thirteen categories of the site's own, mapped from the 26
+names the forum and Discord use between them. The names each source used are
+still shown on the mod's own page.
 
 A publish copies the data files and the contents of `site/` into the published
 repo together, so that repo is a complete, servable copy of the site next to the

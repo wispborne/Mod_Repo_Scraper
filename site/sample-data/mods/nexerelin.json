@@ -9,7 +9,11 @@
       "Zaphide"
     ],
     "categories": [
-      "Total Conversions"
+      "Total conversions"
+    ],
+    "sources": [
+      "forum",
+      "discord"
     ],
     "gameVersion": "0.98a",
     "modVersion": "0.12.2",
@@ -21,16 +25,23 @@
     "sourceIsPublic": true,
     "isWorkInProgress": false,
     "lastReleaseDate": "2026-08-14T00:00:00.000Z",
-    "otherAuthorNames": [
-      "histidine91",
-      "histidine_my"
-    ],
-    "addedOn": "2024-03-11"
+    "otherAuthorNames": {
+      "Histidine": [
+        "histidine91",
+        "histidine_my"
+      ]
+    },
+    "addedOn": "2024-03-11",
+    "needs": []
   },
   "description": "Nexerelin is a campaign overhaul. Factions fight each other over markets, you can start as one of them or on your own, and you can invade, defend, trade and make alliances. It works with most other faction mods.",
   "descriptionHtml": "<p><b>Nexerelin</b> is a campaign overhaul. Factions fight each other over markets, you can start as one of them or on your own, and you can invade, defend, trade and make alliances.</p><p>It works with most other faction mods. The code is at <a href=\"https://github.com/Histidine91/Nexerelin\" rel=\"nofollow noopener\" target=\"_blank\">https://github.com/Histidine91/Nexerelin</a>.</p><ul><li>Diplomacy between every faction</li><li>Invasions you can join or stop</li><li>Your own colonies, run as a faction</li></ul>",
   "descriptionIsGenerated": false,
   "saveCompatibilityText": "Requires a new game.",
+  "rawCategories": [
+    "Megamods",
+    "Total Conversion"
+  ],
   "gallery": [
     {
       "url": "https://fractalsoftworks.com/forum/index.php?action=dlattach;topic=9175.0;attach=61234;image",

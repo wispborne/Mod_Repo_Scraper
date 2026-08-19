@@ -6,7 +6,7 @@
 // covers a person however their name was written.
 
 import {
-  breadcrumbs, clear, currentGameVersion, el, joinNames, modList,
+  breadcrumbs, clear, currentGameVersion, el, joinNames, modList, otherNamesOf,
 } from '../lib.js';
 import { modGrid, sortMods } from './browse.js';
 
@@ -108,8 +108,8 @@ async function renderIndex(root) {
 /// the other names its authors are known by.
 function creditedTo(mod, name) {
   const wanted = name.toLowerCase();
-  return (mod.authors || []).some((a) => a.toLowerCase() === wanted)
-    || (mod.otherAuthorNames || []).some((a) => a.toLowerCase() === wanted);
+  return (mod.authors || []).some((author) => author.toLowerCase() === wanted
+    || otherNamesOf(mod, author).some((a) => a.toLowerCase() === wanted));
 }
 
 /// The spelling to put at the top of the page: the one the mods themselves use,
@@ -121,19 +121,38 @@ function bestSpelling(mods, asked) {
       if (author.toLowerCase() === wanted) return author;
     }
   }
-  // Reached through one of their other names: show what the mods credit.
-  const credited = new Set();
-  for (const mod of mods) for (const a of mod.authors || []) credited.add(a);
-  return credited.size === 1 ? [...credited][0] : asked;
+  // Reached through one of their other names: show the name the mods credit
+  // that other name to.
+  for (const mod of mods) {
+    for (const author of mod.authors || []) {
+      if (otherNamesOf(mod, author).some((a) => a.toLowerCase() === wanted)) {
+        return author;
+      }
+    }
+  }
+  return asked;
 }
 
 /// The other names this person goes by, without repeating the one on show.
+///
+/// Only names belonging to this person count. Someone else credited on the
+/// same mod is a co-author, not another name for them: Kaleidoscope credits
+/// SirHartley and pixel_rice_bowl, who are two people.
 function alsoKnownAs(mods, asked) {
   const shown = bestSpelling(mods, asked).toLowerCase();
+  const wanted = asked.toLowerCase();
   const others = new Set();
   for (const mod of mods) {
-    for (const name of [...(mod.authors || []), ...(mod.otherAuthorNames || [])]) {
-      if (name.toLowerCase() !== shown) others.add(name);
+    for (const author of mod.authors || []) {
+      const names = [author, ...otherNamesOf(mod, author)];
+      const isThisPerson = names.some((n) => {
+        const lower = n.toLowerCase();
+        return lower === shown || lower === wanted;
+      });
+      if (!isThisPerson) continue;
+      for (const name of names) {
+        if (name.toLowerCase() !== shown) others.add(name);
+      }
     }
   }
   return [...others].sort();

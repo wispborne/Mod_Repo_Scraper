@@ -469,6 +469,12 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     _$summary,
     opt: true,
   );
+  static List<String>? _$needs(LlmExtras v) => v.needs;
+  static const Field<LlmExtras, List<String>> _f$needs = Field(
+    'needs',
+    _$needs,
+    opt: true,
+  );
 
   @override
   final MappableFields<LlmExtras> fields = const {
@@ -479,6 +485,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     #sourceCode: _f$sourceCode,
     #saveCompatibility: _f$saveCompatibility,
     #summary: _f$summary,
+    #needs: _f$needs,
   };
   @override
   final bool ignoreNull = true;
@@ -492,6 +499,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
       sourceCode: data.dec(_f$sourceCode),
       saveCompatibility: data.dec(_f$saveCompatibility),
       summary: data.dec(_f$summary),
+      needs: data.dec(_f$needs),
     );
   }
 
@@ -562,6 +570,7 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
   >?
   get supportLinks;
   LlmModSummaryCopyWith<$R, LlmModSummary, LlmModSummary>? get summary;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get needs;
   $R call({
     String? version,
     LlmChangelog? changelog,
@@ -570,6 +579,7 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
     String? sourceCode,
     String? saveCompatibility,
     LlmModSummary? summary,
+    List<String>? needs,
   });
   LlmExtrasCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -602,6 +612,15 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
   LlmModSummaryCopyWith<$R, LlmModSummary, LlmModSummary>? get summary =>
       $value.summary?.copyWith.$chain((v) => call(summary: v));
   @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get needs =>
+      $value.needs != null
+      ? ListCopyWith(
+          $value.needs!,
+          (v, t) => ObjectCopyWith(v, $identity, t),
+          (v) => call(needs: v),
+        )
+      : null;
+  @override
   $R call({
     Object? version = $none,
     Object? changelog = $none,
@@ -610,6 +629,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     Object? sourceCode = $none,
     Object? saveCompatibility = $none,
     Object? summary = $none,
+    Object? needs = $none,
   }) => $apply(
     FieldCopyWithData({
       if (version != $none) #version: version,
@@ -619,6 +639,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
       if (sourceCode != $none) #sourceCode: sourceCode,
       if (saveCompatibility != $none) #saveCompatibility: saveCompatibility,
       if (summary != $none) #summary: summary,
+      if (needs != $none) #needs: needs,
     }),
   );
   @override
@@ -633,6 +654,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
       or: $value.saveCompatibility,
     ),
     summary: data.get(#summary, or: $value.summary),
+    needs: data.get(#needs, or: $value.needs),
   );
 
   @override

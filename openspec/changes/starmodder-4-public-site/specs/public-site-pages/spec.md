@@ -195,3 +195,27 @@ page itself.
 #### Scenario: Browsing on a phone
 - **WHEN** the browse page is opened on a narrow screen
 - **THEN** the cards, filters and sort controls all fit and can be used
+
+### Requirement: Categories are a row of chips, not a dropdown
+Home and Browse SHALL show the site's categories as a row of chips, each with
+how many mods are on it, biggest first. On Browse a chip SHALL filter the list,
+and pressing the chip that is already on SHALL clear it. There SHALL be no
+category dropdown.
+
+#### Scenario: Browsing by kind
+- **WHEN** a reader opens Home
+- **THEN** every category is on screen at once with its count, and each one opens Browse filtered to it
+
+### Requirement: A mod page says what the mod needs, before the download
+A mod's page SHALL show the other mods it will not run without, directly under
+the header and above the download. Each SHALL be a link where this site has a
+page for it. Where a mod needs nothing, nothing SHALL be shown.
+
+#### Scenario: A mod that needs LazyLib
+- **WHEN** a reader opens a mod whose post says it requires LazyLib
+- **THEN** they see that before the download button, and can follow it to LazyLib's page
+
+### Requirement: The feed is offered from every page
+Every page SHALL offer the release feed: as a link in the bar at the top and at
+the foot, and as the page's own feed declaration so a feed reader finds it
+without being told where to look.

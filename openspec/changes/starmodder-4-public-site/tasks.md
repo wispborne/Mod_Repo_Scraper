@@ -125,6 +125,20 @@ standing in for forum posts, donation buttons listed as screenshots.
 - [x] 6b.16 Show "Last checked" next to the download on a mod page
 - [x] 6b.17 Add a skip link and a visible focus ring, and `aria-pressed` on the filter switches
 
+## 6c. Categories, dependencies and a feed (week two of the revamp)
+
+- [x] 6c.1 Publish thirteen categories of the site's own, mapped from the 26 raw names
+- [x] 6c.2 Keep the raw names on the mod's own page, and say what each source called it
+- [x] 6c.3 Drop "Discord Only" as a category and publish where a mod was found instead
+- [x] 6c.4 Show the categories as chips with counts on Home and Browse, and drop the dropdown
+- [x] 6c.5 Ask the LLM what each mod needs, and check every name against the post
+- [x] 6c.6 Publish what a mod needs, each pointed at its own page where we have one
+- [x] 6c.7 Show it on the mod page above the download, and offer it as a filter
+- [x] 6c.8 Write the releases as an Atom feed and publish it with everything else
+- [x] 6c.9 Offer the feed from the bar at the top, the foot, and the page's own head
+- [ ] 6c.10 Run an LLM extraction pass so the "needs" values actually arrive
+- [ ] 6c.11 A feed per author (`authors/<name>.xml`), which the plan calls a cheap second step — left for later, since it is 562 more files for a reader who mostly wants the one feed
+
 ## 7. Finishing up
 
 - [x] 7.1 Check by hand that `ModRepo.json` and `forum-data-bundle.json` are unchanged by all of this

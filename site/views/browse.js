@@ -6,10 +6,12 @@
 // a filtered list brings back the same list.
 
 import {
-  breadcrumbs, buildHash, clear, currentGameVersion, el, gameVersionFamily,
-  gameVersions, hashQuery, howLongAgo, joinNames, modHref, modList, modName,
-  noteScrollPlaced, pageScrollWhenLeft, pager, pageSizePreference, picture,
-  replaceHash, summaryToShow, thumbnail, versionStanding, versionStandingNote,
+  breadcrumbs, buildHash, categoryChips, clear, countedAcross,
+  currentGameVersion, el,
+  everyOtherName, gameVersionFamily, gameVersions, hashQuery, howLongAgo,
+  isDiscordOnly, joinNames, modHref, modList, modName, noteScrollPlaced, pageScrollWhenLeft, pager,
+  pageSizePreference, picture, replaceHash, summaryToShow, thumbnail,
+  versionStanding, versionStandingNote,
 } from '../lib.js';
 
 const VIEW_KEY = 'starmodderView';
@@ -69,6 +71,7 @@ export async function render(root, parts) {
     // The filter works on the number a game release shares, so a link saved
     // back when it held a full spelling ("0.98a") still finds the same mods.
     game: query.get('game') ? gameVersionFamily(query.get('game')) : '',
+    needs: query.get('needs') || '',
     category: query.get('category') || '',
     author: query.get('author') || '',
     sort: SORTS.some((s) => s.key === query.get('sort')) ? query.get('sort') : 'current',
@@ -108,6 +111,7 @@ export async function render(root, parts) {
     lastBrowseHash = buildHash(['browse'], {
       q: shown.search,
       game: shown.game,
+      needs: shown.needs,
       category: shown.category,
       author: shown.author,
       sort: shown.sort === 'current' ? '' : shown.sort,
@@ -178,6 +182,24 @@ function resultLine(all, matches, state, onShowOlder) {
 // --- The controls ---
 
 function drawControls(into, mods, state, onChange) {
+  // The chips are redrawn whenever anything else changes, because their counts
+  // are of what picking that chip would really show. Counting the whole list
+  // would have a chip read 182 and then hand back 104, since older game
+  // versions are left out to begin with.
+  const chips = el('div', {});
+  const drawChips = () => {
+    const wouldMatch = mods.filter(
+        (mod) => matchesFilters(mod, { ...state, category: '' }));
+    clear(chips).append(categoryChips(wouldMatch, {
+      chosen: state.category,
+      onPick: (picked) => { state.category = picked; changed(); },
+    }));
+  };
+  const changed = () => {
+    drawChips();
+    onChange();
+  };
+
   const search = el('input', {
     type: 'search',
     class: 'search-box',
@@ -186,7 +208,7 @@ function drawControls(into, mods, state, onChange) {
   });
   search.addEventListener('input', () => {
     state.search = search.value;
-    onChange();
+    changed();
   });
 
   const viewToggle = el('div', { class: 'view-toggle', role: 'group' });
@@ -202,7 +224,7 @@ function drawControls(into, mods, state, onChange) {
     state.view = which;
     localStorage.setItem(VIEW_KEY, which);
     litView();
-    onChange();
+    changed();
   };
   gridBtn.addEventListener('click', () => pickView('grid'));
   rowsBtn.addEventListener('click', () => pickView('rows'));
@@ -216,19 +238,31 @@ function drawControls(into, mods, state, onChange) {
       + 'front of one to leave those out — "faction, -portrait".',
   }));
 
+  // The chips come before the dropdowns: picking a kind of mod is what most
+  // readers want first, and a row you can see beats a list you have to open.
+  drawChips();
+  into.append(chips);
+
   const filters = el('div', { class: 'filters' });
   const versions = gameVersions(mods);
+  const needed = neededMods(mods);
   filters.append(
     dropdown('Game version', versions.map((v) => v.family), state.game,
-      (v) => { state.game = v; onChange(); },
+      (v) => { state.game = v; changed(); },
       {
         labels: Object.fromEntries(
           versions.map((v) => [v.family, `${v.label} (${v.count})`])),
       }),
-    dropdown('Category', valuesOf(mods, (m) => m.categories || []), state.category,
-      (v) => { state.category = v; onChange(); }),
+
+    // Left out entirely until some mod says what it needs, so the page never
+    // offers a filter that would find nothing.
+    ...(needed.length
+      ? [dropdown('Needs', needed, state.needs,
+          (v) => { state.needs = v; changed(); },
+          { anyLabel: 'Needs anything' })]
+      : []),
     dropdown('Sort by', SORTS.map((s) => s.key), state.sort,
-      (v) => { state.sort = v || 'current'; onChange(); },
+      (v) => { state.sort = v || 'current'; changed(); },
       { anyLabel: null, labels: Object.fromEntries(SORTS.map((s) => [s.key, s.label])) }),
   );
 
@@ -244,7 +278,7 @@ function drawControls(into, mods, state, onChange) {
       onToggle();
       button.classList.toggle('on', isOn());
       button.setAttribute('aria-pressed', String(isOn()));
-      onChange();
+      changed();
     });
     switches.append(button);
   };
@@ -286,22 +320,18 @@ function dropdown(label, values, chosen, onPick, opts = {}) {
   ]);
 }
 
-/// Every value a field takes across the mods, sorted, so a filter only ever
-/// offers something that would find at least one mod.
-function valuesOf(mods, pick) {
-  const found = new Set();
-  for (const mod of mods) {
-    for (const value of pick(mod) || []) {
-      if (value) found.add(value);
-    }
-  }
-  return [...found].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+/// Every mod that some other mod needs, most-needed first. It is a short list —
+/// a handful of libraries and Nexerelin cover nearly all of it.
+function neededMods(mods) {
+  return countedAcross(mods, (mod) => (mod.needs || []).map((n) => n.name))
+    .map(([name]) => name);
 }
 
 function clearFilters(state) {
   replaceHash(buildHash(['browse']));
   state.search = '';
   state.game = '';
+  state.needs = '';
   state.category = '';
   state.author = '';
   state.switches.clear();
@@ -380,7 +410,7 @@ export function searchableText(mod) {
     mod.name,
     mod.displayName,
     ...(mod.authors || []),
-    ...(mod.otherAuthorNames || []),
+    ...everyOtherName(mod),
     ...(mod.categories || []),
     mod.summary,
   ].filter(Boolean).join(' ').toLowerCase();
@@ -410,6 +440,8 @@ function matchesEverythingElse(mod, state) {
   if (!matchesSearch(mod, state.search)) return false;
   if (state.game && gameVersionFamily(mod.gameVersion) !== state.game) return false;
   if (state.category && !(mod.categories || []).includes(state.category)) return false;
+  if (state.needs
+      && !(mod.needs || []).some((n) => n.name === state.needs)) return false;
   if (state.author && !(mod.authors || []).includes(state.author)) return false;
   for (const option of SWITCHES) {
     if (state.switches.has(option.key) && !option.keep(mod)) return false;
@@ -547,6 +579,12 @@ function badges(mod, currentVersion) {
     out.push(el('span', {
       class: 'badge save-no', text: 'New game',
       title: 'The author says this needs a new game.',
+    }));
+  }
+  if (isDiscordOnly(mod)) {
+    out.push(el('span', {
+      class: 'badge discord', text: 'Discord only',
+      title: 'This mod was posted on Discord, not on the forum.',
     }));
   }
   if (mod.summaryIsGenerated) {

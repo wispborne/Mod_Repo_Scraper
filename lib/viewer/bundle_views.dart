@@ -397,6 +397,7 @@ const Map<String, String> _extraNames = {
   'license': 'license',
   'sourceCode': 'source code',
   'saveCompatibility': 'save compatibility',
+  'needs': 'what it needs',
   'summary.sentence': 'summary — one line',
   'summary.paragraph': 'summary — paragraph',
   'changelog.link': 'changelog link',
