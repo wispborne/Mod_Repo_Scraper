@@ -11,6 +11,7 @@ import '../bot/scraper/forum_scraper.dart';
 import '../bot/scraper/mod_merger.dart';
 import '../bot/scraper/nexus_reader.dart';
 import '../bot/scraper/scraped_mod.dart';
+import '../site/public_site_step.dart';
 import '../utilities/caching_http_client.dart';
 import '../utilities/jsanity.dart';
 import 'cancel_token.dart';
@@ -32,6 +33,10 @@ class ModRepoService implements JobRunner {
   final ModRepoGuardrails guardrails;
   final MergeSnapshotStore snapshots;
 
+  /// Rebuilds the public website's files once a merge has landed. The merged
+  /// mods are half of what that site is built from.
+  final PublicSiteStep siteStep;
+
   /// Makes the client used to reach Discord. Swapped out in tests.
   final http.Client Function() _createNetworkClient;
 
@@ -41,10 +46,16 @@ class ModRepoService implements JobRunner {
     required this.environment,
     this.guardrails = const ModRepoGuardrails(),
     MergeSnapshotStore? snapshots,
+    PublicSiteStep? siteStep,
     http.Client Function()? createNetworkClient,
   })  : snapshots = snapshots ??
             MergeSnapshotStore(environment.snapshotPath,
                 mergesToKeep: guardrails.mergesToKeep),
+        siteStep = siteStep ??
+            PublicSiteStep(
+              dataPath: environment.snapshotPath,
+              outputPath: environment.outputPath,
+            ),
         _createNetworkClient = createNetworkClient ?? http.Client.new;
 
   @override
@@ -125,6 +136,9 @@ class ModRepoService implements JobRunner {
     if (collector != null) {
       await _saveMergeDebug(collector.data, runId, reporter);
     }
+
+    reporter.phase('Website files');
+    await siteStep.afterMerge(merged, log: reporter.log);
 
     return JobOutcome(
       itemsDone: merged.length,

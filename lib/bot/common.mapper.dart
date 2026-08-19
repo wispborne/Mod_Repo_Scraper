@@ -348,6 +348,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     _$publishCloneDir,
     opt: true,
   );
+  static String _$publishSitePath(BotConfig v) => v.publishSitePath;
+  static const Field<BotConfig, String> _f$publishSitePath = Field(
+    'publishSitePath',
+    _$publishSitePath,
+    opt: true,
+    def: 'site',
+  );
 
   @override
   final MappableFields<BotConfig> fields = const {
@@ -401,6 +408,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #llmFallbackStructuredOutput: _f$llmFallbackStructuredOutput,
     #publishRepoUrl: _f$publishRepoUrl,
     #publishCloneDir: _f$publishCloneDir,
+    #publishSitePath: _f$publishSitePath,
   };
 
   static BotConfig _instantiate(DecodingData data) {
@@ -458,6 +466,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       llmFallbackStructuredOutput: data.dec(_f$llmFallbackStructuredOutput),
       publishRepoUrl: data.dec(_f$publishRepoUrl),
       publishCloneDir: data.dec(_f$publishCloneDir),
+      publishSitePath: data.dec(_f$publishSitePath),
     );
   }
 
@@ -572,6 +581,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     bool? llmFallbackStructuredOutput,
     String? publishRepoUrl,
     String? publishCloneDir,
+    String? publishSitePath,
   });
   BotConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -645,6 +655,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     bool? llmFallbackStructuredOutput,
     String? publishRepoUrl,
     Object? publishCloneDir = $none,
+    String? publishSitePath,
   }) => $apply(
     FieldCopyWithData({
       if (lessScraping != null) #lessScraping: lessScraping,
@@ -708,6 +719,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
         #llmFallbackStructuredOutput: llmFallbackStructuredOutput,
       if (publishRepoUrl != null) #publishRepoUrl: publishRepoUrl,
       if (publishCloneDir != $none) #publishCloneDir: publishCloneDir,
+      if (publishSitePath != null) #publishSitePath: publishSitePath,
     }),
   );
   @override
@@ -809,6 +821,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     ),
     publishRepoUrl: data.get(#publishRepoUrl, or: $value.publishRepoUrl),
     publishCloneDir: data.get(#publishCloneDir, or: $value.publishCloneDir),
+    publishSitePath: data.get(#publishSitePath, or: $value.publishSitePath),
   );
 
   @override

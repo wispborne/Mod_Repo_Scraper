@@ -280,7 +280,8 @@ void main() {
 
     await service.runJob(JobRequest.mergeModRepo(), reporter: reporter);
 
-    expect(reporter.phases, ['Forum', 'Discord', 'Nexus', 'Merge', 'Save']);
+    expect(reporter.phases,
+        ['Forum', 'Discord', 'Nexus', 'Merge', 'Save', 'Website files']);
   });
 
   test('the QB kinds are refused', () async {

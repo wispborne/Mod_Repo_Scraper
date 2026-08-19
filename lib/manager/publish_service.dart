@@ -34,14 +34,23 @@ class PublishService implements JobRunner {
   const PublishService({
     required this.environment,
     this.commitMessage =
-        'Published ModRepo.json & forum-data-bundle.json from the viewer.',
+        'Published the outputs and the website from the viewer.',
     this.gitExecutable = 'git',
   });
 
   /// The output files a publish copies across, in the order they are listed.
+  /// These two must always be there — a publish with nothing to publish is an
+  /// error, not a quiet no-op.
   static const List<String> outputFiles = [
     'ModRepo.json',
     'forum-data-bundle.json',
+  ];
+
+  /// The public website's data files, copied from `<outputs>/site/` when a run
+  /// has built them. Per-mod files come across as well, from `site/mods/`.
+  static const List<String> websiteFiles = [
+    'mods.json',
+    'updates.json',
   ];
 
   @override
@@ -69,6 +78,8 @@ class PublishService implements JobRunner {
 
     reporter.phase('Copy outputs');
     _copyOutputs(reporter);
+    _copyWebsiteData(reporter);
+    _copyWebsiteFiles(reporter);
     await _git(['add', '-A'], reporter);
 
     if (!await _hasStagedChanges()) {
@@ -92,9 +103,9 @@ class PublishService implements JobRunner {
     if (cancel?.isCancelled ?? false) return _cancelled(reporter);
 
     await _git(['push', 'origin', 'HEAD:$branch'], reporter);
-    reporter.log('Published ${outputFiles.length} files to '
-        '${environment.repoUrl}.');
-    return JobOutcome(itemsDone: outputFiles.length, itemsTotal: outputFiles.length);
+    reporter.log('Published to ${environment.repoUrl}.');
+    return JobOutcome(
+        itemsDone: outputFiles.length, itemsTotal: outputFiles.length);
   }
 
   JobOutcome _cancelled(RunReporter reporter) {
@@ -155,6 +166,100 @@ class PublishService implements JobRunner {
       source.copySync(p.join(environment.cloneDir, name));
       reporter.log('Copied $name into the clone.');
     }
+  }
+
+  /// Copies the public website's data files in: the mod list, the release feed
+  /// and one file per mod. A mod that this run no longer produces has its file
+  /// removed, so a mod that has gone does not linger on the site.
+  ///
+  /// These are built at the end of a run. When they are not there — a fresh
+  /// setup, or a run that only merged — the publish carries on with the outputs
+  /// it does have and says so.
+  void _copyWebsiteData(RunReporter reporter) {
+    final from = Directory(p.join(environment.outputPath, 'site'));
+    if (!from.existsSync()) {
+      reporter.log('The website files were not there (${from.path}), so only '
+          'the outputs above were published.');
+      return;
+    }
+
+    var copied = 0;
+    for (final name in websiteFiles) {
+      final source = File(p.join(from.path, name));
+      if (!source.existsSync()) continue;
+      source.copySync(p.join(environment.cloneDir, name));
+      copied++;
+    }
+
+    final modsFrom = Directory(p.join(from.path, 'mods'));
+    final modsTo = Directory(p.join(environment.cloneDir, 'mods'));
+    final published = <String>{};
+    if (modsFrom.existsSync()) {
+      if (!modsTo.existsSync()) modsTo.createSync(recursive: true);
+      for (final file in modsFrom.listSync().whereType<File>()) {
+        final name = p.basename(file.path);
+        if (!name.endsWith('.json')) continue;
+        file.copySync(p.join(modsTo.path, name));
+        published.add(name);
+        copied++;
+      }
+    }
+
+    final dropped = _dropMissingModFiles(modsTo, published);
+    reporter.log('Copied $copied website files into the clone'
+        '${dropped == 0 ? '' : ', and removed $dropped for mods that are gone'}.');
+  }
+
+  /// Deletes any per-mod file in the clone that this run did not produce.
+  ///
+  /// Only `.json` files sitting directly in the clone's `mods/` folder are ever
+  /// touched, in the same way the snapshot stores guard their own folders — the
+  /// names come off disk, and this is the one place here that deletes anything.
+  int _dropMissingModFiles(Directory modsInClone, Set<String> published) {
+    if (!modsInClone.existsSync() || published.isEmpty) return 0;
+
+    var dropped = 0;
+    for (final file in modsInClone.listSync().whereType<File>()) {
+      final name = p.basename(file.path);
+      if (!name.endsWith('.json') || published.contains(name)) continue;
+      if (!p.equals(p.dirname(file.path), modsInClone.path)) continue;
+      file.deleteSync();
+      dropped++;
+    }
+    return dropped;
+  }
+
+  /// Copies the website's own files — its HTML, stylesheet and scripts — into
+  /// the clone, so the pushed repo can be handed to any static host as it is.
+  void _copyWebsiteFiles(RunReporter reporter) {
+    final from = Directory(environment.sitePath);
+    if (!from.existsSync()) {
+      reporter.log('The website itself was not at ${from.path}, so only the '
+          'data was published.');
+      return;
+    }
+
+    final copied = _copyFolder(from, Directory(environment.cloneDir));
+    reporter.log('Copied $copied of the website\'s own files into the clone.');
+  }
+
+  /// Copies a folder's contents into another, making folders as it goes. Skips
+  /// anything starting with a dot, so a stray `.git` or editor folder never
+  /// lands in the published repo.
+  int _copyFolder(Directory from, Directory to) {
+    if (!to.existsSync()) to.createSync(recursive: true);
+    var copied = 0;
+    for (final entry in from.listSync()) {
+      final name = p.basename(entry.path);
+      if (name.startsWith('.')) continue;
+      if (entry is File) {
+        entry.copySync(p.join(to.path, name));
+        copied++;
+      } else if (entry is Directory) {
+        copied += _copyFolder(entry, Directory(p.join(to.path, name)));
+      }
+    }
+    return copied;
   }
 
   /// True when `git add` staged something. `git diff --cached --quiet` exits 0

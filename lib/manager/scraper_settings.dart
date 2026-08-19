@@ -256,10 +256,16 @@ class PublishEnvironment {
   /// folder a cron script wipes.
   final String cloneDir;
 
+  /// The public website's own files — the HTML, the stylesheet and the scripts.
+  /// They are copied into the clone alongside the data they read, so the pushed
+  /// repo is a complete, servable website with no further step.
+  final String sitePath;
+
   const PublishEnvironment({
     required this.outputPath,
     required this.repoUrl,
     required this.cloneDir,
+    this.sitePath = 'site',
   });
 
   /// Reads only environment keys. When no clone folder is set, a `publish-clone`
@@ -274,5 +280,6 @@ class PublishEnvironment {
         repoUrl: config.publishRepoUrl,
         cloneDir: config.publishCloneDir ??
             p.join(config.qbDataPath, 'publish-clone'),
+        sitePath: config.publishSitePath,
       );
 }

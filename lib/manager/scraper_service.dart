@@ -17,6 +17,7 @@ import '../bot/scraper/qb/models/forum_data_bundle.dart';
 import '../bot/scraper/qb/models/scrape_job.dart';
 import '../bot/scraper/qb/scraper_engine.dart';
 import '../bot/scraper/qb/throttled_client.dart';
+import '../site/public_site_step.dart';
 import '../utilities/caching_http_client.dart';
 import 'bundle_snapshot_store.dart';
 import 'cancel_token.dart';
@@ -98,6 +99,9 @@ class ScraperService implements JobRunner {
   /// compared afterwards.
   final BundleSnapshotStore bundleSnapshots;
 
+  /// Works out which mods released, and rebuilds the public website's files.
+  final PublicSiteStep siteStep;
+
   final http.Client _linkClient;
 
   /// Makes the client used to reach the forum. Swapped out in tests.
@@ -138,6 +142,10 @@ class ScraperService implements JobRunner {
           : LlmExtractionStore(environment.dataPath),
       bundleSnapshots: BundleSnapshotStore(environment.dataPath,
           bundlesToKeep: guardrails.bundlesToKeep),
+      siteStep: PublicSiteStep(
+        dataPath: environment.dataPath,
+        outputPath: environment.outputPath,
+      ),
       linkClient: links,
       createNetworkClient: createNetworkClient ?? http.Client.new,
       createLlmClient: createLlmClient,
@@ -152,6 +160,7 @@ class ScraperService implements JobRunner {
     required this.resolver,
     required this.llmStore,
     required this.bundleSnapshots,
+    required this.siteStep,
     required http.Client linkClient,
     required http.Client Function() createNetworkClient,
     LlmClient Function()? createLlmClient,
@@ -668,6 +677,12 @@ class ScraperService implements JobRunner {
     final bundle = await publisher.createBundle(scrapeResult: scrapeResult);
     await publisher.writeLocal(bundle);
     await _saveBundleSnapshot(bundle, runId, reporter);
+
+    // The bundle is half of what the public website is built from, and the only
+    // thing a mod's version can be read from. This is the one place a release
+    // is ever recorded.
+    reporter?.phase('Website files');
+    await siteStep.afterBundle(bundle, bundleId: runId, log: reporter?.log);
   }
 
   /// Keeps a copy of the bundle just published, minus the posts' text.

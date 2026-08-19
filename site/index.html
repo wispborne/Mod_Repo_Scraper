@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Pictures come from wherever the mod's author put them. Several of those
+       hosts — Imgur most of all — answer 403 when they can see which page the
+       picture is being shown on, so no request from this site carries one. -->
+  <meta name="referrer" content="no-referrer">
+  <title>Starmodder — Starsector mods</title>
+  <meta name="description" content="Every Starsector mod, with recent releases, downloads, changelogs and screenshots.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#app">Skip to the page</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#/home">Starmodder</a>
+      <nav id="nav" class="site-nav"></nav>
+      <div class="header-search">
+        <input type="search" id="site-search" class="search-box"
+               placeholder="Search mods…  (press /)"
+               aria-label="Search mods" autocomplete="off">
+        <div id="search-suggestions" class="suggestions" hidden></div>
+      </div>
+      <label class="ai-toggle" title="Some descriptions were written by an AI rather than copied from the author's post. Untick this to hide them.">
+        <input type="checkbox" id="ai-summaries">
+        <span>AI summaries</span>
+      </label>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1"><div class="loading">Loading…</div></main>
+
+  <footer class="site-footer">
+    <span id="freshness" class="freshness"></span>
+    <a href="#/about">About this site</a>
+    <span class="footer-note">A read-only view of mods posted on the Starsector forum, Discord and Nexus Mods.</span>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

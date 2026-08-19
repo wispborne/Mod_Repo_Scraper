@@ -123,6 +123,8 @@ class Common {
         publishRepoUrl: _trimOrDefault(properties['publish_repo_url'],
             'git@github.com:wispborne/StarsectorModRepo.git')!,
         publishCloneDir: _trimOrNull(properties['publish_clone_dir']),
+        publishSitePath:
+            _trimOrDefault(properties['publish_site_path'], 'site')!,
       );
     } catch (e) {
       stderr.writeln(e);
@@ -187,6 +189,7 @@ class Common {
     // Publishing outputs to GitHub.
     'publish_repo_url',
     'publish_clone_dir',
+    'publish_site_path',
   };
 
   /// Every key `readConfig` knows how to read. `config.example.properties` is
@@ -474,6 +477,12 @@ class BotConfig with BotConfigMappable {
   /// apart from any folder a cron script wipes.
   final String? publishCloneDir;
 
+  /// The public website's own files, copied into the clone alongside the data
+  /// they read so the pushed repo is a complete, servable site. Defaults to
+  /// `site`, which is where they sit in this repo — set it when the service runs
+  /// from somewhere else.
+  final String publishSitePath;
+
   /// True when the fallback provider is configured (both URL and model set).
   bool get llmFallbackEnabled =>
       (llmFallbackBaseUrl?.trim().isNotEmpty ?? false) &&
@@ -529,5 +538,6 @@ class BotConfig with BotConfigMappable {
     this.llmFallbackStructuredOutput = false,
     this.publishRepoUrl = 'git@github.com:wispborne/StarsectorModRepo.git',
     this.publishCloneDir,
+    this.publishSitePath = 'site',
   });
 }

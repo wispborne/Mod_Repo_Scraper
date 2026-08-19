@@ -1,0 +1,481 @@
+// Shared helpers for the public site: building DOM, reading the address, and
+// fetching the published data files.
+//
+// There is no server behind this site. Every page is drawn in the browser from
+// files fetched off the same origin the pages came from, and nothing here can
+// change anything.
+
+// --- Where the data comes from ---
+
+/// The folder the published data files sit in, relative to this page.
+///
+/// It is a relative path on purpose: the site is served from whatever folder it
+/// was copied into, and everything it asks for comes from its own origin. No
+/// GitHub, no other host, no cross-origin permission needed.
+///
+/// The published files sit next to this page, because the publish job copies
+/// the site's own files into the same folder as the data. Opening the page with
+/// `?data=sample` reads the hand-written examples in `sample-data/` instead,
+/// which is how the site is looked at straight out of the repo. There is no
+/// falling back: a missing file says so rather than quietly showing examples.
+export const DATA_BASE =
+  new URLSearchParams(location.search).get('data') === 'sample'
+    ? './sample-data/'
+    : './';
+
+const cache = new Map();
+
+/// Fetches one published file, keeping the answer for the rest of the visit.
+/// The mod list is a megabyte or so and every page wants it, so it is fetched
+/// once.
+export async function data(name) {
+  if (cache.has(name)) return cache.get(name);
+  const wanted = fetchJson(DATA_BASE + name);
+  cache.set(name, wanted);
+  try {
+    return await wanted;
+  } catch (err) {
+    cache.delete(name); // So a failed fetch can be tried again.
+    throw err;
+  }
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url, { credentials: 'omit' });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
+  return res.json();
+}
+
+/// Every mod, as `mods.json` holds it.
+export function modList() {
+  return data('mods.json');
+}
+
+/// The release feed, as `updates.json` holds it.
+export function releaseFeed() {
+  return data('updates.json');
+}
+
+/// One mod's own file, fetched when its page opens. Kept for the rest of the
+/// visit like everything else, so going back to a mod does not fetch it again.
+export function modDetail(id) {
+  return data(`mods/${encodeURIComponent(id)}.json`);
+}
+
+// --- Building the page ---
+
+/// Builds an element. `attrs` may include `class`, `text`, `html`, `onclick`,
+/// and any other attribute. `children` is a flat list of nodes and strings.
+export function el(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null) continue;
+    if (k === 'class') node.className = v;
+    else if (k === 'text') node.textContent = v;
+    else if (k === 'html') node.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') {
+      node.addEventListener(k.slice(2), v);
+    } else node.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) {
+    if (c == null) continue;
+    node.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+
+/// A picture that steps out of the way when its link is dead.
+///
+/// The pictures are wherever the mod's author put them, and plenty of those
+/// links have since gone — a Discord attachment whose signature ran out, an
+/// Imgur post taken down. The browser's broken-image icon in the middle of a
+/// card looks worse than no picture at all, so a picture that will not load is
+/// removed, or swapped for whatever [whenBroken] puts in its place.
+export function picture(url, opts = {}) {
+  const { className = null, alt = '', title = null, whenBroken = null } = opts;
+  const img = el('img', {
+    class: className, src: url, alt, title, loading: 'lazy',
+  });
+  img.addEventListener('error', () => {
+    if (whenBroken) whenBroken(img);
+    else img.remove();
+  });
+  return img;
+}
+
+export function clear(node) {
+  node.replaceChildren();
+  return node;
+}
+
+export function loading() {
+  return el('div', { class: 'loading', text: 'Loading…' });
+}
+
+export function errorPanel(err) {
+  return el('div', { class: 'notice error' }, [
+    el('h3', { text: 'Something went wrong' }),
+    el('p', { text: String(err && err.message ? err.message : err) }),
+  ]);
+}
+
+/// A trail of links across the top of a page. Home is put in front for you; the
+/// last crumb is the page you are on and is plain text.
+export function breadcrumbs(trail = []) {
+  const full = [{ label: 'Home', href: '#/home' }, ...trail];
+  const nav = el('nav', { class: 'breadcrumbs', 'aria-label': 'Breadcrumb' });
+  full.forEach((crumb, i) => {
+    if (i) nav.append(el('span', { class: 'crumb-sep', text: '›' }));
+    const isLast = i === full.length - 1;
+    nav.append(!isLast && crumb.href
+      ? el('a', { class: 'crumb', href: crumb.href, text: crumb.label })
+      : el('span', { class: 'crumb crumb-current', text: crumb.label }));
+  });
+  return nav;
+}
+
+// --- The address bar ---
+
+/// Reads the path part of `#/foo/bar?x=1` into ['foo','bar'].
+export function hashParts() {
+  const h = location.hash.replace(/^#\/?/, '').split('?')[0];
+  return h.length ? h.split('/').map(decodeURIComponent) : [];
+}
+
+/// The query part of the current hash, as URLSearchParams.
+export function hashQuery() {
+  const i = location.hash.indexOf('?');
+  return new URLSearchParams(i >= 0 ? location.hash.slice(i + 1) : '');
+}
+
+/// Builds a hash from path parts and a params object, leaving out empty values
+/// so the address stays short.
+export function buildHash(parts, params = {}) {
+  const path = parts.map(encodeURIComponent).join('/');
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v == null || v === '') continue;
+    q.set(k, String(v));
+  }
+  const qs = q.toString();
+  return `#/${path}${qs ? '?' + qs : ''}`;
+}
+
+export function go(hash) {
+  location.hash = hash;
+}
+
+/// Changes the address without adding a history entry or redrawing the page. A
+/// list calls this as its search, filters and page change, so a reload or a
+/// bookmark brings the same list back without every keystroke piling up in the
+/// back button.
+export function replaceHash(hash) {
+  history.replaceState(null, '', hash);
+}
+
+// --- The AI summaries setting ---
+
+const AI_COOKIE = 'starmodderAiSummaries';
+
+/// True when AI-written summaries should be shown. On unless the reader turned
+/// them off.
+export function aiSummariesOn() {
+  return readCookie(AI_COOKIE) !== 'off';
+}
+
+/// Remembers the reader's choice for a year, so it holds between visits.
+export function setAiSummaries(on) {
+  const year = 365 * 24 * 60 * 60;
+  document.cookie =
+    `${AI_COOKIE}=${on ? 'on' : 'off'}; path=/; max-age=${year}; SameSite=Lax`;
+}
+
+function readCookie(name) {
+  for (const part of document.cookie.split(';')) {
+    const [key, ...rest] = part.trim().split('=');
+    if (key === name) return rest.join('=');
+  }
+  return null;
+}
+
+/// The summary to show for a mod, or null when there is nothing to show.
+/// A summary the LLM wrote is left out entirely when the reader has AI
+/// summaries off — there is no gap and no placeholder, the mod simply has no
+/// description.
+export function summaryToShow(mod) {
+  if (!mod || !mod.summary) return null;
+  if (mod.summaryIsGenerated && !aiSummariesOn()) return null;
+  return mod.summary;
+}
+
+/// A small picture that leaves an empty box of the same size behind when its
+/// link is dead, so the rows and cards around it stay lined up.
+///
+/// Nearly every picture on the site is one of these: the mod's own picture, a
+/// row's thumbnail, a release's thumbnail, a search suggestion's. They are all
+/// links somebody else put in a post years ago, so a fair few are gone.
+export function thumbnail(url, className) {
+  const blank = () => el('div', { class: className });
+  if (!url) return blank();
+  return picture(url, {
+    className,
+    whenBroken: (img) => img.replaceWith(blank()),
+  });
+}
+
+/// Where the page was scrolled to when the reader left it.
+///
+/// The router notes this before it empties the page for the next view. It has
+/// to be read at that moment: emptying the page leaves nothing to scroll, so
+/// the browser says the position is zero from then on, and a view that asked
+/// after the fact would only ever get zero back.
+let scrollWhenLeft = 0;
+
+export function notePageScroll() {
+  scrollWhenLeft = window.scrollY;
+}
+
+export function pageScrollWhenLeft() {
+  return scrollWhenLeft;
+}
+
+/// Set by a view that has put the page where it wants it, so the router leaves
+/// it alone instead of scrolling to the top over the top of it. Only Browse
+/// does this, and only when it is putting a reader back where they were.
+let scrollPlacedByView = false;
+
+export function noteScrollPlaced() {
+  scrollPlacedByView = true;
+}
+
+/// True when a view placed the page since the last time this was asked. Asking
+/// clears it, so it only ever counts for the page it was set on.
+export function takeScrollPlaced() {
+  const placed = scrollPlacedByView;
+  scrollPlacedByView = false;
+  return placed;
+}
+
+// --- Names and versions ---
+
+/// The name to show for a mod.
+///
+/// A thread title carries the game version in brackets, the mod version, dates
+/// and sometimes a leading dash. The builder publishes a tidied `displayName`
+/// where it differs from the title; where it does not, the title was already
+/// the name.
+export function modName(mod) {
+  return (mod && (mod.displayName || mod.name)) || '';
+}
+
+/// The address of a mod's own page.
+export function modHref(id) {
+  return `#/mods/${encodeURIComponent(id)}`;
+}
+
+/// The number part of a game version: "0.98a", "0.98" and "0.98a-RC8" all come
+/// back as "0.98". It is what the filter groups on, so one game release is one
+/// choice rather than three.
+export function gameVersionFamily(version) {
+  const match = /^\s*v?(\d+(?:\.\d+)*)/.exec(String(version || ''));
+  return match ? match[1] : String(version || '').trim();
+}
+
+/// Compares two game versions as numbers, so "0.9" comes before "0.98".
+export function compareGameVersions(a, b) {
+  const left = gameVersionFamily(a).split('.').map(Number);
+  const right = gameVersionFamily(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(left.length, right.length); i++) {
+    const diff = (left[i] || 0) - (right[i] || 0);
+    if (diff) return diff;
+  }
+  return 0;
+}
+
+/// How few mods a game version can have and still be taken for the current one.
+/// A single mod whose version was misread as "9.99" must not push every real
+/// mod into "older".
+const ENOUGH_MODS_TO_BE_CURRENT = 5;
+
+/// Every game version in the data, grouped into one entry per game release:
+/// the number they share, the spelling to show, and how many mods are on it.
+/// Highest first.
+export function gameVersions(mods) {
+  const families = new Map();
+  for (const mod of mods || []) {
+    const version = mod.gameVersion;
+    if (!version) continue;
+    const family = gameVersionFamily(version);
+    if (!families.has(family)) {
+      families.set(family, { family, count: 0, spellings: new Map() });
+    }
+    const entry = families.get(family);
+    entry.count += 1;
+    entry.spellings.set(version, (entry.spellings.get(version) || 0) + 1);
+  }
+
+  return [...families.values()]
+    .map((entry) => ({
+      family: entry.family,
+      count: entry.count,
+      // The spelling most mods use, so "0.98a" wins over one stray "0.98".
+      label: [...entry.spellings.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0],
+    }))
+    .sort((a, b) => compareGameVersions(b.family, a.family));
+}
+
+/// The game version the site treats as current: the highest one enough mods
+/// are on. Null when the data says nothing useful.
+export function currentGameVersion(mods) {
+  const found = gameVersions(mods)
+    .filter((v) => v.count >= ENOUGH_MODS_TO_BE_CURRENT);
+  return found.length ? found[0].family : null;
+}
+
+/// Where a reader says something on a mod's page is wrong, or asks for their
+/// mod to be taken down. Everything here is collected off other people's posts
+/// by a machine, so some of it will be wrong and there has to be one obvious
+/// place to say so.
+export const PROBLEM_REPORT_BASE =
+  'https://github.com/wispborne/StarsectorModRepo/issues/new';
+
+/// How far behind the current game release a mod is: 'current', 'one-behind'
+/// or 'old'. Null when either version is unknown.
+export function versionStanding(mod, current) {
+  if (!current || !mod || !mod.gameVersion) return null;
+  const family = gameVersionFamily(mod.gameVersion);
+  if (family === current) return 'current';
+
+  // One behind means the last part is one lower — "0.97" against "0.98".
+  const a = family.split('.').map(Number);
+  const b = current.split('.').map(Number);
+  if (a.length === b.length && a.slice(0, -1).join('.') === b.slice(0, -1).join('.')
+      && b[b.length - 1] - a[a.length - 1] === 1) {
+    return 'one-behind';
+  }
+  return 'old';
+}
+
+/// What a game version badge says on hover, for each standing. Null where
+/// there is nothing worth saying.
+export function versionStandingNote(standing) {
+  if (standing === 'current') return 'Built for the current game release.';
+  if (standing === 'one-behind') return 'Built for the game release before this one.';
+  if (standing === 'old') return 'Built for an older game release.';
+  return null;
+}
+
+// --- Dates ---
+
+/// A date written the way a reader reads it: "14 August 2026". Takes either a
+/// `YYYY-MM-DD` day or a full timestamp.
+export function formatDay(value) {
+  const when = readDate(value);
+  if (!when) return '';
+  return when.toLocaleDateString(undefined, {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  });
+}
+
+/// How long ago something was, in plain words: "today", "3 days ago".
+export function howLongAgo(value) {
+  const when = readDate(value);
+  if (!when) return '';
+  const days = Math.floor((Date.now() - when.getTime()) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  if (months < 24) return `${months} month${months === 1 ? '' : 's'} ago`;
+  return `${Math.round(days / 365)} years ago`;
+}
+
+function readDate(value) {
+  if (!value) return null;
+  // A bare `YYYY-MM-DD` is read as that day in UTC, so it never lands on the
+  // day before for a reader west of Greenwich.
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value;
+  const when = new Date(day);
+  return Number.isNaN(when.getTime()) ? null : when;
+}
+
+// --- Lists ---
+
+/// Joins names the way a person would: "a", "a and b", "a, b and c".
+export function joinNames(names) {
+  const list = (names || []).filter(Boolean);
+  if (!list.length) return '';
+  if (list.length === 1) return list[0];
+  return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+}
+
+/// How many rows a page holds. 0 means all of them at once.
+export const PAGE_SIZES = [24, 48, 96, 240, 0];
+const PAGE_SIZE_KEY = 'starmodderPageSize';
+const DEFAULT_PAGE_SIZE = 48;
+
+export function pageSizePreference() {
+  // The raw value is checked before it is turned into a number, because an
+  // unset setting reads as null and `Number(null)` is 0 — which is a real
+  // choice here, meaning "all on one page". A first visit would otherwise draw
+  // every mod at once.
+  const saved = localStorage.getItem(PAGE_SIZE_KEY);
+  if (saved === null || saved === '') return DEFAULT_PAGE_SIZE;
+  const size = Number(saved);
+  return PAGE_SIZES.includes(size) ? size : DEFAULT_PAGE_SIZE;
+}
+
+export function setPageSizePreference(size) {
+  localStorage.setItem(PAGE_SIZE_KEY, String(size));
+}
+
+/// The row of page buttons, with a box for how many rows a page holds.
+export function pager(page, pageSize, total, onPage, onPageSize) {
+  const showingAll = !pageSize;
+  const pages = showingAll ? 1 : Math.max(1, Math.ceil(total / pageSize));
+  const cur = showingAll ? 1 : page + 1;
+  const row = el('div', { class: 'pager' });
+  const btn = (label, target, disabled) =>
+    el('button', {
+      class: 'btn',
+      text: label,
+      disabled: disabled ? 'true' : null,
+      onclick: () => onPage(target),
+    });
+
+  if (!showingAll) {
+    row.append(btn('« First', 0, page <= 0), btn('‹ Prev', page - 1, page <= 0));
+  }
+  row.append(el('span', {
+    class: 'pager-info',
+    text: showingAll
+      ? `All ${total} on one page`
+      : `Page ${cur} of ${pages} (${total} mods)`,
+  }));
+  if (!showingAll) {
+    row.append(btn('Next ›', page + 1, cur >= pages),
+      btn('Last »', pages - 1, cur >= pages));
+  }
+
+  if (onPageSize) {
+    const select = el('select', { class: 'pager-size' });
+    for (const size of PAGE_SIZES) {
+      select.append(el('option', {
+        value: String(size),
+        text: size === 0 ? 'All on one page' : `${size} per page`,
+      }));
+    }
+    select.value = String(
+      PAGE_SIZES.includes(pageSize) ? pageSize : DEFAULT_PAGE_SIZE);
+    select.addEventListener('change', () => {
+      const picked = Number(select.value);
+      setPageSizePreference(picked);
+      onPageSize(picked);
+    });
+    row.append(el('label', { class: 'pager-size-label' }, [
+      el('span', { text: 'Show ' }), select,
+    ]));
+  }
+  return row;
+}

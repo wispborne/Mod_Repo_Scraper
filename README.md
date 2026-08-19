@@ -13,6 +13,81 @@ Online at: https://github.com/wispborne/StarsectorModRepo
 |------|------------|
 | `outputs/ModRepo.json` | Merged, deduplicated mod metadata from all enabled sources |
 | `outputs/forum-data-bundle.json` | QB pipeline bundle (forum index + per-topic details) |
+| `outputs/site/mods.json` | One record per mod, enough to search, filter and draw a card |
+| `outputs/site/mods/<id>.json` | One file per mod, holding its whole page |
+| `outputs/site/updates.json` | The mods that put out a new version, newest first |
+
+The last three are for the public website — see below. The first two are
+unchanged by them, and TriOS keeps reading the bundle exactly as it did.
+
+## The public website
+
+`site/` holds a small read-only website built on the three files above: a home
+page led by recent releases, a browse page with search and filters, a page per
+mod at an address that never changes, a page per author, an index of everyone
+with a mod here, and an About page. There is one search box in the bar at the
+top of every page; "/" puts the cursor in it. It is plain HTML, CSS and
+JavaScript with no build step, and it reads its data by fetching those files off
+its own origin.
+
+Browse opens on mods built for the current game release, most recently released
+first. Older ones are one click away, and the page says how many there are.
+
+A publish copies the data files and the contents of `site/` into the published
+repo together, so that repo is a complete, servable copy of the site next to the
+data it reads. It is served from Cloudflare Pages, but nothing in it depends on
+Cloudflare: no Workers, no Pages Functions, no redirect rules.
+
+**To serve it from an ordinary web server instead**, point that server's document
+root at a clone of the published repo. Nothing else is needed — no build, no
+runtime, no rewrite rules. Any static server will do:
+
+```
+git clone git@github.com:wispborne/StarsectorModRepo.git
+cd StarsectorModRepo
+python -m http.server 8080        # or nginx, caddy, Apache, anything
+```
+
+Then open `http://localhost:8080`. Every address the site uses is a `#/…` hash,
+so a server that only serves files is enough — there is no need to send unknown
+paths back to `index.html`.
+
+**To look at the site on your own machine**, it has to be served over HTTP.
+Opening `index.html` from the file system does not work — a browser refuses to
+load ES modules and refuses to fetch files over `file://`, so the page comes up
+blank with a CORS complaint in the console. Any static server will do.
+
+Against the example data, which needs nothing built:
+
+```
+cd site
+python -m http.server 8099
+```
+
+Then open `http://127.0.0.1:8099/?data=sample`. That reads the hand-written
+files in `site/sample-data/`, which is how the site is worked on before a run
+has built anything.
+
+Against the real data, which a run writes to `outputs/site/`: the site's own
+files and the data files have to sit in one folder, the way a publish puts them.
+Copy both into one place and serve that:
+
+```
+mkdir -p /tmp/sitepreview && cp -r site/* outputs/site/* /tmp/sitepreview/
+cd /tmp/sitepreview && python -m http.server 8099
+```
+
+Then open `http://127.0.0.1:8099` with no `?data=sample`.
+
+**Working out which mods released** is a separate step, run at the end of every
+scrape. It compares the saved bundles and only records a release when a mod's
+version really moves forward — see `lib/site/release_detector.dart` for the
+rules. To fill in the history from bundles already saved, run it over all of them
+once:
+
+```
+dart run bin/backfill_releases.dart --data-dir qb_data
+```
 
 ## For apps reading `forum-data-bundle.json`
 

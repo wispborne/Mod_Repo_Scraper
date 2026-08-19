@@ -31,6 +31,7 @@ void main() {
     late String remote; // A bare repo standing in for GitHub.
     late String outputs; // Where the current output files live.
     late String cloneDir; // Where the service keeps its working clone.
+    late String siteDir; // The website's own files, as they sit in the repo.
     late PublishService service;
     late RecordingRunReporter reporter;
 
@@ -53,7 +54,11 @@ void main() {
       remote = p.join(tmp.path, 'remote.git');
       outputs = p.join(tmp.path, 'outputs');
       cloneDir = p.join(tmp.path, 'clone');
+      siteDir = p.join(tmp.path, 'site-source');
       Directory(outputs).createSync(recursive: true);
+      Directory(p.join(siteDir, 'views')).createSync(recursive: true);
+      File(p.join(siteDir, 'index.html')).writeAsStringSync('<html></html>');
+      File(p.join(siteDir, 'views', 'browse.js')).writeAsStringSync('// browse');
 
       // A bare remote with one commit on `main`, holding both files.
       _git(['init', '--bare', '--initial-branch=main', remote]);
@@ -72,9 +77,27 @@ void main() {
           outputPath: outputs,
           repoUrl: remote,
           cloneDir: cloneDir,
+          sitePath: siteDir,
         ),
       );
     });
+
+    /// Writes the website's data files where a run leaves them, under
+    /// `<outputs>/site/`.
+    void writeWebsiteData(List<String> modIds) {
+      final site = Directory(p.join(outputs, 'site', 'mods'))
+        ..createSync(recursive: true);
+      File(p.join(outputs, 'site', 'mods.json'))
+          .writeAsStringSync('{"mods": []}');
+      File(p.join(outputs, 'site', 'updates.json'))
+          .writeAsStringSync('{"releases": []}');
+      for (final id in modIds) {
+        File(p.join(site.path, '$id.json')).writeAsStringSync('{"id": "$id"}');
+      }
+    }
+
+    bool inRemote(String path) =>
+        _git(['cat-file', '-e', 'main:$path'], cwd: remote).exitCode == 0;
 
     tearDown(() => tmp.deleteSync(recursive: true));
 
@@ -137,6 +160,72 @@ void main() {
       expect(remoteCommitCount(), before);
       expect(remoteContent('ModRepo.json'), 'old repo');
       expect(reporter.logs.any((l) => l.contains('left as it was')), isTrue);
+    }, skip: _gitIsThere() ? false : 'git is not installed');
+
+    test('the website files go out in the same commit as the outputs', () async {
+      writeOutputs('new repo', 'new bundle');
+      writeWebsiteData(['nexerelin', 'quality-captains']);
+      final before = remoteCommitCount();
+
+      await service.runJob(JobRequest.publishOutputs(), reporter: reporter);
+
+      // One commit, and everything in it.
+      expect(remoteCommitCount(), before + 1);
+      expect(remoteContent('ModRepo.json'), 'new repo');
+      expect(remoteContent('forum-data-bundle.json'), 'new bundle');
+      expect(remoteContent('mods.json'), '{"mods": []}');
+      expect(remoteContent('updates.json'), '{"releases": []}');
+      expect(remoteContent('mods/nexerelin.json'), '{"id": "nexerelin"}');
+    }, skip: _gitIsThere() ? false : 'git is not installed');
+
+    test('the pushed repo holds the site next to the data it reads', () async {
+      writeOutputs('new repo', 'new bundle');
+      writeWebsiteData(['nexerelin']);
+
+      await service.runJob(JobRequest.publishOutputs(), reporter: reporter);
+
+      // The site's own files, at the root, so the repo can be served as it is.
+      expect(inRemote('index.html'), isTrue);
+      expect(inRemote('views/browse.js'), isTrue);
+      // And the files the site asks for, at the addresses it asks for them.
+      expect(inRemote('mods.json'), isTrue);
+      expect(inRemote('updates.json'), isTrue);
+      expect(inRemote('mods/nexerelin.json'), isTrue);
+    }, skip: _gitIsThere() ? false : 'git is not installed');
+
+    test('a publish with no website files still publishes the outputs',
+        () async {
+      writeOutputs('new repo', 'new bundle');
+      final before = remoteCommitCount();
+
+      final outcome = await service.runJob(JobRequest.publishOutputs(),
+          reporter: reporter);
+
+      expect(outcome.cancelled, isFalse);
+      expect(remoteCommitCount(), before + 1);
+      expect(remoteContent('ModRepo.json'), 'new repo');
+      expect(remoteContent('forum-data-bundle.json'), 'new bundle');
+      expect(inRemote('mods.json'), isFalse);
+      expect(
+          reporter.logs.any((l) => l.contains('website files were not there')),
+          isTrue);
+    }, skip: _gitIsThere() ? false : 'git is not installed');
+
+    test('a mod that has gone loses its file from the published repo', () async {
+      writeOutputs('new repo', 'new bundle');
+      writeWebsiteData(['nexerelin', 'quality-captains']);
+      await service.runJob(JobRequest.publishOutputs(), reporter: reporter);
+      expect(inRemote('mods/quality-captains.json'), isTrue);
+
+      // The next run no longer produces that mod.
+      File(p.join(outputs, 'site', 'mods', 'quality-captains.json'))
+          .deleteSync();
+      writeOutputs('newer repo', 'newer bundle');
+      await service.runJob(JobRequest.publishOutputs(),
+          reporter: RecordingRunReporter());
+
+      expect(inRemote('mods/nexerelin.json'), isTrue);
+      expect(inRemote('mods/quality-captains.json'), isFalse);
     }, skip: _gitIsThere() ? false : 'git is not installed');
 
     test('it refuses a job that is not a publish', () {

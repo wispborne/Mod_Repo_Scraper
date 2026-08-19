@@ -13,6 +13,8 @@ A Dart CLI that scrapes Starsector mod metadata from several sources and produce
 
 Both pipelines run from one entry point and are toggled independently in `config.properties`.
 
+It also builds a third set of files, for the public website in `site/` — see **The public website** below. Those are built from the two outputs above; neither of those outputs is changed by them, and TriOS keeps reading the bundle exactly as it did.
+
 ## Commands
 
 ```bash
@@ -23,6 +25,7 @@ dart test test/mod_merger_test.dart            # run one test file
 dart test --name "substring of test name"      # run tests matching a name
 dart analyze                       # lint (see analysis_options.yaml for extra rules)
 dart run bin/viewer_server.dart    # local read-only results viewer at http://127.0.0.1:8085
+dart run bin/site_server.dart      # the public website at http://127.0.0.1:8099, against real data
 dart compile exe bin/scraper_main.dart -o mod_repo_scraper   # what CI ships
 ```
 
@@ -48,6 +51,7 @@ Everything is driven by `config.properties` (read by `Common.readConfig()`; fiel
 - `modrepo_merges_to_keep` — how many merge snapshots to keep (default 20); older ones are dropped. 0 keeps everything.
 - `qb_manager_url` — environment. Empty (the default) means the CLI runs the QB job itself, exactly as before. Set (e.g. `http://127.0.0.1:8085`) means it hands the job to that server. Unreachable / manager off / different data folder → warn in plain words and run standalone. Production never sets it.
 - `qb_runs_to_keep` — environment. How many runs the history keeps (default 100); older ones are dropped with their log files. 0 keeps everything.
+- `publish_site_path` — environment. Where the public website's own files live, copied into the publish clone next to the data they read. Defaults to `site`.
 - `qb_bundles_to_keep` — environment. How many published bundles to keep a snapshot of, for the what-changed page and for how far back one topic's history goes (default 500). About a megabyte each, so roughly 600 MB and about eight months of twice-daily publishing. 0 keeps everything.
 
 ## Architecture
@@ -121,6 +125,48 @@ Two independent cache layers — do not conflate them:
 A third thing on disk, neither cache nor output: `<qb_data_path>/runs/` — `runs-index.json` plus one log file per run (see the manager core above). It follows the same save-as-you-go rule. A fourth, which is neither: `<qb_data_path>/scraper.lock`, which exists only while a job is running (see `data_lock.dart`).
 
 **Everything that costs money or network time is saved as the run goes, not at the end.** A run killed with Ctrl-C, or one that dies part-way, must not throw away the work it already did — the next run should pick up where it left off. So: `mods-index.json` is written every 10 topics (it names the `detail.json` files, which are written per topic — an unsaved index orphans them and the next run re-scrapes them all), `assumed-downloads-cache.json` every 10 resolved topics, `link-downloadable-cache.json` every 10 probes, `llm-extraction-cache.json` every 5 topics or 5 seconds. Each also gets a final save at the end, on the failure path too. Keep it that way when adding a cache: the only end-of-run writes should be *derived outputs* (`ModRepo.json`, `forum-data-bundle.json`, `merge-debug.json`), which can always be rebuilt from the caches. The ModRepo per-source caches (`<name>_cache.json`) are still all-or-nothing.
+
+### The public website (`lib/site/`, `site/`)
+
+Starmodder: a static, read-only website built on what the two pipelines already collect. It is not the local results viewer under `web/` — that one is a debugging tool with a manager behind it; this one has no server at all and offers no way to change anything.
+
+**What it publishes** (`lib/site/public_data_builder.dart` → `outputs/site/`):
+
+- `mods.json` — one record per mod: id, name, the tidied `displayName`, authors and their other known names, categories, game and mod version, one image, a one-line summary, save compatibility, and the switches the filters use. It is the one file the browse page fetches whole, so it holds nothing else — no post HTML, no changelogs, no galleries. A test pins it under 2 MB (it is about 660 KB for 906 mods).
+- `mods/<id>.json` — one file per mod, holding its whole page: the list record plus description, gallery, downloads, changelog by version, license, source code, support links, links out, release history, add-ons.
+- `updates.json` — the mods that put out a new version, newest first.
+
+**Nothing internal ever reaches these files** — no config value, no token, no local path, no run id, no confidence score. A test pins that. The one field that is not the author's own words is the summary, which carries `summaryIsGenerated` / `descriptionIsGenerated` so the site can label it and the reader can turn it off.
+
+**What the pages actually show** — four rules that decide the content, all of them because the raw data is not fit to read as it stands:
+
+- **Names** (`lib/site/display_name.dart`). A thread title is not a name: it carries the bracketed game version, the mod version, dates, "[WIP]" and often a leading dash to push it up the board's list. `displayName` is the title with all of that off, published only where it differs from the title, and the list is sorted by it. The title as written is still published, so a search for an old spelling still finds the mod. It builds on `ModIdStore.stripReleaseParts`, which is `cleanName` with the author's own capitals left alone — so a name and its id are worked out the same way and can never drift apart.
+- **Descriptions** (`lib/site/post_html.dart`). The description is the author's own forum post, rebuilt from a short list of tags (paragraphs, breaks, lists, headings, quotes, code, emphasis, links) and published as `descriptionHtml`; `description` holds the same words as plain text. Nothing that can run, style the page or load from another host survives. Links get `rel="nofollow noopener"`, bare addresses become links, empty links left behind by a dropped picture go, and runs of line breaks are collapsed. **Only where there is no forum post** does it fall back to the merged text, then to the AI paragraph. Before this, the description was whichever text the merge liked best — for the bigger mods the Discord announcement, so Nexerelin's page read "4X in Starsector. Download: …".
+- **Galleries** (`lib/site/gallery_filter.dart`). Every picture in a post used to be published as a screenshot, so a gallery was as likely to be a Ko-fi button, a build badge and the author's avatar. Three rules, in order of how sure they are: the host (Ko-fi, Patreon, shields.io…), words in the address (donate, button, badge, avatar, icon, logo), and the width the post gave it, where under 200 pixels is not a screenshot. **A picture the post says nothing about is kept** — a missing size is not evidence. The card's one picture goes through the same rules.
+- **Summaries** (`lib/site/summary_text.dart`). A copied summary that is only a link, only the mod's name in emphasis marks, or only a list of requirements is dropped, and the AI sentence takes its place labelled as AI.
+
+**Permanent ids** (`lib/site/mod_id_store.dart`, `<qb_data_path>/mod-ids.json`). A mod's web address is built from its id, and a thread title carries the version and changes on every release — so the id is worked out once, from the name with the bracketed game version, the mod version and any date stripped off, and read back on every later run. **If that file exists but cannot be read the run fails and publishes nothing**; handing out fresh ids would move every page. A dozen real mods share a name with something unrelated (two "Kadur Remnant" threads, "CarrierUI" by two people), so each entry also records a `mark` — the forum topic id, or failing that the author — and the second mod of a name gets the same id with a number on the end. The entry also records the day a mod was first seen, which is what "newest" and "recently added" mean on the site.
+
+**Working out which mods released** (`lib/site/release_detector.dart`, `release_state_store.dart`, `version_text.dart`). The LLM's version reading is noisy — over one month of real data it contradicted itself 279 times — so four rules stand between it and the feed, and they are the whole point of this step:
+
+- A reading must hold for **two scrapes running** before it is believed.
+- A believed version **never moves backwards**. This is the rule that stops the site forgetting a release and announcing it again when a reading recovers.
+- A version matching the thread's game version, or the bracketed one at the front of the title, is **thrown out** — the extractor confuses the two.
+- Where the title names a version, a new version that disagrees with it is **dropped**. The title can veto but never propose, because only some threads carry one.
+
+The first version believed for a mod is never a release, or a backfill would announce every mod at once. State lives in `<qb_data_path>/mod-releases.json`: what each thread is believed to be on, how long the current reading has held, every release so far, and which saved bundles have been walked. A run advances it by one bundle; `bin/backfill_releases.dart` walks every saved bundle once to fill in the history, and is safe to re-run.
+
+**Where it is called** (`lib/site/public_site_step.dart`): after the QB pipeline publishes a bundle (`afterBundle` — the only place a release is ever recorded), and after a merge (`afterMerge` — the release state is read, not changed). Each reads the other half back from `outputs/`.
+
+**The site itself** (`site/`): plain ES modules, no build step, the same look as the viewer. `app.js` is a hash router over `views/home.js`, `browse.js`, `mod.js`, `author.js` and `about.js`; `lib.js` holds the DOM, address and fetch helpers. Three things about it worth knowing:
+
+- **One search box, in the bar at the top, on every page** (`app.js`). It suggests up to five mods as you type — the whole list is already loaded — and "/" puts the cursor in it. `#/authors` with no name is the people index; the browse page has no author dropdown, because a list of 562 names cannot be used.
+- **Browse opens on what a reader can use.** Sorted by current game version first, then most recent release, then name; mods for older releases are left out behind a switch that is on, with a count and one click to include them. Versions that differ only in spelling ("0.98", "0.98a", "0.98a-RC8") are one choice, and which release is "current" is worked out from the data — the highest version at least five mods are built for, so one misread "9.99" cannot push every real mod into "older".
+- **Every route change starts at the top**, except coming back to Browse, which returns to where the reader left off. Two traps in that, both pinned by how the router is written: the position has to be read by `route()` **before** it empties the page (`notePageScroll`), because an emptied page has nowhere to scroll and the browser says zero from then on; and it is filed against the address Browse last wrote for itself (`lastBrowseHash`), because `location.hash` at that moment is already the mod page the reader is on their way to. Browse scrolls itself and says so (`noteScrollPlaced`), and the router's scroll-to-top stands down for that one page. The skip link cannot be a plain `#app` link either: the hash picks the page, so following one would send the router looking for a page called "app".
+
+It fetches every file from **its own origin** and nothing else — never GitHub, never another host — and must never depend on anything a plain static server cannot do: no Cloudflare Workers, no Pages Functions, no redirect rules. Opening it with `?data=sample` reads the hand-written examples in `site/sample-data/` instead of the real files, which is how it is worked on before a run has built anything; those examples are pinned to the models by `test/site/sample_data_test.dart`, so a shape change has to be made in both.
+
+**Publishing** (`lib/manager/publish_service.dart`): a publish copies the three data files, every per-mod file, and the contents of `site/` into the clone, so the pushed repo is a complete servable website next to the data it reads. A per-mod file in the clone that this run did not produce is removed. Missing website files are a log line, not a failure — the existing outputs still go out.
 
 ### Results viewer (`bin/viewer_server.dart`, `lib/viewer/`, `web/`)
 
