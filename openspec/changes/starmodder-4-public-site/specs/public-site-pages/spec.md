@@ -272,3 +272,33 @@ whose it is and SHALL be able to make it their own.
 #### Scenario: A mod in the list has gone
 - **WHEN** a shared list names a mod this site no longer has
 - **THEN** the page says so and how many, rather than quietly leaving it out
+
+### Requirement: The site follows the reader's choice of light or dark
+The site SHALL be dark by default and SHALL use a light version of the same
+colours for a reader whose computer asks for light pages. Every colour and
+every text size SHALL come from one named set, so the two versions can never
+drift apart.
+
+Text SHALL be readable against what is behind it in both versions, at the
+ordinary standard for its size.
+
+#### Scenario: A reader who prefers light pages
+- **WHEN** their computer asks for light pages
+- **THEN** the site is light, in the same colours, and everything on it can still be read
+
+### Requirement: The accent colour is kept for things a reader can do
+The accent colour SHALL be used for links, buttons and other controls. A mod's
+name SHALL NOT be in it, on a card, in a row, in the search suggestions or on a
+person's page — it SHALL take the accent only under the pointer.
+
+#### Scenario: Looking down a page of cards
+- **WHEN** a reader looks at the browse page
+- **THEN** the mod names read as names and the buttons read as buttons
+
+### Requirement: Home says what the site is before anything else
+Home SHALL open with what the site is in one line, then the search box, then
+the kinds of mod, then the releases. Anything else SHALL come after those.
+
+#### Scenario: Somebody arriving for the first time
+- **WHEN** a reader opens Home
+- **THEN** the first thing on the page says what the site holds, and the second is a way to search it

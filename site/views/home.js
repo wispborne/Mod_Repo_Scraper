@@ -1,4 +1,5 @@
-// Home: a search box, the mods added most recently, then what came out recently.
+// Home: what the site is in one line, a search box, the kinds of mod, then
+// what came out recently.
 //
 // The release feed is the heart of the page. It is not "threads somebody
 // replied to" — it is mods whose version actually moved forward, worked out by
@@ -20,22 +21,30 @@ export async function render(root) {
   const byId = new Map(mods.map((mod) => [mod.id, mod]));
   const currentVersion = currentGameVersion(mods);
 
+  // The order the plan asks for: what this is in one line, the search box, the
+  // kinds of mod, then the releases. The mods added recently come last —
+  // pleasant, but not what anybody came for.
   clear(root);
   root.append(el('div', { class: 'stack' }, [
-    searchPanel(mods.length),
+    front(mods.length),
     browseByKind(mods),
+    releasesPanel(releases, byId),
     feedLine(),
     recentlyAdded(mods, currentVersion),
-    releasesPanel(releases, byId),
   ]));
 }
 
-/// One box with a search field that sends the reader to the browse page.
-function searchPanel(total) {
+/// The front of the site: what it is in one line, and a search box.
+///
+/// A reader arriving here has one of two things in mind — a mod they can name,
+/// or no idea yet. The search box answers the first and the chips under it
+/// answer the second, so between them they cover everybody who arrives.
+function front(total) {
   const box = el('input', {
     type: 'search',
     class: 'search-box',
-    placeholder: 'Search for a mod, an author or a category…',
+    placeholder: 'Search for a mod, a person or a kind of mod…',
+    'aria-label': 'Search mods',
   });
   const button = el('button', { class: 'btn btn-primary', text: 'Search' });
   const search = () => go(buildHash(['browse'], { q: box.value }));
@@ -43,16 +52,18 @@ function searchPanel(total) {
   box.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
   button.addEventListener('click', search);
 
-  return el('div', { class: 'stack' }, [
-    el('div', { class: 'page-head' }, [
-      el('h1', { text: 'Starsector mods' }),
-      el('span', {
-        class: 'sub',
-        text: `All ${total} of them, from the forum, Discord and Nexus Mods, `
-          + 'in one place.',
-      }),
-    ]),
+  return el('section', { class: 'front' }, [
+    el('h1', { text: 'Every Starsector mod, in one place' }),
+    el('p', {
+      class: 'front-promise',
+      text: `All ${total} of them, from the forum, Discord and Nexus Mods, with `
+        + 'what each one needs and what came out this week.',
+    }),
     el('div', { class: 'search-row' }, [box, button]),
+    el('p', {
+      class: 'front-hint',
+      text: 'Or press / from anywhere on the site.',
+    }),
   ]);
 }
 
@@ -75,13 +86,15 @@ function browseByKind(mods) {
   if (!chips) return null;
 
   return el('section', { class: 'stack' }, [
-    el('h2', { text: 'Browse by kind' }),
+    el('h2', { class: 'quiet-heading', text: 'Browse by kind' }),
     chips,
   ]);
 }
 
 function releasesPanel(releases, byId) {
-  const panel = el('div', { class: 'stack' }, [el('h2', { text: 'Recent releases' })]);
+  const panel = el('div', { class: 'stack' }, [
+    el('h2', { class: 'quiet-heading', text: 'Recent releases' }),
+  ]);
 
   if (!releases.length) {
     panel.append(el('div', { class: 'notice' }, [
@@ -97,8 +110,10 @@ function releasesPanel(releases, byId) {
   for (const [day, ofThatDay] of groupByDay(releases)) {
     const list = el('div', { class: 'release-list' });
     for (const release of ofThatDay) list.append(releaseRow(release, byId));
+    // A day sits inside "Recent releases", so it is a step down from it. An
+    // h2 inside an h2 reads to a screen reader as two things of equal weight.
     panel.append(el('section', { class: 'release-day' }, [
-      el('h2', { text: `${formatDay(day)} — ${howLongAgo(day)}` }),
+      el('h3', { text: `${formatDay(day)} — ${howLongAgo(day)}` }),
       list,
     ]));
   }
@@ -147,7 +162,7 @@ function groupByDay(releases) {
   return [...days.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 }
 
-/// A short strip of the mods added most recently, across the top of the page.
+/// A short strip of the mods added most recently, at the foot of the page.
 /// It is what keeps the page worth reading while the release feed is still
 /// filling up.
 function recentlyAdded(mods, currentVersion) {
@@ -162,7 +177,7 @@ function recentlyAdded(mods, currentVersion) {
   for (const mod of newest) strip.append(modCard(mod, currentVersion));
 
   return el('section', { class: 'stack' }, [
-    el('h2', { text: 'Recently added' }),
+    el('h2', { class: 'quiet-heading', text: 'Recently added' }),
     strip,
     el('a', { href: buildHash(['browse'], { sort: 'newest' }), text: 'See them all →' }),
   ]);

@@ -94,6 +94,12 @@ export async function render(root, parts) {
   ]);
   const controls = el('div', { class: 'stack' });
   const results = el('div', { class: 'stack' });
+
+  // The count is read out as it changes, so it has to be the same node from
+  // one draw to the next. A new node arriving with its words already in it is
+  // announced by nothing. It is made here, before anything draws, because a
+  // `const` cannot be reached from a function that runs above it.
+  const countLine = el('div', { class: 'result-line', role: 'status' });
   root.append(el('div', { class: 'stack' }, [head, controls, results]));
 
   // The controls are drawn once and left alone; only the results are redrawn as
@@ -129,8 +135,9 @@ export async function render(root, parts) {
     const matches = sortMods(all.filter((mod) => matchesFilters(mod, shown)),
       shown.sort, shown.currentVersion);
 
-    into.append(resultLine(all, matches, shown,
-      () => { shown.olderToo = true; drawResults(into, all, shown); }));
+    fillResultLine(countLine, all, matches, shown,
+      () => { shown.olderToo = true; drawResults(into, all, shown); });
+    into.append(countLine);
 
     if (!matches.length) {
       into.append(nothingMatched(() => {
@@ -153,8 +160,11 @@ export async function render(root, parts) {
 
 /// The line above the results: how many matched, and — when older mods are
 /// being left out — how many those are and one click to bring them back.
-function resultLine(all, matches, state, onShowOlder) {
-  const line = el('div', { class: 'result-line' });
+///
+/// It fills a line that is already on the page rather than making a new one,
+/// because that is what gets it read out.
+function fillResultLine(line, all, matches, state, onShowOlder) {
+  clear(line);
   line.append(el('span', {
     text: matches.length === all.length
       ? `Showing all ${all.length} mods.`
@@ -164,11 +174,11 @@ function resultLine(all, matches, state, onShowOlder) {
   // Nothing is being left out when older mods are already in, when there is no
   // current release to compare against, or when the reader picked a game
   // version themselves — their choice overrules the switch.
-  if (state.olderToo || !state.currentVersion || state.game) return line;
+  if (state.olderToo || !state.currentVersion || state.game) return;
 
   const hidden = all.filter((mod) => !isForCurrentGame(mod, state.currentVersion)
     && matchesEverythingElse(mod, state)).length;
-  if (!hidden) return line;
+  if (!hidden) return;
 
   const button = el('button', {
     class: 'link-button',
@@ -176,7 +186,6 @@ function resultLine(all, matches, state, onShowOlder) {
   });
   button.addEventListener('click', onShowOlder);
   line.append(el('span', { text: ' ' }), button);
-  return line;
 }
 
 // --- The controls ---

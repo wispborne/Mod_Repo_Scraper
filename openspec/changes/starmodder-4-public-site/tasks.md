@@ -158,6 +158,26 @@ standing in for forum posts, donation buttons listed as screenshots.
       second action, so they were left where they were rather than crowding the
       top of the page
 
+## 6e. The visual pass (week four of the revamp)
+
+Done last, once the pages had their final shape, so it was done once. The
+palette is unchanged and the corners stay rounded — both settled with the user
+before any of it was written.
+
+- [x] 6e.1 Put every colour and every text size in one named block at the top
+- [x] 6e.2 Give the pages a type scale, and fold the forty-odd loose sizes into it
+- [x] 6e.3 Make mod names white and keep cyan for things a reader can do
+- [x] 6e.4 Take the boxes off the filters and the panels, and give the pages more room
+- [x] 6e.5 Give Home a front: what this is, the search box, the kinds of mod, the releases
+- [x] 6e.6 Add a light version of the same colours for `prefers-color-scheme: light`
+- [x] 6e.7 Check every piece of writing for readable contrast, in both versions
+- [x] 6e.8 Name the parts of the page for a screen reader, and read out the result count
+- [x] 6e.9 Leave the card lift alone for a reader who asked for less movement
+
+The rest of the accessibility list — `aria-pressed` on the filter switches, a
+visible focus ring, a skip link — was done in week one rather than left this
+late, and is pinned there.
+
 ## 7. Finishing up
 
 - [x] 7.1 Check by hand that `ModRepo.json` and `forum-data-bundle.json` are unchanged by all of this

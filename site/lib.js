@@ -291,6 +291,7 @@ export function showPicture(images, at = 0) {
 
   const box = el('div', {
     class: 'big-picture', role: 'dialog', 'aria-modal': 'true',
+    'aria-label': 'Screenshot',
   }, [
     el('div', { class: 'big-picture-middle' }, [shot]),
     el('div', { class: 'big-picture-foot' }, [caption, counter]),
@@ -496,6 +497,7 @@ export function categoryChips(mods, opts = {}) {
       class: on ? 'chip on' : 'chip',
       href: onPick ? null : buildHash(['browse'], { category }),
       'aria-pressed': onPick ? String(on) : null,
+      'aria-label': `${category}, ${count} mod${count === 1 ? '' : 's'}`,
     }, [
       el('span', { text: category }),
       el('span', { class: 'chip-count', text: String(count) }),

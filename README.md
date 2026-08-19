@@ -42,6 +42,9 @@ still shown on the mod's own page.
 A reader can tick mods into a list of their own, kept in their browser, and
 share the whole thing as one link.
 
+The pages are dark by default and light for anyone whose computer asks for
+light pages. Both are checked for readable contrast.
+
 The web server has to serve `index.html` for a folder — every static host does,
 and the local one here is set up the same way. That is what makes a link to
 `mods/<id>/` show that mod's name and picture when it is pasted into Discord.
