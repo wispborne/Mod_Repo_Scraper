@@ -95,6 +95,9 @@ void main() {
           .writeAsStringSync('<feed/>');
       for (final id in modIds) {
         File(p.join(site.path, '$id.json')).writeAsStringSync('{"id": "$id"}');
+        Directory(p.join(site.path, id)).createSync(recursive: true);
+        File(p.join(site.path, id, 'index.html'))
+            .writeAsStringSync('<title>$id</title>');
       }
     }
 
@@ -195,6 +198,9 @@ void main() {
       expect(inRemote('updates.xml'), isTrue,
           reason: 'the feed people subscribe to has to go out too');
       expect(inRemote('mods/nexerelin.json'), isTrue);
+      expect(inRemote('mods/nexerelin/index.html'), isTrue,
+          reason: 'a link shared in Discord has to land on the mod, not on the '
+              'front page');
     }, skip: _gitIsThere() ? false : 'git is not installed');
 
     test('a publish with no website files still publishes the outputs',

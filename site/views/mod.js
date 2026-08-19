@@ -7,9 +7,14 @@
 
 import {
   aiSummariesOn, breadcrumbs, clear, currentGameVersion, el, errorPanel,
-  formatDay, joinNames, modDetail, modHref, modList, modName, picture,
-  PROBLEM_REPORT_BASE, sourceName, versionStanding, versionStandingNote,
+  formatDay, joinNames, listToggle, modDetail, modList, modName,
+  neededModsLine, picture, PROBLEM_REPORT_BASE, showPicture, sourceName,
+  versionStanding, versionStandingNote,
 } from '../lib.js';
+import { modCard } from './browse.js';
+
+/// How many mods the two strips at the foot of the page show.
+const RELATED_COUNT = 6;
 
 /// Plain names for the support links, keyed by the type the scraper works out.
 const SUPPORT_NAMES = {
@@ -49,37 +54,47 @@ export async function render(root, parts) {
   const shownName = modName(mod);
   document.title = `${shownName} — Starmodder`;
 
-  // Only so the game-version badge can say whether this is the current release.
-  // The list is already loaded, so it costs nothing; if it will not load, the
-  // badge simply says nothing extra.
-  let currentVersion = null;
+  // The list is also what the two "more like this" strips at the foot are
+  // built from. A page that will not load it still draws everything else.
+  let everyMod = [];
   try {
-    currentVersion = currentGameVersion((await modList()).mods || []);
+    everyMod = (await modList()).mods || [];
   } catch {
-    currentVersion = null;
+    everyMod = [];
   }
+  const currentVersion = currentGameVersion(everyMod);
 
   clear(root);
   root.append(breadcrumbs([
     { label: 'Browse mods', href: '#/browse' },
     { label: shownName },
   ]));
+
+  // In the order a reader asks: what is it, is it for my game, can I add it to
+  // my save, what does it need, how do I get it — then the detail, then where
+  // to go next.
   root.append(el('div', { class: 'stack' }, [
-    header(mod, shownName, currentVersion),
+    modHeader(mod, detail, shownName, currentVersion),
     needsLine(mod),
-    downloads(detail),
     description(detail),
     gallery(detail),
+    downloads(detail),
     changelog(detail),
     releases(detail),
     addons(detail),
     facts(detail),
     olderVersions(detail),
+    moreByTheAuthor(mod, everyMod, currentVersion),
+    similarMods(mod, everyMod, currentVersion),
     reportProblem(detail, shownName),
   ]));
 }
 
-function header(mod, shownName, currentVersion) {
+/// The top of the page: the mod's picture on one side, and on the other
+/// everything a reader needs before they decide — the name, who made it, which
+/// game version it is for, whether it can go in an existing save, and the
+/// buttons that actually get it.
+function modHeader(mod, detail, shownName, currentVersion) {
   const meta = el('div', { class: 'mod-meta' });
   if (mod.modVersion) meta.append(el('span', { class: 'badge version', text: mod.modVersion }));
   if (mod.gameVersion) {
@@ -102,7 +117,7 @@ function header(mod, shownName, currentVersion) {
     authors.append(el('a', { href: `#/authors/${encodeURIComponent(name)}`, text: name }));
   });
 
-  return el('div', { class: 'page-head' }, [
+  const words = el('div', { class: 'mod-head-words' }, [
     el('h1', { text: shownName }),
     // The thread's own title, where it says more than the name does.
     shownName === mod.name
@@ -110,34 +125,79 @@ function header(mod, shownName, currentVersion) {
       : el('span', { class: 'sub thread-title', text: mod.name }),
     (mod.authors || []).length ? authors : null,
     meta,
+    howToGetIt(mod, detail),
   ]);
+
+  return el('div', { class: 'mod-head' }, [modPicture(mod), words]);
+}
+
+/// The mod's own picture, big, at the top of its page. A mod with none, and one
+/// whose picture will not load, both leave the words to fill the width rather
+/// than an empty box.
+function modPicture(mod) {
+  if (!mod.imageUrl) return null;
+  const box = el('div', { class: 'mod-head-picture' });
+  box.append(picture(mod.imageUrl, {
+    alt: '',
+    whenBroken: () => box.remove(),
+  }));
+  return box;
+}
+
+/// Where the mod lives, besides a download, in the order to fall back through.
+/// Each says what to call it when it is the only way to get the mod, and what
+/// to call it when there is a download as well.
+const PLACES = [
+  { field: 'forumUrl', alone: 'Get it from the forum thread', also: 'The forum thread' },
+  { field: 'discordUrl', alone: 'Get it from Discord', also: 'The Discord post' },
+  { field: 'nexusUrl', alone: 'Get it from Nexus Mods', also: 'On Nexus Mods' },
+];
+
+/// The buttons that get the mod.
+///
+/// The first is a download where there is one. Nearly 300 mods have no link
+/// that goes straight to a file, and their pages used to end in nothing at all
+/// — so for those, going to the thread is the first button instead. Either way
+/// the thread is on the page, because that is where the author is.
+function howToGetIt(mod, detail) {
+  const row = el('div', { class: 'mod-actions' });
+
+  const straightToAFile = (detail.downloads || []).find((d) => d.directUrl);
+  const first = straightToAFile || (detail.downloads || [])[0];
+
+  if (first) {
+    row.append(el('a', {
+      class: 'btn btn-primary btn-big',
+      href: first.directUrl || first.url,
+      rel: 'noopener nofollow',
+      target: '_blank',
+      text: first.directUrl ? 'Download' : 'Get it from the download page',
+      title: first.fileName || null,
+    }));
+  }
+
+  const place = PLACES.find((p) => detail[p.field]);
+  if (place) {
+    row.append(el('a', {
+      class: first ? 'btn btn-big' : 'btn btn-primary btn-big',
+      href: detail[place.field],
+      rel: 'noopener nofollow',
+      target: '_blank',
+      text: first ? place.also : place.alone,
+    }));
+  }
+
+  row.append(listToggle(mod, { wide: true }));
+  return row;
 }
 
 /// What this mod will not run without, right under the header.
 ///
 /// Nearly every Starsector mod needs LazyLib, MagicLib, GraphicsLib or
 /// Nexerelin, and finding that out after the download — from a crash on
-/// startup — is the oldest annoyance in Starsector modding. Each one we have a
-/// page for is a link; the rest are still named.
+/// startup — is the oldest annoyance in Starsector modding.
 function needsLine(mod) {
-  const needs = mod.needs || [];
-  if (!needs.length) return null;
-
-  // The names sit in one span of their own, so the commas stay against the
-  // name in front of them rather than being spaced out as flex children.
-  const names = el('span', { class: 'needs-list' });
-  needs.forEach((needed, i) => {
-    if (i) names.append(document.createTextNode(', '));
-    names.append(needed.id
-      ? el('a', { class: 'needed', href: modHref(needed.id), text: needed.name })
-      : el('span', { class: 'needed unknown', text: needed.name,
-          title: 'This site has no page for that one.' }));
-  });
-
-  return el('div', { class: 'needs-line' }, [
-    el('span', { class: 'needs-label', text: 'Needs' }),
-    names,
-  ]);
+  return neededModsLine('Needs', mod.needs);
 }
 
 function downloads(detail) {
@@ -147,7 +207,7 @@ function downloads(detail) {
   const box = el('div', { class: 'download-list' });
   for (const download of list) box.append(downloadRow(download));
   return el('section', { class: 'panel' }, [
-    el('h2', { text: 'Download' }),
+    el('h2', { text: list.length === 1 ? 'Download' : 'Every download' }),
     box,
     detail.generatedAt
       ? el('p', {
@@ -220,18 +280,30 @@ function gallery(detail) {
   const images = detail.gallery || [];
   if (!images.length) return null;
 
-  // A picture that will not load takes its link with it, so the grid holds no
-  // empty boxes to click on.
+  // A picture that will not load takes its button with it, so the grid holds
+  // no empty boxes to click on. A picture that does load opens over the page
+  // rather than in a new tab, so a reader can look through the lot and still be
+  // where they were.
+  const working = [];
   const grid = el('div', { class: 'gallery' });
-  for (const image of images) {
-    const link = el('a', { href: image.url, target: '_blank', rel: 'noopener' });
-    link.append(picture(image.url, {
+  images.forEach((image) => {
+    const button = el('button', {
+      class: 'shot',
+      title: image.caption || 'Open this screenshot',
+    });
+    button.append(picture(image.url, {
       alt: image.caption || '',
-      title: image.caption || null,
-      whenBroken: () => link.remove(),
+      whenBroken: () => {
+        button.remove();
+        const gone = working.indexOf(image);
+        if (gone >= 0) working.splice(gone, 1);
+      },
     }));
-    grid.append(link);
-  }
+    button.addEventListener('click',
+      () => showPicture(working, working.indexOf(image)));
+    working.push(image);
+    grid.append(button);
+  });
   return el('section', { class: 'panel' }, [
     el('h2', { text: 'Screenshots' }), grid,
   ]);
@@ -391,6 +463,65 @@ function olderVersions(detail) {
   return el('section', { class: 'panel' }, [
     el('h2', { text: 'Older versions' }), rows,
   ]);
+}
+
+/// The rest of this person's mods, at the foot, so the page leads somewhere
+/// instead of stopping.
+function moreByTheAuthor(mod, everyMod, currentVersion) {
+  const people = new Set((mod.authors || []).map((a) => a.toLowerCase()));
+  if (!people.size) return null;
+
+  const theirs = everyMod.filter((other) => other.id !== mod.id
+    && (other.authors || []).some((a) => people.has(a.toLowerCase())));
+  if (!theirs.length) return null;
+
+  const who = (mod.authors || []).length === 1 ? mod.authors[0] : 'these authors';
+  return el('section', { class: 'stack' }, [
+    el('h2', { text: `More by ${who}` }),
+    strip(theirs, currentVersion),
+  ]);
+}
+
+/// Other mods on the same shelves. Not clever — it is the same categories, most
+/// recently released first — but it is the difference between a page that ends
+/// and a page that leads on.
+function similarMods(mod, everyMod, currentVersion) {
+  const shelves = new Set(mod.categories || []);
+  if (!shelves.size) return null;
+
+  const people = new Set((mod.authors || []).map((a) => a.toLowerCase()));
+  const alike = everyMod.filter((other) => other.id !== mod.id
+    // Not this person's own mods — those have their own strip above.
+    && !(other.authors || []).some((a) => people.has(a.toLowerCase()))
+    && (other.categories || []).some((c) => shelves.has(c)));
+  if (!alike.length) return null;
+
+  return el('section', { class: 'stack' }, [
+    el('h2', { text: 'Mods like this one' }),
+    strip(alike, currentVersion),
+  ]);
+}
+
+/// A short row of cards, newest first, the same shape Home uses.
+function strip(mods, currentVersion) {
+  const row = el('div', { class: 'strip' });
+  for (const mod of newestFirst(mods).slice(0, RELATED_COUNT)) {
+    row.append(modCard(mod, currentVersion));
+  }
+  return row;
+}
+
+/// Most recently released first, then by name. A mod with no release yet sorts
+/// last, whichever way round the dates are.
+function newestFirst(mods) {
+  return [...mods].sort((a, b) => {
+    const left = a.lastReleaseDate || '';
+    const right = b.lastReleaseDate || '';
+    if (left === right) return modName(a).localeCompare(modName(b));
+    if (!left) return 1;
+    if (!right) return -1;
+    return right.localeCompare(left);
+  });
 }
 
 /// A line at the foot of every mod page for saying something here is wrong.

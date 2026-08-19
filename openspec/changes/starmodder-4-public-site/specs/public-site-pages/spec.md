@@ -219,3 +219,56 @@ page for it. Where a mod needs nothing, nothing SHALL be shown.
 Every page SHALL offer the release feed: as a link in the bar at the top and at
 the foot, and as the page's own feed declaration so a feed reader finds it
 without being told where to look.
+
+### Requirement: A mod's page answers a reader's questions in order
+A mod's page SHALL open with the mod's picture beside its name, the people who
+made it, its version, the game version it is for, and whether it can be added to
+an existing save — followed straight away by the buttons that get it.
+
+The first button SHALL be a download where the mod has one. Where it has none,
+the first button SHALL be the forum thread, or failing that Discord or Nexus
+Mods, so no mod's page is a dead end. The thread SHALL be on the page either
+way.
+
+The page SHALL end with the rest of that person's mods and other mods on the
+same shelves, so it leads somewhere rather than stopping.
+
+#### Scenario: A mod with no download link
+- **WHEN** a mod has no link that goes straight to a file
+- **THEN** its first button is "Get it from the forum thread", not nothing at all
+
+#### Scenario: Where to go next
+- **WHEN** a reader reaches the foot of a mod's page
+- **THEN** they are shown other mods by the same people and others of the same kind
+
+### Requirement: Screenshots open over the page
+A screenshot SHALL open over the page rather than as a raw image in a new tab.
+The reader SHALL be able to move between screenshots and close it with the
+keyboard, and closing it SHALL leave them where they were.
+
+#### Scenario: Looking through the screenshots
+- **WHEN** a reader opens one screenshot and presses the right arrow
+- **THEN** the next one is shown, and Escape puts them back on the page they were reading
+
+### Requirement: A reader can build and share a mod list
+The site SHALL let a reader tick mods into a list of their own. The list SHALL
+be kept in their own browser and SHALL NOT be sent anywhere. It SHALL be shown
+on one page with every mod's download links, and the page SHALL name anything
+the listed mods need that is not itself in the list.
+
+The list SHALL be shareable as a single address carrying the ids, so somebody
+following that link sees the same list without an account and without anything
+being stored for them. A reader looking at somebody else's list SHALL be told
+whose it is and SHALL be able to make it their own.
+
+#### Scenario: Building a list
+- **WHEN** a reader ticks a mod on the browse page
+- **THEN** it is added to their list without leaving the page, and the count in the bar at the top goes up
+
+#### Scenario: Sharing it
+- **WHEN** a reader copies the link to their list and somebody else opens it
+- **THEN** they see the same mods, told plainly that it is somebody else's list
+
+#### Scenario: A mod in the list has gone
+- **WHEN** a shared list names a mod this site no longer has
+- **THEN** the page says so and how many, rather than quietly leaving it out

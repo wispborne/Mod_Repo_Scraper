@@ -65,7 +65,12 @@ Future<void> main(List<String> args) async {
 
   final hasData = Directory(dataDir).existsSync();
   if (hasData) {
-    handlers.add(createStaticHandler(dataDir, listDirectories: false));
+    // The same `index.html` rule as the site's own files. The per-mod pages the
+    // builder writes sit at `mods/<id>/index.html`, and a shared link points at
+    // the folder — so a server that does not serve the index for a folder shows
+    // a reader a 404 where a real host would show the mod.
+    handlers.add(createStaticHandler(dataDir,
+        defaultDocument: 'index.html', listDirectories: false));
   }
 
   var cascade = Cascade();

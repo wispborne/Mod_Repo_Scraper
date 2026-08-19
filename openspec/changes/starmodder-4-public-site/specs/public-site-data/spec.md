@@ -190,3 +190,26 @@ SHALL carry only the newest releases, so it cannot grow without limit.
 #### Scenario: The same release seen twice
 - **WHEN** the feed is fetched again after another run
 - **THEN** entries already shown carry the same names as before, and are not shown again
+
+### Requirement: Every mod has a small page of its own for sharing
+The scraper SHALL write `mods/<id>/index.html` for every mod: that mod's title,
+description and picture as page and Open Graph tags, one line of visible words,
+and a script that sends a reader on to the mod's real page. It SHALL go out with
+every publish, and a page for a mod this run no longer produces SHALL be
+removed.
+
+It SHALL need nothing of the host but the ordinary rule that a folder is served
+its `index.html`. No redirect rule, no Worker, and no server that reads the
+address.
+
+#### Scenario: A link shared in Discord
+- **WHEN** somebody pastes a link to `mods/<id>/`
+- **THEN** the preview shows that mod's name, its description and its picture
+
+#### Scenario: Somebody with no scripts
+- **WHEN** a reader opens that page with scripts turned off
+- **THEN** they see the mod's name, a line about it, and a link to the real page
+
+#### Scenario: A mod disappears
+- **WHEN** a mod that had a page is no longer produced
+- **THEN** its page is removed from the outputs and from the published repo

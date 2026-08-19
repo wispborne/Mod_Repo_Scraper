@@ -6,19 +6,21 @@
 
 import {
   aiSummariesOn, buildHash, clear, el, errorPanel, everyOtherName, formatDay,
-  go, hashParts, loading, modHref, modList, modName, notePageScroll,
-  setAiSummaries, takeScrollPlaced, thumbnail,
+  go, hashParts, loading, modHref, modList, modName, myList, notePageScroll,
+  setAiSummaries, takeScrollPlaced, thumbnail, watchMyList,
 } from './lib.js';
 import * as home from './views/home.js';
 import * as browse from './views/browse.js';
 import * as mod from './views/mod.js';
 import * as author from './views/author.js';
 import * as about from './views/about.js';
+import * as list from './views/list.js';
 
 const NAV = [
   { route: 'home', label: 'Home' },
   { route: 'browse', label: 'Browse mods' },
   { route: 'authors', label: 'People' },
+  { route: 'list', label: 'My list' },
   { route: 'about', label: 'About' },
 ];
 
@@ -28,6 +30,7 @@ const ROUTES = {
   mods: (root, parts) => mod.render(root, parts),
   authors: (root, parts) => author.render(root, parts),
   about: (root, parts) => about.render(root, parts),
+  list: (root, parts) => list.render(root, parts),
 };
 
 /// How many mods the search box suggests as you type.
@@ -36,15 +39,35 @@ const SUGGESTION_COUNT = 5;
 /// How many people it suggests alongside them.
 const PEOPLE_SUGGESTION_COUNT = 3;
 
+/// Drops the last nav's watch on the list, so redrawing the nav on every page
+/// does not leave a pile of them all writing into elements that have gone.
+let stopWatchingList = null;
+
 function renderNav(viewId) {
   const nav = document.getElementById('nav');
   clear(nav);
+  if (stopWatchingList) stopWatchingList();
+  stopWatchingList = null;
+
   for (const item of NAV) {
-    nav.append(el('a', {
+    const link = el('a', {
       href: `#/${item.route}`,
       class: item.route === viewId ? 'active' : '',
       text: item.label,
-    }));
+    });
+    // How many mods are in the reader's list, so they can see one is building
+    // up without going to look.
+    if (item.route === 'list') {
+      const count = el('span', { class: 'nav-count' });
+      const draw = (ids) => {
+        count.textContent = ids.length ? String(ids.length) : '';
+        count.hidden = !ids.length;
+      };
+      draw(myList());
+      stopWatchingList = watchMyList(draw);
+      link.append(count);
+    }
+    nav.append(link);
   }
 }
 

@@ -15,6 +15,7 @@ Online at: https://github.com/wispborne/StarsectorModRepo
 | `outputs/forum-data-bundle.json` | QB pipeline bundle (forum index + per-topic details) |
 | `outputs/site/mods.json` | One record per mod, enough to search, filter and draw a card |
 | `outputs/site/mods/<id>.json` | One file per mod, holding its whole page |
+| `outputs/site/mods/<id>/index.html` | A small page per mod, so a shared link shows that mod |
 | `outputs/site/updates.json` | The mods that put out a new version, newest first |
 | `outputs/site/updates.xml` | The same releases as a feed anyone can subscribe to |
 
@@ -37,6 +38,13 @@ first. Older ones are one click away, and the page says how many there are.
 Mods are filed under thirteen categories of the site's own, mapped from the 26
 names the forum and Discord use between them. The names each source used are
 still shown on the mod's own page.
+
+A reader can tick mods into a list of their own, kept in their browser, and
+share the whole thing as one link.
+
+The web server has to serve `index.html` for a folder — every static host does,
+and the local one here is set up the same way. That is what makes a link to
+`mods/<id>/` show that mod's name and picture when it is pasted into Discord.
 
 A publish copies the data files and the contents of `site/` into the published
 repo together, so that repo is a complete, servable copy of the site next to the

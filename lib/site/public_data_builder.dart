@@ -18,6 +18,7 @@ import 'gallery_filter.dart';
 import 'mod_id_store.dart';
 import 'models/mod_release.dart';
 import 'models/public_mod.dart';
+import 'mod_page_html.dart';
 import 'models/public_mod_detail.dart';
 import 'post_html.dart';
 import 'public_categories.dart';
@@ -295,16 +296,32 @@ class PublicDataBuilder {
     for (final entry in data.details.entries) {
       await File(p.join(modsDir, '${entry.key}.json'))
           .writeAsString(encoder.convert(entry.value.toMap()));
+
+      // A small page of its own, so a link shared in Discord shows the mod's
+      // name and picture, and a search engine sees one page per mod rather
+      // than one page for all of them.
+      final folder = Directory(p.join(modsDir, entry.key));
+      if (!folder.existsSync()) folder.createSync(recursive: true);
+      await File(p.join(folder.path, 'index.html'))
+          .writeAsString(buildModPageHtml(entry.value.listing));
     }
 
     var dropped = 0;
-    for (final file in mods.listSync().whereType<File>()) {
-      final name = p.basename(file.path);
-      if (!name.endsWith('.json')) continue;
-      final id = name.substring(0, name.length - '.json'.length);
-      if (data.details.containsKey(id)) continue;
-      file.deleteSync();
-      dropped++;
+    for (final fileOrFolder in mods.listSync()) {
+      final name = p.basename(fileOrFolder.path);
+      if (fileOrFolder is File) {
+        if (!name.endsWith('.json')) continue;
+        final id = name.substring(0, name.length - '.json'.length);
+        if (data.details.containsKey(id)) continue;
+        fileOrFolder.deleteSync();
+        dropped++;
+      } else if (fileOrFolder is Directory) {
+        // A mod's own little page. It is named for the mod, so a folder no mod
+        // answers to belongs to one that has gone.
+        if (data.details.containsKey(name)) continue;
+        fileOrFolder.deleteSync(recursive: true);
+        dropped++;
+      }
     }
 
     _log.info('Wrote the website files: ${data.list.mods.length} mods, '

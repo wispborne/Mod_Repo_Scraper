@@ -71,6 +71,11 @@ h3 { font-size: 1rem; margin: 0 0 6px; }
 }
 .site-nav a:hover { color: var(--text); text-decoration: none; }
 .site-nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
+.nav-count {
+  display: inline-block; margin-left: 6px; padding: 0 6px;
+  border-radius: 999px; background: rgba(73, 252, 255, 0.16);
+  color: var(--primary); font-size: 0.74rem;
+}
 
 .ai-toggle {
   display: flex; align-items: center; gap: 7px;
@@ -225,12 +230,31 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 .mod-card {
+  position: relative;
   display: flex; flex-direction: column;
   border: 1px solid var(--border); background: var(--surface-2);
   border-radius: 8px; overflow: hidden;
-  color: inherit;
 }
-.mod-card:hover { border-color: var(--primary); text-decoration: none; }
+.mod-card:hover { border-color: var(--primary); }
+.card-inner {
+  display: flex; flex-direction: column; flex: 1; color: inherit;
+}
+.card-inner:hover { text-decoration: none; }
+
+/* The "add to my list" button, sitting on top of the card's own link. */
+.list-toggle {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  width: 28px; height: 28px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: rgba(14, 22, 43, 0.82); color: var(--text-dim);
+  font-size: 1rem; font-family: inherit; line-height: 1; cursor: pointer;
+}
+.list-toggle:hover { border-color: var(--primary); color: var(--primary); }
+.list-toggle.on {
+  background: rgba(73, 252, 255, 0.16);
+  border-color: var(--primary); color: var(--primary);
+}
 .card-image {
   width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
   background: var(--surface-container); display: block;
@@ -242,7 +266,7 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 }
 .card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .card-title { font-weight: 600; color: var(--primary); line-height: 1.25; }
-.card-authors { font-size: 0.82rem; color: var(--text-dim); }
+.card-authors { font-size: 0.82rem; color: var(--text-dim); overflow-wrap: anywhere; }
 .card-summary {
   font-size: 0.85rem; color: var(--text);
   /* Three lines at most, so one long summary cannot stretch a whole grid row.
@@ -259,11 +283,18 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 
 .mod-rows { display: flex; flex-direction: column; }
 .mod-row {
+  position: relative;
   display: flex; gap: 12px; align-items: center;
-  padding: 10px 12px; border-bottom: 1px solid var(--border);
-  color: inherit;
+  border-bottom: 1px solid var(--border);
 }
-.mod-row:hover { background: rgba(73, 252, 255, 0.05); text-decoration: none; }
+.mod-row:hover { background: rgba(73, 252, 255, 0.05); }
+.row-inner {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; gap: 12px; align-items: center;
+  padding: 10px 12px; color: inherit;
+}
+.row-inner:hover { text-decoration: none; }
+.mod-row .list-toggle { position: static; margin-right: 10px; flex-shrink: 0; }
 .row-thumb { width: 72px; height: 44px; object-fit: cover; flex-shrink: 0; background: var(--surface-container); }
 .row-main { flex: 1 1 auto; min-width: 0; }
 .row-title { font-weight: 600; color: var(--primary); }
@@ -333,8 +364,25 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 
 /* --- Mod page --- */
 
-.mod-head { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+/* The picture on one side, everything a reader decides on over on the other. */
+.mod-head { display: flex; gap: 20px; align-items: flex-start; }
+.mod-head-picture {
+  flex: 0 0 320px; max-width: 320px;
+  border: 1px solid var(--border); background: var(--surface-container);
+  border-radius: 8px; overflow: hidden;
+}
+.mod-head-picture img {
+  width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block;
+}
+.mod-head-words {
+  flex: 1 1 320px; min-width: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.mod-head-words h1 { margin: 0; }
 .mod-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.mod-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.btn-big { padding: 9px 18px; font-size: 0.95rem; }
 .panel {
   border: 1px solid var(--border); background: var(--surface-2);
   border-radius: 8px; padding: 14px;
@@ -399,7 +447,44 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 .download .file { color: var(--text-dim); font-size: 0.82rem; word-break: break-all; }
 
 .gallery { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-.gallery img { width: 100%; border: 1px solid var(--border); display: block; }
+.gallery img { width: 100%; display: block; }
+.shot {
+  padding: 0; border: 1px solid var(--border); background: var(--surface-2);
+  cursor: zoom-in; line-height: 0; border-radius: 6px; overflow: hidden;
+}
+.shot:hover { border-color: var(--primary); }
+
+/* A screenshot over the page, rather than a raw image in a new tab. */
+/* Nothing behind it scrolls while it is open. */
+body.picture-open { overflow: hidden; }
+.big-picture {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(6, 10, 22, 0.94);
+  display: flex; flex-direction: column;
+  padding: 40px 56px 20px;
+}
+.big-picture-middle {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.big-picture-shot {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  border: 1px solid var(--border);
+}
+.big-picture-foot {
+  flex: 0 0 auto; padding-top: 12px; text-align: center;
+  color: var(--text); font-size: 0.88rem;
+}
+.big-picture-counter { color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; }
+.big-picture-close, .big-picture-step {
+  position: absolute; background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-family: inherit; line-height: 1;
+}
+.big-picture-close:hover, .big-picture-step:hover { color: var(--primary); }
+.big-picture-close { top: 8px; right: 16px; font-size: 2.2rem; padding: 4px 10px; }
+.big-picture-step { top: 50%; transform: translateY(-50%); font-size: 3rem; padding: 8px 14px; }
+.big-picture-step.back { left: 4px; }
+.big-picture-step.forward { right: 4px; }
 
 .changelog-entry { border-bottom: 1px solid var(--border); }
 .changelog-entry:last-child { border-bottom: none; }
@@ -414,6 +499,16 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 .fact-list dt { color: var(--text-dim); }
 .fact-list dd { margin: 0; }
 .fact-list .dim { color: var(--text-dim); }
+
+/* --- My mod list --- */
+
+.list-row {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  padding: 10px 12px; border: 1px solid var(--border);
+  background: var(--surface-2); border-radius: 8px;
+}
+.list-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.list-row .row-main { flex: 1 1 200px; }
 
 /* --- The line at the foot --- */
 
@@ -439,6 +534,12 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   .fact-list { grid-template-columns: 1fr; }
   .fact-list dt { margin-top: 6px; }
   .row-thumb { display: none; }
+  /* On a phone the picture goes above the words rather than beside them. */
+  .mod-head { flex-direction: column; gap: 14px; }
+  .mod-head-picture { flex: 1 1 auto; max-width: 100%; width: 100%; }
+  .mod-actions .btn-big { flex: 1 1 100%; text-align: center; }
+  .big-picture { padding: 40px 12px 16px; }
+  .big-picture-step { font-size: 2.2rem; padding: 6px 8px; }
   .pager-size-label { margin-left: 0; }
   .footer-note { margin-left: 0; }
 }

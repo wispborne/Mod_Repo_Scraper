@@ -606,6 +606,34 @@ void main() {
     expect(feed.readAsStringSync(), contains('<title>Nexerelin 0.12.2</title>'));
   });
 
+  test('each mod gets a little page of its own, for links and search engines',
+      () async {
+    await builder.write(builder.build(
+      mods: [forumMod(name: 'Nexerelin')],
+      bundle: bundleOf(),
+    ));
+
+    final page = File(p.join(builder.modsDir, 'nexerelin', 'index.html'));
+    expect(page.existsSync(), isTrue);
+
+    final html = page.readAsStringSync();
+    expect(html, contains('<title>Nexerelin — Starmodder</title>'));
+    expect(html, contains('../../#/mods/nexerelin'));
+  });
+
+  test('a mod that is gone loses its little page as well', () async {
+    await builder.write(builder.build(
+      mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
+      bundle: bundleOf(),
+    ));
+    expect(Directory(p.join(builder.modsDir, 'second-mod')).existsSync(), isTrue);
+
+    await builder.write(builder.build(mods: [forumMod()], bundle: bundleOf()));
+    expect(
+        Directory(p.join(builder.modsDir, 'second-mod')).existsSync(), isFalse);
+    expect(Directory(p.join(builder.modsDir, 'nexerelin')).existsSync(), isTrue);
+  });
+
   test('a mod that is gone loses its page on the next write', () async {
     await builder.write(builder.build(
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],

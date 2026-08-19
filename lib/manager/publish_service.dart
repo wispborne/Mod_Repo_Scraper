@@ -195,27 +195,64 @@ class PublishService implements JobRunner {
     final modsFrom = Directory(p.join(from.path, 'mods'));
     final modsTo = Directory(p.join(environment.cloneDir, 'mods'));
     final published = <String>{};
+    final pagesPublished = <String>{};
     if (modsFrom.existsSync()) {
       if (!modsTo.existsSync()) modsTo.createSync(recursive: true);
-      for (final file in modsFrom.listSync().whereType<File>()) {
-        final name = p.basename(file.path);
-        if (!name.endsWith('.json')) continue;
-        file.copySync(p.join(modsTo.path, name));
-        published.add(name);
-        copied++;
+      for (final fileOrFolder in modsFrom.listSync()) {
+        final name = p.basename(fileOrFolder.path);
+        if (fileOrFolder is File) {
+          if (!name.endsWith('.json')) continue;
+          fileOrFolder.copySync(p.join(modsTo.path, name));
+          published.add(name);
+          copied++;
+        } else if (fileOrFolder is Directory) {
+          // One mod's own little page, so a link shared in Discord shows that
+          // mod rather than the site's front page.
+          final page = File(p.join(fileOrFolder.path, 'index.html'));
+          if (!page.existsSync()) continue;
+          final into = Directory(p.join(modsTo.path, name));
+          if (!into.existsSync()) into.createSync(recursive: true);
+          page.copySync(p.join(into.path, 'index.html'));
+          pagesPublished.add(name);
+          copied++;
+        }
       }
     }
 
-    final dropped = _dropMissingModFiles(modsTo, published);
+    final dropped = _dropMissingModFiles(modsTo, published)
+        + _dropMissingModPages(modsTo, pagesPublished);
     reporter.log('Copied $copied website files into the clone'
         '${dropped == 0 ? '' : ', and removed $dropped for mods that are gone'}.');
+  }
+
+  /// Deletes any per-mod page in the clone that this run did not produce.
+  ///
+  /// The same rules as [_dropMissingModFiles], and for the same reason: these
+  /// two are the only places here that delete anything, and both work from
+  /// names read off a disk. Only a folder sitting directly in the clone's
+  /// `mods/` folder goes, and only when this run published some pages of its
+  /// own — an empty set means the pages were not built this time, not that
+  /// every mod has gone.
+  int _dropMissingModPages(Directory modsInClone, Set<String> published) {
+    if (!modsInClone.existsSync() || published.isEmpty) return 0;
+
+    var dropped = 0;
+    for (final folder in modsInClone.listSync().whereType<Directory>()) {
+      final name = p.basename(folder.path);
+      if (published.contains(name)) continue;
+      if (!p.equals(p.dirname(folder.path), modsInClone.path)) continue;
+      folder.deleteSync(recursive: true);
+      dropped++;
+    }
+    return dropped;
   }
 
   /// Deletes any per-mod file in the clone that this run did not produce.
   ///
   /// Only `.json` files sitting directly in the clone's `mods/` folder are ever
   /// touched, in the same way the snapshot stores guard their own folders — the
-  /// names come off disk, and this is the one place here that deletes anything.
+  /// names come off disk, and this and [_dropMissingModPages] are the only
+  /// places here that delete anything.
   int _dropMissingModFiles(Directory modsInClone, Set<String> published) {
     if (!modsInClone.existsSync() || published.isEmpty) return 0;
 

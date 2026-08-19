@@ -256,12 +256,211 @@ export function takeScrollPlaced() {
   return placed;
 }
 
-/// A row of category chips, each with how many mods are on it, each a link to
-/// that category on the browse page.
+/// Opens a screenshot over the page, with the rest of them a keypress away.
 ///
-/// This is the only way to browse by kind that a reader can actually use. The
-/// dropdown it replaces held 26 overlapping names; the site publishes thirteen
-/// and shows them all at once.
+/// A raw image in a new tab loses the reader their place and gives them a
+/// browser tab to close; this keeps them where they were. Escape or a click on
+/// the backdrop closes it, and the arrow keys move between pictures.
+///
+/// [images] is the list of `{url, caption}` still on the page, and [at] is
+/// which one to open first.
+export function showPicture(images, at = 0) {
+  if (!images || !images.length) return;
+
+  let showing = Math.max(0, Math.min(at, images.length - 1));
+  // Where the keyboard was before this opened, so closing it puts the reader
+  // back on the very screenshot they picked.
+  const cameFrom = document.activeElement;
+
+  const shot = el('img', { class: 'big-picture-shot', alt: '' });
+  const caption = el('div', { class: 'big-picture-caption' });
+  const counter = el('div', { class: 'big-picture-counter' });
+
+  const close = el('button', {
+    class: 'big-picture-close', text: '×', title: 'Close (Esc)',
+    'aria-label': 'Close',
+  });
+  const back = el('button', {
+    class: 'big-picture-step back', text: '‹', title: 'Previous (←)',
+    'aria-label': 'Previous screenshot',
+  });
+  const forward = el('button', {
+    class: 'big-picture-step forward', text: '›', title: 'Next (→)',
+    'aria-label': 'Next screenshot',
+  });
+
+  const box = el('div', {
+    class: 'big-picture', role: 'dialog', 'aria-modal': 'true',
+  }, [
+    el('div', { class: 'big-picture-middle' }, [shot]),
+    el('div', { class: 'big-picture-foot' }, [caption, counter]),
+    close,
+    images.length > 1 ? back : null,
+    images.length > 1 ? forward : null,
+  ]);
+
+  const draw = () => {
+    const image = images[showing];
+    shot.src = image.url;
+    shot.alt = image.caption || '';
+    caption.textContent = image.caption || '';
+    counter.textContent =
+      images.length > 1 ? `${showing + 1} of ${images.length}` : '';
+  };
+
+  const step = (by) => {
+    showing = (showing + by + images.length) % images.length;
+    draw();
+  };
+
+  const shut = () => {
+    document.removeEventListener('keydown', onKey);
+    window.removeEventListener('hashchange', shut);
+    document.body.classList.remove('picture-open');
+    box.remove();
+    if (cameFrom && cameFrom.focus) cameFrom.focus();
+  };
+
+  function onKey(e) {
+    if (e.key === 'Escape') shut();
+    else if (e.key === 'ArrowLeft') step(-1);
+    else if (e.key === 'ArrowRight') step(1);
+    else return;
+    e.preventDefault();
+  }
+
+  // A click on the picture itself must not close it — only one past the edges.
+  box.addEventListener('click', (e) => { if (e.target === box) shut(); });
+  close.addEventListener('click', shut);
+  back.addEventListener('click', () => step(-1));
+  forward.addEventListener('click', () => step(1));
+  document.addEventListener('keydown', onKey);
+  // The back button is a way out of this too. Without it the picture would sit
+  // over whatever page the reader landed on next.
+  window.addEventListener('hashchange', shut);
+
+  draw();
+  document.body.classList.add('picture-open');
+  document.body.append(box);
+  close.focus();
+}
+
+/// The line that names the mods something needs, with each one linked where
+/// this site has a page for it.
+///
+/// Both a mod's own page and the reader's list say this, in the same words and
+/// the same shape, so they are the same piece of the page.
+export function neededModsLine(label, needs) {
+  if (!needs || !needs.length) return null;
+
+  // The names sit in one span of their own, so the commas stay against the
+  // name in front of them rather than being spaced out as flex children.
+  const names = el('span', { class: 'needs-list' });
+  needs.forEach((needed, i) => {
+    if (i) names.append(document.createTextNode(', '));
+    names.append(needed.id
+      ? el('a', { class: 'needed', href: modHref(needed.id), text: needed.name })
+      : el('span', {
+          class: 'needed unknown', text: needed.name,
+          title: 'This site has no page for that one.',
+        }));
+  });
+
+  return el('div', { class: 'needs-line' }, [
+    el('span', { class: 'needs-label', text: label }),
+    names,
+  ]);
+}
+
+// --- The reader's own mod list ---
+
+/// Where the reader's list is kept. In their own browser, and nowhere else —
+/// there is no server here to keep it on.
+const MY_LIST_KEY = 'starmodderMyList';
+
+/// Anyone who wants to know when the list changes. The header count and
+/// whatever page is open both watch it.
+const listWatchers = new Set();
+
+/// The mod ids in the reader's list, in the order they were added.
+export function myList() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MY_LIST_KEY) || '[]');
+    return Array.isArray(saved) ? saved.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function inMyList(id) {
+  return myList().includes(id);
+}
+
+/// Puts a whole list in place, dropping anything repeated. Used by "add" and
+/// "remove", and by taking somebody else's shared list as your own.
+export function setMyList(ids) {
+  const kept = [...new Set((ids || []).filter(Boolean))];
+  localStorage.setItem(MY_LIST_KEY, JSON.stringify(kept));
+  for (const watcher of listWatchers) watcher(kept);
+  return kept;
+}
+
+/// Adds a mod, or takes it out again if it is already there. Returns whether it
+/// is in the list afterwards.
+export function toggleInMyList(id) {
+  const now = myList();
+  const at = now.indexOf(id);
+  if (at >= 0) now.splice(at, 1);
+  else now.push(id);
+  setMyList(now);
+  return at < 0;
+}
+
+export function watchMyList(fn) {
+  listWatchers.add(fn);
+  return () => listWatchers.delete(fn);
+}
+
+/// The address that shares a list: the ids packed into the hash, so the whole
+/// list travels in the link and needs nothing at the other end.
+export function listHref(ids) {
+  return buildHash(['list'], { ids: (ids || []).join(',') });
+}
+
+/// The button that puts a mod in the reader's list, or takes it out.
+///
+/// Small and round on a card, where it sits over the picture; wide and worded
+/// on the mod's own page, where it stands beside the download. One button
+/// either way, so the two can never disagree about what is in the list.
+export function listToggle(mod, opts = {}) {
+  const { wide = false } = opts;
+  const button = el('button', { class: wide ? 'btn btn-big' : 'list-toggle' });
+
+  const draw = () => {
+    const inIt = inMyList(mod.id);
+    button.classList.toggle('on', inIt);
+    button.textContent = wide
+      ? (inIt ? '✓ In my list' : '+ Add to my list')
+      : (inIt ? '✓' : '+');
+    button.title = inIt ? 'Take out of my list' : 'Add to my list';
+    button.setAttribute('aria-pressed', String(inIt));
+    button.setAttribute('aria-label',
+      `${inIt ? 'Take' : 'Add'} ${modName(mod)} ${inIt ? 'out of' : 'to'} my list`);
+  };
+
+  button.addEventListener('click', (e) => {
+    // On a card the button sits on top of one big link. Without this the click
+    // would follow the link as well as tick the box.
+    e.preventDefault();
+    e.stopPropagation();
+    toggleInMyList(mod.id);
+    draw();
+  });
+
+  draw();
+  return button;
+}
+
 /// Counts how often each value turns up across the mods, biggest first.
 ///
 /// Biggest first rather than alphabetical, so what a reader's eye lands on is
@@ -278,6 +477,12 @@ export function countedAcross(mods, pick) {
     .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
 }
 
+/// A row of category chips, each with how many mods are on it, each a link to
+/// that category on the browse page.
+///
+/// This is the only way to browse by kind that a reader can actually use. The
+/// dropdown it replaces held 26 overlapping names; the site publishes thirteen
+/// and shows them all at once.
 export function categoryChips(mods, opts = {}) {
   const { chosen = null, onPick = null } = opts;
 

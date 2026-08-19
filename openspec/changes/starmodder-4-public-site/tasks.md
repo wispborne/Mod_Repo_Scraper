@@ -139,6 +139,25 @@ standing in for forum posts, donation buttons listed as screenshots.
 - [ ] 6c.10 Run an LLM extraction pass so the "needs" values actually arrive
 - [ ] 6c.11 A feed per author (`authors/<name>.xml`), which the plan calls a cheap second step — left for later, since it is 562 more files for a reader who mostly wants the one feed
 
+## 6d. The mod page, sharing and mod lists (week three of the revamp)
+
+- [x] 6d.1 Open a mod's page with its picture beside the name, versions and save compatibility
+- [x] 6d.2 Put the download and the forum thread at the top, as the first two buttons
+- [x] 6d.3 Make the thread the first button for a mod with no download, so no page is a dead end
+- [x] 6d.4 Open screenshots over the page, with the arrow keys and Escape
+- [x] 6d.5 End a mod's page with more by the same people and mods of the same kind
+- [x] 6d.6 Let a reader tick mods into a list of their own, kept in their browser
+- [x] 6d.7 Show the list on one page with every download, and what it still needs
+- [x] 6d.8 Share a list as one address, and let somebody make a shared one their own
+- [x] 6d.9 Write a small page per mod so a shared link shows that mod, not the front page
+- [x] 6d.10 Publish those pages, and drop the ones for mods that have gone
+- [ ] 6d.11 An "Open this list in TriOS" button, once TriOS can take a list from a link
+- [ ] 6d.12 The same little pages for authors, which the plan leaves for later
+- [ ] 6d.13 The source code link, the license and the support links are still in
+      the Details box at the foot. The plan names only the forum thread as the
+      second action, so they were left where they were rather than crowding the
+      top of the page
+
 ## 7. Finishing up
 
 - [x] 7.1 Check by hand that `ModRepo.json` and `forum-data-bundle.json` are unchanged by all of this

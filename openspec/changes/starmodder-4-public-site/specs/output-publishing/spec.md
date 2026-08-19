@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Publishing is a job the manager can run
-The manager SHALL offer a `publishOutputs` job kind that publishes the current output files to the target GitHub repo. The job SHALL make sure a clone of the target repo is present and current, copy `outputs/ModRepo.json` and `outputs/forum-data-bundle.json` into it, stage the changes, and — only when something changed — commit and push. It SHALL also copy the public website's data files — `mods.json`, every `mods/<id>.json`, `updates.json` and `updates.xml` — into the clone, and SHALL remove any `mods/<id>.json` in the clone that the current run did not produce, so a mod that no longer exists does not linger. It SHALL also copy the website's own files from `site/` into the clone, so the repo holds a complete, servable copy of the site next to the data it reads. It SHALL push over the host's existing git/SSH auth and touch no network of its own beyond git. The job SHALL send nothing to an LLM and SHALL not scrape.
+The manager SHALL offer a `publishOutputs` job kind that publishes the current output files to the target GitHub repo. The job SHALL make sure a clone of the target repo is present and current, copy `outputs/ModRepo.json` and `outputs/forum-data-bundle.json` into it, stage the changes, and — only when something changed — commit and push. It SHALL also copy the public website's data files — `mods.json`, every `mods/<id>.json`, every `mods/<id>/index.html`, `updates.json` and `updates.xml` — into the clone, and SHALL remove any `mods/<id>.json` or `mods/<id>/` in the clone that the current run did not produce, so a mod that no longer exists does not linger. It SHALL also copy the website's own files from `site/` into the clone, so the repo holds a complete, servable copy of the site next to the data it reads. It SHALL push over the host's existing git/SSH auth and touch no network of its own beyond git. The job SHALL send nothing to an LLM and SHALL not scrape.
 
 #### Scenario: Publish changed outputs
 - **WHEN** a `publishOutputs` job runs and the current `outputs/` files differ from what is in the target repo
@@ -21,7 +21,7 @@ The manager SHALL offer a `publishOutputs` job kind that publishes the current o
 
 #### Scenario: A mod disappears
 - **WHEN** a mod that had a per-mod file in the target repo is no longer produced by the current run
-- **THEN** that file is removed from the clone in the same commit
+- **THEN** that file and its little page are removed from the clone in the same commit
 
 #### Scenario: The website files were not built
 - **WHEN** a `publishOutputs` job runs and no website files exist to copy

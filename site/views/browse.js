@@ -7,7 +7,7 @@
 
 import {
   breadcrumbs, buildHash, categoryChips, clear, countedAcross,
-  currentGameVersion, el,
+  currentGameVersion, el, listToggle,
   everyOtherName, gameVersionFamily, gameVersions, hashQuery, howLongAgo,
   isDiscordOnly, joinNames, modHref, modList, modName, noteScrollPlaced, pageScrollWhenLeft, pager,
   pageSizePreference, picture, replaceHash, summaryToShow, thumbnail,
@@ -498,27 +498,35 @@ export function modGrid(mods, currentVersion) {
   return grid;
 }
 
+/// One mod's card.
+///
+/// The card is a box holding a link that fills it, rather than being a link
+/// itself, so the "add to my list" button can sit on top without being a button
+/// inside a link — which is not allowed and which browsers handle differently.
 export function modCard(mod, currentVersion) {
   const summary = summaryToShow(mod);
   const updated = mod.lastReleaseDate ? howLongAgo(mod.lastReleaseDate) : '';
-  return el('a', { class: 'mod-card', href: modHref(mod.id) }, [
-    cardImage(mod),
-    el('div', { class: 'card-body' }, [
-      el('div', { class: 'card-title', text: modName(mod) }),
-      (mod.authors || []).length
-        ? el('div', { class: 'card-authors', text: joinNames(mod.authors) })
-        : null,
-      summary
-        ? el('div', {
-            class: mod.summaryIsGenerated ? 'card-summary generated' : 'card-summary',
-            text: summary,
-          })
-        : null,
-      updated
-        ? el('div', { class: 'card-when', text: `Updated ${updated}` })
-        : null,
-      el('div', { class: 'card-foot' }, badges(mod, currentVersion)),
+  return el('div', { class: 'mod-card' }, [
+    el('a', { class: 'card-inner', href: modHref(mod.id) }, [
+      cardImage(mod),
+      el('div', { class: 'card-body' }, [
+        el('div', { class: 'card-title', text: modName(mod) }),
+        (mod.authors || []).length
+          ? el('div', { class: 'card-authors', text: joinNames(mod.authors) })
+          : null,
+        summary
+          ? el('div', {
+              class: mod.summaryIsGenerated ? 'card-summary generated' : 'card-summary',
+              text: summary,
+            })
+          : null,
+        updated
+          ? el('div', { class: 'card-when', text: `Updated ${updated}` })
+          : null,
+        el('div', { class: 'card-foot' }, badges(mod, currentVersion)),
+      ]),
     ]),
+    listToggle(mod),
   ]);
 }
 
@@ -526,16 +534,19 @@ export function modRows(mods, currentVersion) {
   const rows = el('div', { class: 'mod-rows' });
   for (const mod of mods) {
     const summary = summaryToShow(mod);
-    rows.append(el('a', { class: 'mod-row', href: modHref(mod.id) }, [
-      thumbnail(mod.imageUrl, 'row-thumb'),
-      el('div', { class: 'row-main' }, [
-        el('div', { class: 'row-title', text: modName(mod) }),
-        el('div', {
-          class: 'row-sub',
-          text: [joinNames(mod.authors), summary].filter(Boolean).join(' — '),
-        }),
+    rows.append(el('div', { class: 'mod-row' }, [
+      el('a', { class: 'row-inner', href: modHref(mod.id) }, [
+        thumbnail(mod.imageUrl, 'row-thumb'),
+        el('div', { class: 'row-main' }, [
+          el('div', { class: 'row-title', text: modName(mod) }),
+          el('div', {
+            class: 'row-sub',
+            text: [joinNames(mod.authors), summary].filter(Boolean).join(' — '),
+          }),
+        ]),
+        el('div', { class: 'row-side' }, badges(mod, currentVersion)),
       ]),
-      el('div', { class: 'row-side' }, badges(mod, currentVersion)),
+      listToggle(mod),
     ]));
   }
   return rows;
