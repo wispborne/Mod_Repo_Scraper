@@ -6,10 +6,12 @@
 // a filtered list brings back the same list.
 
 import {
-  breadcrumbs, buildHash, categoryChips, clear, countedAcross,
-  currentGameVersion, el, listToggle,
-  everyOtherName, gameVersionFamily, gameVersions, hashQuery, howLongAgo,
-  isDiscordOnly, joinNames, modHref, modList, modName, noteScrollPlaced, pageScrollWhenLeft, pager,
+  aiSparkle, aiSummaryNote, breadcrumbs, buildHash, categoryChips, clear,
+  countedAcross,
+  currentGameVersion, downloadButton, downloadCountBadge, el, listToggle,
+  everyOtherName, formatDay, gameVersionFamily, gameVersions, hashQuery, howLongAgo,
+  isDiscordOnly, joinNames, modHref, modList, modName, MOD_VERSION_NOTE,
+  noteScrollPlaced, NO_DESCRIPTION, pageScrollWhenLeft, pager,
   pageSizePreference, picture, replaceHash, summaryToShow, thumbnail,
   versionStanding, versionStandingNote,
 } from '../lib.js';
@@ -89,8 +91,7 @@ export async function render(root, parts) {
   root.append(breadcrumbs([{ label: 'Browse mods' }]));
 
   const head = el('div', { class: 'page-head' }, [
-    el('h1', { text: 'Browse mods' }),
-    el('span', { class: 'sub', text: `${mods.length} mods in all.` }),
+    el('h1', { text: `Browse ${mods.length} mods` }),
   ]);
   const controls = el('div', { class: 'stack' });
   const results = el('div', { class: 'stack' });
@@ -512,9 +513,14 @@ export function modGrid(mods, currentVersion) {
 /// The card is a box holding a link that fills it, rather than being a link
 /// itself, so the "add to my list" button can sit on top without being a button
 /// inside a link — which is not allowed and which browsers handle differently.
-export function modCard(mod, currentVersion) {
+/// One mod as a card. [when] replaces the card's usual "Updated …" line — the
+/// Recently added strip is about when a mod turned up, not when it last moved.
+export function modCard(mod, currentVersion, { when = null } = {}) {
   const summary = summaryToShow(mod);
-  const updated = mod.lastReleaseDate ? howLongAgo(mod.lastReleaseDate) : '';
+  const updated = mod.lastReleaseDate
+    ? { text: `Updated ${howLongAgo(mod.lastReleaseDate)}`, on: mod.lastReleaseDate }
+    : null;
+  const whenLine = when || updated;
   return el('div', { class: 'mod-card' }, [
     el('a', { class: 'card-inner', href: modHref(mod.id) }, [
       cardImage(mod),
@@ -523,19 +529,21 @@ export function modCard(mod, currentVersion) {
         (mod.authors || []).length
           ? el('div', { class: 'card-authors', text: joinNames(mod.authors) })
           : null,
-        summary
+        summaryLine(mod, summary),
+        whenLine
           ? el('div', {
-              class: mod.summaryIsGenerated ? 'card-summary generated' : 'card-summary',
-              text: summary,
+              class: 'card-when',
+              text: whenLine.text,
+              title: whenLine.on ? formatDay(whenLine.on) : null,
             })
-          : null,
-        updated
-          ? el('div', { class: 'card-when', text: `Updated ${updated}` })
           : null,
         el('div', { class: 'card-foot' }, badges(mod, currentVersion)),
       ]),
     ]),
     listToggle(mod),
+    // Under the card's link rather than on top of it: a download is the card's
+    // main action, and a 28px circle over a screenshot is no place for it.
+    downloadButton(mod),
   ]);
 }
 
@@ -543,19 +551,24 @@ export function modRows(mods, currentVersion) {
   const rows = el('div', { class: 'mod-rows' });
   for (const mod of mods) {
     const summary = summaryToShow(mod);
+    const generated = Boolean(summary) && Boolean(mod.summaryIsGenerated);
+    const names = joinNames(mod.authors);
     rows.append(el('div', { class: 'mod-row' }, [
       el('a', { class: 'row-inner', href: modHref(mod.id) }, [
         thumbnail(mod.imageUrl, 'row-thumb'),
         el('div', { class: 'row-main' }, [
           el('div', { class: 'row-title', text: modName(mod) }),
-          el('div', {
-            class: 'row-sub',
-            text: [joinNames(mod.authors), summary].filter(Boolean).join(' — '),
-          }),
+          el('div', { class: 'row-sub' }, [
+            names ? `${names} — ` : null,
+            generated ? aiSparkle() : null,
+            generated ? ' ' : null,
+            summary || NO_DESCRIPTION,
+          ]),
         ]),
         el('div', { class: 'row-side' }, badges(mod, currentVersion)),
       ]),
       listToggle(mod),
+      downloadButton(mod),
     ]));
   }
   return rows;
@@ -580,7 +593,12 @@ function cardImage(mod) {
 
 function badges(mod, currentVersion) {
   const out = [];
-  if (mod.modVersion) out.push(el('span', { class: 'badge version', text: mod.modVersion }));
+  if (mod.modVersion) {
+    out.push(el('span', {
+      class: 'badge version', text: mod.modVersion,
+      title: MOD_VERSION_NOTE,
+    }));
+  }
   if (mod.gameVersion) {
     const standing = versionStanding(mod, currentVersion);
     out.push(el('span', {
@@ -592,7 +610,7 @@ function badges(mod, currentVersion) {
   if (mod.isWorkInProgress) out.push(el('span', { class: 'badge wip', text: 'WIP' }));
   if (mod.saveCompatible === true) {
     out.push(el('span', {
-      class: 'badge save-ok', text: 'Save OK',
+      class: 'badge save-ok', text: 'Save Compat',
       title: 'The author says this can be added to a game already in progress.',
     }));
   } else if (mod.saveCompatible === false) {
@@ -601,17 +619,29 @@ function badges(mod, currentVersion) {
       title: 'The author says this needs a new game.',
     }));
   }
+  const downloads = downloadCountBadge(mod);
+  if (downloads) out.push(downloads);
   if (isDiscordOnly(mod)) {
     out.push(el('span', {
       class: 'badge discord', text: 'Discord only',
       title: 'This mod was posted on Discord, not on the forum.',
     }));
   }
-  if (mod.summaryIsGenerated) {
-    out.push(el('span', {
-      class: 'badge ai', text: 'AI',
-      title: 'This description was written by an AI, not copied from the post.',
-    }));
-  }
   return out;
+}
+
+/// The summary on a card. An AI-written one is marked with a sparkle just
+/// before the words, and a mod with no summary at all says so rather than
+/// leaving a gap where every other card has a line.
+function summaryLine(mod, summary) {
+  const generated = Boolean(summary) && Boolean(mod.summaryIsGenerated);
+  const words = el('div', {
+    class: summary ? 'card-summary' : 'card-summary none',
+  }, [
+    generated ? aiSparkle() : null,
+    generated ? ' ' : null,
+    summary || NO_DESCRIPTION,
+  ]);
+  if (!generated) return words;
+  return el('div', { class: 'summary-block' }, [words, aiSummaryNote()]);
 }

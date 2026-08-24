@@ -16,3 +16,10 @@ DateTime? readDay(String day) {
   if (year == null || month == null || date == null) return null;
   return DateTime.utc(year, month, date);
 }
+
+/// A moment written back as a `YYYY-MM-DD` day.
+String writeDay(DateTime when) {
+  final month = when.month.toString().padLeft(2, '0');
+  final day = when.day.toString().padLeft(2, '0');
+  return '${when.year}-$month-$day';
+}

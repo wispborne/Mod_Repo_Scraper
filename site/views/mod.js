@@ -6,9 +6,11 @@
 // so a thin page reads as deliberate instead of broken.
 
 import {
-  aiSummariesOn, breadcrumbs, clear, currentGameVersion, el, errorPanel,
-  formatDay, joinNames, listToggle, modDetail, modList, modName,
-  neededModsLine, picture, PROBLEM_REPORT_BASE, showPicture, sourceName,
+  aiSparkle, aiSummariesOn, aiSummaryNote, breadcrumbs, clear,
+  currentGameVersion, downloadButton, el, errorPanel, formatDay, joinNames,
+  listToggle,
+  modDetail, modList, modName, MOD_VERSION_NOTE, neededModsLine,
+  NO_DESCRIPTION, picture, showPicture, sourceName,
   versionStanding, versionStandingNote,
 } from '../lib.js';
 import { modCard } from './browse.js';
@@ -86,7 +88,6 @@ export async function render(root, parts) {
     olderVersions(detail),
     moreByTheAuthor(mod, everyMod, currentVersion),
     similarMods(mod, everyMod, currentVersion),
-    reportProblem(detail, shownName),
   ]));
 }
 
@@ -96,7 +97,11 @@ export async function render(root, parts) {
 /// buttons that actually get it.
 function modHeader(mod, detail, shownName, currentVersion) {
   const meta = el('div', { class: 'mod-meta' });
-  if (mod.modVersion) meta.append(el('span', { class: 'badge version', text: mod.modVersion }));
+  if (mod.modVersion) {
+    meta.append(el('span', {
+      class: 'badge version', text: mod.modVersion, title: MOD_VERSION_NOTE,
+    }));
+  }
   if (mod.gameVersion) {
     meta.append(el('span', {
       class: `badge game ${versionStanding(mod, currentVersion) || ''}`.trim(),
@@ -106,9 +111,15 @@ function modHeader(mod, detail, shownName, currentVersion) {
   }
   if (mod.isWorkInProgress) meta.append(el('span', { class: 'badge wip', text: 'Work in progress' }));
   if (mod.saveCompatible === true) {
-    meta.append(el('span', { class: 'badge save-ok', text: 'Can be added to an existing save' }));
+    meta.append(el('span', {
+      class: 'badge save-ok', text: 'Can be added to an existing save',
+      title: 'The author says this can be added to a game already in progress.',
+    }));
   } else if (mod.saveCompatible === false) {
-    meta.append(el('span', { class: 'badge save-no', text: 'Needs a new game' }));
+    meta.append(el('span', {
+      class: 'badge save-no', text: 'Needs a new game',
+      title: 'The author says this needs a new game.',
+    }));
   }
 
   const authors = el('div', { class: 'card-authors' });
@@ -144,36 +155,49 @@ function modPicture(mod) {
   return box;
 }
 
+/// One of the mod's own downloads, in the small shape the shared button reads.
+///
+/// The list files carry a cut-down download for the cards; a mod's own file
+/// carries the whole thing. Both go through one button, so the two can never
+/// disagree about what a download is called.
+function bestOf(download) {
+  return {
+    url: download.directUrl || download.url,
+    kind: download.kind,
+    // A TriOS link is never counted as needing another step: opening it is the
+    // point of it. The same rule the builder sorts by.
+    needsAnotherStep: download.kind !== 'trios' && Boolean(download.needsAnotherStep),
+  };
+}
+
 /// Where the mod lives, besides a download, in the order to fall back through.
 /// Each says what to call it when it is the only way to get the mod, and what
 /// to call it when there is a download as well.
 const PLACES = [
-  { field: 'forumUrl', alone: 'Get it from the forum thread', also: 'The forum thread' },
+  { field: 'forumUrl', alone: 'Get it from the forum thread', also: 'Official Forum' },
   { field: 'discordUrl', alone: 'Get it from Discord', also: 'The Discord post' },
-  { field: 'nexusUrl', alone: 'Get it from Nexus Mods', also: 'On Nexus Mods' },
 ];
 
 /// The buttons that get the mod.
 ///
-/// The first is a download where there is one. Nearly 300 mods have no link
-/// that goes straight to a file, and their pages used to end in nothing at all
-/// — so for those, going to the thread is the first button instead. Either way
-/// the thread is on the page, because that is where the author is.
+/// The first is a download where there is one, picked by the same rule the
+/// cards and the rows use — the builder has already put the downloads in order,
+/// so this takes the first. Nearly 300 mods have no link that goes straight to
+/// a file, and their pages used to end in nothing at all — so for those, going
+/// to the thread is the first button instead. Either way the thread is on the
+/// page, because that is where the author is.
 function howToGetIt(mod, detail) {
   const row = el('div', { class: 'mod-actions' });
 
-  const straightToAFile = (detail.downloads || []).find((d) => d.directUrl);
-  const first = straightToAFile || (detail.downloads || [])[0];
+  const first = (detail.downloads || [])[0];
 
   if (first) {
-    row.append(el('a', {
-      class: 'btn btn-primary btn-big',
-      href: first.directUrl || first.url,
-      rel: 'noopener nofollow',
-      target: '_blank',
-      text: first.directUrl ? 'Download' : 'Get it from the download page',
-      title: first.fileName || null,
-    }));
+    // Every download is listed further down the page, so this one has no need
+    // to say how many there are.
+    row.append(downloadButton(
+      { ...mod, bestDownload: bestOf(first), downloadCount: 1 },
+      { big: true },
+    ));
   }
 
   const place = PLACES.find((p) => detail[p.field]);
@@ -242,37 +266,97 @@ function downloadRow(download) {
   ]);
 }
 
-/// The description, and the AI note when the words were written rather than
-/// copied. With AI summaries off, an AI-written description is left out
-/// altogether — no gap, no placeholder.
+/// The description, marked with a sparkle and a line underneath when an AI
+/// wrote the words rather than the author. With AI summaries off, an
+/// AI-written description is left out and the page says there is none.
 function description(detail) {
   const formatted = detail.descriptionHtml;
   const text = detail.description;
-  if (!formatted && !text) return null;
-  if (detail.descriptionIsGenerated && !aiSummariesOn()) return null;
+  const generated = Boolean(detail.descriptionIsGenerated);
+  const hidden = generated && !aiSummariesOn();
+  if ((!formatted && !text) || hidden) {
+    return el('section', { class: 'panel' }, [
+      el('h2', { text: 'About this mod' }),
+      el('p', { class: 'no-description', text: NO_DESCRIPTION }),
+    ]);
+  }
 
   // The formatted description is built by the scraper from a short list of safe
   // tags — no scripts, no styles, nothing that loads from another host — so it
   // is put into the page as it arrives. Anything else is shown as plain words.
   const body = formatted
-    ? el('div', {
-        class: detail.descriptionIsGenerated ? 'prose generated' : 'prose',
-        html: formatted,
-      })
-    : el('div', {
-        class: detail.descriptionIsGenerated ? 'prose plain generated' : 'prose plain',
-        text,
-      });
+    ? el('div', { class: 'prose', html: formatted })
+    : el('div', { class: 'prose plain', text });
+
+  // The sparkle goes inside the first paragraph rather than above it, so it
+  // reads as part of the words instead of as a picture of its own.
+  if (generated) {
+    // Only into a block that holds words. A post that opens with a list or a
+    // picture gets the sparkle above it instead, since a sparkle inside a
+    // `<ul>` is not a list item and browsers place it anywhere they like.
+    const first = body.firstElementChild;
+    const holdsWords = first && ['P', 'DIV', 'H3', 'H4', 'H5', 'H6'].includes(first.tagName);
+    (holdsWords ? first : body).prepend(aiSparkle(), ' ');
+  }
+
+  // A long post would push the screenshots, the downloads and the changelog
+  // below the fold, so the description starts cut off, with a line under it
+  // that says it can be opened out. The line only appears when there is more
+  // to see: a short post is shown whole, with nothing to click.
+  const clip = el('div', { class: 'prose-clip' }, [body]);
+  const more = el('button', {
+    class: 'link-button prose-more',
+    type: 'button',
+    'aria-expanded': 'false',
+  });
+  const showAll = () => {
+    clip.classList.remove('clipped');
+    more.textContent = 'Show less ▴';
+    more.setAttribute('aria-expanded', 'true');
+  };
+  const showSome = () => {
+    clip.classList.add('clipped');
+    more.textContent = 'Show more ▾';
+    more.setAttribute('aria-expanded', 'false');
+  };
+  more.addEventListener('click', () => {
+    if (clip.classList.contains('clipped')) showAll();
+    else showSome();
+  });
+  const moreRow = el('p', { class: 'prose-more-row' }, [more]);
+
+  // Whether the words overrun the cut-off can only be measured once they are
+  // on the page, which is after this function has returned. So the section is
+  // built cut off with the link showing, and the first time the browser lays
+  // it out the measurement decides: words that fit lose the cut and the link.
+  // Starting with the link showing is the safe way round — if the measurement
+  // never comes, a reader still has a way to open the post out.
+  showSome();
+  const settle = () => {
+    if (!clip.isConnected || !clip.classList.contains('clipped')) return false;
+    if (clip.clientHeight === 0) return false;
+    if (clip.scrollHeight <= clip.clientHeight + 1) {
+      clip.classList.remove('clipped');
+      moreRow.hidden = true;
+    }
+    return true;
+  };
+  // Two ways to get the measurement: the first time the browser sizes the
+  // section, and a timer a moment after this function returns, for a tab the
+  // browser is not drawing (layout is still worked out on demand).
+  if (typeof ResizeObserver !== 'undefined') {
+    const watcher = new ResizeObserver(() => {
+      if (settle()) watcher.disconnect();
+    });
+    watcher.observe(clip);
+  }
+  setTimeout(settle, 0);
 
   return el('section', { class: 'panel' }, [
     el('h2', { text: 'About this mod' }),
-    body,
-    detail.descriptionIsGenerated
-      ? el('p', {
-          class: 'ai-note',
-          text: 'Written by an AI from the mod\'s post, not copied from it.',
-        })
-      : null,
+    clip,
+    moreRow,
+    generated ? aiSummaryNote() : null,
   ]);
 }
 
@@ -391,7 +475,6 @@ function facts(detail) {
 
   link('Forum thread', detail.forumUrl, 'On the Starsector forum');
   link('Discord', detail.discordUrl, 'On Discord');
-  link('Nexus Mods', detail.nexusUrl, 'On Nexus Mods');
   link('Source code', detail.sourceCodeUrl);
   if (detail.license) rows.push(['License', el('span', { text: detail.license })]);
   if (detail.saveCompatibilityText) {
@@ -482,30 +565,43 @@ function moreByTheAuthor(mod, everyMod, currentVersion) {
   ]);
 }
 
-/// Other mods on the same shelves. Not clever — it is the same categories, most
-/// recently released first — but it is the difference between a page that ends
-/// and a page that leads on.
+/// Other mods on the same shelves, the ones sharing most of them first.
+///
+/// A mod under "Faction" and "Ship Pack" has more in common with another mod
+/// under both than with one that only happens to share "Everything else", so
+/// how many categories overlap decides the order and the release date only
+/// settles ties. It is still not clever, but it is the difference between a
+/// page that ends and a page that leads on.
 function similarMods(mod, everyMod, currentVersion) {
   const shelves = new Set(mod.categories || []);
   if (!shelves.size) return null;
 
   const people = new Set((mod.authors || []).map((a) => a.toLowerCase()));
+  const shared = (other) =>
+    (other.categories || []).filter((c) => shelves.has(c)).length;
   const alike = everyMod.filter((other) => other.id !== mod.id
     // Not this person's own mods — those have their own strip above.
     && !(other.authors || []).some((a) => people.has(a.toLowerCase()))
-    && (other.categories || []).some((c) => shelves.has(c)));
+    && shared(other) > 0);
   if (!alike.length) return null;
+
+  // Sorted by release date first, then by how much they share, because a sort
+  // keeps the order of equal items — so mods sharing the same number of
+  // categories come out newest first.
+  const ranked = newestFirst(alike).sort((a, b) => shared(b) - shared(a));
 
   return el('section', { class: 'stack' }, [
     el('h2', { text: 'Mods like this one' }),
-    strip(alike, currentVersion),
+    strip(ranked, currentVersion, { alreadyOrdered: true }),
   ]);
 }
 
-/// A short row of cards, newest first, the same shape Home uses.
-function strip(mods, currentVersion) {
+/// A short row of cards, newest first, the same shape Home uses. A caller that
+/// has already put the mods in the order it wants says so.
+function strip(mods, currentVersion, { alreadyOrdered = false } = {}) {
   const row = el('div', { class: 'strip' });
-  for (const mod of newestFirst(mods).slice(0, RELATED_COUNT)) {
+  const inOrder = alreadyOrdered ? mods : newestFirst(mods);
+  for (const mod of inOrder.slice(0, RELATED_COUNT)) {
     row.append(modCard(mod, currentVersion));
   }
   return row;
@@ -524,29 +620,3 @@ function newestFirst(mods) {
   });
 }
 
-/// A line at the foot of every mod page for saying something here is wrong.
-///
-/// Everything on this page was read off somebody else's post by a machine, so
-/// some of it will be wrong. A mod author who wants an entry fixed, or a mod
-/// taken down, needs one obvious place to say so — and the message arrives
-/// naming the mod, so nobody has to work out which page it was about.
-function reportProblem(detail, shownName) {
-  const mod = detail.listing || {};
-  const params = new URLSearchParams({
-    title: `Wrong data for ${shownName}`,
-    body: `Mod page: ${location.origin}${location.pathname}#/mods/${mod.id}\n`
-      + `Mod id: ${mod.id}\n\n`
-      + 'What is wrong:\n',
-  });
-
-  return el('p', { class: 'report-problem' }, [
-    el('a', {
-      href: `${PROBLEM_REPORT_BASE}?${params}`,
-      target: '_blank',
-      rel: 'noopener nofollow',
-      text: 'Something wrong on this page?',
-    }),
-    el('span', { text: ' — this is collected automatically, so tell us and it '
-      + 'gets fixed.' }),
-  ]);
-}

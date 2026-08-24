@@ -22,6 +22,14 @@
     "summaryIsGenerated": false,
     "saveCompatible": false,
     "hasDirectDownload": true,
+    "bestDownload": {
+      "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FHistidine91%2FNexerelin%2Fmaster%2Fnexerelin.version%22%2C%22id%22%3A%22nexerelin%22%2C%22version%22%3A%220.12.2%22%7D",
+      "kind": "trios",
+      "needsAnotherStep": false
+    },
+    "downloadCount": 3,
+    "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=9175.0",
+    "discordUrl": "https://discord.com/channels/187635036525166592/1090000002",
     "sourceIsPublic": true,
     "isWorkInProgress": false,
     "lastReleaseDate": "2026-08-14T00:00:00.000Z",
@@ -52,6 +60,13 @@
     }
   ],
   "downloads": [
+    {
+      "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FHistidine91%2FNexerelin%2Fmaster%2Fnexerelin.version%22%2C%22id%22%3A%22nexerelin%22%2C%22version%22%3A%220.12.2%22%7D",
+      "kind": "trios",
+      "label": "Install with TriOS",
+      "host": "trilink.wispborne.com",
+      "needsAnotherStep": true
+    },
     {
       "url": "https://github.com/Histidine91/Nexerelin/releases/download/v0.12.2/Nexerelin_0.12.2.zip",
       "directUrl": "https://github.com/Histidine91/Nexerelin/releases/download/v0.12.2/Nexerelin_0.12.2.zip",

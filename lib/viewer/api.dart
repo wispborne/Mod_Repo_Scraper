@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../bot/scraper/qb/models/forum_date.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import 'bundle_views.dart';
 import 'data_access.dart';
@@ -223,8 +224,8 @@ class ViewerApi {
         case 'topicId':
           return ((a[sort] as int?) ?? 0).compareTo((b[sort] as int?) ?? 0);
         case 'lastPostDate':
-          final da = _parseForumDate(a['lastPostDate'] as String?);
-          final db = _parseForumDate(b['lastPostDate'] as String?);
+          final da = parseForumDate(a['lastPostDate'] as String?);
+          final db = parseForumDate(b['lastPostDate'] as String?);
           if (da == null && db == null) return 0;
           if (da == null) return -1;
           if (db == null) return 1;
@@ -237,39 +238,6 @@ class ViewerApi {
     }
 
     rows.sort((a, b) => desc ? cmp(b, a) : cmp(a, b));
-  }
-
-  static const _months = {
-    'January': 1,
-    'February': 2,
-    'March': 3,
-    'April': 4,
-    'May': 5,
-    'June': 6,
-    'July': 7,
-    'August': 8,
-    'September': 9,
-    'October': 10,
-    'November': 11,
-    'December': 12,
-  };
-
-  /// Parses the forum's "May 04, 2014, 01:33:25 AM" date form so the topic list
-  /// can sort chronologically. Returns null when the string is missing or odd.
-  static DateTime? _parseForumDate(String? s) {
-    if (s == null || s.trim().isEmpty) return null;
-    final m = RegExp(
-            r'^(\w+)\s+(\d{1,2}),\s+(\d{4}),\s+(\d{1,2}):(\d{2}):(\d{2})\s*([AP]M)?')
-        .firstMatch(s.trim());
-    if (m == null) return null;
-    final month = _months[m.group(1)];
-    if (month == null) return null;
-    var hour = int.parse(m.group(4)!);
-    final ampm = m.group(7);
-    if (ampm == 'PM' && hour != 12) hour += 12;
-    if (ampm == 'AM' && hour == 12) hour = 0;
-    return DateTime(int.parse(m.group(3)!), month, int.parse(m.group(2)!), hour,
-        int.parse(m.group(5)!), int.parse(m.group(6)!));
   }
 
   // --- Topic detail (2.2) ---

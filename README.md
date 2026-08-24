@@ -217,9 +217,10 @@ Then open http://127.0.0.1:8085/ . Flags (all optional, defaults shown):
 | Flag | Default | What it points at |
 |------|---------|-------------------|
 | `--port` | `8085` | Port to listen on |
-| `--data-dir` | `new_data` | `mods-index.json`, `mods/`, the caches |
+| `--data-dir` | `qb_data` | `mods-index.json`, `mods/`, the caches |
 | `--outputs-dir` | `outputs` | `ModRepo.json`, `forum-data-bundle.json` |
 | `--root-dir` | `.` | `merge-debug.json`, `ModRepo.log` |
+| `--web-dir` | `web` | The viewer's own pages, served as-is |
 | `--config` | `config.properties` | Read only to set up the manager (see below) |
 | `--no-manager` | off | Run as the plain read-only viewer |
 

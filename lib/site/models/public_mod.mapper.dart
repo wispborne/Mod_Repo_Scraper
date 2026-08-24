@@ -160,6 +160,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
   static PublicModMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = PublicModMapper._());
+      PublicBestDownloadMapper.ensureInitialized();
       PublicNeededModMapper.ensureInitialized();
     }
     return _instance!;
@@ -247,6 +248,31 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     opt: true,
     def: false,
   );
+  static PublicBestDownload? _$bestDownload(PublicMod v) => v.bestDownload;
+  static const Field<PublicMod, PublicBestDownload> _f$bestDownload = Field(
+    'bestDownload',
+    _$bestDownload,
+    opt: true,
+  );
+  static int _$downloadCount(PublicMod v) => v.downloadCount;
+  static const Field<PublicMod, int> _f$downloadCount = Field(
+    'downloadCount',
+    _$downloadCount,
+    opt: true,
+    def: 0,
+  );
+  static String? _$forumUrl(PublicMod v) => v.forumUrl;
+  static const Field<PublicMod, String> _f$forumUrl = Field(
+    'forumUrl',
+    _$forumUrl,
+    opt: true,
+  );
+  static String? _$discordUrl(PublicMod v) => v.discordUrl;
+  static const Field<PublicMod, String> _f$discordUrl = Field(
+    'discordUrl',
+    _$discordUrl,
+    opt: true,
+  );
   static bool _$sourceIsPublic(PublicMod v) => v.sourceIsPublic;
   static const Field<PublicMod, bool> _f$sourceIsPublic = Field(
     'sourceIsPublic',
@@ -297,6 +323,10 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #summaryIsGenerated: _f$summaryIsGenerated,
     #saveCompatible: _f$saveCompatible,
     #hasDirectDownload: _f$hasDirectDownload,
+    #bestDownload: _f$bestDownload,
+    #downloadCount: _f$downloadCount,
+    #forumUrl: _f$forumUrl,
+    #discordUrl: _f$discordUrl,
     #sourceIsPublic: _f$sourceIsPublic,
     #isWorkInProgress: _f$isWorkInProgress,
     #lastReleaseDate: _f$lastReleaseDate,
@@ -322,6 +352,10 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       summaryIsGenerated: data.dec(_f$summaryIsGenerated),
       saveCompatible: data.dec(_f$saveCompatible),
       hasDirectDownload: data.dec(_f$hasDirectDownload),
+      bestDownload: data.dec(_f$bestDownload),
+      downloadCount: data.dec(_f$downloadCount),
+      forumUrl: data.dec(_f$forumUrl),
+      discordUrl: data.dec(_f$discordUrl),
       sourceIsPublic: data.dec(_f$sourceIsPublic),
       isWorkInProgress: data.dec(_f$isWorkInProgress),
       lastReleaseDate: data.dec(_f$lastReleaseDate),
@@ -399,6 +433,8 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
   get otherAuthorNames;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get categories;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get sources;
+  PublicBestDownloadCopyWith<$R, PublicBestDownload, PublicBestDownload>?
+  get bestDownload;
   ListCopyWith<
     $R,
     PublicNeededMod,
@@ -420,6 +456,10 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     bool? summaryIsGenerated,
     bool? saveCompatible,
     bool? hasDirectDownload,
+    PublicBestDownload? bestDownload,
+    int? downloadCount,
+    String? forumUrl,
+    String? discordUrl,
     bool? sourceIsPublic,
     bool? isWorkInProgress,
     DateTime? lastReleaseDate,
@@ -471,6 +511,10 @@ class _PublicModCopyWithImpl<$R, $Out>
         (v) => call(sources: v),
       );
   @override
+  PublicBestDownloadCopyWith<$R, PublicBestDownload, PublicBestDownload>?
+  get bestDownload =>
+      $value.bestDownload?.copyWith.$chain((v) => call(bestDownload: v));
+  @override
   ListCopyWith<
     $R,
     PublicNeededMod,
@@ -497,6 +541,10 @@ class _PublicModCopyWithImpl<$R, $Out>
     bool? summaryIsGenerated,
     Object? saveCompatible = $none,
     bool? hasDirectDownload,
+    Object? bestDownload = $none,
+    int? downloadCount,
+    Object? forumUrl = $none,
+    Object? discordUrl = $none,
     bool? sourceIsPublic,
     bool? isWorkInProgress,
     Object? lastReleaseDate = $none,
@@ -518,6 +566,10 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (summaryIsGenerated != null) #summaryIsGenerated: summaryIsGenerated,
       if (saveCompatible != $none) #saveCompatible: saveCompatible,
       if (hasDirectDownload != null) #hasDirectDownload: hasDirectDownload,
+      if (bestDownload != $none) #bestDownload: bestDownload,
+      if (downloadCount != null) #downloadCount: downloadCount,
+      if (forumUrl != $none) #forumUrl: forumUrl,
+      if (discordUrl != $none) #discordUrl: discordUrl,
       if (sourceIsPublic != null) #sourceIsPublic: sourceIsPublic,
       if (isWorkInProgress != null) #isWorkInProgress: isWorkInProgress,
       if (lastReleaseDate != $none) #lastReleaseDate: lastReleaseDate,
@@ -547,6 +599,10 @@ class _PublicModCopyWithImpl<$R, $Out>
       #hasDirectDownload,
       or: $value.hasDirectDownload,
     ),
+    bestDownload: data.get(#bestDownload, or: $value.bestDownload),
+    downloadCount: data.get(#downloadCount, or: $value.downloadCount),
+    forumUrl: data.get(#forumUrl, or: $value.forumUrl),
+    discordUrl: data.get(#discordUrl, or: $value.discordUrl),
     sourceIsPublic: data.get(#sourceIsPublic, or: $value.sourceIsPublic),
     isWorkInProgress: data.get(#isWorkInProgress, or: $value.isWorkInProgress),
     lastReleaseDate: data.get(#lastReleaseDate, or: $value.lastReleaseDate),
@@ -558,6 +614,160 @@ class _PublicModCopyWithImpl<$R, $Out>
   PublicModCopyWith<$R2, PublicMod, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   ) => _PublicModCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class PublicBestDownloadMapper extends ClassMapperBase<PublicBestDownload> {
+  PublicBestDownloadMapper._();
+
+  static PublicBestDownloadMapper? _instance;
+  static PublicBestDownloadMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = PublicBestDownloadMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'PublicBestDownload';
+
+  static String _$url(PublicBestDownload v) => v.url;
+  static const Field<PublicBestDownload, String> _f$url = Field('url', _$url);
+  static String _$kind(PublicBestDownload v) => v.kind;
+  static const Field<PublicBestDownload, String> _f$kind = Field(
+    'kind',
+    _$kind,
+    opt: true,
+    def: 'direct',
+  );
+  static bool _$needsAnotherStep(PublicBestDownload v) => v.needsAnotherStep;
+  static const Field<PublicBestDownload, bool> _f$needsAnotherStep = Field(
+    'needsAnotherStep',
+    _$needsAnotherStep,
+    opt: true,
+    def: false,
+  );
+
+  @override
+  final MappableFields<PublicBestDownload> fields = const {
+    #url: _f$url,
+    #kind: _f$kind,
+    #needsAnotherStep: _f$needsAnotherStep,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static PublicBestDownload _instantiate(DecodingData data) {
+    return PublicBestDownload(
+      url: data.dec(_f$url),
+      kind: data.dec(_f$kind),
+      needsAnotherStep: data.dec(_f$needsAnotherStep),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static PublicBestDownload fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<PublicBestDownload>(map);
+  }
+
+  static PublicBestDownload fromJson(String json) {
+    return ensureInitialized().decodeJson<PublicBestDownload>(json);
+  }
+}
+
+mixin PublicBestDownloadMappable {
+  String toJson() {
+    return PublicBestDownloadMapper.ensureInitialized()
+        .encodeJson<PublicBestDownload>(this as PublicBestDownload);
+  }
+
+  Map<String, dynamic> toMap() {
+    return PublicBestDownloadMapper.ensureInitialized()
+        .encodeMap<PublicBestDownload>(this as PublicBestDownload);
+  }
+
+  PublicBestDownloadCopyWith<
+    PublicBestDownload,
+    PublicBestDownload,
+    PublicBestDownload
+  >
+  get copyWith =>
+      _PublicBestDownloadCopyWithImpl<PublicBestDownload, PublicBestDownload>(
+        this as PublicBestDownload,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return PublicBestDownloadMapper.ensureInitialized().stringifyValue(
+      this as PublicBestDownload,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return PublicBestDownloadMapper.ensureInitialized().equalsValue(
+      this as PublicBestDownload,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return PublicBestDownloadMapper.ensureInitialized().hashValue(
+      this as PublicBestDownload,
+    );
+  }
+}
+
+extension PublicBestDownloadValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, PublicBestDownload, $Out> {
+  PublicBestDownloadCopyWith<$R, PublicBestDownload, $Out>
+  get $asPublicBestDownload => $base.as(
+    (v, t, t2) => _PublicBestDownloadCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class PublicBestDownloadCopyWith<
+  $R,
+  $In extends PublicBestDownload,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? url, String? kind, bool? needsAnotherStep});
+  PublicBestDownloadCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _PublicBestDownloadCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, PublicBestDownload, $Out>
+    implements PublicBestDownloadCopyWith<$R, PublicBestDownload, $Out> {
+  _PublicBestDownloadCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<PublicBestDownload> $mapper =
+      PublicBestDownloadMapper.ensureInitialized();
+  @override
+  $R call({String? url, String? kind, bool? needsAnotherStep}) => $apply(
+    FieldCopyWithData({
+      if (url != null) #url: url,
+      if (kind != null) #kind: kind,
+      if (needsAnotherStep != null) #needsAnotherStep: needsAnotherStep,
+    }),
+  );
+  @override
+  PublicBestDownload $make(CopyWithData data) => PublicBestDownload(
+    url: data.get(#url, or: $value.url),
+    kind: data.get(#kind, or: $value.kind),
+    needsAnotherStep: data.get(#needsAnotherStep, or: $value.needsAnotherStep),
+  );
+
+  @override
+  PublicBestDownloadCopyWith<$R2, PublicBestDownload, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _PublicBestDownloadCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
 class PublicNeededModMapper extends ClassMapperBase<PublicNeededMod> {

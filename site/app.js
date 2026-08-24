@@ -6,8 +6,9 @@
 
 import {
   aiSummariesOn, buildHash, clear, el, errorPanel, everyOtherName, formatDay,
-  go, hashParts, loading, modHref, modList, modName, myList, notePageScroll,
-  setAiSummaries, takeScrollPlaced, thumbnail, watchMyList,
+  applySpacing, go, hashParts, loading, modHref, modList, modName, myList,
+  notePageScroll, setAiSummaries, setSpacingPreference, spacingPreference,
+  takeScrollPlaced, thumbnail, watchMyList,
 } from './lib.js';
 import * as home from './views/home.js';
 import * as browse from './views/browse.js';
@@ -79,7 +80,7 @@ async function route() {
   const parts = hashParts();
   const viewId = parts[0] || 'home';
   renderNav(viewId);
-  document.title = 'Starmodder — Starsector mods';
+  document.title = 'Starmodder 4: Starsector mods';
 
   const root = document.getElementById('app');
   clear(root).append(loading());
@@ -122,17 +123,47 @@ async function showFreshness() {
   }
 }
 
-/// The AI summaries switch. It is on unless the reader turned it off, the choice
-/// is kept in a cookie so it holds between visits, and flipping it redraws
-/// whatever page is open so every summary appears or disappears at once.
-function mountAiToggle() {
-  const box = document.getElementById('ai-summaries');
-  if (!box) return;
-  box.checked = aiSummariesOn();
-  box.addEventListener('change', () => {
-    setAiSummaries(box.checked);
-    route();
+/// The settings dialog, opened from the bar at the top. It holds the choices
+/// that are about the reader rather than about any one page: how much room
+/// there is between things, and whether AI-written summaries are shown at all.
+/// Each choice takes effect the moment it is ticked — there is no Save button
+/// to find. Turning AI summaries off redraws the page underneath, so every
+/// summary disappears at once rather than on the next click.
+function mountSettings() {
+  const open = document.getElementById('open-settings');
+  const dialog = document.getElementById('settings');
+  if (!open || !dialog) return;
+  const close = dialog.querySelector('.settings-close');
+  const radios = [...dialog.querySelectorAll('input[name="spacing"]')];
+  const aiRadios = [...dialog.querySelectorAll('input[name="ai-summaries"]')];
+
+  applySpacing();
+  open.addEventListener('click', () => {
+    const current = spacingPreference();
+    for (const radio of radios) radio.checked = radio.value === current;
+    const ai = aiSummariesOn() ? 'on' : 'off';
+    for (const radio of aiRadios) radio.checked = radio.value === ai;
+    dialog.showModal();
   });
+  close.addEventListener('click', () => dialog.close());
+  // A click on the dimmed page behind the box closes it, as people expect.
+  // The box itself is the dialog's one child, so a click on the dialog
+  // element and nowhere inside that child is a click on the backdrop.
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog) dialog.close();
+  });
+  for (const radio of radios) {
+    radio.addEventListener('change', () => {
+      if (radio.checked) setSpacingPreference(radio.value);
+    });
+  }
+  for (const radio of aiRadios) {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      setAiSummaries(radio.value === 'on');
+      route();
+    });
+  }
 }
 
 /// The search box in the bar at the top, on every page.
@@ -281,7 +312,7 @@ function mountSkipLink() {
 
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', () => {
-  mountAiToggle();
+  mountSettings();
   mountHeaderSearch();
   mountSkipLink();
   showFreshness();

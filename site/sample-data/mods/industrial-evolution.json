@@ -21,6 +21,13 @@
     "summaryIsGenerated": false,
     "saveCompatible": true,
     "hasDirectDownload": true,
+    "bestDownload": {
+      "url": "https://github.com/SirHartley/IndEvo/releases/download/3.5.2g/Industrial.Evolution.3.5.2g.zip",
+      "kind": "direct",
+      "needsAnotherStep": false
+    },
+    "downloadCount": 1,
+    "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=15380.0",
     "sourceIsPublic": true,
     "isWorkInProgress": true,
     "lastReleaseDate": "2026-08-11T00:00:00.000Z",

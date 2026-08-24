@@ -38,11 +38,13 @@ void main() {
     int topicId = 9175,
     String? summary = 'Adds diplomacy and invasions.',
     String? description,
+    Map<String, Image> images = const {},
   }) =>
       ScrapedMod(
         name: name,
         description: description,
         summary: summary,
+        images: images,
         gameVersionReq: '0.98a',
         authorsList: const ['Histidine'],
         categories: const ['Total Conversions'],
@@ -59,17 +61,17 @@ void main() {
     String title = '[0.98a] Nexerelin v0.12.2',
     List<LlmMod> llmMods = const [],
     bool isWip = false,
-    String? thumbnailPath,
+    String? createdDate,
   }) =>
       QbModSummary(
         topicId: topicId,
         title: title,
         gameVersion: '0.98a',
         author: 'Histidine',
+        createdDate: createdDate,
         topicUrl:
             'https://fractalsoftworks.com/forum/index.php?topic=$topicId.0',
         isWip: isWip,
-        thumbnailPath: thumbnailPath,
         llm: llmMods.isEmpty ? null : LlmThreadData(mods: llmMods),
       );
 
@@ -86,11 +88,14 @@ void main() {
       );
 
   QbModDetail postOf(String contentHtml,
-          {int topicId = 9175, List<ImageRef> images = const []}) =>
+          {int topicId = 9175,
+          List<ImageRef> images = const [],
+          String? avatarPath}) =>
       QbModDetail(
         topicId: topicId,
         title: '[0.98a] Nexerelin v0.12.2',
         author: 'Histidine',
+        authorAvatarPath: avatarPath,
         contentHtml: contentHtml,
         images: images,
       );
@@ -204,7 +209,58 @@ void main() {
 
     final detail = data.details['nexerelin']!;
     expect(detail.gallery.map((i) => i.url), ['https://i.imgur.com/shot.png']);
-    expect(data.list.mods.single.imageUrl, 'https://i.imgur.com/shot.png');
+  });
+
+  test('the card picture is picked the way TriOS picks it', () {
+    // The merged picture first, then the one the LLM found in the post, then
+    // the author's forum avatar — the same order TriOS's catalog falls through,
+    // so a mod looks the same in both.
+    final withMerged = builder.build(
+      mods: [
+        forumMod(images: const {
+          '1': Image(id: '1', url: 'https://i.imgur.com/merged.png'),
+        }),
+      ],
+      bundle: bundleOf(index: [
+        thread(llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:https://x/l.png')]),
+      ], details: {
+        '9175': postOf('<p>Look</p>', avatarPath: 'avatars/histidine.png'),
+      }),
+    );
+    expect(withMerged.list.mods.single.imageUrl,
+        'https://i.imgur.com/merged.png');
+
+    final withLlm = builder.build(
+      mods: [forumMod()],
+      bundle: bundleOf(index: [
+        thread(llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:https://x/l.png')]),
+      ], details: {
+        '9175': postOf('<p>Look</p>', avatarPath: 'avatars/histidine.png'),
+      }),
+    );
+    expect(withLlm.list.mods.single.imageUrl, 'https://x/l.png');
+
+    final withAvatar = builder.build(
+      mods: [forumMod()],
+      bundle: bundleOf(index: [thread()], details: {
+        '9175': postOf('<p>Look</p>', avatarPath: 'avatars/histidine.png'),
+      }),
+    );
+    expect(withAvatar.list.mods.single.imageUrl,
+        'https://fractalsoftworks.com/forum/avatars/histidine.png',
+        reason: 'an avatar path is written relative to the forum');
+  });
+
+  test('a picture in the post is not the card picture', () {
+    // TriOS does not go looking through the post for one, so neither does this.
+    final data = builder.build(
+      mods: [forumMod()],
+      bundle: bundleOf(index: [thread()], details: {
+        '9175': postOf('<img src="https://i.imgur.com/shot.png" width="900">',
+            images: [ImageRef(originalUrl: 'https://i.imgur.com/shot.png')]),
+      }),
+    );
+    expect(data.list.mods.single.imageUrl, isNull);
   });
 
   test('a summary that is only a download link gives way to the AI sentence',
@@ -314,6 +370,130 @@ void main() {
         ['Ship Pack', 'Weapon/Fighter Pack'],
         reason: 'the page says which shelves it is filed under, and "Discord '
             'Only" is not one — it is published as a source instead');
+  });
+
+  test('the card carries one download, picked the same way TriOS picks it', () {
+    final data = builder.build(
+      mods: [forumMod()],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            downloads: [
+              LlmDownload(
+                url: 'https://www.mediafire.com/file/abc/Nexerelin.zip',
+                kind: LlmDownloadKind.mirror,
+                requiresManualStep: true,
+              ),
+              LlmDownload(
+                url: 'https://github.com/x/y/releases/download/v1/z.zip',
+                resolvedDirectUrl: 'https://cdn.example.com/z.zip',
+                kind: LlmDownloadKind.direct,
+              ),
+              LlmDownload(
+                url: 'https://trilink.wispborne.com/open.html?mod=%7B%7D',
+                kind: LlmDownloadKind.trios,
+                requiresManualStep: true,
+              ),
+            ],
+          ),
+        ]),
+      ]),
+    );
+
+    final mod = data.list.mods.single;
+    expect(mod.bestDownload?.kind, 'trios',
+        reason: 'a TriOS link installs what the mod needs as well, so it leads');
+    expect(mod.bestDownload?.needsAnotherStep, isFalse,
+        reason: 'opening a TriOS link is the step, so it never counts as one');
+    expect(mod.downloadCount, 3);
+
+    expect(
+      data.details['nexerelin']!.downloads.map((d) => d.kind),
+      ['trios', 'direct', 'mirror'],
+      reason: 'the page for the mod lists them best first as well',
+    );
+  });
+
+  test('the card download is the resolved address, not the link as written',
+      () {
+    final data = builder.build(
+      mods: [forumMod()],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            downloads: [
+              LlmDownload(
+                url: 'https://github.com/x/y/releases/tag/v1',
+                resolvedDirectUrl: 'https://cdn.example.com/z.zip',
+                kind: LlmDownloadKind.direct,
+              ),
+            ],
+          ),
+        ]),
+      ]),
+    );
+
+    expect(data.list.mods.single.bestDownload?.url,
+        'https://cdn.example.com/z.zip');
+  });
+
+  test('a download that opens the host page says so', () {
+    final data = builder.build(
+      mods: [forumMod()],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            downloads: [
+              LlmDownload(
+                url: 'https://www.mediafire.com/file/abc/Nexerelin.zip',
+                kind: LlmDownloadKind.direct,
+                requiresManualStep: true,
+              ),
+            ],
+          ),
+        ]),
+      ]),
+    );
+
+    final mod = data.list.mods.single;
+    expect(mod.bestDownload?.needsAnotherStep, isTrue);
+    expect(mod.hasDirectDownload, isFalse);
+  });
+
+  test('a mod with nothing to download carries no download at all', () {
+    final data = builder.build(mods: [forumMod()], bundle: bundleOf());
+
+    final mod = data.list.mods.single;
+    expect(mod.bestDownload, isNull,
+        reason: 'the site offers the forum thread instead');
+    expect(mod.downloadCount, 0);
+    expect(mod.forumUrl,
+        'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+        reason: 'a card with no download offers the thread, so the address has '
+            'to be in the file the cards are drawn from');
+  });
+
+  test('a Discord-only mod carries its Discord post for the same reason', () {
+    final data = builder.build(
+      mods: [
+        ScrapedMod(
+          name: 'Quality Captains',
+          authorsList: const ['Sundog'],
+          sources: const [ModSource.Discord],
+          urls: const {
+            ModUrlType.Discord: 'https://discord.com/channels/1/2',
+          },
+        ),
+      ],
+      bundle: bundleOf(),
+    );
+
+    final mod = data.list.mods.single;
+    expect(mod.forumUrl, isNull);
+    expect(mod.discordUrl, 'https://discord.com/channels/1/2');
   });
 
   test('a category nobody has seen before is left off rather than guessed', () {
@@ -538,11 +718,13 @@ void main() {
         ['second-mod', 'nexerelin']);
   });
 
-  test('a post image stored as ext:<url> is published as a plain URL', () {
+  test('a picture stored as ext:<url> is published as a plain URL', () {
     final data = builder.build(
       mods: [forumMod()],
       bundle: bundleOf(index: [
-        thread(thumbnailPath: 'ext:https://example.com/shot.png'),
+        thread(llmMods: [
+          LlmMod(name: 'Nexerelin', image: 'ext:https://example.com/shot.png'),
+        ]),
       ]),
     );
     expect(data.list.mods.single.imageUrl, 'https://example.com/shot.png');
@@ -552,7 +734,9 @@ void main() {
     final data = builder.build(
       mods: [forumMod()],
       bundle: bundleOf(index: [
-        thread(thumbnailPath: 'images/9175/thumb.png'),
+        thread(llmMods: [
+          LlmMod(name: 'Nexerelin', image: 'images/9175/thumb.png'),
+        ]),
       ]),
     );
     expect(data.list.mods.single.imageUrl, isNull);
@@ -678,8 +862,10 @@ void main() {
 
   test('mods.json stays under 2 MB for a mod set the size of the real one', () {
     // The real set is around 900 mods. A thousand, each with a long name, a
-    // full-length summary and several authors and categories, is the worst case
-    // the browse page has to fetch whole.
+    // full-length summary, several authors and categories, and a TriOS link for
+    // its download, is the worst case the browse page has to fetch whole — a
+    // TriOS link carries the mod's details packed into the address, and the
+    // longest real one runs to about 850 characters.
     final mods = [
       for (var i = 0; i < 1000; i++)
         ScrapedMod(
@@ -704,7 +890,26 @@ void main() {
         ),
     ];
 
-    final data = builder.build(mods: mods, bundle: bundleOf());
+    final trilink = 'https://trilink.wispborne.com/open.html?mod='
+        '${'%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2F' * 4}';
+    final data = builder.build(
+      mods: mods,
+      bundle: bundleOf(index: [
+        for (var i = 0; i < 1000; i++)
+          thread(topicId: i, llmMods: [
+            LlmMod(
+              name: 'A Rather Long Starsector Mod Name Number $i',
+              downloads: [
+                LlmDownload(
+                  url: '$trilink$i',
+                  kind: LlmDownloadKind.trios,
+                  requiresManualStep: true,
+                ),
+              ],
+            ),
+          ]),
+      ]),
+    );
     final bytes = utf8
         .encode(const JsonEncoder.withIndent('  ').convert(data.list.toMap()))
         .length;
@@ -712,6 +917,8 @@ void main() {
     expect(data.list.mods, hasLength(1000));
     expect(bytes, lessThan(2 * 1024 * 1024),
         reason: 'mods.json came to ${(bytes / 1024).round()} KB');
+    expect(data.list.mods.first.bestDownload, isNotNull,
+        reason: 'the worst case has to include what a card downloads');
   });
 
   test('nothing internal reaches the published files', () async {
@@ -791,5 +998,91 @@ void main() {
       final file = File(p.join(builder.modsDir, '${mod.id}.json'));
       expect(file.existsSync(), isTrue, reason: '${mod.id} has no page');
     }
+  });
+
+  group('the day a mod was added', () {
+    test('is the day the forum thread was posted', () {
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(
+          index: [thread(createdDate: 'May 04, 2014, 01:33:25 AM')],
+        ),
+      );
+
+      expect(data.list.mods.single.addedOn, '2014-05-04');
+    });
+
+    test('is the Discord message day for a mod that is only on Discord', () {
+      final discordOnly = ScrapedMod(
+        name: 'Quality Captains',
+        authorsList: const ['Sundog'],
+        sources: const [ModSource.Discord],
+        urls: const {ModUrlType.Discord: 'https://discord.com/channels/1/2'},
+        dateTimeCreated: DateTime.utc(2026, 6, 22, 13, 32),
+      );
+
+      final data = builder.build(mods: [discordOnly], bundle: bundleOf());
+
+      expect(data.list.mods.single.addedOn, '2026-06-22');
+    });
+
+    test('is the earliest date, not the latest', () {
+      final onBoth = ScrapedMod(
+        name: 'Nexerelin',
+        authorsList: const ['Histidine'],
+        sources: const [ModSource.Index, ModSource.Discord],
+        urls: const {
+          ModUrlType.Forum:
+              'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+        },
+        // Announced on Discord this year; the thread has been up since 2014.
+        dateTimeCreated: DateTime.utc(2026, 6, 22),
+      );
+
+      final data = builder.build(
+        mods: [onBoth],
+        bundle: bundleOf(
+          index: [thread(createdDate: 'May 04, 2014, 01:33:25 AM')],
+        ),
+      );
+
+      expect(data.list.mods.single.addedOn, '2014-05-04');
+    });
+
+    test('is nothing at all when every mod was given its id in one go', () {
+      // The id file is written in one batch, so "first seen today" here means
+      // "was already here". A day nobody can stand behind is worse than none.
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(index: [thread()]),
+      );
+
+      expect(data.list.mods.single.addedOn, isNull);
+    });
+
+    test('falls back to the day we first saw a mod that came later', () {
+      // A first run gives every mod an id on the same day.
+      builder.build(mods: [forumMod()], bundle: bundleOf(index: [thread()]));
+      idStore.save();
+
+      // A mod that turns up a day later, with no date of its own anywhere.
+      final laterStore = ModIdStore(
+        p.join(dir.path, 'data'),
+        now: () => DateTime.utc(2030, 1, 2),
+      )..load();
+      final laterBuilder = PublicDataBuilder(
+        outputPath: p.join(dir.path, 'outputs'),
+        idStore: laterStore,
+      );
+
+      final data = laterBuilder.build(
+        mods: [forumMod(), forumMod(name: 'Second Wave Options', topicId: 20)],
+        bundle: bundleOf(index: [thread()]),
+      );
+
+      final newcomer =
+          data.list.mods.firstWhere((m) => m.name == 'Second Wave Options');
+      expect(newcomer.addedOn, '2030-01-02');
+    });
   });
 }

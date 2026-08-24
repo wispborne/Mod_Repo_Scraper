@@ -8,12 +8,14 @@ import '../bot/scraper/mod_merger.dart';
 import '../bot/scraper/mod_repo_utils.dart';
 import '../bot/scraper/qb/models/assumed_download.dart';
 import '../bot/scraper/qb/models/forum_data_bundle.dart';
+import '../bot/scraper/qb/models/forum_date.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
 import 'days.dart';
 import 'display_name.dart';
+import 'download_order.dart';
 import 'gallery_filter.dart';
 import 'mod_id_store.dart';
 import 'models/mod_release.dart';
@@ -39,10 +41,10 @@ class _JoinedMod {
 
 /// One forum post, read once.
 ///
-/// The card wants to know how big the post said its pictures are, the gallery
-/// wants the same, and the description wants the post as both formatted HTML
-/// and plain words. Reading a post is the dear part of a build — 900 of them
-/// every run — so it is read once here and the answers passed around.
+/// The gallery wants to know how big the post said its pictures are, and the
+/// description wants the post as both formatted HTML and plain words. Reading a
+/// post is the dear part of a build — 900 of them every run — so it is read
+/// once here and the answers passed around.
 class _ReadPost {
   /// The post rebuilt from the tags the site publishes, or null when the mod
   /// has no forum post.
@@ -54,23 +56,14 @@ class _ReadPost {
   /// How wide the post said each of its pictures is.
   final Map<String, int> pictureSizes;
 
-  /// The pictures in the post, in the order it showed them.
-  final List<String> pictures;
-
-  _ReadPost._(this.html, this.words, this.pictureSizes, this.pictures);
+  _ReadPost._(this.html, this.words, this.pictureSizes);
 
   factory _ReadPost(QbModDetail? detail) {
     final html = cleanPostHtml(detail?.contentHtml);
-    final pictures = <String>[];
-    for (final image in detail?.images ?? const <ImageRef>[]) {
-      final url = PublicDataBuilder.stripExternalPrefix(image.originalUrl);
-      if (url != null) pictures.add(url);
-    }
     return _ReadPost._(
       html,
       plainWordsOf(html),
       pictureSizesInPost(detail?.contentHtml),
-      pictures,
     );
   }
 }
@@ -193,9 +186,8 @@ class PublicDataBuilder {
 
       final modReleases = releasesByMod[id] ?? const <ModRelease>[];
 
-      // Reading a post is the dear part of this loop, so it is done once here
-      // and the answers handed to both records. The card, the gallery and the
-      // description all want something out of the same post.
+      // Reading a post is the dear part of this loop, so it is done once here.
+      // The gallery and the description both want something out of it.
       final post = _ReadPost(detail);
       final chosen = _mainLlmMod(mod, thread);
 
@@ -204,8 +196,9 @@ class PublicDataBuilder {
         mod: mod,
         topicId: topicId,
         thread: thread,
+        postDate: detail?.postDate,
+        authorAvatarPath: detail?.authorAvatarPath,
         chosen: chosen,
-        post: post,
         threadDownloads: threadDownloads,
         releases: modReleases,
         modsByName: modsByName,
@@ -336,8 +329,9 @@ class PublicDataBuilder {
     required ScrapedMod mod,
     required String? topicId,
     required QbModSummary? thread,
+    required String? postDate,
+    required String? authorAvatarPath,
     required LlmMod? chosen,
-    required _ReadPost post,
     required List<AssumedDownloadCandidate> threadDownloads,
     required List<ModRelease> releases,
     required Map<String, _JoinedMod> modsByName,
@@ -359,17 +353,56 @@ class PublicDataBuilder {
       sources: _sourcesFor(mod),
       gameVersion: _firstNonEmpty([mod.gameVersionReq, thread?.gameVersion]),
       modVersion: _firstNonEmpty([extras?.version, mod.modVersion]),
-      imageUrl: _imageUrlFor(mod, chosen, thread, post),
+      imageUrl: _imageUrlFor(mod, chosen, authorAvatarPath),
       summary: copiedSummary ?? generatedSummary,
       summaryIsGenerated: copiedSummary == null && generatedSummary != null,
       saveCompatible: readSaveCompatibility(extras?.saveCompatibility),
       hasDirectDownload: downloads.any((d) => d.directUrl != null),
+      bestDownload: _bestDownloadFor(downloads),
+      downloadCount: downloads.length,
+      forumUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Forum]]),
+      discordUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]),
       sourceIsPublic: _firstNonEmpty([extras?.sourceCode]) != null,
       isWorkInProgress: thread?.isWip ?? false,
       lastReleaseDate: releases.isEmpty ? null : _lastReleaseDate(releases),
-      addedOn: idStore.firstSeenFor(mod.name, mark: markFor(mod, topicId)),
+      addedOn: _addedOn(mod, thread, postDate, topicId),
       needs: _neededMods(extras?.needs, id, modsByName),
     );
+  }
+
+  /// The day this mod first showed up anywhere, as `YYYY-MM-DD`.
+  ///
+  /// The day we first gave it an id is a poor answer on its own: the id file
+  /// was written in one go, so every mod that existed then shares that day and
+  /// "recently added" comes out as whatever the list happened to be sorted by.
+  /// The real evidence is in the data — the day the forum thread was posted
+  /// (the topic list says, and where it does not the first post itself does),
+  /// and the day of the Discord message or Nexus page we read it from. The
+  /// earliest of those wins, because a mod on the forum since 2014 and
+  /// announced on Discord last month has been around since 2014. Only when
+  /// there is no such date at all does the day we first saw it stand in, and
+  /// then only if it was not the day the id file was seeded — see
+  /// [ModIdStore.seedDay]. A mod we know no date for is published with none,
+  /// which keeps it out of "recently added" rather than putting it at the top.
+  String? _addedOn(
+    ScrapedMod mod,
+    QbModSummary? thread,
+    String? postDate,
+    String? topicId,
+  ) {
+    final dates = <DateTime>[
+      if (parseForumDate(thread?.createdDate) case final posted?) posted,
+      if (parseForumDate(postDate) case final written?) written,
+      if (mod.dateTimeCreated case final made?) made.toUtc(),
+    ];
+    if (dates.isEmpty) {
+      // The day we first saw it, unless that is the day the id file was seeded
+      // — every mod that already existed shares that one, so it says nothing.
+      final seen = idStore.firstSeenFor(mod.name, mark: markFor(mod, topicId));
+      return seen == idStore.seedDay ? null : seen;
+    }
+    dates.sort();
+    return writeDay(dates.first);
   }
 
   /// The mods this one needs, each pointed at its own page where we have one.
@@ -483,7 +516,8 @@ class PublicDataBuilder {
         .map((m) => PublicAddon(
               name: m.name,
               requires: _firstNonEmpty([m.requires]),
-              downloads: m.downloads.map(_fromLlmDownload).toList(),
+              downloads:
+                  sortedDownloads(m.downloads.map(_fromLlmDownload).toList()),
             ))
         .toList();
   }
@@ -496,9 +530,24 @@ class PublicDataBuilder {
     List<AssumedDownloadCandidate> threadDownloads,
   ) {
     if (chosen != null && chosen.downloads.isNotEmpty) {
-      return chosen.downloads.map(_fromLlmDownload).toList();
+      return sortedDownloads(chosen.downloads.map(_fromLlmDownload).toList());
     }
-    return threadDownloads.map(_fromAssumedDownload).toList();
+    return sortedDownloads(threadDownloads.map(_fromAssumedDownload).toList());
+  }
+
+  /// The one download a card or a row offers. Every list on the site shows this
+  /// and nothing else, so the reader is never asked to choose between four
+  /// buttons that all say "Download".
+  PublicBestDownload? _bestDownloadFor(List<PublicDownload> downloads) {
+    final best = bestDownloadOf(downloads);
+    if (best == null) return null;
+    return PublicBestDownload(
+      url: best.directUrl ?? best.url,
+      kind: best.kind,
+      // A TriOS link is never counted as needing another step: opening it is
+      // the whole point of it. See `download_order.dart`.
+      needsAnotherStep: !goesStraightToAFile(best),
+    );
   }
 
   PublicDownload _fromLlmDownload(LlmDownload d) => PublicDownload(
@@ -551,35 +600,39 @@ class PublicDataBuilder {
 
   /// The one picture the card shows.
   ///
-  /// A screenshot first, under the same rules as the gallery. Where the mod has
-  /// none, anything else it has will do — a logo or a banner is a poor
-  /// screenshot but a perfectly good card picture, and an empty card is worse
-  /// than either.
+  /// The same order TriOS's catalog picks in, so a mod looks the same in both:
+  /// the picture the merge kept first, then the one the LLM found in the post,
+  /// then the author's forum avatar. TriOS falls back to the installed mod's
+  /// icon after that, which a website has no way to read.
+  ///
+  /// Anything that is not a plain web address is dropped, and only then does it
+  /// fall through to the next one.
   String? _imageUrlFor(
     ScrapedMod mod,
     LlmMod? chosen,
-    QbModSummary? thread,
-    _ReadPost post,
+    String? authorAvatarPath,
   ) {
-    final candidates = <String>[];
-    void offer(String? value) {
-      final url = stripExternalPrefix(value);
-      if (url != null) candidates.add(url);
-    }
+    final images = mod.getImages().values;
+    return stripExternalPrefix(images.isEmpty ? null : images.first.url)
+        ?? stripExternalPrefix(chosen?.image)
+        ?? stripExternalPrefix(_avatarUrl(authorAvatarPath));
+  }
 
-    for (final image in mod.getImages().values) {
-      offer(image.url ?? image.proxyUrl);
+  /// A forum avatar path is written relative to the forum, so it is made into a
+  /// full address before it can be published.
+  static String? _avatarUrl(String? path) {
+    final trimmed = path?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
     }
-    for (final url in post.pictures) {
-      offer(url);
+    try {
+      return Uri.parse('https://fractalsoftworks.com/forum/')
+          .resolve(trimmed)
+          .toString();
+    } catch (_) {
+      return null;
     }
-    offer(chosen?.image);
-    offer(thread?.thumbnailPath);
-
-    for (final url in candidates) {
-      if (looksLikeAScreenshot(url, sizes: post.pictureSizes)) return url;
-    }
-    return candidates.isEmpty ? null : candidates.first;
   }
 
   DateTime? _lastReleaseDate(List<ModRelease> releases) {

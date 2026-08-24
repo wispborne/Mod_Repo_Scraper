@@ -83,6 +83,33 @@ class PublicMod with PublicModMappable {
   /// True when at least one download goes straight to a file.
   final bool hasDirectDownload;
 
+  /// The download a button should offer, picked by `download_order.dart`. Null
+  /// when the mod has none, in which case the site offers the forum thread.
+  ///
+  /// This is the one thing about downloads that `mods.json` carries, because
+  /// browse loads that file whole and draws hundreds of cards from it — a card
+  /// that had to fetch a mod's own file to know what its button does would mean
+  /// hundreds of requests to draw one page.
+  final PublicBestDownload? bestDownload;
+
+  /// How many downloads the mod offers. The card shows the best one and says
+  /// how many more there are.
+  final int downloadCount;
+
+  /// The mod's forum thread. Null when it has none.
+  ///
+  /// A quarter of mods have nothing to download, and their card offers the
+  /// thread instead — so the address has to be in the file the cards are drawn
+  /// from, not only in the mod's own file.
+  final String? forumUrl;
+
+  /// The mod's Discord post. Null when it is not on Discord.
+  ///
+  /// The other half of the same fallback: 160 mods have no download and no
+  /// forum thread, and every one of them is on Discord. Without this their
+  /// cards are the only ones on the page offering nothing at all.
+  final String? discordUrl;
+
   /// True when we know where the mod's code is kept.
   final bool sourceIsPublic;
 
@@ -93,9 +120,11 @@ class PublicMod with PublicModMappable {
   /// Null when no release has been recorded for it yet.
   final DateTime? lastReleaseDate;
 
-  /// The day this mod was first seen, as `YYYY-MM-DD`. It is what "newest" and
-  /// "recently added" mean on the site. Null for a mod that was already known
-  /// before we started keeping the day.
+  /// The day this mod first showed up, as `YYYY-MM-DD` — the day its forum
+  /// thread was posted, or the day of the Discord message or Nexus page it was
+  /// read from, whichever is earlier. Where there is no such date, the day we
+  /// first gave it an id stands in. It is what "newest" and "recently added"
+  /// mean on the site.
   final String? addedOn;
 
   /// The other mods this one will not run without. Nearly every Starsector mod
@@ -118,6 +147,10 @@ class PublicMod with PublicModMappable {
     this.summaryIsGenerated = false,
     this.saveCompatible,
     this.hasDirectDownload = false,
+    this.bestDownload,
+    this.downloadCount = 0,
+    this.forumUrl,
+    this.discordUrl,
     this.sourceIsPublic = false,
     this.isWorkInProgress = false,
     this.lastReleaseDate,
@@ -137,4 +170,28 @@ class PublicNeededMod with PublicNeededModMappable {
   final String? id;
 
   PublicNeededMod({required this.name, this.id});
+}
+
+/// The download a card or a row offers, as `mods.json` carries it.
+///
+/// [url] is one address, already resolved: the straight-to-file link where the
+/// resolver worked one out, and the link as the post wrote it otherwise. The
+/// unresolved link is of no use to a card, and this file is the one the whole
+/// site loads at once, so only one address is published.
+@MappableClass(ignoreNull: true)
+class PublicBestDownload with PublicBestDownloadMappable {
+  final String url;
+
+  /// `direct`, `mirror` or `trios`.
+  final String kind;
+
+  /// True when the link opens the host's own page rather than handing over the
+  /// file. The button says so, so nobody is surprised by what they land on.
+  final bool needsAnotherStep;
+
+  PublicBestDownload({
+    required this.url,
+    this.kind = 'direct',
+    this.needsAnotherStep = false,
+  });
 }

@@ -117,6 +117,24 @@ class ModIdStore {
   String? firstSeenFor(String modName, {String? mark}) =>
       _entryFor(modName, mark, claim: false)?.firstSeen;
 
+  /// The earliest day any mod here was first seen.
+  ///
+  /// Every mod that already existed when this file was first written shares
+  /// that day, because they were all given ids in one go. So "first seen on the
+  /// seed day" means "was already here", not "arrived that day", and nothing
+  /// should read it as when a mod turned up.
+  String? get seedDay {
+    if (_seedDay != null) return _seedDay;
+    for (final entry in _entries.values) {
+      final day = entry.firstSeen;
+      if (day == null) continue;
+      if (_seedDay == null || day.compareTo(_seedDay!) < 0) _seedDay = day;
+    }
+    return _seedDay;
+  }
+
+  String? _seedDay;
+
   /// Finds the entry for a mod, and — when [claim] — makes one if there is none.
   ///
   /// A mod is looked for under its name first. When that name is already spoken
@@ -160,6 +178,7 @@ class ModIdStore {
     );
     _entries[key] = entry;
     _idsTaken.add(entry.id);
+    _seedDay = null;
     _changed = true;
     return entry;
   }

@@ -17,6 +17,13 @@
     "summary": "Lets you train and promote officers instead of only hiring them.",
     "summaryIsGenerated": true,
     "hasDirectDownload": true,
+    "bestDownload": {
+      "url": "https://cdn.discordapp.com/attachments/1090000000/1090000003/QualityCaptains.zip",
+      "kind": "direct",
+      "needsAnotherStep": false
+    },
+    "downloadCount": 1,
+    "discordUrl": "https://discord.com/channels/187635036525166592/1090000000",
     "sourceIsPublic": false,
     "isWorkInProgress": false,
     "otherAuthorNames": {},

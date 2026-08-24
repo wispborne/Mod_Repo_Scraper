@@ -8,8 +8,8 @@
 // or somebody else's that they followed a link to.
 
 import {
-  breadcrumbs, clear, el, hashQuery, joinNames, listHref, modDetail, modHref,
-  modList, modName, myList, neededModsLine, setMyList, thumbnail,
+  breadcrumbs, clear, downloadButton, el, hashQuery, joinNames, listHref,
+  modHref, modList, modName, myList, neededModsLine, setMyList, thumbnail,
   toggleInMyList,
 } from '../lib.js';
 
@@ -114,28 +114,16 @@ function actions(root, mine, found, missing) {
 
 /// One mod in the list: enough to install it without opening its page, and a
 /// link there for when that is not enough.
+///
+/// One download button, the same as every other list on the site. It used to
+/// draw one button per download, so a mod offering a file, a mirror and an
+/// archive of old versions filled its row with three buttons all saying much
+/// the same thing. It also fetched every listed mod's own file to find them;
+/// the winning download now rides on the list record, so a row costs nothing.
 function listRow(mod, mine, redraw) {
-  const links = el('div', { class: 'list-links' });
-  // The list carries only what a card holds, so the downloads come from each
-  // mod's own file — fetched as the row is drawn, and only for what is listed.
-  modDetail(mod.id).then((detail) => {
-    for (const download of detail.downloads || []) {
-      links.append(el('a', {
-        class: 'btn',
-        href: download.directUrl || download.url,
-        rel: 'noopener nofollow',
-        target: '_blank',
-        text: download.kind === 'mirror' ? 'Mirror' : 'Download',
-        title: download.fileName || download.host || null,
-      }));
-    }
-    if (!links.children.length && detail.forumUrl) {
-      links.append(el('a', {
-        class: 'btn', href: detail.forumUrl, rel: 'noopener nofollow',
-        target: '_blank', text: 'On the forum',
-      }));
-    }
-  }).catch(() => {});
+  const links = el('div', { class: 'list-links' }, [
+    downloadButton(mod),
+  ]);
 
   const row = el('div', { class: 'list-row' }, [
     thumbnail(mod.imageUrl, 'row-thumb'),
@@ -143,8 +131,10 @@ function listRow(mod, mine, redraw) {
       el('a', { class: 'row-title', href: modHref(mod.id), text: modName(mod) }),
       el('div', {
         class: 'row-sub',
-        text: [joinNames(mod.authors), mod.modVersion, mod.gameVersion]
-          .filter(Boolean).join(' · '),
+        text: [
+          joinNames(mod.authors), mod.modVersion, mod.gameVersion,
+          (mod.downloadCount || 0) > 1 ? `${mod.downloadCount} downloads` : null,
+        ].filter(Boolean).join(' · '),
       }),
     ]),
     links,

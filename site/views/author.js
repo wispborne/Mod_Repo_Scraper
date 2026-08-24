@@ -1,7 +1,7 @@
 // One person's page: every mod credited to them.
 //
-// The same person turns up under different spellings across the forum, Discord
-// and Nexus. The merge already folds most of that together; the rest is folded
+// The same person turns up under different spellings across the forum and
+// Discord. The merge already folds most of that together; the rest is folded
 // here, using the other names each mod says its authors go by. So one page
 // covers a person however their name was written.
 
