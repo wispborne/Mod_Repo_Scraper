@@ -32,8 +32,13 @@ jobs:
       # program and that folder ship together or the server is useless. Unpack
       # this in the same folder as the scraper: both find qb_data/ and outputs/
       # by looking in the folder they are started from.
+      #
+      # site/ rides along for a different reason: it is the public website's own
+      # HTML, stylesheet and scripts, and a publish copies it into the published
+      # repo next to the data it reads. Without it the published repo holds the
+      # mod data and no pages to show it with.
       - name: Pack the server with the pages it serves
-        run: tar czf mod_repo_scraper_server.tar.gz mod_repo_scraper_server web
+        run: tar czf mod_repo_scraper_server.tar.gz mod_repo_scraper_server web site
 
       - name: Create release
         uses: softprops/action-gh-release@v2
