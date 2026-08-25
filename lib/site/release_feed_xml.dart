@@ -27,7 +27,7 @@ String buildReleaseFeedXml(ModReleaseFeed feed) {
   final out = StringBuffer()
     ..writeln('<?xml version="1.0" encoding="utf-8"?>')
     ..writeln('<feed xmlns="http://www.w3.org/2005/Atom">')
-    ..writeln('  <title>Starmodder — new Starsector mod releases</title>')
+    ..writeln('  <title>Starmodder | new Starsector mod releases</title>')
     ..writeln('  <subtitle>Mods whose version really moved forward, newest '
         'first.</subtitle>')
     ..writeln('  <id>$_feedName</id>')

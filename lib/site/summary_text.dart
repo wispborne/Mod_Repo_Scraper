@@ -5,7 +5,7 @@
 /// name in bold, or the line of requirements from the top of a Discord post.
 /// Showing one of those on a card is worse than showing the AI's sentence,
 /// which is at least a sentence and is labelled as AI. So a summary that is
-/// only one of those is dropped, and the AI sentence takes its place.
+/// only one of those is dropped, and the AI summary takes its place.
 
 /// Markdown emphasis marks: stars, underscores and backticks.
 final RegExp _emphasis = RegExp(r'[*_`~]');

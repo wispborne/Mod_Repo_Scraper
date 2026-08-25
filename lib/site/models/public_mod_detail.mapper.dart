@@ -59,6 +59,12 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     opt: true,
     def: false,
   );
+  static String? _$aiDescription(PublicModDetail v) => v.aiDescription;
+  static const Field<PublicModDetail, String> _f$aiDescription = Field(
+    'aiDescription',
+    _$aiDescription,
+    opt: true,
+  );
   static String? _$saveCompatibilityText(PublicModDetail v) =>
       v.saveCompatibilityText;
   static const Field<PublicModDetail, String> _f$saveCompatibilityText = Field(
@@ -161,6 +167,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     #description: _f$description,
     #descriptionHtml: _f$descriptionHtml,
     #descriptionIsGenerated: _f$descriptionIsGenerated,
+    #aiDescription: _f$aiDescription,
     #saveCompatibilityText: _f$saveCompatibilityText,
     #rawCategories: _f$rawCategories,
     #gallery: _f$gallery,
@@ -187,6 +194,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       description: data.dec(_f$description),
       descriptionHtml: data.dec(_f$descriptionHtml),
       descriptionIsGenerated: data.dec(_f$descriptionIsGenerated),
+      aiDescription: data.dec(_f$aiDescription),
       saveCompatibilityText: data.dec(_f$saveCompatibilityText),
       rawCategories: data.dec(_f$rawCategories),
       gallery: data.dec(_f$gallery),
@@ -310,6 +318,7 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     String? description,
     String? descriptionHtml,
     bool? descriptionIsGenerated,
+    String? aiDescription,
     String? saveCompatibilityText,
     List<String>? rawCategories,
     List<PublicImage>? gallery,
@@ -425,6 +434,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     Object? description = $none,
     Object? descriptionHtml = $none,
     bool? descriptionIsGenerated,
+    Object? aiDescription = $none,
     Object? saveCompatibilityText = $none,
     List<String>? rawCategories,
     List<PublicImage>? gallery,
@@ -448,6 +458,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       if (descriptionHtml != $none) #descriptionHtml: descriptionHtml,
       if (descriptionIsGenerated != null)
         #descriptionIsGenerated: descriptionIsGenerated,
+      if (aiDescription != $none) #aiDescription: aiDescription,
       if (saveCompatibilityText != $none)
         #saveCompatibilityText: saveCompatibilityText,
       if (rawCategories != null) #rawCategories: rawCategories,
@@ -476,6 +487,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       #descriptionIsGenerated,
       or: $value.descriptionIsGenerated,
     ),
+    aiDescription: data.get(#aiDescription, or: $value.aiDescription),
     saveCompatibilityText: data.get(
       #saveCompatibilityText,
       or: $value.saveCompatibilityText,

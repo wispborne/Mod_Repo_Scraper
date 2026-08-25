@@ -50,3 +50,6 @@ nul
 qb_data/
 QBMBAMM
 /new_data/mods/
+
+# The website version file, written by the release workflow at build time.
+/site/version.json

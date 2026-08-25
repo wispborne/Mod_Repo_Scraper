@@ -93,7 +93,7 @@ to change, why, and whether it needs the Dart builder to publish anything new.
   then the AI paragraph. Turn bare URLs into links everywhere and let them break on
   phones (`overflow-wrap: anywhere`).
 - **Clean the summary the same way.** Drop a summary that is only a URL, only
-  Markdown emphasis, or only "Requires X"; fall back to the AI sentence, labelled as now.
+  Markdown emphasis, or only "Requires X"; fall back to the AI summary, labelled as now.
 - **Filter the gallery.** Drop images from donation and badge hosts (ko-fi,
   buymeacoffee, patreon, shields.io, forum smileys), images the post uses as an avatar
   or title banner where a width is known, and anything under about 200px on a side

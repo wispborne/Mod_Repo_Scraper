@@ -3,11 +3,12 @@ import 'dart:io';
 /// Which version of the code the viewer is running, taken from the newest git
 /// tag in the checkout it was started from.
 ///
-/// Versions are tagged by hand, so the tag is the only place the number lives —
-/// there is nothing to keep in step and nothing to write down. Where the
-/// checkout is not a git repository, or git is not installed, or nothing has
-/// been tagged yet, this says so quietly and the site shows no version line at
-/// all. Nothing here is ever worth an error on screen.
+/// The release workflow tags every build `v<number of commits>`, so the tag is
+/// the only place the number lives — there is nothing to keep in step and
+/// nothing to write down. Where the checkout is not a git repository, or git
+/// is not installed, or nothing has been tagged yet, this says so quietly and
+/// the site shows no version line at all. Nothing here is ever worth an error
+/// on screen.
 class SiteVersion {
   /// The folder to ask git about — the checkout the server was started in.
   final String rootDir;

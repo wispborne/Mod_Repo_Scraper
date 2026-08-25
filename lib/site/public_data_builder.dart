@@ -356,6 +356,7 @@ class PublicDataBuilder {
       imageUrl: _imageUrlFor(mod, chosen, authorAvatarPath),
       summary: copiedSummary ?? generatedSummary,
       summaryIsGenerated: copiedSummary == null && generatedSummary != null,
+      aiSummary: generatedSummary,
       saveCompatible: readSaveCompatibility(extras?.saveCompatibility),
       hasDirectDownload: downloads.any((d) => d.directUrl != null),
       bestDownload: _bestDownloadFor(downloads),
@@ -464,6 +465,7 @@ class PublicDataBuilder {
       descriptionHtml: post.html ??
           plainTextAsHtml(copiedDescription ?? generatedDescription),
       descriptionIsGenerated: isGenerated,
+      aiDescription: generatedDescription,
       saveCompatibilityText: _firstNonEmpty([extras?.saveCompatibility]),
       rawCategories: _shelvesFor(mod),
       gallery: _galleryFor(mod, detail, post.pictureSizes),

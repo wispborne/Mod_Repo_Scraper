@@ -1,18 +1,38 @@
 name: Release
 
+# Every commit that lands on master is released. There are no tags to make by
+# hand: the release is named after the number of commits behind it, so v48
+# always follows v47 and the same number is written into the website's footer.
+# Work that should not be built goes on another branch — `dev` — and lands here
+# when it is ready.
+#
+# The tests below stand between a commit and a release: a failing test fails the
+# job, and no release is made, so the machine that downloads the newest release
+# twice a day never picks up a build that could not pass them.
 on:
   push:
-    tags:
-      - '*'
+    branches: [master]
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+# One release at a time. Two commits landing a minute apart would otherwise race
+# to publish, and only the newer one is worth having anyway.
+concurrency:
+  group: release
+  cancel-in-progress: true
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The whole history, because the build number below counts the commits
+          # in it. A shallow clone — what checkout does by default — holds one
+          # commit, and the count would be one every time.
+          fetch-depth: 0
 
       - uses: dart-lang/setup-dart@v1
 
@@ -28,6 +48,19 @@ jobs:
       - name: Compile the viewer and manager server
         run: dart compile exe bin/viewer_server.dart -o mod_repo_scraper_server
 
+      # Which build this is, worked out once and used twice: it names the
+      # release, and it is written where the website can read it. The number
+      # goes up by one with every commit, so it always says which of two copies
+      # is newer, and the commit is what makes a bug report answerable. The file
+      # goes into site/, so it rides along in the tarball below and a publish
+      # copies it next to index.html — nothing else has to carry it.
+      - name: Work out which build this is
+        id: build
+        run: |
+          echo "number=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+          printf '{"build":%s,"commit":"%s","date":"%s"}' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)" "$(git log -1 --format=%cs)" > site/version.json
+          cat site/version.json
+
       # The server reads the pages it serves from web/ while it runs, so the
       # program and that folder ship together or the server is useless. Unpack
       # this in the same folder as the scraper: both find qb_data/ and outputs/
@@ -40,9 +73,13 @@ jobs:
       - name: Pack the server with the pages it serves
         run: tar czf mod_repo_scraper_server.tar.gz mod_repo_scraper_server web site
 
+      # The tag is made here rather than by hand. It sits on the commit being
+      # built, so every release can be traced back to exactly one commit.
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.build.outputs.number }}
+          name: v${{ steps.build.outputs.number }}
           files: |
             mod_repo_scraper
             mod_repo_scraper_server.tar.gz

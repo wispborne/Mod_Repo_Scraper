@@ -129,13 +129,13 @@ The one picture published for the card SHALL be chosen under the same rules.
 
 ### Requirement: A summary that is not a description is dropped
 A copied summary that is only a web address, only a mod's name in emphasis marks, or
-only a list of requirements SHALL NOT be published. The AI sentence SHALL be used in its
+only a list of requirements SHALL NOT be published. The AI summary SHALL be used in its
 place and labelled as AI. A summary that is kept SHALL have its emphasis marks taken off
 and its spacing tidied.
 
 #### Scenario: The summary is a download link
 - **WHEN** a mod's copied summary is "Download: https://github.com/x/y"
-- **THEN** the AI sentence is published instead, marked as AI-written
+- **THEN** the AI summary is published instead, marked as AI-written
 
 ### Requirement: The site has its own short set of categories
 The site SHALL publish each mod under a fixed set of about a dozen categories of

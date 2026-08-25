@@ -263,7 +263,7 @@ void main() {
     expect(data.list.mods.single.imageUrl, isNull);
   });
 
-  test('a summary that is only a download link gives way to the AI sentence',
+  test('a summary that is only a download link gives way to the AI summary',
       () {
     final data = builder.build(
       mods: [forumMod(name: 'Nexerelin', summary: 'Download: https://x/y.zip')],
@@ -642,6 +642,45 @@ void main() {
     expect(copied.list.mods.single.summaryIsGenerated, isFalse);
   });
 
+  test('the AI summary and paragraph are published beside the copied ones',
+      () {
+    // The reader can ask for the AI words always, even on a mod whose author
+    // wrote their own. That choice is made in the browser, so both blocks of
+    // words have to be in the file for it to pick between.
+    final data = builder.build(
+      mods: [forumMod(summary: "The author's own words.")],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            extras: LlmExtras(
+              summary: LlmModSummary(
+                  sentence: 'A campaign overhaul.',
+                  paragraph: 'It adds diplomacy and invasions.'),
+            ),
+          ),
+        ]),
+      ]),
+    );
+
+    final mod = data.list.mods.single;
+    expect(mod.summary, "The author's own words.");
+    expect(mod.summaryIsGenerated, isFalse);
+    expect(mod.aiSummary, 'A campaign overhaul.');
+    expect(data.details['nexerelin']!.aiDescription,
+        'It adds diplomacy and invasions.');
+  });
+
+  test('a mod the LLM said nothing about carries no AI words', () {
+    final data = builder.build(
+      mods: [forumMod(summary: "The author's own words.")],
+      bundle: bundleOf(index: [thread()]),
+    );
+
+    expect(data.list.mods.single.aiSummary, isNull);
+    expect(data.details['nexerelin']!.aiDescription, isNull);
+  });
+
   test('the rules-based downloads are used when the LLM found none', () {
     final data = builder.build(
       mods: [forumMod()],
@@ -801,7 +840,7 @@ void main() {
     expect(page.existsSync(), isTrue);
 
     final html = page.readAsStringSync();
-    expect(html, contains('<title>Nexerelin — Starmodder</title>'));
+    expect(html, contains('<title>Nexerelin | Starmodder</title>'));
     expect(html, contains('../../#/mods/nexerelin'));
   });
 
@@ -862,8 +901,9 @@ void main() {
 
   test('mods.json stays under 2 MB for a mod set the size of the real one', () {
     // The real set is around 900 mods. A thousand, each with a long name, a
-    // full-length summary, several authors and categories, and a TriOS link for
-    // its download, is the worst case the browse page has to fetch whole — a
+    // full-length summary, an AI summary beside it, several authors and
+    // categories, and a TriOS link for its download, is the worst case the
+    // browse page has to fetch whole — a
     // TriOS link carries the mod's details packed into the address, and the
     // longest real one runs to about 850 characters.
     final mods = [
@@ -906,6 +946,14 @@ void main() {
                   requiresManualStep: true,
                 ),
               ],
+              extras: LlmExtras(
+                summary: LlmModSummary(
+                  sentence: 'The sentence an AI wrote about this mod, at about '
+                      'the length these run to. Every mod carries one beside '
+                      'its own summary, since the reader can ask for either. '
+                      'Mod number $i.',
+                ),
+              ),
             ),
           ]),
       ]),

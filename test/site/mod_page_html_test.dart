@@ -30,7 +30,7 @@ void main() {
   test('the page is named for the mod, not for the site', () {
     final html = buildModPageHtml(modOf());
 
-    expect(html, contains('<title>Nexerelin — Starmodder</title>'));
+    expect(html, contains('<title>Nexerelin | Starmodder</title>'));
     expect(html, contains('property="og:title" content="Nexerelin"'));
   });
 

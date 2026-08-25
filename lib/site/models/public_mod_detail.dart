@@ -30,6 +30,13 @@ class PublicModDetail with PublicModDetailMappable {
   /// from the author's post.
   final bool descriptionIsGenerated;
 
+  /// The paragraph the LLM wrote about this mod, whenever there is one — even
+  /// when [description] already holds the author's own post. A reader who asks
+  /// for AI summaries always sees this above the post, so it has to be
+  /// published beside it rather than instead of it. Plain words, no
+  /// formatting.
+  final String? aiDescription;
+
   /// The author's own words on whether the mod can be added to a game already
   /// in progress. Null when the post does not say.
   final String? saveCompatibilityText;
@@ -93,6 +100,7 @@ class PublicModDetail with PublicModDetailMappable {
     this.description,
     this.descriptionHtml,
     this.descriptionIsGenerated = false,
+    this.aiDescription,
     this.saveCompatibilityText,
     this.rawCategories = const [],
     this.gallery = const [],

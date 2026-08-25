@@ -20,9 +20,9 @@ class PublicModList with PublicModListMappable {
 /// One mod as the browse page sees it.
 ///
 /// Nothing here comes from the config file, and nothing here is a local path or
-/// a run id — see the `public-site-data` spec. [summary] is the one field that
-/// may be words the LLM wrote rather than copied, and [summaryIsGenerated] says
-/// which it is.
+/// a run id — see the `public-site-data` spec. [summary] and [aiSummary] are
+/// the only fields that may be words the LLM wrote rather than copied, and
+/// [summaryIsGenerated] says which of the two [summary] is.
 @MappableClass(ignoreNull: true)
 class PublicMod with PublicModMappable {
   /// The mod's permanent id, handed out the first time the mod was seen and
@@ -75,6 +75,17 @@ class PublicMod with PublicModMappable {
   /// True when [summary] is words the LLM wrote rather than words copied from
   /// the author's post. The site labels these, and can hide them.
   final bool summaryIsGenerated;
+
+  /// The sentence the LLM wrote about this mod, whenever there is one — even
+  /// when [summary] already holds the author's own words.
+  ///
+  /// The reader picks between three settings: always show the AI summary,
+  /// show it only where the author wrote nothing, or never show it. The first
+  /// of those needs the AI summary for a mod that also has its own summary,
+  /// so both are published and the site picks. It repeats [summary] where the
+  /// author wrote nothing, which is the price of the site never having to
+  /// guess which of the two it is holding.
+  final String? aiSummary;
 
   /// True when the mod can be added to a game already in progress, false when
   /// it needs a new one, null when nobody said.
@@ -145,6 +156,7 @@ class PublicMod with PublicModMappable {
     this.imageUrl,
     this.summary,
     this.summaryIsGenerated = false,
+    this.aiSummary,
     this.saveCompatible,
     this.hasDirectDownload = false,
     this.bestDownload,

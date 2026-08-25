@@ -235,6 +235,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     opt: true,
     def: false,
   );
+  static String? _$aiSummary(PublicMod v) => v.aiSummary;
+  static const Field<PublicMod, String> _f$aiSummary = Field(
+    'aiSummary',
+    _$aiSummary,
+    opt: true,
+  );
   static bool? _$saveCompatible(PublicMod v) => v.saveCompatible;
   static const Field<PublicMod, bool> _f$saveCompatible = Field(
     'saveCompatible',
@@ -321,6 +327,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #imageUrl: _f$imageUrl,
     #summary: _f$summary,
     #summaryIsGenerated: _f$summaryIsGenerated,
+    #aiSummary: _f$aiSummary,
     #saveCompatible: _f$saveCompatible,
     #hasDirectDownload: _f$hasDirectDownload,
     #bestDownload: _f$bestDownload,
@@ -350,6 +357,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       imageUrl: data.dec(_f$imageUrl),
       summary: data.dec(_f$summary),
       summaryIsGenerated: data.dec(_f$summaryIsGenerated),
+      aiSummary: data.dec(_f$aiSummary),
       saveCompatible: data.dec(_f$saveCompatible),
       hasDirectDownload: data.dec(_f$hasDirectDownload),
       bestDownload: data.dec(_f$bestDownload),
@@ -454,6 +462,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     String? imageUrl,
     String? summary,
     bool? summaryIsGenerated,
+    String? aiSummary,
     bool? saveCompatible,
     bool? hasDirectDownload,
     PublicBestDownload? bestDownload,
@@ -539,6 +548,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     Object? imageUrl = $none,
     Object? summary = $none,
     bool? summaryIsGenerated,
+    Object? aiSummary = $none,
     Object? saveCompatible = $none,
     bool? hasDirectDownload,
     Object? bestDownload = $none,
@@ -564,6 +574,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (imageUrl != $none) #imageUrl: imageUrl,
       if (summary != $none) #summary: summary,
       if (summaryIsGenerated != null) #summaryIsGenerated: summaryIsGenerated,
+      if (aiSummary != $none) #aiSummary: aiSummary,
       if (saveCompatible != $none) #saveCompatible: saveCompatible,
       if (hasDirectDownload != null) #hasDirectDownload: hasDirectDownload,
       if (bestDownload != $none) #bestDownload: bestDownload,
@@ -594,6 +605,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       #summaryIsGenerated,
       or: $value.summaryIsGenerated,
     ),
+    aiSummary: data.get(#aiSummary, or: $value.aiSummary),
     saveCompatible: data.get(#saveCompatible, or: $value.saveCompatible),
     hasDirectDownload: data.get(
       #hasDirectDownload,
