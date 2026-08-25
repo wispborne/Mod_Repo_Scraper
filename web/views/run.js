@@ -86,7 +86,7 @@ export async function render(root, parts) {
     }
 
     if (!headEl) layOutBlocks();
-    headEl = swap(headEl, header(record));
+    headEl = swap(headEl, header(record, live));
     recordEl = swap(recordEl, recordPanel(record));
     rawEl = swap(rawEl, rawJson(record, 'Show this run’s raw record (JSON)'));
     updateLog(logView, log, () => {
@@ -113,7 +113,7 @@ export async function render(root, parts) {
   window.addEventListener('hashchange', stop);
 }
 
-function header(record) {
+function header(record, live) {
   const head = el('div', {});
   head.append(el('h1', { text: manager.kindLabel(record.request && record.request.kind) }));
   const row = el('div', { class: 'run-head' }, [
@@ -137,14 +137,34 @@ function header(record) {
     }),
   ]);
   head.append(row);
-  addWhatChangedLink(row, record.id);
+  addWhatChangedLink(row, record.id, { live });
   return head;
 }
 
-/// A link to what this run changed, but only when it saved a bundle and there
-/// is an older one to compare it against. A link that leads to "nothing to
-/// compare" is worse than no link.
-export async function addWhatChangedLink(row, runId) {
+/// A link to what this run changed.
+///
+/// A run that has finished is compared bundle to bundle, and the link is left
+/// out unless it saved one and there is an older one to compare it against — a
+/// link that leads to "nothing to compare" is worse than no link.
+///
+/// A run that is **still going** has published no bundle yet, so it is compared
+/// against the data on disk instead. Everything that costs money or network
+/// time is written as the run goes, so that difference is what the run has done
+/// up to this second, and it grows while you watch it. No ask of the server is
+/// needed to know the link is worth drawing, which matters because a live run's
+/// page redraws every second.
+export async function addWhatChangedLink(row, runId, { live = false } = {}) {
+  if (live) {
+    row.append(el('a', {
+      class: 'btn',
+      href: buildHash(['bundle', 'changes'], { b: 'working' }),
+      text: 'What this run has changed so far',
+      title: 'Compare the data on disk right now with the last bundle that was '
+        + 'published. This run has not published one yet.',
+    }));
+    return;
+  }
+
   const saved = await api('bundle/runs');
   if (saved instanceof MissingFile) return;
   const ids = (saved.items || []).map((r) => r.id);

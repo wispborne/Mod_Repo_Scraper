@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "starmodder",
+      "runtimeExecutable": "dart",
+      "runtimeArgs": [
+        "run",
+        "bin/site_server.dart"
+      ],
+      "port": 8099
+    },
+    {
+      "name": "viewer",
+      "runtimeExecutable": "dart",
+      "runtimeArgs": [
+        "run",
+        "bin/viewer_server.dart"
+      ],
+      "port": 8085
+    },
+    {
+      "name": "viewer-readonly",
+      "runtimeExecutable": "dart",
+      "runtimeArgs": [
+        "run",
+        "bin/viewer_server.dart",
+        "--port",
+        "8086",
+        "--no-manager"
+      ],
+      "port": 8086
+    }
+  ]
+}

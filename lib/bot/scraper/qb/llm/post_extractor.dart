@@ -12,6 +12,7 @@ import '../models/assumed_download.dart';
 import '../models/mod_detail.dart';
 import '../models/post_extraction.dart';
 import '../url_normalizer.dart';
+import '../../../../site/gallery_filter.dart';
 import 'extraction_store.dart';
 import 'llm_client.dart';
 import 'post_reducer.dart';
@@ -321,11 +322,14 @@ class PostExtractor {
       bodyText = bodyText.substring(0, maxInputChars!);
     }
 
-    // The post's images, so the model can tie one to a mod. Badges and icons
-    // are dropped so the model does not pick a shield or smiley as a mod picture.
+    // The post's images, so the model can tie one to a mod. Donation buttons,
+    // badges, avatars and spinners are dropped before the model ever sees them
+    // — asking it nicely not to pick a Patreon banner is weaker than never
+    // offering one. The filter is the site's own (see gallery_filter.dart), so
+    // the two can never disagree about what a donation button looks like.
     final images = [
       for (final img in detail.images)
-        if (!_isBadgeImage(img.originalUrl))
+        if (!isBadgeOrDonationImage(img.originalUrl))
           (url: img.originalUrl, alt: img.alt),
     ];
 
@@ -935,7 +939,7 @@ class PostExtractor {
     final images = <String, String>{};
     for (final img in detail.images) {
       final url = img.originalUrl.trim();
-      if (url.isEmpty || _isBadgeImage(url)) continue;
+      if (url.isEmpty || isBadgeOrDonationImage(url)) continue;
       images[PostReducer.normalizeForMatching(
           HtmlProcessor.decodeEntities(url))] = url;
     }
@@ -957,14 +961,6 @@ class PostExtractor {
       }
     }
     return b.toString();
-  }
-
-  /// True for images that are badges or spinners, not a mod picture — the same
-  /// ones [JsonDataStore.pickThumbnail] skips when choosing a thread thumbnail.
-  /// These are never offered to the model and never used as a mod image.
-  static bool _isBadgeImage(String url) {
-    final u = url.toLowerCase();
-    return u.contains('shields.io') || u.contains('loading.gif');
   }
 
   static final RegExp _licenseUrlHint =

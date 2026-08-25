@@ -94,6 +94,21 @@ void main() {
       expect(BundleSnapshotStore.fingerprintOf(''), isNotNull);
     });
 
+    test('trimming an already-trimmed bundle leaves it alone', () {
+      // It has a fingerprint and no post text to take one from. Doing it again
+      // used to fingerprint the nothing that was left, quietly wiping the one
+      // it already had — and a topic with no fingerprint reads as "the post
+      // text was read for the first time" against every other snapshot.
+      final once = BundleSnapshotStore.withoutPostText(sampleBundle());
+      final twice = BundleSnapshotStore.withoutPostText(once);
+
+      String fingerprint(Map<String, dynamic> bundle) =>
+          ((bundle['details'] as Map)['100'] as Map)[
+              BundleSnapshotStore.fingerprintKey] as String;
+
+      expect(fingerprint(twice), fingerprint(once));
+    });
+
     test('the bundle handed in is not changed', () async {
       final store = BundleSnapshotStore(dataDir.path);
       final bundle = sampleBundle();

@@ -42,7 +42,9 @@ const List<String> _badgeHosts = [
 ];
 
 /// Parts of a forum address that are the forum's own furniture rather than
-/// anything an author posted.
+/// anything an author posted. Only read on the forum's own host — a Starsector
+/// mod's repository also keeps its pictures in a `graphics/` folder, and those
+/// are the author's own.
 const List<String> _forumFurniture = [
   '/smileys/',
   '/themes/',
@@ -50,12 +52,57 @@ const List<String> _forumFurniture = [
   '/graphics/',
 ];
 
-/// Words in an address that say the picture is a button, a badge or an avatar.
-final RegExp _notAScreenshot = RegExp(
+/// Words in an address that say the picture is a button, a badge, an avatar or
+/// a loading spinner — never a picture of a mod, whoever is asking. The
+/// gallery's stricter words (logos, icons) are in [_notAScreenshot] below,
+/// because a mod's own logo is a fine picture for its card but a poor
+/// "screenshot".
+final RegExp _neverAModPicture = RegExp(
   r'(donate|donation|button|badge|patreon|kofi|ko-fi|buymeacoffee|paypal'
-  r'|avatar|signature|smiley|emoticon|banner_ad|favicon|favico|_icon|-icon|/icon|logo)',
+  r'|avatar|signature|smiley|emoticon|banner_ad|favicon|favico|loading\.gif)',
   caseSensitive: false,
 );
+
+/// Words in an address that say the picture is not a screenshot, on top of
+/// [_neverAModPicture]: a logo or an icon is the mod's mark, not a picture of
+/// it running.
+final RegExp _notAScreenshot = RegExp(
+  r'(_icon|-icon|/icon|logo)',
+  caseSensitive: false,
+);
+
+/// True when [url] can never be a picture of a mod at all: a donation button,
+/// a badge, an avatar, a forum smiley, a loading spinner, or a piece of the
+/// forum's own furniture. Shared with the LLM extraction step, which uses it
+/// to keep such pictures out of the list the model may pick a mod's picture
+/// from — [looksLikeAScreenshot] adds the gallery's stricter rules on top.
+///
+/// An address that cannot be parsed is not called a badge — the caller
+/// decides what to do with those.
+bool isBadgeOrDonationImage(String url) {
+  final trimmed = url.trim();
+  if (trimmed.isEmpty) return false;
+
+  final address = Uri.tryParse(trimmed);
+  if (address == null) return false;
+
+  final host = address.host.toLowerCase();
+  for (final banned in _badgeHosts) {
+    if (host == banned || host.endsWith('.$banned')) return true;
+  }
+
+  final path = address.path.toLowerCase();
+  if (host == 'fractalsoftworks.com' ||
+      host.endsWith('.fractalsoftworks.com')) {
+    for (final part in _forumFurniture) {
+      if (path.contains(part)) return true;
+    }
+  }
+
+  // The query is where the forum puts its attachment ids, and an attachment is
+  // a picture the author uploaded — so only the path is read for these words.
+  return _neverAModPicture.hasMatch(path);
+}
 
 /// A size written into a `style` attribute, e.g. "width: 64px".
 final RegExp _styleWidth =
@@ -74,19 +121,10 @@ bool looksLikeAScreenshot(String url, {Map<String, int> sizes = const {}}) {
   final address = Uri.tryParse(trimmed);
   if (address == null) return false;
 
-  final host = address.host.toLowerCase();
-  for (final banned in _badgeHosts) {
-    if (host == banned || host.endsWith('.$banned')) return false;
-  }
+  if (isBadgeOrDonationImage(trimmed)) return false;
 
-  final path = address.path.toLowerCase();
-  for (final part in _forumFurniture) {
-    if (path.contains(part)) return false;
-  }
-
-  // The query is where the forum puts its attachment ids, and an attachment is
-  // a picture the author uploaded — so only the path is read for these words.
-  if (_notAScreenshot.hasMatch(path)) return false;
+  // Same rule as [isBadgeOrDonationImage]: only the path is read for words.
+  if (_notAScreenshot.hasMatch(address.path.toLowerCase())) return false;
 
   final width = sizes[trimmed];
   if (width != null && width < smallestScreenshot) return false;

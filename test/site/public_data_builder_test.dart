@@ -611,6 +611,388 @@ void main() {
     expect(detail.addons.single.requires, 'Industrial.Evolution');
   });
 
+  group('a thread that is several mods at once', () {
+    /// "Hartley's Miscellaneous Mods": four mods on one thread, three of which
+    /// the merge knew about because the author also posted them on Discord.
+    /// The merged names carry a version and the LLM's do not, which is the
+    /// whole difficulty.
+    List<LlmMod> hartleysMods() => [
+          LlmMod(
+            name: 'Useful.Tithes',
+            downloads: [LlmDownload(url: 'https://example.com/tithes.zip')],
+            extras: LlmExtras(
+              summary: LlmModSummary(paragraph: 'Pather tithes do something.'),
+            ),
+          ),
+          LlmMod(
+            name: 'Big Pilum Energy',
+            downloads: [LlmDownload(url: 'https://example.com/pilum.zip')],
+          ),
+          LlmMod(
+            name: 'Lost.Sector',
+            downloads: [LlmDownload(url: 'https://example.com/lost.zip')],
+            extras: LlmExtras(
+              summary: LlmModSummary(paragraph: 'Derelict stations to clear.'),
+            ),
+          ),
+          LlmMod(
+            name: 'Disco.Balls',
+            downloads: [LlmDownload(url: 'https://example.com/disco.zip')],
+          ),
+        ];
+
+    List<ScrapedMod> mergedHartleyMods() => [
+          forumMod(name: 'Useful.Tithes 1.0.a', topicId: 34161, summary: null),
+          forumMod(name: 'Big Pilum Energy 1.0.d', topicId: 34161, summary: null),
+          forumMod(
+              name: 'Disco.Balls 1.1.c - More Lamp Colour Options',
+              topicId: 34161,
+              summary: null),
+        ];
+
+    QbModSummary hartleysThread() => thread(
+          topicId: 34161,
+          title: "Hartley's Miscellaneous Mods",
+          llmMods: hartleysMods(),
+        );
+
+    /// The post names all four mods, which is what lets them be published.
+    QbModDetail hartleysPost() => postOf(
+          '<p>Useful.Tithes, Big Pilum Energy, Lost.Sector and Disco.Balls. '
+          'Four small mods in one thread.</p>',
+          topicId: 34161,
+        );
+
+    PublicSiteData buildHartleys() => builder.build(
+          mods: mergedHartleyMods(),
+          bundle: bundleOf(
+            index: [hartleysThread()],
+            details: {'34161': hartleysPost()},
+          ),
+        );
+
+    test('the mod the merge never saw is published as a mod of its own', () {
+      final data = buildHartleys();
+
+      expect(data.list.mods, hasLength(4),
+          reason: 'three merged mods and the one only the thread knew about');
+
+      final lost =
+          data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
+      expect(lost.partOfThreadTitle, "Hartley's Miscellaneous Mods");
+      expect(lost.sources, ['forum']);
+      expect(lost.bestDownload?.url, 'https://example.com/lost.zip');
+      expect(lost.gameVersion, '0.98a');
+    });
+
+    test('a merged mod is not published a second time under the LLM name', () {
+      final data = buildHartleys();
+
+      // The merge writes "Useful.Tithes 1.0.a" and the LLM writes
+      // "Useful.Tithes". Reading those as two mods would give one mod two
+      // pages, and the second id could never be taken back.
+      expect(data.list.mods.where((m) => m.name.startsWith('Useful.Tithes')),
+          hasLength(1));
+      expect(data.list.mods.where((m) => m.name.startsWith('Big Pilum')),
+          hasLength(1));
+      // The version sits in the middle of this one, with a subtitle behind it.
+      expect(data.list.mods.where((m) => m.name.startsWith('Disco.Balls')),
+          hasLength(1));
+      expect(data.list.mods.where((m) => m.partOfThreadTitle != null),
+          hasLength(1));
+    });
+
+    test('every mod on the thread gets its own facts, not a sibling\'s', () {
+      final data = buildHartleys();
+      String? downloadOf(String name) => data.list.mods
+          .singleWhere((m) => m.name.startsWith(name))
+          .bestDownload
+          ?.url;
+
+      // Each one used to take the first main mod's download, so all four
+      // offered Useful.Tithes' file.
+      expect(downloadOf('Useful.Tithes'), 'https://example.com/tithes.zip');
+      expect(downloadOf('Big Pilum'), 'https://example.com/pilum.zip');
+      expect(downloadOf('Disco.Balls'), 'https://example.com/disco.zip');
+      expect(downloadOf('Lost.Sector'), 'https://example.com/lost.zip');
+    });
+
+    test('the shared post is nobody\'s description', () {
+      final data = builder.build(
+        mods: [
+          // This one has its own Discord announcement; the others have none.
+          forumMod(
+            name: 'Useful.Tithes 1.0.a',
+            topicId: 34161,
+            summary: null,
+            description: 'A small mod making pather tithes more useful.',
+          ),
+          forumMod(name: 'Big Pilum Energy 1.0.d', topicId: 34161, summary: null),
+        ],
+        bundle: bundleOf(
+          index: [hartleysThread()],
+          details: {'34161': hartleysPost()},
+        ),
+      );
+
+      String idOf(String name) =>
+          data.list.mods.singleWhere((m) => m.name.startsWith(name)).id;
+
+      // Its own words, not the post about all four.
+      final tithes = data.details[idOf('Useful.Tithes')]!;
+      expect(tithes.description, 'A small mod making pather tithes more useful.');
+      expect(tithes.descriptionIsGenerated, isFalse);
+      expect(tithes.description, isNot(contains('Big Pilum')));
+
+      // Nothing of its own and no AI paragraph: no description at all beats
+      // three other mods' text.
+      final pilum = data.details[idOf('Big Pilum')]!;
+      expect(pilum.description, isNull);
+      expect(pilum.descriptionHtml, isNull);
+
+      // The AI paragraph where there is one, said to be AI.
+      final lost = data.details[idOf('Lost.Sector')]!;
+      expect(lost.description, 'Derelict stations to clear.');
+      expect(lost.descriptionIsGenerated, isTrue);
+    });
+
+    test('a mod named on the thread but never in the post is left out', () {
+      final data = builder.build(
+        mods: mergedHartleyMods(),
+        bundle: bundleOf(
+          index: [hartleysThread()],
+          // The post names three of the four. A model asked what a thread holds
+          // will pad the list, and a made-up mod would get a permanent address.
+          details: {
+            '34161': postOf(
+              '<p>Useful.Tithes, Big Pilum Energy and Disco.Balls.</p>',
+              topicId: 34161,
+            ),
+          },
+        ),
+      );
+
+      expect(data.list.mods, hasLength(3));
+      expect(data.list.mods.where((m) => m.name == 'Lost.Sector'), isEmpty);
+    });
+
+    test('a mod with no download is left out', () {
+      final withoutDownload = [
+        for (final llmMod in hartleysMods())
+          if (llmMod.name == 'Lost.Sector')
+            LlmMod(name: llmMod.name, downloads: const [])
+          else
+            llmMod,
+      ];
+
+      final data = builder.build(
+        mods: mergedHartleyMods(),
+        bundle: bundleOf(
+          index: [
+            thread(
+              topicId: 34161,
+              title: "Hartley's Miscellaneous Mods",
+              llmMods: withoutDownload,
+            ),
+          ],
+          details: {'34161': hartleysPost()},
+        ),
+      );
+
+      expect(data.list.mods.where((m) => m.name == 'Lost.Sector'), isEmpty);
+    });
+
+    test('an add-on stays an add-on, and sits on the mod it needs', () {
+      final data = builder.build(
+        mods: mergedHartleyMods(),
+        bundle: bundleOf(
+          index: [
+            thread(
+              topicId: 34161,
+              title: "Hartley's Miscellaneous Mods",
+              llmMods: [
+                ...hartleysMods(),
+                LlmMod(
+                  name: 'Tithes Extra Icons',
+                  role: LlmModRole.addon,
+                  requires: 'Useful.Tithes',
+                  downloads: [LlmDownload(url: 'https://example.com/icons.zip')],
+                ),
+              ],
+            ),
+          ],
+          details: {
+            '34161': postOf(
+              '<p>Useful.Tithes, Big Pilum Energy, Lost.Sector, Disco.Balls '
+              'and Tithes Extra Icons.</p>',
+              topicId: 34161,
+            ),
+          },
+        ),
+      );
+
+      // Not a mod of its own.
+      expect(data.list.mods.where((m) => m.name == 'Tithes Extra Icons'), isEmpty);
+
+      String idOf(String name) =>
+          data.list.mods.singleWhere((m) => m.name.startsWith(name)).id;
+
+      // On the page of the mod it needs, and on no other — four mods sharing a
+      // thread would otherwise each list all of its add-ons.
+      expect(data.details[idOf('Useful.Tithes')]!.addons.map((a) => a.name),
+          ['Tithes Extra Icons']);
+      expect(data.details[idOf('Big Pilum')]!.addons, isEmpty);
+      expect(data.details[idOf('Lost.Sector')]!.addons, isEmpty);
+    });
+
+    test('two mods whose names clean alike keep separate pages', () {
+      final data = builder.build(
+        mods: [
+          ...mergedHartleyMods(),
+          // Kissa_Mies's, a different mod on a thread of its own.
+          forumMod(name: 'LOST_SECTOR', topicId: 27556, summary: null),
+        ],
+        bundle: bundleOf(
+          index: [
+            hartleysThread(),
+            thread(topicId: 27556, title: '[0.98a] LOST_SECTOR'),
+          ],
+          details: {'34161': hartleysPost()},
+        ),
+      );
+
+      final hartleys = data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
+      final kissas = data.list.mods.singleWhere((m) => m.name == 'LOST_SECTOR');
+      expect(hartleys.id, isNot(kissas.id));
+      expect(hartleys.partOfThreadTitle, "Hartley's Miscellaneous Mods");
+      expect(kissas.partOfThreadTitle, isNull);
+    });
+
+    test('the same bundle read again gives every mod the id it had', () {
+      final first = buildHartleys();
+      final second = buildHartleys();
+
+      expect(
+        {for (final m in second.list.mods) m.name: m.id},
+        equals({for (final m in first.list.mods) m.name: m.id}),
+      );
+    });
+
+    test('the thread contributes nothing to the release feed', () {
+      final data = builder.build(
+        mods: mergedHartleyMods(),
+        bundle: bundleOf(
+          index: [hartleysThread()],
+          details: {'34161': hartleysPost()},
+        ),
+        threadReleases: [
+          const ThreadRelease(
+            topicId: 34161,
+            modName: "Hartley's Miscellaneous Mods",
+            seenOn: '2026-08-14',
+            oldVersion: '1.0.a',
+            newVersion: '1.0.b',
+          ),
+        ],
+      );
+
+      // The detector believes one version for a whole thread and cannot say
+      // which of four mods moved. Crediting one would announce a release that
+      // mod never made, and the feed used to give it to whichever came last.
+      expect(data.feed.releases, isEmpty);
+      for (final mod in data.list.mods) {
+        expect(data.details[mod.id]!.releases, isEmpty);
+        expect(mod.lastReleaseDate, isNull);
+      }
+    });
+  });
+
+  test('a thread about one mod keeps the post as its description', () {
+    final data = builder.build(
+      mods: [forumMod(description: 'The merged text.')],
+      bundle: bundleOf(
+        index: [
+          thread(llmMods: [
+            LlmMod(
+              name: 'Nexerelin',
+              downloads: [LlmDownload(url: 'https://example.com/nex.zip')],
+            ),
+          ]),
+        ],
+        details: {'9175': postOf('<p>The author&#39;s own post.</p>')},
+      ),
+    );
+
+    final detail = data.details[data.list.mods.single.id]!;
+    expect(detail.description, "The author's own post.");
+    expect(detail.descriptionHtml, contains('<p>'));
+    expect(detail.descriptionIsGenerated, isFalse);
+    expect(detail.partOfThreadTitle, isNull);
+  });
+
+  test('a thread naming one mod is that mod, whatever the two are called', () {
+    // "Red - the Oculian Armada" is the mod called "Red". No comparing of
+    // names would say so; that the thread names one mod is what says it.
+    final data = builder.build(
+      mods: [forumMod(name: 'Red', topicId: 5000, summary: null)],
+      bundle: bundleOf(index: [
+        thread(
+          topicId: 5000,
+          title: '[0.98a] Red - the Oculian Armada (0.10.2-RC4) Mod',
+          llmMods: [
+            LlmMod(
+              name: 'Red - the Oculian Armada',
+              downloads: [LlmDownload(url: 'https://example.com/red.zip')],
+              extras: LlmExtras(version: '0.10.2'),
+            ),
+          ],
+        ),
+      ]),
+    );
+
+    final mod = data.list.mods.single;
+    expect(mod.modVersion, '0.10.2', reason: 'it took the thread mod\'s facts');
+    expect(mod.bestDownload?.url, 'https://example.com/red.zip');
+    expect(mod.partOfThreadTitle, isNull);
+  });
+
+  test('a mod merged from Discord alone still has the forum as a source', () {
+    final data = builder.build(
+      mods: [
+        ScrapedMod(
+          name: 'Quality Captains',
+          sources: const [ModSource.Discord],
+          urls: {
+            ModUrlType.Forum:
+                'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+            ModUrlType.Discord: 'https://discord.com/channels/1/2',
+          },
+        ),
+      ],
+      bundle: bundleOf(index: [thread()]),
+    );
+
+    // The merge learns about a mod from the board listings or from Discord, so
+    // a mod announced only on Discord came out marked Discord-only while its
+    // own page linked its forum thread.
+    expect(data.list.mods.single.sources, ['forum', 'discord']);
+  });
+
+  test('a mod with no thread at all is still Discord alone', () {
+    final data = builder.build(
+      mods: [
+        ScrapedMod(
+          name: 'Quality Captains',
+          sources: const [ModSource.Discord],
+          urls: {ModUrlType.Discord: 'https://discord.com/channels/1/2'},
+        ),
+      ],
+      bundle: bundleOf(),
+    );
+
+    expect(data.list.mods.single.sources, ['discord']);
+  });
+
   test('an LLM summary is marked as written, a copied one is not', () {
     final generated = builder.build(
       mods: [forumMod(summary: null)],

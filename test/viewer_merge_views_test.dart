@@ -258,6 +258,68 @@ void main() {
       expect(fields, ['gameVersionReq']);
     });
 
+    ScrapedMod withUrls(Map<ModUrlType, String> urls) => ScrapedMod(
+          name: 'Four Links',
+          authorsList: const ['Author Aaa'],
+          gameVersionReq: '0.98a',
+          sources: const [ModSource.Index],
+          urls: urls,
+        );
+
+    const forum = 'https://fractalsoftworks.com/forum/index.php?topic=9.0';
+    const nexus = 'https://www.nexusmods.com/starsector/mods/9';
+
+    test('only the link that moved is listed, not all of them', () async {
+      await saveTwo(
+        before: [
+          withUrls(const {
+            ModUrlType.Forum: forum,
+            ModUrlType.NexusMods: nexus,
+            ModUrlType.DownloadPage: 'https://example.com/old',
+          }),
+        ],
+        after: [
+          withUrls(const {
+            ModUrlType.Forum: forum,
+            ModUrlType.NexusMods: nexus,
+            ModUrlType.DownloadPage: 'https://example.com/new',
+          }),
+        ],
+      );
+
+      final body = await compare();
+      final changed = (body['items'] as List).cast<Map<String, dynamic>>().single;
+      final urls = (changed['changes'] as List)
+          .cast<Map<String, dynamic>>()
+          .single;
+      expect(urls['field'], 'urls');
+      // The whole map on both sides is what this used to show.
+      expect(urls.containsKey('before'), isFalse);
+      expect(urls.containsKey('after'), isFalse);
+
+      final items = (urls['items'] as List).cast<Map<String, dynamic>>();
+      expect(items, hasLength(1));
+      expect(items.single['label'], 'DownloadPage');
+      expect(items.single['change'], 'changed');
+      expect(items.single['before'], 'https://example.com/old');
+      expect(items.single['after'], 'https://example.com/new');
+    });
+
+    test('links written in a different order are not a change', () async {
+      await saveTwo(
+        before: [
+          withUrls(const {ModUrlType.Forum: forum, ModUrlType.NexusMods: nexus}),
+        ],
+        after: [
+          withUrls(const {ModUrlType.NexusMods: nexus, ModUrlType.Forum: forum}),
+        ],
+      );
+
+      final body = await compare();
+      expect(body['changedCount'], 0);
+      expect(body['sameCount'], 1);
+    });
+
     test('a mod whose name gained a suffix is changed, not swapped', () async {
       await saveTwo(
         before: [mod('Nexerelin', topic: '9')],

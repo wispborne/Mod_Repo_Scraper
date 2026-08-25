@@ -69,4 +69,51 @@ void main() {
     // Nothing said, so nothing is assumed.
     expect(looksLikeAScreenshot('https://x/c.png', sizes: sizes), isTrue);
   });
+
+  // The LLM extraction step uses [isBadgeOrDonationImage] to decide which of a
+  // post's pictures the model may pick a mod's picture from. It must agree
+  // with the gallery about donation buttons — a Patreon banner offered to the
+  // model is how LunaLib's card showed a Patreon image — while still letting
+  // through a mod's own logo, which is a fine card picture but not a
+  // screenshot.
+  test('the shared badge check agrees with the gallery on donation buttons',
+      () {
+    expect(isBadgeOrDonationImage('https://ko-fi.com/img/githubbutton_sm.svg'),
+        isTrue);
+    expect(isBadgeOrDonationImage('https://c5.patreon.com/become_a_patron.png'),
+        isTrue);
+    expect(isBadgeOrDonationImage('https://example.com/donate-button.png'),
+        isTrue);
+    expect(isBadgeOrDonationImage('https://example.com/avatar/1234.png'),
+        isTrue);
+    expect(isBadgeOrDonationImage('https://example.com/loading.gif'), isTrue);
+  });
+
+  test('a mod\'s own logo is not a badge, but is not a screenshot either', () {
+    const logo = 'https://example.com/mod-logo.png';
+    expect(isBadgeOrDonationImage(logo), isFalse);
+    expect(looksLikeAScreenshot(logo), isFalse);
+    const icon = 'https://raw.githubusercontent.com/someone/theirmod/main/graphics/mod_icon.png';
+    expect(isBadgeOrDonationImage(icon), isFalse);
+    expect(looksLikeAScreenshot(icon), isFalse);
+  });
+
+  test('a picture in a mod repository\'s graphics folder is not furniture', () {
+    // A Starsector mod's own repository keeps its pictures in graphics/ too —
+    // only the forum's graphics/ is the forum's furniture.
+    expect(
+        looksLikeAScreenshot(
+            'https://raw.githubusercontent.com/someone/theirmod/main/graphics/screenshot1.png'),
+        isTrue);
+    expect(
+        looksLikeAScreenshot(
+            'https://fractalsoftworks.com/forum/graphics/star.gif'),
+        isFalse);
+  });
+
+  test('an ordinary screenshot passes both checks', () {
+    const shot = 'https://i.imgur.com/abcdef.png';
+    expect(isBadgeOrDonationImage(shot), isFalse);
+    expect(looksLikeAScreenshot(shot), isTrue);
+  });
 }

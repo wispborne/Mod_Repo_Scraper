@@ -22,7 +22,7 @@ void main() {
     final raw = readJson('site/sample-data/mods.json');
     final parsed = PublicModListMapper.fromMap(raw);
 
-    expect(parsed.mods, hasLength(3));
+    expect(parsed.mods, hasLength(4));
     expect(parsed.toMap(), equals(raw));
   });
 
@@ -40,12 +40,35 @@ void main() {
         .whereType<File>()
         .where((f) => f.path.endsWith('.json'))
         .toList();
-    expect(files, hasLength(3));
+    expect(files, hasLength(4));
 
     for (final file in files) {
       final raw = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
       final parsed = PublicModDetailMapper.fromMap(raw);
       expect(parsed.toMap(), equals(raw), reason: '${file.path} lost data');
+    }
+  });
+
+  test('the samples cover a mod published from somebody else\'s thread', () {
+    final threadOnly = PublicModDetailMapper.fromMap(
+        readJson('site/sample-data/mods/lost-sector.json'));
+
+    // The site has to be seen with one of these while it is being worked on,
+    // or the "part of <thread>" line is written blind.
+    expect(threadOnly.partOfThreadTitle, "Hartley's Miscellaneous Mods");
+    expect(threadOnly.listing.partOfThreadTitle, threadOnly.partOfThreadTitle);
+    expect(threadOnly.listing.sources, ['forum']);
+    expect(threadOnly.downloads, isNotEmpty);
+    // Its thread is about four mods, so the post is nobody's description.
+    expect(threadOnly.descriptionIsGenerated, isTrue);
+    expect(threadOnly.descriptionHtml, isNull);
+
+    // Every other sample is a merged mod, and a merged mod never carries it.
+    for (final id in const ['nexerelin', 'quality-captains', 'industrial-evolution']) {
+      final merged =
+          PublicModDetailMapper.fromMap(readJson('site/sample-data/mods/$id.json'));
+      expect(merged.partOfThreadTitle, isNull, reason: '$id is a merged mod');
+      expect(merged.listing.partOfThreadTitle, isNull, reason: '$id is a merged mod');
     }
   });
 

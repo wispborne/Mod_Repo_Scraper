@@ -103,6 +103,14 @@ class BundleSnapshotStore {
         trimmedDetails['${entry.key}'] = detail;
         continue;
       }
+      // Already trimmed: it has a fingerprint and no post text to take one
+      // from. Trimming again would fingerprint the nothing that is left and
+      // wipe the one it already has.
+      if (!detail.containsKey('contentHtml') &&
+          detail.containsKey(fingerprintKey)) {
+        trimmedDetails['${entry.key}'] = detail;
+        continue;
+      }
       final withoutHtml = <String, dynamic>{
         for (final field in detail.entries)
           if (field.key != 'contentHtml') '${field.key}': field.value,

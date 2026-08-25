@@ -12,6 +12,7 @@ import {
   changedFieldsTitle,
 } from '../lib.js';
 import { withRun, loadRuns, runLabel, cellText } from './merge_shared.js';
+import { diffTable } from './diff_table.js';
 
 // --- Before and after, field by field ---
 
@@ -343,42 +344,6 @@ function changeCard(row) {
   }
   card.append(inner);
   return card;
-}
-
-/// One row per changed field, the older value beside the newer one.
-function diffTable(changes) {
-  const table = el('table', { class: 'diff-table' });
-  table.append(el('thead', {}, el('tr', {}, [
-    el('th', { text: 'Field' }),
-    el('th', { text: 'Older' }),
-    el('th', { text: 'Newer' }),
-  ])));
-  const tbody = el('tbody');
-  for (const change of changes) {
-    const tr = el('tr', {});
-    tr.append(el('td', { class: 'diff-field', text: change.field }));
-    if (change.note) {
-      // A field where the two values are no use on screen.
-      tr.append(el('td', { class: 'change-note', colspan: '2', text: change.note }));
-    } else {
-      tr.append(el('td', { class: 'diff-before', text: diffText(change.before) }));
-      tr.append(el('td', { class: 'diff-after', text: diffText(change.after) }));
-    }
-    tbody.append(tr);
-  }
-  table.append(tbody);
-  return el('div', { class: 'table-wrapper' }, table);
-}
-
-/// Like cellText, but tells "not there" apart from "there but empty" — a row
-/// where both sides read "—" would look like nothing changed — and reads
-/// booleans out as words.
-function diffText(value) {
-  if (Array.isArray(value) && !value.length) return '(empty list)';
-  if (value === '') return '(empty)';
-  if (value === true) return 'yes';
-  if (value === false) return 'no';
-  return cellText(value);
 }
 
 function kindWord(kind) {

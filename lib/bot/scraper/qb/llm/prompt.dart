@@ -7,17 +7,17 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 12;
+  static const int promptVersion = 13;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
   static const double temperature = 0;
   static const int maxTokens = 4000;
 
-  /// The system message. When [includeSummary] is false this is byte-identical
-  /// to the long-standing prompt, so posts already saved without summaries keep
-  /// their cache. When true, it adds a `summary` field and the rules for it —
-  /// the one place the model is asked to write in its own words.
+  /// The system message. When [includeSummary] is true it adds a `summary`
+  /// field and the rules for it — the one place the model is asked to write in
+  /// its own words. Note the cache key does not hash this text: only bumping
+  /// [promptVersion] makes an edit here reach topics already extracted.
   static String buildSystemPrompt({bool includeSummary = false}) {
     final summaryRule = includeSummary
         ? '\n- The "summary" field is the ONE exception to the copy-exactly '
@@ -156,15 +156,15 @@ Guidance:
   Return a link when the post links one, entries when the post shows changelog
   text, and both when the post has both.
 - "image" is a picture for the mod, taken from the images list below:
-  - Set it only when the post clearly shows a picture that belongs to THAT
-    specific mod — a banner, logo, or screenshot next to the mod's name or its
-    download. This matters most when a post offers several mods or a main mod
-    plus add-ons, so each one can show its own picture.
+  - On a thread offering exactly one mod, the post's main banner, logo, or
+    first screenshot is that mod's picture — set it.
+  - When a post offers several mods, or a main mod plus add-ons, give each mod
+    the picture that clearly belongs to it: a banner, logo, or screenshot next
+    to its name or its download. Leave it null for a mod the post ties no
+    picture to.
   - Copy the image URL exactly from the images list. Never guess or build a URL,
     and never use one that is not in that list.
-  - Do NOT use badges or icons (license shields, version badges, forum smileys).
-  - Leave it null when the post ties no clear picture to this mod. A single-mod
-    thread usually needs no image here — the thread already has one.
+  - Do NOT use badges or icons (license shields, version badges, forum smileys, donation links).
 - "sourceCode" is where the mod's code is kept — a GitHub, GitLab, Bitbucket or
   similar repository page:
   - Give the repository's own page (e.g. "https://github.com/someone/theirmod"),
@@ -329,8 +329,8 @@ Guidance:
   }) {
     final buffer = StringBuffer();
 
-    // Only sent when summaries are on, so posts saved without summaries keep
-    // the same prompt (and the same cache key).
+    // Always sent — the title helps the model name each mod. It carries the
+    // version, so a release changes the cache key and re-runs the topic.
     if (modTitle != null && modTitle.trim().isNotEmpty) {
       buffer.writeln('=== MOD TITLE ===');
       buffer.writeln(modTitle.trim());

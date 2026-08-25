@@ -9,6 +9,7 @@ import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
 import '../manager/bundle_snapshot_store.dart';
 import '../manager/merge_snapshot_store.dart';
+import 'working_bundle.dart';
 
 /// One file the raw-file/log endpoints are allowed to serve, addressed by a
 /// short [id] and never by a path the client supplies (D7). [hint] tells the
@@ -206,6 +207,19 @@ class DataAccess {
   /// One saved bundle, or null when there is no such run or it can't be read.
   Map<String, dynamic>? bundleRun(String id) =>
       _held('bundle:$id', () => bundleSnapshots.readRaw(id));
+
+  /// The bundle as it would be published right now, from the working data on
+  /// disk. Null when there is no mods index to build one from.
+  ///
+  /// This is the newer side of "what has this run changed so far", and the only
+  /// thing here that is not read back from a file — see [WorkingBundle].
+  Map<String, dynamic>? workingBundle() => _workingBundle.bundle;
+
+  /// When any of the working data was last written to disk. Only meaningful
+  /// once [workingBundle] has been asked for, which is what looks.
+  DateTime? get workingLastWrittenAt => _workingBundle.lastWrittenAt;
+
+  late final WorkingBundle _workingBundle = WorkingBundle(this);
 
   /// One saved bundle, read straight from disk and not held.
   ///

@@ -40,8 +40,8 @@ Map<String, dynamic> snapshotOf(Map<String, dynamic> topic) =>
         },
       },
       'assumedDownloads': {
-        if (topic['downloads'] != null)
-          '${topic['id']}': {'candidates': topic['downloads']},
+        // A plain list, which is the shape a real bundle has.
+        if (topic['downloads'] != null) '${topic['id']}': topic['downloads'],
       },
     });
 

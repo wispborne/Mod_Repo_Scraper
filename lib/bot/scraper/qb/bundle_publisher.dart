@@ -5,7 +5,6 @@ import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
 import 'download_resolver.dart';
-import 'forum_constants.dart';
 import 'html_processor.dart';
 import 'json_data_store.dart';
 import 'llm/extraction_store.dart';
@@ -15,6 +14,7 @@ import 'models/forum_data_bundle.dart';
 import 'models/mod_detail.dart';
 import 'models/post_extraction.dart';
 import 'models/scrape_job.dart';
+import 'mod_thread_filter.dart';
 
 class BundlePublisher {
   static const String _bundleFileName = 'forum-data-bundle.json';
@@ -72,16 +72,16 @@ class BundlePublisher {
         llmByTopic[s.topicId] != null ? s.copyWith(llm: llmByTopic[s.topicId]) : s,
     ];
 
-    // Drop a thread only when BOTH signals agree it is not a mod: the LLM judged
-    // it a non-mod AND its title carries no game-version tag. A version tag, a
-    // missing judgment (LLM off, not yet run, or bailed), or a positive call all
-    // keep the thread — so we never drop on the LLM's word alone.
+    // The keep/drop rule itself lives in `mod_thread_filter.dart`, because the
+    // viewer applies the same one when it works out what a run has changed so
+    // far.
     final droppedTopicIds = <int>[];
     final droppedLines = <String>[];
     final index = indexWithLlm.where((s) {
-      final judged = llmIsModByTopic[s.topicId];
-      if (judged != false) return true;
-      if (ForumConstants.gameVersionRegex.hasMatch(s.title)) return true;
+      if (keepThreadInBundle(
+          title: s.title, llmSaidMod: llmIsModByTopic[s.topicId])) {
+        return true;
+      }
       droppedTopicIds.add(s.topicId);
       droppedLines.add('${s.topicId}: ${s.title}');
       return false;

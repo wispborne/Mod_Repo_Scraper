@@ -10,6 +10,11 @@ import 'data_access.dart';
 import 'merge_views.dart';
 import 'site_version.dart';
 
+/// The name the data on disk goes by when it is one side of a comparison. It is
+/// not a run id and never will be — no run saved it, and there is only ever one
+/// of it.
+const String workingSideId = 'working';
+
 /// The JSON API for the results viewer. Every handler reads through [DataAccess]
 /// (mtime-cached, read-only) and returns either a list envelope, a single
 /// object, or a "missing file" envelope. Never writes.
@@ -577,12 +582,35 @@ class ViewerApi {
     return _json({
       'items': runs,
       'total': runs.length,
+      // The working data on disk, offered as a side to compare against so a
+      // run can be watched while it is still going. Null when there is no mods
+      // index yet, so the page knows not to offer it.
+      'working': _workingSide(),
     });
+  }
+
+  /// What the picker shows for the working data on disk.
+  Map<String, dynamic>? _workingSide() {
+    final working = data.workingBundle();
+    if (working == null) return null;
+    return {
+      'id': workingSideId,
+      'updatedAt': data.workingLastWrittenAt?.toUtc().toIso8601String(),
+      'indexCount': (working['index'] as List?)?.length,
+    };
   }
 
   /// What changed between two saved bundles. Worked out once and held, since a
   /// saved bundle never changes.
   final Map<String, Map<String, dynamic>> _bundleCompareCache = {};
+
+  /// The same, for a comparison whose newer side is the working data. That side
+  /// moves while a run is going, so it is held against the very map it was
+  /// worked out from: [DataAccess.workingBundle] hands back the same one until
+  /// something on disk changes, and a new one the moment it does.
+  String? _workingCompareOlder;
+  Map<String, dynamic>? _workingCompareFrom;
+  Map<String, dynamic>? _workingCompareResult;
 
   Response _bundleCompare(Request req) {
     var a = req.url.queryParameters['a']?.trim() ?? '';
@@ -590,36 +618,39 @@ class ViewerApi {
     if (b.isEmpty) {
       return _notFound('Name two bundles to compare, as a= and b=.');
     }
+    if (a == workingSideId) {
+      return _notFound('The data on disk is always the newer of the two. '
+          'Ask for it as b=$workingSideId.');
+    }
     // "What did this run change?" names only the newer side and lets us work
-    // out the one before it.
+    // out the one before it. For the data on disk that is the newest bundle
+    // saved so far — everything published before this run started.
     if (a.isEmpty) {
-      final before = data.bundleRunBefore(b);
+      final before = b == workingSideId
+          ? data.bundleSnapshots.newestId
+          : data.bundleRunBefore(b);
       if (before == null) {
         return _missing(
             'bundle-runs',
-            'That is the oldest bundle still kept, so there is nothing to '
-            'compare it against.');
+            b == workingSideId
+                ? 'No bundle has been saved yet, so there is nothing to compare '
+                    'the data on disk against. Publish one and this page will '
+                    'show what each run since has changed.'
+                : 'That is the oldest bundle still kept, so there is nothing to '
+                    'compare it against.');
       }
       a = before;
     }
 
-    final held = _bundleCompareCache['$a|$b'];
-    final comparison = held ??
-        () {
-          final older = data.bundleRun(a);
-          final newer = data.bundleRun(b);
-          if (older == null || newer == null) return null;
-          final worked = compareBundles(older: older, newer: newer);
-          // Two is plenty: this only saves comparing the same pair twice while
-          // somebody pages through it.
-          if (_bundleCompareCache.length >= 2) _bundleCompareCache.clear();
-          _bundleCompareCache['$a|$b'] = worked;
-          return worked;
-        }();
+    final comparison =
+        b == workingSideId ? _compareWithWorking(a) : _compareSaved(a, b);
 
     if (comparison == null) {
-      return _missing('bundle-runs',
-          'One of those bundles is no longer kept. Pick another.');
+      return _missing(
+          'bundle-runs',
+          b == workingSideId
+              ? 'There is no scraped data on disk to compare against yet.'
+              : 'One of those bundles is no longer kept. Pick another.');
     }
 
     final q = _q(req);
@@ -639,12 +670,50 @@ class ViewerApi {
     return _json({
       'a': a,
       'b': b,
+      if (b == workingSideId)
+        'workingUpdatedAt':
+            data.workingLastWrittenAt?.toUtc().toIso8601String(),
       'sameCount': comparison['sameCount'],
       'addedCount': comparison['addedCount'],
       'goneCount': comparison['goneCount'],
       'changedCount': comparison['changedCount'],
       ..._paged(rows, _page(req), _pageSize(req)),
     });
+  }
+
+  Map<String, dynamic>? _compareSaved(String a, String b) {
+    final held = _bundleCompareCache['$a|$b'];
+    if (held != null) return held;
+
+    final older = data.bundleRun(a);
+    final newer = data.bundleRun(b);
+    if (older == null || newer == null) return null;
+    final worked = compareBundles(older: older, newer: newer);
+    // Two is plenty: this only saves comparing the same pair twice while
+    // somebody pages through it.
+    if (_bundleCompareCache.length >= 2) _bundleCompareCache.clear();
+    _bundleCompareCache['$a|$b'] = worked;
+    return worked;
+  }
+
+  /// A saved bundle against the data on disk right now.
+  Map<String, dynamic>? _compareWithWorking(String a) {
+    final working = data.workingBundle();
+    if (working == null) return null;
+
+    if (_workingCompareOlder == a &&
+        identical(_workingCompareFrom, working) &&
+        _workingCompareResult != null) {
+      return _workingCompareResult;
+    }
+
+    final older = data.bundleRun(a);
+    if (older == null) return null;
+    final worked = compareBundles(older: older, newer: working);
+    _workingCompareOlder = a;
+    _workingCompareFrom = working;
+    _workingCompareResult = worked;
+    return worked;
   }
 
   // --- ModRepo browser (4.1) ---
@@ -824,10 +893,10 @@ class ViewerApi {
 
   // --- Which version is running ---
 
-  /// The newest git tag in the checkout the server was started from, so the
-  /// foot of the sidebar can say which version you are looking at. An answer of
-  /// `{}` means there is no tag to report — the site then shows nothing, which
-  /// is the right amount of fuss to make about it.
+  /// Which build is running — the build number, the commit and the day it was
+  /// made — so the foot of the sidebar can say which version you are looking
+  /// at. An answer of `{}` means there is nothing to report; the site then
+  /// shows nothing, which is the right amount of fuss to make about it.
   Response _version(Request req) => _json(SiteVersion(data.rootDir).read() ?? const {});
 }
 

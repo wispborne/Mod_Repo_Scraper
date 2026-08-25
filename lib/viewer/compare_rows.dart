@@ -15,6 +15,12 @@ typedef KeyOf = String Function(Map<dynamic, dynamic> record);
 /// What to show for a record in a list of differences.
 typedef LabelOf = String Function(Map<dynamic, dynamic> record);
 
+/// Says what changed inside a field item by item, for a field holding a list or
+/// a map. Returning an empty list means nothing that counts moved — only the
+/// order of the entries, say — and the field is then not reported as changed.
+typedef ItemsOf = List<Map<String, dynamic>> Function(
+    Object? before, Object? after);
+
 /// One field worth comparing, and what to call it in plain English.
 class ComparedField {
   final String name;
@@ -26,7 +32,12 @@ class ComparedField {
   /// be no use — a fingerprint of a post, say. Null shows the two values.
   final String Function(Object? before, Object? after)? describe;
 
-  const ComparedField(this.name, {this.label, this.describe});
+  /// Picks a list or a map apart entry by entry, so a field where one link of
+  /// twelve moved says that rather than printing all twelve twice. Null shows
+  /// the two values whole.
+  final ItemsOf? itemsOf;
+
+  const ComparedField(this.name, {this.label, this.describe, this.itemsOf});
 }
 
 /// Compares two lists of records.
@@ -141,6 +152,17 @@ List<Map<String, dynamic>> changedFields(
     final was = before[field.name];
     final now = after[field.name];
     if (sameness(was) == sameness(now)) continue;
+
+    if (field.itemsOf != null) {
+      final items = field.itemsOf!(was, now);
+      // Nothing that counts moved — the entries were only written in a
+      // different order. Saying "this changed" and then showing nothing is
+      // worse than not mentioning it.
+      if (items.isEmpty) continue;
+      changes.add({'field': field.label ?? field.name, 'items': items});
+      continue;
+    }
+
     changes.add({
       'field': field.label ?? field.name,
       if (field.describe != null) 'note': field.describe!(was, now),
@@ -149,6 +171,63 @@ List<Map<String, dynamic>> changedFields(
     });
   }
   return changes;
+}
+
+// --- Picking a list or a map apart, entry by entry ---
+
+/// The added, removed and changed entries of a map — a mod's links, say. A
+/// changed entry carries the old and new value; an entry that stayed the same
+/// is left out, which is the whole point.
+List<Map<String, dynamic>> mapItems(Object? before, Object? after) {
+  final was = before is Map ? before : const {};
+  final now = after is Map ? after : const {};
+  final items = <Map<String, dynamic>>[];
+
+  for (final key in now.keys) {
+    if (!was.containsKey(key)) {
+      items.add({'change': 'added', 'label': '$key', 'after': now[key]});
+    }
+  }
+  for (final key in was.keys) {
+    if (!now.containsKey(key)) {
+      items.add({'change': 'removed', 'label': '$key', 'before': was[key]});
+    }
+  }
+  for (final key in now.keys) {
+    if (!was.containsKey(key)) continue;
+    if (sameness(was[key]) == sameness(now[key])) continue;
+    items.add({
+      'change': 'changed',
+      'label': '$key',
+      'before': was[key],
+      'after': now[key],
+    });
+  }
+  return items;
+}
+
+/// The added and removed entries of a plain list — a mod's authors, its
+/// categories, the sources it was found in. Order is not a change: the same
+/// names written in a different order is not something to report.
+List<Map<String, dynamic>> listItems(Object? before, Object? after) {
+  Set<String> setOf(Object? value) => {
+        for (final entry in value is List ? value : const []) sameness(entry),
+      };
+  String labelOf(Object? entry) => entry is String ? entry : sameness(entry);
+
+  final was = setOf(before);
+  final now = setOf(after);
+  final items = <Map<String, dynamic>>[];
+
+  for (final entry in after is List ? after : const []) {
+    if (was.contains(sameness(entry))) continue;
+    items.add({'change': 'added', 'label': labelOf(entry)});
+  }
+  for (final entry in before is List ? before : const []) {
+    if (now.contains(sameness(entry))) continue;
+    items.add({'change': 'removed', 'label': labelOf(entry)});
+  }
+  return items;
 }
 
 /// Two values count as the same when they write out the same. Good enough for

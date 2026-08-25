@@ -143,6 +143,18 @@ class PublicMod with PublicModMappable {
   /// the single most useful thing a reader can be told before they download.
   final List<PublicNeededMod> needs;
 
+  /// The title of the thread this mod was found on, for a mod that has no
+  /// thread of its own — one of several mods posted in somebody else's thread,
+  /// like the four in "Hartley's Miscellaneous Mods". The site says "part of
+  /// <thread>" so four mods sharing one forum link do not read as a mistake.
+  ///
+  /// Null for every mod that came from the merge, whether or not its thread
+  /// holds other mods. TriOS carries the same field with the same meaning: it
+  /// marks a mod the catalog made up from a thread's reading, and there it also
+  /// switches off matching by thread id, since the thread belongs to somebody
+  /// else's mod.
+  final String? partOfThreadTitle;
+
   PublicMod({
     required this.id,
     required this.name,
@@ -168,6 +180,7 @@ class PublicMod with PublicModMappable {
     this.lastReleaseDate,
     this.addedOn,
     this.needs = const [],
+    this.partOfThreadTitle,
   });
 }
 

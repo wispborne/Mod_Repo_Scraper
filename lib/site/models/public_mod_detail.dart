@@ -94,6 +94,11 @@ class PublicModDetail with PublicModDetailMappable {
   /// only one mod on it.
   final List<PublicAddon> addons;
 
+  /// The title of the thread this mod was found on, for a mod with no thread of
+  /// its own. The same field as [PublicMod.partOfThreadTitle], repeated here so
+  /// the page stands alone, and null for a merged mod for the same reason.
+  final String? partOfThreadTitle;
+
   PublicModDetail({
     required this.generatedAt,
     required this.listing,
@@ -116,6 +121,7 @@ class PublicModDetail with PublicModDetailMappable {
     this.releases = const [],
     this.olderVersions = const [],
     this.addons = const [],
+    this.partOfThreadTitle,
   });
 }
 

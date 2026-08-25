@@ -56,8 +56,8 @@ void main() {
         },
         'assumedDownloads': {
           for (final t in topics)
-            if (t['downloads'] != null)
-              '${t['id']}': {'candidates': t['downloads']},
+            // A plain list, which is the shape a real bundle has.
+            if (t['downloads'] != null) '${t['id']}': t['downloads'],
         },
       };
 
@@ -185,6 +185,35 @@ void main() {
       expect(body['changedCount'], 1);
       expect(((body['items'] as List).first['changes'] as List)
           .map((c) => c['field']), contains('LLM facts'));
+    });
+
+    test('only the download that moved is listed, not all of them', () async {
+      List<Map<String, dynamic>> downloads(String second) => [
+            {'originalUrl': 'https://a.example/one.zip', 'fileName': 'one.zip'},
+            {'originalUrl': 'https://b.example/two.zip', 'fileName': second},
+            {'originalUrl': 'https://c.example/three.zip', 'fileName': 'three.zip'},
+          ];
+
+      await save('20260720T100000Z-fullRun', bundle([
+        {'id': 1, 'downloads': downloads('two.zip')}
+      ]));
+      await save('20260722T100000Z-fullRun', bundle([
+        {'id': 1, 'downloads': downloads('two-fixed.zip')}
+      ]));
+
+      final body = await get(
+          'bundle/compare?a=20260720T100000Z-fullRun&b=20260722T100000Z-fullRun');
+      final change = ((body['items'] as List).first['changes'] as List)
+          .cast<Map<String, dynamic>>()
+          .single;
+      expect(change['field'], 'downloads');
+      // The whole list on both sides is what this used to show.
+      expect(change.containsKey('before'), isFalse);
+
+      final items = (change['items'] as List).cast<Map<String, dynamic>>();
+      expect(items, hasLength(1));
+      expect(items.single['label'], 'two-fixed.zip');
+      expect((items.single['parts'] as List).single['name'], 'file name');
     });
 
     test('the differences can be searched and filtered', () async {

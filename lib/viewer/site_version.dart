@@ -1,59 +1,82 @@
+import 'dart:convert';
 import 'dart:io';
 
-/// Which version of the code the viewer is running, taken from the newest git
-/// tag in the checkout it was started from.
+import 'package:path/path.dart' as p;
+
+/// Which build of the code is running: a number that goes up by one with every
+/// commit, the commit itself, and the day it was made.
 ///
-/// The release workflow tags every build `v<number of commits>`, so the tag is
-/// the only place the number lives — there is nothing to keep in step and
-/// nothing to write down. Where the checkout is not a git repository, or git
-/// is not installed, or nothing has been tagged yet, this says so quietly and
-/// the site shows no version line at all. Nothing here is ever worth an error
-/// on screen.
+/// There are two ways to find that out and they are tried in that order.
+///
+/// The release workflow writes the three values into `site/version.json` when
+/// it builds, and that folder ships beside the server, so on a machine running
+/// a release the file is simply there. This is the one that matters: a released
+/// copy is unpacked from a tarball, not cloned, so there is no git checkout to
+/// ask and asking one was why this line used to be blank in production.
+///
+/// Failing that — working in the repo, where the file is only ever made by a
+/// build — git is asked the same three questions directly, so a version shows
+/// while developing too.
+///
+/// Where neither works, this says so quietly and the page shows no version line
+/// at all. Nothing here is ever worth an error on screen.
 class SiteVersion {
-  /// The folder to ask git about — the checkout the server was started in.
+  /// The folder to look in — the one the server was started from.
   final String rootDir;
 
   const SiteVersion(this.rootDir);
 
-  /// The newest tag, how many commits have landed since, and the full answer
-  /// git gave. Null when there is no tag to report.
-  Map<String, Object?>? read() {
-    final described = _describe();
-    return described == null ? null : parseDescribed(described);
+  /// Where a build leaves its version. It is written for the public website,
+  /// which reads it from its own folder, but it names the build of the whole
+  /// repository, so this reads the same file rather than keeping a second copy
+  /// of the same three values somewhere else.
+  static const versionFile = ['site', 'version.json'];
+
+  /// The build number, the commit and the day it was made. Null when there is
+  /// nothing to report.
+  Map<String, Object?>? read() => _fromFile() ?? _fromGit();
+
+  /// Reads what the build wrote. Anything unexpected in the file — missing,
+  /// half-written, not the shape it should be — is treated as no answer, and
+  /// git is asked instead.
+  Map<String, Object?>? _fromFile() {
+    final file = File(p.join(rootDir, versionFile[0], versionFile[1]));
+    if (!file.existsSync()) return null;
+
+    try {
+      final read = jsonDecode(file.readAsStringSync());
+      if (read is! Map) return null;
+      final build = read['build'];
+      final commit = read['commit'];
+      if (build is! int || commit is! String || commit.isEmpty) return null;
+      return {'build': build, 'commit': commit, 'date': read['date']};
+    } on FormatException {
+      return null;
+    } on IOException {
+      return null;
+    }
   }
 
-  /// Reads git's answer apart. "3.4.2-3-g4150078" is the tag, the number of
-  /// commits since it, and the commit itself.
-  ///
-  /// A tag can have dashes of its own ("1.0-beta-2-gabc1234"), so the last two
-  /// pieces are taken off the end rather than the tag being read from the
-  /// front. Anything that does not have that shape is passed on whole as the
-  /// tag, since showing git's own words beats showing nothing.
-  static Map<String, Object?> parseDescribed(String described) {
-    final pieces = described.split('-');
-    final commitsSince = pieces.length < 3 ? null : int.tryParse(pieces[pieces.length - 2]);
-
+  /// Asks git the same three questions the build asks it, so the version line
+  /// is not blank while working in the repo.
+  Map<String, Object?>? _fromGit() {
+    final build = int.tryParse(_git(['rev-list', '--count', 'HEAD']) ?? '');
+    final commit = _git(['rev-parse', '--short', 'HEAD']);
+    if (build == null || commit == null) return null;
     return {
-      'tag': commitsSince == null ? described : pieces.sublist(0, pieces.length - 2).join('-'),
-      'commitsSince': commitsSince ?? 0,
-      'described': described,
+      'build': build,
+      'commit': commit,
+      'date': _git(['log', '-1', '--format=%cs'])
     };
   }
 
-  String? _describe() {
+  String? _git(List<String> args) {
     try {
-      final result = Process.runSync(
-        'git',
-        // --long always spells out the commit count, even sitting exactly on a
-        // tag, so there is only ever one shape to read.
-        ['describe', '--tags', '--long'],
-        workingDirectory: rootDir,
-        runInShell: true,
-      );
+      final result = Process.runSync('git', args, workingDirectory: rootDir, runInShell: true);
       if (result.exitCode != 0) return null;
 
-      final described = (result.stdout as String).trim();
-      return described.isEmpty ? null : described;
+      final answer = (result.stdout as String).trim();
+      return answer.isEmpty ? null : answer;
     } on ProcessException {
       // No git on this machine. Not a problem worth reporting.
       return null;

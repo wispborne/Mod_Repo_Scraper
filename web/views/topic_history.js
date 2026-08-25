@@ -16,7 +16,7 @@ import {
 } from '../lib.js';
 import * as manager from '../manager.js';
 import { topicStaleness, rebuildBundleButton } from './extraction_views.js';
-import { cellText } from './merge_shared.js';
+import { diffTable } from './diff_table.js';
 
 export async function render(root, topicId, { parent } = {}) {
   clear(root);
@@ -256,70 +256,6 @@ function logEntry(entry, threadHref) {
   ]);
 }
 
-/// One row per changed field. A field holding a list gets its own small table
-/// of what was added, removed and changed instead of two blocks of JSON.
-function diffTable(changes) {
-  const table = el('table', { class: 'diff-table' });
-  // "Older" and "Newer" would be two empty promises on an entry where every
-  // field is a list or a note, so the header says what the rows actually hold.
-  const sided = changes.some((c) => !c.items && !c.note);
-  table.append(el('thead', {}, el('tr', {}, sided
-    ? [
-      el('th', { text: 'Field' }),
-      el('th', { text: 'Older' }),
-      el('th', { text: 'Newer' }),
-    ]
-    : [
-      el('th', { text: 'Field' }),
-      el('th', { colspan: '2', text: 'What changed' }),
-    ])));
-
-  const tbody = el('tbody');
-  for (const change of changes) {
-    const tr = el('tr', {});
-    tr.append(el('td', { class: 'diff-field', text: change.field }));
-    if (change.items) {
-      tr.append(el('td', { colspan: '2' }, itemList(change.items)));
-    } else if (change.note) {
-      tr.append(el('td', { class: 'change-note', colspan: '2', text: change.note }));
-    } else {
-      tr.append(el('td', { class: 'diff-before', text: diffText(change.before) }));
-      tr.append(el('td', { class: 'diff-after', text: diffText(change.after) }));
-    }
-    tbody.append(tr);
-  }
-  table.append(tbody);
-  return el('div', { class: 'table-wrapper' }, table);
-}
-
-/// The added, removed and changed items of one list field. A changed item shows
-/// only the parts of it that moved; an LLM mod can carry its own downloads,
-/// which sit one step further in.
-function itemList(items) {
-  const list = el('ul', { class: 'item-diff' });
-  for (const item of items || []) {
-    const row = el('li', { class: `item-${item.change}` }, [
-      el('span', { class: 'item-mark', text: mark(item.change) }),
-      el('span', { class: 'item-label', text: item.label || '' }),
-    ]);
-    for (const part of item.parts || []) {
-      row.append(el('div', { class: 'item-part' }, [
-        el('span', { class: 'item-part-name', text: part.name }),
-        el('span', { class: 'diff-before', text: diffText(part.before) }),
-        el('span', { class: 'item-arrow', text: '→' }),
-        el('span', { class: 'diff-after', text: diffText(part.after) }),
-      ]));
-    }
-    if (item.items && item.items.length) row.append(itemList(item.items));
-    list.append(row);
-  }
-  return list;
-}
-
-function mark(change) {
-  return { added: '+', removed: '−', changed: '~' }[change] || '·';
-}
-
 function kindWord(kind) {
   return {
     changed: 'changed',
@@ -362,15 +298,4 @@ function when(iso) {
   if (!iso) return null;
   const at = new Date(iso);
   return Number.isNaN(at.getTime()) ? String(iso) : at.toLocaleString();
-}
-
-/// Like cellText, but tells "not there" apart from "there but empty" and reads
-/// booleans out as words — a row where both sides said "—" would look unchanged.
-function diffText(value) {
-  if (value == null) return '(not set)';
-  if (Array.isArray(value) && !value.length) return '(empty list)';
-  if (value === '') return '(empty)';
-  if (value === true) return 'yes';
-  if (value === false) return 'no';
-  return cellText(value);
 }

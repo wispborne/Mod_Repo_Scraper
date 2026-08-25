@@ -312,6 +312,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     opt: true,
     def: const [],
   );
+  static String? _$partOfThreadTitle(PublicMod v) => v.partOfThreadTitle;
+  static const Field<PublicMod, String> _f$partOfThreadTitle = Field(
+    'partOfThreadTitle',
+    _$partOfThreadTitle,
+    opt: true,
+  );
 
   @override
   final MappableFields<PublicMod> fields = const {
@@ -339,6 +345,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #lastReleaseDate: _f$lastReleaseDate,
     #addedOn: _f$addedOn,
     #needs: _f$needs,
+    #partOfThreadTitle: _f$partOfThreadTitle,
   };
   @override
   final bool ignoreNull = true;
@@ -369,6 +376,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       lastReleaseDate: data.dec(_f$lastReleaseDate),
       addedOn: data.dec(_f$addedOn),
       needs: data.dec(_f$needs),
+      partOfThreadTitle: data.dec(_f$partOfThreadTitle),
     );
   }
 
@@ -474,6 +482,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     DateTime? lastReleaseDate,
     String? addedOn,
     List<PublicNeededMod>? needs,
+    String? partOfThreadTitle,
   });
   PublicModCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -560,6 +569,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     Object? lastReleaseDate = $none,
     Object? addedOn = $none,
     List<PublicNeededMod>? needs,
+    Object? partOfThreadTitle = $none,
   }) => $apply(
     FieldCopyWithData({
       if (id != null) #id: id,
@@ -586,6 +596,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (lastReleaseDate != $none) #lastReleaseDate: lastReleaseDate,
       if (addedOn != $none) #addedOn: addedOn,
       if (needs != null) #needs: needs,
+      if (partOfThreadTitle != $none) #partOfThreadTitle: partOfThreadTitle,
     }),
   );
   @override
@@ -620,6 +631,10 @@ class _PublicModCopyWithImpl<$R, $Out>
     lastReleaseDate: data.get(#lastReleaseDate, or: $value.lastReleaseDate),
     addedOn: data.get(#addedOn, or: $value.addedOn),
     needs: data.get(#needs, or: $value.needs),
+    partOfThreadTitle: data.get(
+      #partOfThreadTitle,
+      or: $value.partOfThreadTitle,
+    ),
   );
 
   @override

@@ -159,6 +159,12 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     opt: true,
     def: const [],
   );
+  static String? _$partOfThreadTitle(PublicModDetail v) => v.partOfThreadTitle;
+  static const Field<PublicModDetail, String> _f$partOfThreadTitle = Field(
+    'partOfThreadTitle',
+    _$partOfThreadTitle,
+    opt: true,
+  );
 
   @override
   final MappableFields<PublicModDetail> fields = const {
@@ -183,6 +189,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     #releases: _f$releases,
     #olderVersions: _f$olderVersions,
     #addons: _f$addons,
+    #partOfThreadTitle: _f$partOfThreadTitle,
   };
   @override
   final bool ignoreNull = true;
@@ -210,6 +217,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       releases: data.dec(_f$releases),
       olderVersions: data.dec(_f$olderVersions),
       addons: data.dec(_f$addons),
+      partOfThreadTitle: data.dec(_f$partOfThreadTitle),
     );
   }
 
@@ -334,6 +342,7 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     List<ModRelease>? releases,
     List<PublicOlderVersion>? olderVersions,
     List<PublicAddon>? addons,
+    String? partOfThreadTitle,
   });
   PublicModDetailCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -450,6 +459,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     List<ModRelease>? releases,
     List<PublicOlderVersion>? olderVersions,
     List<PublicAddon>? addons,
+    Object? partOfThreadTitle = $none,
   }) => $apply(
     FieldCopyWithData({
       if (generatedAt != null) #generatedAt: generatedAt,
@@ -475,6 +485,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       if (releases != null) #releases: releases,
       if (olderVersions != null) #olderVersions: olderVersions,
       if (addons != null) #addons: addons,
+      if (partOfThreadTitle != $none) #partOfThreadTitle: partOfThreadTitle,
     }),
   );
   @override
@@ -506,6 +517,10 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     releases: data.get(#releases, or: $value.releases),
     olderVersions: data.get(#olderVersions, or: $value.olderVersions),
     addons: data.get(#addons, or: $value.addons),
+    partOfThreadTitle: data.get(
+      #partOfThreadTitle,
+      or: $value.partOfThreadTitle,
+    ),
   );
 
   @override

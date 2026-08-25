@@ -1,56 +1,63 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:mod_repo_scraper/viewer/site_version.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  group('SiteVersion.parseDescribed', () {
-    test('sitting exactly on a tag', () {
+  /// A folder standing in for the one a release is unpacked into.
+  Directory emptyFolder() {
+    final folder = Directory.systemTemp.createTempSync('site_version_test');
+    addTearDown(() => folder.deleteSync(recursive: true));
+    return folder;
+  }
+
+  void writeVersionFile(Directory folder, String contents) {
+    final file = File(p.join(folder.path, 'site', 'version.json'));
+    file.parent.createSync(recursive: true);
+    file.writeAsStringSync(contents);
+  }
+
+  group('SiteVersion', () {
+    test('reads what the build left in site/version.json', () {
+      final folder = emptyFolder();
+      writeVersionFile(folder,
+          jsonEncode({'build': 48, 'commit': '28cbe0f', 'date': '2026-08-24'}));
+
       expect(
-        SiteVersion.parseDescribed('3.4.2-0-g4150078'),
-        equals({'tag': '3.4.2', 'commitsSince': 0, 'described': '3.4.2-0-g4150078'}),
+        SiteVersion(folder.path).read(),
+        equals({'build': 48, 'commit': '28cbe0f', 'date': '2026-08-24'}),
       );
     });
 
-    test('some commits past a tag', () {
-      expect(
-        SiteVersion.parseDescribed('3.4.2-3-g4150078'),
-        equals({'tag': '3.4.2', 'commitsSince': 3, 'described': '3.4.2-3-g4150078'}),
-      );
+    test('a folder with no file and no git checkout has nothing to say', () {
+      expect(SiteVersion(emptyFolder().path).read(), isNull);
     });
 
-    test('a tag with dashes of its own keeps them', () {
-      expect(
-        SiteVersion.parseDescribed('1.0-beta-2-gabc1234'),
-        equals({'tag': '1.0-beta', 'commitsSince': 2, 'described': '1.0-beta-2-gabc1234'}),
-      );
-    });
-
-    test('anything else is passed on whole', () {
-      expect(
-        SiteVersion.parseDescribed('something-odd'),
-        equals({'tag': 'something-odd', 'commitsSince': 0, 'described': 'something-odd'}),
-      );
-    });
-  });
-
-  group('SiteVersion.read', () {
-    test('a folder that is not a git checkout has nothing to say', () {
-      final folder = Directory.systemTemp.createTempSync('site_version_test');
-      addTearDown(() => folder.deleteSync(recursive: true));
+    test('a half-written file is no answer at all', () {
+      final folder = emptyFolder();
+      writeVersionFile(folder, '{"build": 48, "comm');
 
       expect(SiteVersion(folder.path).read(), isNull);
     });
 
-    test('this checkout reports its tag', () {
+    test('a file of the wrong shape is no answer at all', () {
+      final folder = emptyFolder();
+      writeVersionFile(folder, jsonEncode({'version': '4.0.0'}));
+
+      expect(SiteVersion(folder.path).read(), isNull);
+    });
+
+    test('this checkout falls back to asking git', () {
       final version = SiteVersion(Directory.current.path).read();
-      // Skipped where the tests run from a copy with no tags — a shallow CI
-      // clone, say. The point is that a real checkout answers sensibly.
+      // Skipped where the tests run from a copy that is not a checkout.
       if (version == null) return;
 
-      expect(version['tag'], isA<String>());
-      expect(version['tag'], isNotEmpty);
-      expect(version['commitsSince'], isA<int>());
+      expect(version['build'], isA<int>());
+      expect(version['build'], greaterThan(0));
+      expect(version['commit'], isA<String>());
+      expect(version['commit'], isNotEmpty);
     });
   });
 }

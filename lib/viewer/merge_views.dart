@@ -165,14 +165,17 @@ String _verdict(List<int> from) => switch (from.length) {
 /// somebody up over.
 const List<ComparedField> _comparedFields = [
   ComparedField('name'),
-  ComparedField('authorsList'),
+  // The four fields below hold a list or a map. They are picked apart entry by
+  // entry, because a mod with four links where one moved used to print all
+  // four twice and leave the reader to spot which.
+  ComparedField('authorsList', itemsOf: listItems),
   ComparedField('summary'),
   ComparedField('description'),
   ComparedField('modVersion'),
   ComparedField('gameVersionReq'),
-  ComparedField('urls'),
-  ComparedField('sources'),
-  ComparedField('categories'),
+  ComparedField('urls', itemsOf: mapItems),
+  ComparedField('sources', itemsOf: listItems),
+  ComparedField('categories', itemsOf: listItems),
 ];
 
 final RegExp _forumTopic = RegExp(r'topic=(\d+)');

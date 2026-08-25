@@ -24,9 +24,12 @@ final List<ComparedField> bundleFields = [
   ComparedField('contentFingerprint',
       label: 'post text', describe: _describePostChange),
   const ComparedField('imageCount', label: 'images'),
-  const ComparedField('links'),
-  const ComparedField('downloads'),
-  const ComparedField('llm', label: 'LLM facts'),
+  // The three below hold lists. They are picked apart entry by entry, so a
+  // topic with twelve downloads where one moved says which one, rather than
+  // printing all twelve twice.
+  ComparedField('links', itemsOf: _linkItems),
+  ComparedField('downloads', itemsOf: _downloadItems),
+  ComparedField('llm', label: 'LLM facts', itemsOf: _llmItems),
 ];
 
 /// The post text is not kept in a snapshot, only a fingerprint of it, so there
@@ -77,6 +80,10 @@ Map<String, dynamic> _topicRow(
 ) {
   final id = '${row['topicId']}';
   final detail = details[id];
+  // A bundle keeps one topic's rule-based downloads as a plain list. The
+  // resolver's own cache file on disk wraps the same list in a `candidates`
+  // field, and reading for that shape here is why the downloads column was
+  // empty for every topic on real data — the two files look alike and are not.
   final download = downloads[id];
 
   return {
@@ -94,7 +101,7 @@ Map<String, dynamic> _topicRow(
     'imageCount':
         detail is Map ? ((detail['images'] as List?) ?? const []).length : null,
     'links': detail is Map ? detail['links'] : null,
-    'downloads': download is Map ? download['candidates'] : null,
+    'downloads': download is List ? download : null,
   };
 }
 
@@ -207,48 +214,14 @@ Map<String, dynamic> topicHistory({
 
 /// What changed about one topic between two saved bundles.
 ///
-/// The same fields and the same labels the bundle comparison uses, so the two
-/// pages can never disagree about what changed or what to call it. A field
-/// holding a list is reported item by item instead of as two whole lists —
-/// across a thousand topics that would be unreadable, but on one topic's page
-/// it is the whole point.
+/// Exactly what the bundle comparison page works out for the same topic — the
+/// same fields, the same labels, the same item-by-item picking apart — so the
+/// two pages can never disagree about what changed or what to call it.
 List<Map<String, dynamic>> topicChanges(
   Map<dynamic, dynamic> before,
   Map<dynamic, dynamic> after,
-) {
-  final changes = <Map<String, dynamic>>[];
-  for (final field in bundleFields) {
-    final found = changedFields(before, after, [field]);
-    if (found.isEmpty) continue;
-
-    final change = found.first;
-    final items =
-        _itemsFor(field.name, before[field.name], after[field.name]);
-    if (items != null) {
-      // The two whole lists are no use once the items are spelled out.
-      change.remove('before');
-      change.remove('after');
-      change['items'] = items;
-    }
-    changes.add(change);
-  }
-  return changes;
-}
-
-/// The item-by-item differences for a field that holds a list, or null for a
-/// field where the plain before-and-after is the right answer.
-List<Map<String, dynamic>>? _itemsFor(String field, Object? was, Object? now) {
-  switch (field) {
-    case 'downloads':
-      return _downloadItems(_asList(was), _asList(now));
-    case 'links':
-      return _linkItems(_asList(was), _asList(now));
-    case 'llm':
-      return _llmItems(was, now);
-    default:
-      return null;
-  }
-}
+) =>
+    changedFields(before, after, bundleFields);
 
 List<dynamic> _asList(Object? value) => value is List ? value : const [];
 
@@ -302,29 +275,43 @@ List<Map<String, dynamic>> _lineUp(
   return rows;
 }
 
-/// Which of [named] fields differ, in plain words.
+/// Which parts of an entry differ, in plain words.
+///
+/// Every key both sides hold is looked at, not only the ones in [named] —
+/// [named] just says what to call the ones worth naming. A key nobody named
+/// still gets reported under its own name, because a field that says "this
+/// changed" and then lists nothing sends somebody hunting for a change the
+/// page decided not to mention. [skip] is for keys handled somewhere else: the
+/// key the entries are lined up by, and anything with its own list of items.
 List<Map<String, dynamic>> _partsThatMoved(
   Map<dynamic, dynamic> was,
   Map<dynamic, dynamic> now,
-  Map<String, String> named,
-) {
+  Map<String, String> named, {
+  Set<String> skip = const {},
+}) {
   final parts = <Map<String, dynamic>>[];
-  for (final entry in named.entries) {
-    final a = was[entry.key];
-    final b = now[entry.key];
+  // Named first, in the order they are named, then anything left over.
+  final keys = <String>[
+    ...named.keys,
+    ...{...was.keys, ...now.keys}.map((k) => '$k').where(
+        (k) => !named.containsKey(k)),
+  ];
+  for (final key in keys) {
+    if (skip.contains(key)) continue;
+    final a = was[key];
+    final b = now[key];
     if (sameness(a) == sameness(b)) continue;
-    parts.add({'name': entry.value, 'before': a, 'after': b});
+    parts.add({'name': named[key] ?? key, 'before': a, 'after': b});
   }
   return parts;
 }
 
 /// The rule-based downloads, lined up by the link as it appeared in the post —
 /// that is what makes two of them the same download.
-List<Map<String, dynamic>> _downloadItems(
-        List<dynamic> before, List<dynamic> after) =>
+List<Map<String, dynamic>> _downloadItems(Object? before, Object? after) =>
     _lineUp(
-      before,
-      after,
+      _asList(before),
+      _asList(after),
       keyOf: (d) => '${d['originalUrl'] ?? d['url'] ?? ''}',
       labelOf: _downloadLabel,
       partsOf: (was, now) => _partsThatMoved(was, now, const {
@@ -344,11 +331,10 @@ String _downloadLabel(Map<dynamic, dynamic> d) {
 }
 
 /// The links found in the post, lined up by URL.
-List<Map<String, dynamic>> _linkItems(
-        List<dynamic> before, List<dynamic> after) =>
+List<Map<String, dynamic>> _linkItems(Object? before, Object? after) =>
     _lineUp(
-      before,
-      after,
+      _asList(before),
+      _asList(after),
       keyOf: (l) => '${l['url'] ?? ''}',
       labelOf: (l) {
         final text = '${l['text'] ?? ''}'.trim();
@@ -374,11 +360,14 @@ List<Map<String, dynamic>> _llmItems(Object? was, Object? now) {
     keyOf: (m) => '${m['name'] ?? ''}'.toLowerCase(),
     labelOf: (m) => '${m['name'] ?? '(no name)'}',
     partsOf: (a, b) => [
+      // `name` lines the mods up, `extras` is flattened just below, and
+      // `downloads` gets its own list of items — so none of the three belongs
+      // here as well.
       ..._partsThatMoved(a, b, const {
         'role': 'role',
         'requires': 'requires',
         'image': 'image',
-      }),
+      }, skip: const {'name', 'extras', 'downloads'}),
       ..._partsThatMoved(
         _flattenExtras(a['extras']),
         _flattenExtras(b['extras']),

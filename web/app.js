@@ -132,22 +132,22 @@ async function route() {
   }
 }
 
-// Which version this is, in small dim type at the foot of the sidebar: the
-// newest git tag, and how many commits have landed since it. It is there so a
-// bug report can say which version it came from, so it stays quiet — an
-// untagged checkout, or one the server cannot ask git about, shows no line at
-// all rather than an error.
+// Which build this is, in small dim type at the foot of the sidebar: a number
+// that goes up by one with every commit, and the commit itself. It is the same
+// number the public website shows in its footer, read from the same file the
+// build writes. It is there so a bug report can say which build it came from,
+// so it stays quiet — where the server cannot work out either value it shows no
+// line at all rather than an error.
 async function showVersion(element) {
   if (!element) return;
   try {
     const version = await api('version');
-    if (!version || !version.tag) return;
+    if (!version || !version.build) return;
 
-    const since = Number(version.commitsSince) || 0;
-    element.textContent = since > 0 ? `${version.tag} +${since}` : version.tag;
-    element.title = since > 0
-      ? `${version.described} — ${since} commit${since === 1 ? '' : 's'} since the ${version.tag} tag`
-      : `Tagged ${version.tag}`;
+    element.textContent = `v${version.build} · ${version.commit}`;
+    element.title = version.date
+      ? `Built from commit ${version.commit} on ${version.date}.`
+      : `Built from commit ${version.commit}.`;
   } catch {
     // Nothing to say about the version — leave the line empty.
   }
