@@ -343,8 +343,8 @@ class ScraperService implements JobRunner {
         errors++;
         reporter.log('Topic $id has no saved post; skipping.');
       } else {
-        probeCache.dropUrls(detail.links.map((l) => l.url));
-        await resolver.resolveForTopic(id, detail.links);
+        probeCache.dropUrls(detail.allLinks.map((l) => l.url));
+        await resolver.resolveForTopic(id, detail.allLinks);
       }
       reporter.progress(++done, ids.length,
           item: detail?.title, errors: errors);
@@ -386,8 +386,11 @@ class ScraperService implements JobRunner {
     var done = 0;
     var errors = 0;
     try {
-      for (final id in ids) {
-        if (cancel?.isCancelled ?? false) break;
+      // These are always live calls (the saved answers were just dropped), so
+      // a few at a time is where the limit really shows: up to
+      // llm_max_concurrent_calls topics talk to the model at once.
+      await _fewAtATime(ids, guardrails.llmMaxConcurrentCalls,
+          () => cancel?.isCancelled ?? false, (id) async {
         final detail = await store.loadDetail(id);
         if (detail == null) {
           errors++;
@@ -400,7 +403,7 @@ class ScraperService implements JobRunner {
             item: detail?.title,
             errors: errors,
             llmCalls: llm.extractor.liveCallCount);
-      }
+      });
       await llmStore!.flush();
       // The LLM checks the links it picked through the shared "does this serve
       // a file?" cache, so save those answers too.
@@ -524,6 +527,13 @@ class ScraperService implements JobRunner {
 
   /// Runs the engine with the per-topic chain: work out the downloads, then ask
   /// the LLM, for each topic as it is saved.
+  ///
+  /// The model is far slower than the forum, so the LLM reads run beside the
+  /// scrape rather than inside it: each saved topic starts its read here and
+  /// the scrape moves straight on to the next fetch. The extractor holds
+  /// everyone to `llm_max_concurrent_calls` reads at once. Every read started
+  /// is waited for before this returns, so a finished scrape is still a
+  /// fully-extracted one.
   Future<ScrapeResult> _scrape(
     ScrapeScope scope,
     _ForumClient client,
@@ -539,27 +549,104 @@ class ScraperService implements JobRunner {
       probeCache: probeCache,
       downloadResolver: resolver,
     );
-    return engine.run(
-      scope,
-      onProgress: (processed, total, item) => reporter.progress(
-        processed,
-        total,
-        item: item,
-        // The engine counts its own failures and only says so at the end, so
-        // errors are left alone here. LLM calls are ours to count, and a scrape
-        // is the longest job there is — worth knowing what it has spent while
-        // it is still going.
-        llmCalls: extractor?.liveCallCount,
-      ),
-      onTopicSaved: (detail) async {
-        final candidates =
-            await resolver.resolveForTopic(detail.topicId, detail.links);
-        if (extractor != null) {
-          await extractor.extractForTopic(detail, candidates);
-        }
-      },
-      shouldStop: () => cancel?.isCancelled ?? false,
-    );
+
+    final llmReads = <Future<void>>{};
+    var readsStarted = 0;
+
+    ScrapeResult result;
+    try {
+      result = await engine.run(
+        scope,
+        onProgress: (processed, total, item) => reporter.progress(
+          processed,
+          total,
+          item: item,
+          // The engine counts its own failures and only says so at the end, so
+          // errors are left alone here. LLM calls are ours to count, and a
+          // scrape is the longest job there is — worth knowing what it has
+          // spent while it is still going.
+          llmCalls: extractor?.liveCallCount,
+        ),
+        onTopicSaved: (detail) async {
+          final candidates =
+              await resolver.resolveForTopic(detail.topicId, detail.allLinks);
+          if (extractor != null) {
+            readsStarted++;
+            late Future<void> read;
+            read = extractor
+                .extractForTopic(detail, candidates)
+                .then((_) {}) // whether a call was spent doesn't matter here
+                .catchError((Object e) {
+              reporter.log('LLM read failed for topic ${detail.topicId}: $e');
+            }).whenComplete(() => llmReads.remove(read));
+            llmReads.add(read);
+          }
+        },
+        shouldStop: () => cancel?.isCancelled ?? false,
+      );
+    } catch (e) {
+      // The scrape is failing; don't leave reads writing in the background
+      // while the job is torn down. Ones talking to the model finish and are
+      // kept, the rest come back without calling.
+      extractor?.stopNewCalls();
+      while (llmReads.isNotEmpty) {
+        await Future.any(llmReads.toList());
+      }
+      rethrow;
+    }
+
+    // The forum work is done; wait for the reads still going. On a cancelled
+    // run only the reads already talking to the model are finished — the
+    // queued ones come back without calling, so Ctrl-C stops the spending too.
+    if (llmReads.isNotEmpty && extractor != null) {
+      reporter.phase('Finishing LLM reads');
+      while (llmReads.isNotEmpty) {
+        if (cancel?.isCancelled ?? false) extractor.stopNewCalls();
+        await Future.any(llmReads.toList());
+        reporter.progress(readsStarted - llmReads.length, readsStarted,
+            llmCalls: extractor.liveCallCount);
+      }
+    }
+    return result;
+  }
+
+  /// Runs [work] over [items] with up to [atOnce] going at the same time.
+  /// Stops starting new work once [shouldStop] says so; work already started
+  /// is finished either way. A throw from [work] stops new work too, and is
+  /// re-thrown once everything already started has finished — never sooner,
+  /// so no started future is left running behind the caller's back.
+  Future<void> _fewAtATime<T>(
+    Iterable<T> items,
+    int atOnce,
+    bool Function() shouldStop,
+    Future<void> Function(T item) work,
+  ) async {
+    final limit = atOnce < 1 ? 1 : atOnce;
+    final pending = <Future<void>>{};
+    Object? firstError;
+    StackTrace? firstStack;
+
+    for (final item in items) {
+      while (pending.length >= limit) {
+        await Future.any(pending.toList());
+      }
+      // Checked after the wait at the window, not before it: a stop asked for
+      // while this spot in line was waiting must win, or one more piece of
+      // work slips out after a cancel.
+      if (shouldStop() || firstError != null) break;
+      late Future<void> f;
+      f = work(item).catchError((Object e, StackTrace s) {
+        firstError ??= e;
+        firstStack ??= s;
+      }).whenComplete(() => pending.remove(f));
+      pending.add(f);
+    }
+    while (pending.isNotEmpty) {
+      await Future.any(pending.toList());
+    }
+    if (firstError != null) {
+      Error.throwWithStackTrace(firstError!, firstStack!);
+    }
   }
 
   /// Entries saved by an older version of the resolver may be missing its newer
@@ -578,7 +665,7 @@ class ScraperService implements JobRunner {
       if (cancel?.isCancelled ?? false) break;
       final detail = await store.loadDetail(topicId);
       if (detail != null) {
-        await resolver.resolveForTopic(topicId, detail.links);
+        await resolver.resolveForTopic(topicId, detail.allLinks);
       }
       reporter.progress(++done, outdated.length);
     }
@@ -603,15 +690,20 @@ class ScraperService implements JobRunner {
     var withoutResults = 0; // ends the run with nothing saved
     String? stopReason;
 
-    for (final summary in index) {
-      if (cancel?.isCancelled ?? false) break;
-      seen++;
+    // A few topics at a time — up to llm_max_concurrent_calls, the same limit
+    // the extractor holds everyone to. Most topics are saved answers and cost
+    // nothing; the ones that do need a call overlap instead of queueing one
+    // behind another. The tallies are safe to bump from the overlapping
+    // futures because Dart runs them on one thread.
+    await _fewAtATime(index, guardrails.llmMaxConcurrentCalls,
+        () => cancel?.isCancelled ?? false, (summary) async {
       final detail = await store.loadDetail(summary.topicId);
       if (detail == null || detail.isPlaceholderDetail) {
+        seen++;
         skipped++;
         reporter.progress(seen, index.length,
             llmCalls: extractor.liveCallCount);
-        continue;
+        return;
       }
 
       // Read the store before the call, not after, so a topic done earlier in
@@ -623,21 +715,21 @@ class ScraperService implements JobRunner {
       // refuse.
       stopReason ??= _llmStopReason(extractor);
       if (stopReason == null) {
-        final callsBefore = extractor.liveCallCount;
-        await extractor.extractForTopic(detail,
+        final spentACall = await extractor.extractForTopic(detail,
             resolver.getCachedCandidates(summary.topicId) ?? const []);
-        if (extractor.liveCallCount > callsBefore) passCalls++;
+        if (spentACall) passCalls++;
       }
 
       if (llmStore!.get(summary.topicId) == null) withoutResults++;
 
+      seen++;
       reporter.progress(seen, index.length,
           item: detail.title, llmCalls: extractor.liveCallCount);
       if (seen % 50 == 0) {
         reporter.log('LLM: covered $seen/${index.length} topics '
             '($passCalls sent to the LLM so far)...');
       }
-    }
+    });
 
     // The run's call count, not the pass's: topics scraped this run were sent
     // to the LLM inside the scrape loop, and those calls count against the same
@@ -819,6 +911,7 @@ class ScraperService implements JobRunner {
         dataPath: environment.dataPath,
         maxConsecutiveFailures: guardrails.llmMaxConsecutiveFailures,
         maxTopics: guardrails.llmMaxTopics,
+        maxConcurrentCalls: guardrails.llmMaxConcurrentCalls,
         maxTokens: guardrails.llmMaxTokens,
         maxInputChars: guardrails.llmMaxInputChars,
         generateSummaries: settings.generateSummaries,

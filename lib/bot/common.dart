@@ -97,6 +97,8 @@ class Common {
         llmTimeoutSeconds:
             int.tryParse(properties['llm_timeout_seconds'] ?? '') ?? 120,
         llmMaxTopics: int.tryParse(properties['llm_max_topics'] ?? ''),
+        llmMaxConcurrentCalls:
+            int.tryParse(properties['llm_max_concurrent_calls'] ?? '') ?? 3,
         llmMaxTokens: int.tryParse(properties['llm_max_tokens'] ?? ''),
         llmMaxInputChars:
             int.tryParse(properties['llm_max_input_chars'] ?? ''),
@@ -172,6 +174,7 @@ class Common {
     'llm_max_consecutive_failures',
     'llm_timeout_seconds',
     'llm_max_topics',
+    'llm_max_concurrent_calls',
     'llm_max_tokens',
     'llm_max_input_chars',
     'llm_disable_thinking',
@@ -403,6 +406,11 @@ class BotConfig with BotConfigMappable {
   /// Optional limit on how many posts the LLM may process per run.
   /// null = no limit (already-processed posts are skipped anyway).
   final int? llmMaxTopics;
+
+  /// How many LLM calls may be going at the same time. The scrape starts a
+  /// read per topic as it is saved and moves on; this is how many of those
+  /// reads may actually be talking to the model at once.
+  final int llmMaxConcurrentCalls;
   /// Cap on how much the model may write per reply (in tokens — roughly one
   /// token per word). null = the built-in default (4000). Reasoning models
   /// (Qwen3, ...) spend part of their output "thinking" before they answer, so
@@ -522,6 +530,7 @@ class BotConfig with BotConfigMappable {
     this.llmMaxConsecutiveFailures = 10,
     this.llmTimeoutSeconds = 120,
     this.llmMaxTopics,
+    this.llmMaxConcurrentCalls = 3,
     this.llmMaxTokens,
     this.llmMaxInputChars,
     this.llmDisableThinking = false,

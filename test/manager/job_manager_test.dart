@@ -106,10 +106,13 @@ void main() {
     expect(firstRecord.startedAt!.isAfter(secondRecord.startedAt!), isFalse);
   });
 
-  test('cancel stops between topics, keeps saved work, and says so', () async {
+  test('cancel finishes the topics under way, keeps their work, and says so',
+      () async {
     late JobManager manager;
     final llm = ScriptedLlmClient(onCall: (call) async {
-      // Stop once two topics are done. The third never starts.
+      // Three topics go at once (llm_max_concurrent_calls), so cancelling
+      // during the second call still lets the first three finish. The fourth
+      // and fifth never start.
       if (call == 2) manager.cancelCurrent();
     });
     manager = makeManager(llm);
@@ -118,16 +121,16 @@ void main() {
     final record = await manager
         .submit(JobRequest.forTopics(JobKind.extractLlm, topicIds, runLlm: true));
 
-    expect(llm.calls, 2);
+    expect(llm.calls, 3);
     expect(record.state, RunState.cancelled);
-    expect(record.counters.itemsDone, 2);
+    expect(record.counters.itemsDone, 3);
     expect(record.counters.itemsTotal, topicIds.length);
-    expect(record.counters.llmCalls, 2);
+    expect(record.counters.llmCalls, 3);
 
-    // The two topics that were done are still saved.
+    // The three topics that were done are still saved.
     final saved = jsonDecode(File(p.join(dir.path, 'llm-extraction-cache.json'))
         .readAsStringSync()) as Map<String, dynamic>;
-    expect(saved.keys.toSet(), {'1', '2'});
+    expect(saved.keys.toSet(), {'1', '2', '3'});
   });
 
   test('a run that was cancelled is on record with its own log file', () async {

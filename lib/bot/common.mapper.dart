@@ -240,6 +240,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     _$llmMaxTopics,
     opt: true,
   );
+  static int _$llmMaxConcurrentCalls(BotConfig v) => v.llmMaxConcurrentCalls;
+  static const Field<BotConfig, int> _f$llmMaxConcurrentCalls = Field(
+    'llmMaxConcurrentCalls',
+    _$llmMaxConcurrentCalls,
+    opt: true,
+    def: 3,
+  );
   static int? _$llmMaxTokens(BotConfig v) => v.llmMaxTokens;
   static const Field<BotConfig, int> _f$llmMaxTokens = Field(
     'llmMaxTokens',
@@ -392,6 +399,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #llmMaxConsecutiveFailures: _f$llmMaxConsecutiveFailures,
     #llmTimeoutSeconds: _f$llmTimeoutSeconds,
     #llmMaxTopics: _f$llmMaxTopics,
+    #llmMaxConcurrentCalls: _f$llmMaxConcurrentCalls,
     #llmMaxTokens: _f$llmMaxTokens,
     #llmMaxInputChars: _f$llmMaxInputChars,
     #llmDisableThinking: _f$llmDisableThinking,
@@ -450,6 +458,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       llmMaxConsecutiveFailures: data.dec(_f$llmMaxConsecutiveFailures),
       llmTimeoutSeconds: data.dec(_f$llmTimeoutSeconds),
       llmMaxTopics: data.dec(_f$llmMaxTopics),
+      llmMaxConcurrentCalls: data.dec(_f$llmMaxConcurrentCalls),
       llmMaxTokens: data.dec(_f$llmMaxTokens),
       llmMaxInputChars: data.dec(_f$llmMaxInputChars),
       llmDisableThinking: data.dec(_f$llmDisableThinking),
@@ -565,6 +574,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     int? llmMaxConsecutiveFailures,
     int? llmTimeoutSeconds,
     int? llmMaxTopics,
+    int? llmMaxConcurrentCalls,
     int? llmMaxTokens,
     int? llmMaxInputChars,
     bool? llmDisableThinking,
@@ -639,6 +649,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     int? llmMaxConsecutiveFailures,
     int? llmTimeoutSeconds,
     Object? llmMaxTopics = $none,
+    int? llmMaxConcurrentCalls,
     Object? llmMaxTokens = $none,
     Object? llmMaxInputChars = $none,
     bool? llmDisableThinking,
@@ -698,6 +709,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
         #llmMaxConsecutiveFailures: llmMaxConsecutiveFailures,
       if (llmTimeoutSeconds != null) #llmTimeoutSeconds: llmTimeoutSeconds,
       if (llmMaxTopics != $none) #llmMaxTopics: llmMaxTopics,
+      if (llmMaxConcurrentCalls != null)
+        #llmMaxConcurrentCalls: llmMaxConcurrentCalls,
       if (llmMaxTokens != $none) #llmMaxTokens: llmMaxTokens,
       if (llmMaxInputChars != $none) #llmMaxInputChars: llmMaxInputChars,
       if (llmDisableThinking != null) #llmDisableThinking: llmDisableThinking,
@@ -781,6 +794,10 @@ class _BotConfigCopyWithImpl<$R, $Out>
       or: $value.llmTimeoutSeconds,
     ),
     llmMaxTopics: data.get(#llmMaxTopics, or: $value.llmMaxTopics),
+    llmMaxConcurrentCalls: data.get(
+      #llmMaxConcurrentCalls,
+      or: $value.llmMaxConcurrentCalls,
+    ),
     llmMaxTokens: data.get(#llmMaxTokens, or: $value.llmMaxTokens),
     llmMaxInputChars: data.get(#llmMaxInputChars, or: $value.llmMaxInputChars),
     llmDisableThinking: data.get(

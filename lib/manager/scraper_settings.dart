@@ -99,6 +99,11 @@ class ScraperGuardrails {
   /// stops here still counts as completed, and says so on its record.
   final int? llmMaxTopics;
 
+  /// How many LLM calls may be going at the same time. The scrape starts a
+  /// read per topic and moves on; this is how many of those reads may actually
+  /// be talking to the model at once.
+  final int llmMaxConcurrentCalls;
+
   /// Stop calling the LLM for the rest of the run after this many failures in
   /// a row.
   final int llmMaxConsecutiveFailures;
@@ -120,6 +125,7 @@ class ScraperGuardrails {
   const ScraperGuardrails({
     this.delayMs = 1500,
     this.llmMaxTopics,
+    this.llmMaxConcurrentCalls = 3,
     this.llmMaxConsecutiveFailures = 10,
     this.llmTimeoutSeconds = 120,
     this.llmMaxTokens,
@@ -130,6 +136,7 @@ class ScraperGuardrails {
   factory ScraperGuardrails.fromConfig(BotConfig config) => ScraperGuardrails(
         delayMs: config.qbDelayMs,
         llmMaxTopics: config.llmMaxTopics,
+        llmMaxConcurrentCalls: config.llmMaxConcurrentCalls,
         llmMaxConsecutiveFailures: config.llmMaxConsecutiveFailures,
         llmTimeoutSeconds: config.llmTimeoutSeconds,
         llmMaxTokens: config.llmMaxTokens,
