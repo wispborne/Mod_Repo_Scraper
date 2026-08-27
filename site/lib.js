@@ -294,7 +294,11 @@ export function summaryToShow(mod) {
 /// Null when there is nothing worth saying.
 export function summaryTitle(summary) {
   if (!summary) return null;
-  if (summary.generated) return AI_SUMMARY_TITLE;
+  if (summary.generated) {
+    return summary.text
+      ? `${summary.text}\n\n${AI_SUMMARY_TITLE}`
+      : AI_SUMMARY_TITLE;
+  }
   return summary.aiAside ? `AI summary: ${summary.aiAside}` : null;
 }
 
@@ -328,12 +332,13 @@ export const AI_SUMMARY_TITLE = "Written by an AI from the mod's post. "
 /// It takes the colour of those words, says where they came from on hover, and
 /// is hidden from a screen reader — the line under the description says the
 /// same thing in words.
-export function aiSparkle() {
+export function aiSparkle(summary = null) {
   return el('span', {
     class: 'ai-spark',
     html: SPARKLE_SVG,
     'aria-hidden': 'true',
-    title: AI_SUMMARY_TITLE,
+    title: summaryTitle(summary ? { text: summary, generated: true } : null)
+      || AI_SUMMARY_TITLE,
   });
 }
 

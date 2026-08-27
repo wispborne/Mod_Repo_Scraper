@@ -6,12 +6,12 @@
 // so a thin page reads as deliberate instead of broken.
 
 import {
-  AI_SUMMARY_TITLE, aiSparkle, aiSummaryMode, aiSummaryNote, aiSummaryOf,
+  aiSparkle, aiSummaryMode, aiSummaryNote, aiSummaryOf,
   breadcrumbs, clear,
   currentGameVersion, DATA_BASE, downloadButton, el, errorPanel, formatDay,
   formatMoment, imageUrlOf, joinNames, listToggle,
   modDetail, modList, modName, MOD_VERSION_NOTE, neededModsLine,
-  NO_DESCRIPTION, picture, showPicture, sourceName,
+  NO_DESCRIPTION, picture, showPicture, sourceName, summaryTitle,
   versionStanding, versionStandingNote,
 } from '../lib.js';
 import { modCard } from './browse.js';
@@ -332,13 +332,13 @@ function description(detail) {
   // The sparkle goes inside the first paragraph rather than above it, so it
   // reads as part of the words instead of as a picture of its own.
   if (aiAlone) {
-    body.title = AI_SUMMARY_TITLE;
+    body.title = summaryTitle({ text: aiAlone, generated: true });
     // Only into a block that holds words. A post that opens with a list or a
     // picture gets the sparkle above it instead, since a sparkle inside a
     // `<ul>` is not a list item and browsers place it anywhere they like.
     const first = body.firstElementChild;
     const holdsWords = first && ['P', 'DIV', 'H3', 'H4', 'H5', 'H6'].includes(first.tagName);
-    (holdsWords ? first : body).prepend(aiSparkle(), ' ');
+    (holdsWords ? first : body).prepend(aiSparkle(aiAlone), ' ');
   }
 
   // A long post would push the screenshots, the downloads and the changelog
@@ -407,9 +407,12 @@ function description(detail) {
 /// for AI summaries always. Marked the same way an AI description is: a
 /// sparkle before the words, and a line underneath saying who wrote them.
 function aiLeadBlock(words) {
-  return el('div', { class: 'summary-block ai-lead', title: AI_SUMMARY_TITLE }, [
+  return el('div', {
+    class: 'summary-block ai-lead',
+    title: summaryTitle({ text: words, generated: true }),
+  }, [
     el('div', { class: 'prose plain' }, [
-      el('p', {}, [aiSparkle(), ' ', words]),
+      el('p', {}, [aiSparkle(words), ' ', words]),
     ]),
     aiSummaryNote(),
   ]);
@@ -813,4 +816,3 @@ function newestFirst(mods) {
     return right.localeCompare(left);
   });
 }
-

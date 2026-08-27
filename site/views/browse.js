@@ -585,7 +585,7 @@ export function modRows(mods, currentVersion) {
             title: summaryTitle(summary),
           }, [
             names ? `${names} · ` : null,
-            generated ? aiSparkle() : null,
+            generated ? aiSparkle(summary.text) : null,
             generated ? ' ' : null,
             summary?.text || NO_DESCRIPTION,
           ]),
@@ -669,7 +669,7 @@ function summaryLine(summary) {
     // reader who wants a second opinion on a summary that says nothing.
     title: summaryTitle(summary),
   }, [
-    generated ? aiSparkle() : null,
+    generated ? aiSparkle(summary.text) : null,
     generated ? ' ' : null,
     summary?.text || NO_DESCRIPTION,
   ]);
