@@ -15,6 +15,8 @@ It also builds a third set of files, for the public website in `site/` — see *
 
 ## Commands
 
+**Codex on this Windows host:** Run Dart commands with SDK access outside the sandbox. A sandboxed `dart` resolves to Flutter's wrapper, cannot write its cache lock, and waits forever. This repository does not use FVM.
+
 ```bash
 dart pub get                       # install deps
 dart run bin/scraper_main.dart     # run the scraper (reads config.properties)
