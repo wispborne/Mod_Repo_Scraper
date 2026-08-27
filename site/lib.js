@@ -858,15 +858,9 @@ const WAYS_TO_SEARCH = [
 
 /// A search box with a panel that says what the search understands.
 ///
-/// The panel is up whenever the box is in use, which is when somebody wants to
-/// read it — halfway through typing a search is exactly the wrong moment to
-/// take it away. It goes when they click off the box.
-///
-/// The `?` is there to be seen. On its own the panel would only ever appear to
-/// somebody who happened to put the pointer in the right place, so most people
-/// would never learn the search can do any of this, and anybody without a
-/// pointer never could. Pressing it puts the keyboard in it, which is what
-/// opens the panel, so it works the same by mouse, keyboard and thumb.
+/// The panel is shown only while the pointer is over the search field. Focusing
+/// the box to type does not open it, so it cannot cover the results just because
+/// somebody is using the search.
 ///
 /// `hideWhileTyping` is for the box at the top of every page, where the
 /// suggested mods want the same room. Empty box: the panel. Typing: the
@@ -884,15 +878,11 @@ export function searchHelpField(input, { hideWhileTyping = false } = {}) {
     ])),
   ]);
 
-  const help = el('button', {
-    type: 'button',
-    class: 'search-help-btn',
+  const help = el('span', {
+    class: 'search-help-mark',
     text: '?',
-    'aria-label': 'What you can search for',
+    'aria-hidden': 'true',
   });
-  // Pressing a button does not put the keyboard in it in every browser, and
-  // the keyboard being in it is what shows the panel.
-  help.addEventListener('click', () => help.focus());
 
   const field = el('div', { class: 'search-field' }, [input, help, panel]);
 

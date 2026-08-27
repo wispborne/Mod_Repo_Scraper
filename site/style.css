@@ -438,15 +438,15 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
    the whole width some other rule may have given it. */
 .search-field .search-box { flex: 1 1 auto; width: auto; min-width: 0; }
 
-.search-help-btn {
+.search-help-mark {
+  display: flex; align-items: center; justify-content: center;
+  box-sizing: border-box;
   flex: none; width: 26px; height: 26px; padding: 0;
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 999px; color: var(--primary);
   font-family: inherit; font-size: var(--type-small); line-height: 1;
-  cursor: pointer;
 }
-.search-help-btn:hover,
-.search-help-btn:focus-visible {
+.search-field:hover .search-help-mark {
   background: var(--primary-soft); border-color: var(--primary);
 }
 
@@ -457,11 +457,9 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   border-radius: 8px; box-shadow: var(--lifted);
   opacity: 0; visibility: hidden; transition: opacity 0.12s;
 }
-/* Up while the pointer is on the box, and up while the box is in use — which
-   between them cover every moment somebody wants to read it. Gone when they
-   move off it and click away. */
-.search-field:hover .search-help,
-.search-field:focus-within .search-help { opacity: 1; visibility: visible; }
+/* The panel is controlled only by the pointer. Focusing the search box to type
+   does not open it. */
+.search-field:hover .search-help { opacity: 1; visibility: visible; }
 /* The panel sits a little below the box, and that gap is neither of them, so
    crossing it with the pointer would flick the panel away before it could be
    read. This fills the gap without showing anything. */
