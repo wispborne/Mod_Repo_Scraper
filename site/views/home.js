@@ -8,7 +8,8 @@
 import {
   buildHash, categoryChips, clear, currentGameVersion, downloadButton, el,
   formatDay, go,
-  howLongAgo, modHref, modList, modName, releaseFeed, thumbnail,
+  howLongAgo, imageUrlOf, modHref, modList, modName, noteWithMore,
+  releaseFeed, searchHelpField, thumbnail,
 } from '../lib.js';
 import { modCard } from './browse.js';
 
@@ -64,7 +65,7 @@ function front() {
   button.addEventListener('click', search);
 
   return el('section', { class: 'front' }, [
-    el('div', { class: 'search-row' }, [box, button]),
+    el('div', { class: 'search-row' }, [searchHelpField(box), button]),
     el('p', {
       class: 'front-hint',
       text: 'Or press / from anywhere on the site.',
@@ -185,7 +186,7 @@ function releaseRow(release, byId) {
     title: notes ? 'Read changelog' : null,
   }, [
     notes ? el('span', { class: 'chevron', text: '›', 'aria-hidden': 'true' }) : null,
-    thumbnail(mod && mod.imageUrl, 'release-thumb'),
+    thumbnail(mod && imageUrlOf(mod), 'release-thumb'),
     mod
       ? el('a', { class: 'release-name', href: modHref(release.modId), text: shownName })
       : el('span', { class: 'release-name', text: shownName }),
