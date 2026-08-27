@@ -232,6 +232,37 @@ export function applySpacing() {
   document.documentElement.dataset.spacing = spacingPreference();
 }
 
+// --- Which of a mod's two pictures to show ---
+
+/// "post" (the default) shows the picture from the author's forum post;
+/// "announcement" shows the one from the Discord or Nexus post the mod was
+/// announced in. Most mods only have one picture, and those look the same
+/// either way.
+export const IMAGE_CHOICES = ['post', 'announcement'];
+const IMAGE_KEY = 'starmodderPicture';
+
+export function imageChoice() {
+  const saved = localStorage.getItem(IMAGE_KEY);
+  return IMAGE_CHOICES.includes(saved) ? saved : 'post';
+}
+
+export function setImageChoice(choice) {
+  localStorage.setItem(IMAGE_KEY, choice);
+}
+
+/// The picture to show for a mod, or null when it has none.
+///
+/// `announcementImageUrl` is only published where it differs from `imageUrl`,
+/// so a reader who asked for the announcement picture reads that one first and
+/// falls back to the only picture the mod has.
+export function imageUrlOf(mod) {
+  if (!mod) return null;
+  if (imageChoice() === 'announcement') {
+    return mod.announcementImageUrl || mod.imageUrl || null;
+  }
+  return mod.imageUrl || null;
+}
+
 /// The summary to show for a mod, or null when there is nothing to show.
 ///
 /// Two blocks of words may be on offer: the author's own, and the sentence an
@@ -709,6 +740,94 @@ export function isDiscordOnly(mod) {
 
 export function sourceName(source) {
   return SOURCE_NAMES[source] || source;
+}
+
+// --- The search box, and the panel saying what it understands ---
+
+/// What the search can do, for the panel that explains it. A name, the thing
+/// to type, and an example.
+///
+/// Only ways the search really has belong here. Offering one it does not — a
+/// way of asking for all of several terms at once, say, or naming a field —
+/// leaves a reader typing something that quietly matches nothing.
+/// Every line is a name, then how it works with something to type. A string is
+/// words; a `code` is the letters themselves.
+const WAYS_TO_SEARCH = [
+  {
+    name: 'OR',
+    says: ['comma-separated: ', { code: 'faction, portrait' }, ' matches either term'],
+  },
+  {
+    name: 'AND',
+    says: ['plus-separated: ', { code: 'hartley + abuse' }, ' must match all terms'],
+  },
+  {
+    name: 'Exclude',
+    says: ['prefix with ', { code: '-' }, ' to hide results, e.g. ',
+      { code: 'faction, -portrait' }],
+  },
+  {
+    name: 'Acronyms',
+    says: ['e.g. ', { code: 'swp' }, ' matches Ship/Weapon Pack'],
+  },
+  {
+    name: 'Versions',
+    says: ['e.g. ', { code: '0.98' }, ' matches mods for that release'],
+  },
+  {
+    name: 'Field search',
+    says: [{ code: 'key:value' }, ' syntax, e.g. ', { code: 'source:forum' },
+      ', ', { code: 'author:Wisp' }, ', ', { code: 'category:weapons' }, ', ',
+      { code: 'version:0.97' }],
+  },
+];
+
+/// A search box with a panel that says what the search understands.
+///
+/// The panel is up whenever the box is in use, which is when somebody wants to
+/// read it — halfway through typing a search is exactly the wrong moment to
+/// take it away. It goes when they click off the box.
+///
+/// The `?` is there to be seen. On its own the panel would only ever appear to
+/// somebody who happened to put the pointer in the right place, so most people
+/// would never learn the search can do any of this, and anybody without a
+/// pointer never could. Pressing it puts the keyboard in it, which is what
+/// opens the panel, so it works the same by mouse, keyboard and thumb.
+///
+/// `hideWhileTyping` is for the box at the top of every page, where the
+/// suggested mods want the same room. Empty box: the panel. Typing: the
+/// suggestions.
+export function searchHelpField(input, { hideWhileTyping = false } = {}) {
+  const panel = el('div', { class: 'search-help' }, [
+    el('p', {
+      class: 'search-help-lead',
+      text: 'Searches mod names, authors, categories, and descriptions.',
+    }),
+    ...WAYS_TO_SEARCH.map((way) => el('p', {}, [
+      el('strong', { text: way.name }),
+      ' — ',
+      ...way.says.map((bit) => (typeof bit === 'string' ? bit : el('code', { text: bit.code }))),
+    ])),
+  ]);
+
+  const help = el('button', {
+    type: 'button',
+    class: 'search-help-btn',
+    text: '?',
+    'aria-label': 'What you can search for',
+  });
+  // Pressing a button does not put the keyboard in it in every browser, and
+  // the keyboard being in it is what shows the panel.
+  help.addEventListener('click', () => help.focus());
+
+  const field = el('div', { class: 'search-field' }, [input, help, panel]);
+
+  if (hideWhileTyping) {
+    const sync = () => field.classList.toggle('help-off', input.value.trim() !== '');
+    input.addEventListener('input', sync);
+    sync();
+  }
+  return field;
 }
 
 // --- Names and versions ---

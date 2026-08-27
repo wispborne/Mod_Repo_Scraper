@@ -8,8 +8,8 @@
 import {
   AI_SUMMARY_TITLE, aiSparkle, aiSummaryMode, aiSummaryNote, aiSummaryOf,
   breadcrumbs, clear,
-  currentGameVersion, downloadButton, el, errorPanel, formatDay, formatMoment,
-  joinNames, listToggle,
+  currentGameVersion, DATA_BASE, downloadButton, el, errorPanel, formatDay,
+  formatMoment, imageUrlOf, joinNames, listToggle,
   modDetail, modList, modName, MOD_VERSION_NOTE, neededModsLine,
   NO_DESCRIPTION, picture, showPicture, sourceName,
   versionStanding, versionStandingNote,
@@ -171,9 +171,10 @@ function partOfThreadLine(mod) {
 /// whose picture will not load, both leave the words to fill the width rather
 /// than an empty box.
 function modPicture(mod) {
-  if (!mod.imageUrl) return null;
+  const url = imageUrlOf(mod);
+  if (!url) return null;
   const box = el('div', { class: 'mod-head-picture' });
-  box.append(picture(mod.imageUrl, {
+  box.append(picture(url, {
     alt: '',
     whenBroken: () => box.remove(),
   }));

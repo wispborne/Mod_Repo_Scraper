@@ -68,6 +68,15 @@ export async function render(root) {
         + 'copied from the post, not written.',
     ]),
 
+    section('Which picture a mod shows', [
+      'Some mods have two pictures: one in their forum post, and one in the '
+        + 'Discord or Nexus post announcing them. The site shows the forum '
+        + 'one, since that is the picture the author put at the top of their '
+        + 'own thread. Settings has the other choice, under "Mod pictures" — '
+        + 'that one is what TriOS shows. Mods with only one picture look the '
+        + 'same either way, which is most of them.',
+    ]),
+
     section('Getting told about new releases', [
       'Every new release shows up on the home page, and the same list is '
         + 'written out as a feed file any feed reader can follow. Nothing is '
