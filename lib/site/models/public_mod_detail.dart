@@ -87,8 +87,20 @@ class PublicModDetail with PublicModDetailMappable {
   /// Every release recorded for this mod, newest first.
   final List<ModRelease> releases;
 
-  /// Older threads for the same mod. Empty until old-thread matching exists.
-  final List<PublicOlderVersion> olderVersions;
+  /// The day this mod's forum thread was last posted on, or null when it has
+  /// no thread or the forum gave no readable day. The same field as
+  /// [PublicMod.threadLastPostOn], repeated here so the page stands alone.
+  final String? threadLastPostOn;
+
+  /// Every other published mod whose name matches this one's, so the page can
+  /// say which is which. Empty for a mod whose name nothing else shares.
+  ///
+  /// Three different things end up in here and the page has to fit all three:
+  /// this mod's own older thread, a fork that kept the name of the mod it
+  /// forked, and a mod by somebody else that happens to be called the same.
+  /// It was called `olderVersions` while it stood for the first of those alone
+  /// and sat empty; a fork is not an older version of anything.
+  final List<PublicSameNameMod> sameNameMods;
 
   /// Extra mods on the same thread that need this one. Empty on a thread with
   /// only one mod on it.
@@ -119,7 +131,8 @@ class PublicModDetail with PublicModDetailMappable {
     this.discordUrl,
     this.nexusUrl,
     this.releases = const [],
-    this.olderVersions = const [],
+    this.threadLastPostOn,
+    this.sameNameMods = const [],
     this.addons = const [],
     this.partOfThreadTitle,
   });
@@ -184,26 +197,55 @@ class PublicSupportLink with PublicSupportLinkMappable {
   PublicSupportLink({required this.url, required this.type});
 }
 
-/// An older thread for the same mod.
+/// Another published mod that carries this one's name: its own older thread, a
+/// fork that kept the name, or an unrelated mod that happens to share it.
+///
+/// [id] is that mod's page on this site, so the entry is a link a reader can
+/// follow rather than a name they have to search for. It is optional because
+/// the shape also has to hold a thread that was never published as a mod, and
+/// then [url] — the forum thread — is the only address there is.
 @MappableClass(ignoreNull: true)
-class PublicOlderVersion with PublicOlderVersionMappable {
+class PublicSameNameMod with PublicSameNameModMappable {
   final String title;
-  final String url;
+
+  /// The mod's forum thread, where it has one. It is what a thread that was
+  /// never published as a mod has instead of an [id].
+  final String? url;
+
+  /// The mod's page on this site, where it has one.
+  final String? id;
+
+  /// Who wrote it. The one fact that tells two unrelated mods of a name apart.
+  final List<String> authors;
+
   final String? gameVersion;
   final String? modVersion;
 
-  PublicOlderVersion({
+  /// The day its forum thread was last posted on. Null where there is none.
+  final String? threadLastPostOn;
+
+  PublicSameNameMod({
     required this.title,
-    required this.url,
+    this.url,
+    this.id,
+    this.authors = const [],
     this.gameVersion,
     this.modVersion,
+    this.threadLastPostOn,
   });
 }
 
-/// A second mod on the same thread that needs the main one.
+/// Another download on the same thread that is not a mod of its own: either an
+/// add-on that needs the main mod, or another build of it. Which one is
+/// [role] — the two are shown apart, because installing an add-on beside the
+/// mod is right and installing another build of it beside the mod is wrong.
 @MappableClass(ignoreNull: true)
 class PublicAddon with PublicAddonMappable {
   final String name;
+
+  /// [PublicAddonRole.addon] or [PublicAddonRole.variant]. Defaults to
+  /// `addon`, which is what every entry meant before this field existed.
+  final String role;
 
   /// The name of the mod this one needs. Null when the post does not say.
   final String? requires;
@@ -212,7 +254,21 @@ class PublicAddon with PublicAddonMappable {
 
   PublicAddon({
     required this.name,
+    this.role = PublicAddonRole.addon,
     this.requires,
     this.downloads = const [],
   });
+}
+
+/// The two kinds of [PublicAddon]. Same words the LLM uses, published as they
+/// are so the site and the extractor cannot drift apart over what they mean.
+class PublicAddonRole {
+  PublicAddonRole._();
+
+  /// Something you install as well as the mod, and that needs it to work.
+  static const String addon = 'addon';
+
+  /// Another build of the mod itself — a lite version, a ships-only version.
+  /// You install this INSTEAD of the mod, never beside it.
+  static const String variant = 'variant';
 }

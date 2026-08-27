@@ -72,6 +72,27 @@ bool modNamesMatch(String a, String b) {
   return looseA.isNotEmpty && looseA == looseB;
 }
 
+/// The one value every name that means the same mod comes down to.
+///
+/// [modNamesMatch] compares two names at a time, which is the wrong shape for
+/// the same-name list on a mod's page: that is a group of mods, not a pair. Two
+/// names give the same key here exactly when [modNamesMatch] says they are one
+/// mod, because that check is "the cleaned names agree, or they agree with
+/// everything but letters and numbers taken out" and the second of those is
+/// worked out from the first.
+///
+/// A name with no letters or numbers left in it keeps its cleaned form instead,
+/// so two names made of nothing but punctuation are not read as one mod.
+///
+/// One name it cannot speak for: a blank one, which [modNamesMatch] says never
+/// matches anything, including another blank. A caller grouping on this key has
+/// to leave blank names out itself.
+String sameNameKey(String name) {
+  final clean = matchableName(name);
+  final loose = _lettersAndNumbers(clean);
+  return loose.isEmpty ? clean : loose;
+}
+
 String _lettersAndNumbers(String value) =>
     value.toLowerCase().replaceAll(_notLetterOrNumber, '');
 

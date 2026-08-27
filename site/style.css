@@ -705,6 +705,16 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
    so it is a note about the mod rather than part of its title. */
 .part-of { color: var(--text-dim); font-size: var(--type-small); }
 
+/* The other mods on the site carrying this one's name. It sits above the
+   downloads, so a reader who came from outside meets it, and its facts wrap
+   rather than being cut off — the whole point of the block is to be read. */
+.name-share > .sub {
+  color: var(--text-dim); font-size: var(--type-small);
+  margin: 0 0 var(--gap);
+}
+.name-share .row-sub { white-space: normal; overflow: visible; }
+.name-share .mod-row:last-child { border-bottom: none; }
+
 /* What a mod will not run without, right under its name. */
 .needs-line {
   display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline;

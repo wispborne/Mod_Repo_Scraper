@@ -222,6 +222,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     _$imageUrl,
     opt: true,
   );
+  static String? _$announcementImageUrl(PublicMod v) => v.announcementImageUrl;
+  static const Field<PublicMod, String> _f$announcementImageUrl = Field(
+    'announcementImageUrl',
+    _$announcementImageUrl,
+    opt: true,
+  );
   static String? _$summary(PublicMod v) => v.summary;
   static const Field<PublicMod, String> _f$summary = Field(
     'summary',
@@ -305,6 +311,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     _$addedOn,
     opt: true,
   );
+  static String? _$threadLastPostOn(PublicMod v) => v.threadLastPostOn;
+  static const Field<PublicMod, String> _f$threadLastPostOn = Field(
+    'threadLastPostOn',
+    _$threadLastPostOn,
+    opt: true,
+  );
   static List<PublicNeededMod> _$needs(PublicMod v) => v.needs;
   static const Field<PublicMod, List<PublicNeededMod>> _f$needs = Field(
     'needs',
@@ -331,6 +343,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #gameVersion: _f$gameVersion,
     #modVersion: _f$modVersion,
     #imageUrl: _f$imageUrl,
+    #announcementImageUrl: _f$announcementImageUrl,
     #summary: _f$summary,
     #summaryIsGenerated: _f$summaryIsGenerated,
     #aiSummary: _f$aiSummary,
@@ -344,6 +357,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #isWorkInProgress: _f$isWorkInProgress,
     #lastReleaseDate: _f$lastReleaseDate,
     #addedOn: _f$addedOn,
+    #threadLastPostOn: _f$threadLastPostOn,
     #needs: _f$needs,
     #partOfThreadTitle: _f$partOfThreadTitle,
   };
@@ -362,6 +376,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       gameVersion: data.dec(_f$gameVersion),
       modVersion: data.dec(_f$modVersion),
       imageUrl: data.dec(_f$imageUrl),
+      announcementImageUrl: data.dec(_f$announcementImageUrl),
       summary: data.dec(_f$summary),
       summaryIsGenerated: data.dec(_f$summaryIsGenerated),
       aiSummary: data.dec(_f$aiSummary),
@@ -375,6 +390,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       isWorkInProgress: data.dec(_f$isWorkInProgress),
       lastReleaseDate: data.dec(_f$lastReleaseDate),
       addedOn: data.dec(_f$addedOn),
+      threadLastPostOn: data.dec(_f$threadLastPostOn),
       needs: data.dec(_f$needs),
       partOfThreadTitle: data.dec(_f$partOfThreadTitle),
     );
@@ -468,6 +484,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     String? gameVersion,
     String? modVersion,
     String? imageUrl,
+    String? announcementImageUrl,
     String? summary,
     bool? summaryIsGenerated,
     String? aiSummary,
@@ -481,6 +498,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     bool? isWorkInProgress,
     DateTime? lastReleaseDate,
     String? addedOn,
+    String? threadLastPostOn,
     List<PublicNeededMod>? needs,
     String? partOfThreadTitle,
   });
@@ -555,6 +573,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     Object? gameVersion = $none,
     Object? modVersion = $none,
     Object? imageUrl = $none,
+    Object? announcementImageUrl = $none,
     Object? summary = $none,
     bool? summaryIsGenerated,
     Object? aiSummary = $none,
@@ -568,6 +587,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     bool? isWorkInProgress,
     Object? lastReleaseDate = $none,
     Object? addedOn = $none,
+    Object? threadLastPostOn = $none,
     List<PublicNeededMod>? needs,
     Object? partOfThreadTitle = $none,
   }) => $apply(
@@ -582,6 +602,8 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (gameVersion != $none) #gameVersion: gameVersion,
       if (modVersion != $none) #modVersion: modVersion,
       if (imageUrl != $none) #imageUrl: imageUrl,
+      if (announcementImageUrl != $none)
+        #announcementImageUrl: announcementImageUrl,
       if (summary != $none) #summary: summary,
       if (summaryIsGenerated != null) #summaryIsGenerated: summaryIsGenerated,
       if (aiSummary != $none) #aiSummary: aiSummary,
@@ -595,6 +617,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (isWorkInProgress != null) #isWorkInProgress: isWorkInProgress,
       if (lastReleaseDate != $none) #lastReleaseDate: lastReleaseDate,
       if (addedOn != $none) #addedOn: addedOn,
+      if (threadLastPostOn != $none) #threadLastPostOn: threadLastPostOn,
       if (needs != null) #needs: needs,
       if (partOfThreadTitle != $none) #partOfThreadTitle: partOfThreadTitle,
     }),
@@ -611,6 +634,10 @@ class _PublicModCopyWithImpl<$R, $Out>
     gameVersion: data.get(#gameVersion, or: $value.gameVersion),
     modVersion: data.get(#modVersion, or: $value.modVersion),
     imageUrl: data.get(#imageUrl, or: $value.imageUrl),
+    announcementImageUrl: data.get(
+      #announcementImageUrl,
+      or: $value.announcementImageUrl,
+    ),
     summary: data.get(#summary, or: $value.summary),
     summaryIsGenerated: data.get(
       #summaryIsGenerated,
@@ -630,6 +657,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     isWorkInProgress: data.get(#isWorkInProgress, or: $value.isWorkInProgress),
     lastReleaseDate: data.get(#lastReleaseDate, or: $value.lastReleaseDate),
     addedOn: data.get(#addedOn, or: $value.addedOn),
+    threadLastPostOn: data.get(#threadLastPostOn, or: $value.threadLastPostOn),
     needs: data.get(#needs, or: $value.needs),
     partOfThreadTitle: data.get(
       #partOfThreadTitle,

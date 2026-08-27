@@ -22,7 +22,7 @@ void main() {
     final raw = readJson('site/sample-data/mods.json');
     final parsed = PublicModListMapper.fromMap(raw);
 
-    expect(parsed.mods, hasLength(4));
+    expect(parsed.mods, hasLength(5));
     expect(parsed.toMap(), equals(raw));
   });
 
@@ -40,7 +40,7 @@ void main() {
         .whereType<File>()
         .where((f) => f.path.endsWith('.json'))
         .toList();
-    expect(files, hasLength(4));
+    expect(files, hasLength(5));
 
     for (final file in files) {
       final raw = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
@@ -64,7 +64,12 @@ void main() {
     expect(threadOnly.descriptionHtml, isNull);
 
     // Every other sample is a merged mod, and a merged mod never carries it.
-    for (final id in const ['nexerelin', 'quality-captains', 'industrial-evolution']) {
+    for (final id in const [
+      'nexerelin',
+      'quality-captains',
+      'industrial-evolution',
+      'lost-sector-2',
+    ]) {
       final merged =
           PublicModDetailMapper.fromMap(readJson('site/sample-data/mods/$id.json'));
       expect(merged.partOfThreadTitle, isNull, reason: '$id is a merged mod');
@@ -90,7 +95,13 @@ void main() {
     final withAddons = PublicModDetailMapper.fromMap(
         readJson('site/sample-data/mods/industrial-evolution.json'));
     expect(withAddons.addons, hasLength(1));
+    expect(withAddons.addons.single.role, PublicAddonRole.addon);
     expect(withAddons.addons.single.requires, 'Industrial.Evolution');
+
+    // The mod page draws add-ons and other builds in two boxes, so one sample
+    // has to carry both or that split is written blind.
+    expect(discordOnly.addons.map((a) => a.role),
+        [PublicAddonRole.addon, PublicAddonRole.variant]);
   });
 
   test('the samples cover a tidied name and a formatted description', () {
@@ -101,6 +112,47 @@ void main() {
             'never seen with one');
     expect(full.listing.displayName, 'Nexerelin');
     expect(full.descriptionHtml, contains('<p>'));
+  });
+
+  test('the samples cover two mods that share a name', () {
+    // Dozens of names on the real site belong to more than one mod — a mod's
+    // own older thread, a fork that kept the name, or two people who picked the
+    // same one. Each page names the others, so one of these has to be here or
+    // that panel is written blind.
+    final hartleys = PublicModDetailMapper.fromMap(
+        readJson('site/sample-data/mods/lost-sector.json'));
+    final kissas = PublicModDetailMapper.fromMap(
+        readJson('site/sample-data/mods/lost-sector-2.json'));
+
+    expect(hartleys.sameNameMods.single.id, 'lost-sector-2');
+    expect(kissas.sameNameMods.single.id, 'lost-sector');
+
+    // The one fact that tells them apart, and the one the panel leads with.
+    expect(hartleys.sameNameMods.single.threadLastPostOn, isNotNull);
+    expect(kissas.sameNameMods.single.threadLastPostOn, isNotNull);
+    expect(hartleys.sameNameMods.single.authors, isNotEmpty);
+
+    // Every other sample's name is its own.
+    for (final id in const ['nexerelin', 'quality-captains',
+        'industrial-evolution']) {
+      final only =
+          PublicModDetailMapper.fromMap(readJson('site/sample-data/mods/$id.json'));
+      expect(only.sameNameMods, isEmpty, reason: '$id shares its name with '
+          'nothing');
+    }
+  });
+
+  test('the samples cover a mod with a thread date and one without', () {
+    final withThread = PublicModDetailMapper.fromMap(
+        readJson('site/sample-data/mods/nexerelin.json'));
+    expect(withThread.threadLastPostOn, isNotNull);
+    expect(withThread.listing.threadLastPostOn, withThread.threadLastPostOn);
+
+    // A Discord-only mod has no thread to have been posted on.
+    final noThread = PublicModDetailMapper.fromMap(
+        readJson('site/sample-data/mods/quality-captains.json'));
+    expect(noThread.threadLastPostOn, isNull);
+    expect(noThread.listing.threadLastPostOn, isNull);
   });
 
   test('every mod in the list has a per-mod file, and the two agree', () {

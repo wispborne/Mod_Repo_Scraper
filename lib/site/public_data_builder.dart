@@ -14,6 +14,7 @@ import '../bot/scraper/qb/models/mod_summary.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
 import 'days.dart';
+import 'description_slice.dart';
 import 'display_name.dart';
 import 'download_order.dart';
 import 'gallery_filter.dart';
@@ -56,6 +57,16 @@ class _JoinedMod {
   bool get isFromThreadOnly => partOfThreadTitle != null;
 }
 
+/// The two pictures a mod can be shown with: the one the site shows, and the
+/// one from the post announcing the mod on Discord or Nexus. [announcement] is
+/// null when it is already what [shown] holds.
+class _Pictures {
+  final String? shown;
+  final String? announcement;
+
+  const _Pictures({required this.shown, required this.announcement});
+}
+
 /// One forum post, read once.
 ///
 /// The gallery wants to know how big the post said its pictures are, and the
@@ -63,24 +74,58 @@ class _JoinedMod {
 /// post is the dear part of a build — 900 of them every run — so it is read
 /// once here and the answers passed around.
 class _ReadPost {
-  /// The post rebuilt from the tags the site publishes, or null when the mod
-  /// has no forum post.
+  /// The first post rebuilt from the tags the site publishes, or null when the
+  /// mod has no forum post. This is the thread's description, and it is the
+  /// first post alone: a later post is the author writing again, not more of
+  /// what the thread is about.
   final String? html;
 
   /// The same words with the tags taken off.
   final String? words;
 
-  /// How wide the post said each of its pictures is.
+  /// Every one of the author's opening posts, each rebuilt the same way. Used
+  /// to cut one mod's own description out of a post that describes several.
+  final List<String> postsHtml;
+
+  /// The words of every opening post, run together.
+  ///
+  /// Anything that checks the post *named* something — a mod on a shared
+  /// thread, a mod this one needs — reads this rather than the first post
+  /// alone, because a name is just as real in the author's second post.
+  final String? allWords;
+
+  /// How wide the posts said each of their pictures is.
   final Map<String, int> pictureSizes;
 
-  _ReadPost._(this.html, this.words, this.pictureSizes);
+  _ReadPost._(
+    this.html,
+    this.words,
+    this.postsHtml,
+    this.allWords,
+    this.pictureSizes,
+  );
 
   factory _ReadPost(QbModDetail? detail) {
-    final html = cleanPostHtml(detail?.contentHtml);
+    final posts = detail?.openingPosts ?? const <QbForumPost>[];
+    final postsHtml = <String>[];
+    final words = <String>[];
+    final sizes = <String, int>{};
+
+    for (final post in posts) {
+      final html = cleanPostHtml(post.contentHtml);
+      if (html != null) postsHtml.add(html);
+      final plain = plainWordsOf(html);
+      if (plain != null) words.add(plain);
+      sizes.addAll(pictureSizesInPost(post.contentHtml));
+    }
+
+    final firstHtml = cleanPostHtml(detail?.contentHtml);
     return _ReadPost._(
-      html,
-      plainWordsOf(html),
-      pictureSizesInPost(detail?.contentHtml),
+      firstHtml,
+      plainWordsOf(firstHtml),
+      postsHtml,
+      words.isEmpty ? null : words.join('\n\n'),
+      sizes,
     );
   }
 }
@@ -160,10 +205,21 @@ class PublicDataBuilder {
       threads['${thread.topicId}'] = thread;
     }
 
+    // Reading a thread's posts is the dear part of a build, and two things
+    // want the same reading: the check that a thread mod's name is really in
+    // the post, and the page of every mod on that thread. So each thread is
+    // read at most once, the first time somebody asks for it.
+    final postsRead = <String, _ReadPost>{};
+    _ReadPost postsOf(String? topicId) => topicId == null
+        ? _ReadPost(null)
+        : postsRead.putIfAbsent(
+            topicId, () => _ReadPost(bundle?.details[topicId]));
+
     // The mods a thread holds beyond the ones the merge knew about. Worked out
     // before ids are handed out, so they go round the same loop as everything
     // else and get an id, a record and a page the same way.
-    final threadOnly = _threadOnlyMods(mods: mods, threads: threads, bundle: bundle);
+    final threadOnly =
+        _threadOnlyMods(mods: mods, threads: threads, postsOf: postsOf);
 
     // Work out every mod's id and thread first, so the releases — which are
     // filed against a forum topic — can be handed to the right mod.
@@ -225,9 +281,8 @@ class PublicDataBuilder {
 
       final modReleases = releasesByMod[id] ?? const <ModRelease>[];
 
-      // Reading a post is the dear part of this loop, so it is done once here.
-      // The gallery and the description both want something out of it.
-      final post = _ReadPost(detail);
+      // Already read, if anything else on this thread has asked for it.
+      final post = postsOf(topicId);
       final chosen = _mainLlmMod(mod, thread);
 
       final record = _listRecord(
@@ -257,6 +312,11 @@ class PublicDataBuilder {
       );
     }
 
+    // Which mods share a name, worked out once every mod has a record. It has
+    // to wait: a page names the others by their id, their author and the day
+    // their thread was last posted on, and none of that exists until then.
+    _fillSameNameMods(listRecords, details);
+
     // Sorted by the name a reader sees, so the leading dashes and brackets a
     // thread title carries no longer decide who is on page one.
     listRecords.sort((a, b) => (a.displayName ?? a.name)
@@ -270,6 +330,70 @@ class PublicDataBuilder {
     );
   }
 
+  /// Puts the other published mods of a name on each of their pages.
+  ///
+  /// Two pages carrying one name is not an oddity to be tidied away. Some are a
+  /// mod's own older thread, which often holds the last build that ran on an
+  /// older game version; some are a fork that kept the name of the mod it
+  /// forked, which is often the only build that runs on the current one; and
+  /// some are two people who happened to pick the same name. All three are
+  /// worth keeping, so the site keeps them and says which is which instead.
+  ///
+  /// The grouping is the same comparison the thread-mod rule uses, so a page
+  /// says "the same name" about exactly the mods that rule would call one mod.
+  /// Newest thread first, because the reader's usual question is which of these
+  /// is still alive.
+  void _fillSameNameMods(
+    List<PublicMod> records,
+    Map<String, PublicModDetail> details,
+  ) {
+    final byName = <String, List<PublicMod>>{};
+    for (final record in records) {
+      // A mod with no name at all is nobody's namesake, and every one of them
+      // would come down to the same empty key.
+      if (record.name.trim().isEmpty) continue;
+      byName.putIfAbsent(sameNameKey(record.name), () => []).add(record);
+    }
+
+    for (final group in byName.values) {
+      if (group.length < 2) continue;
+      for (final record in group) {
+        final others = [
+          for (final other in group)
+            if (other.id != record.id) other,
+        ]..sort(_newestThreadFirst);
+        details[record.id] = details[record.id]!.copyWith(
+          sameNameMods: [
+            for (final other in others)
+              PublicSameNameMod(
+                title: other.displayName ?? other.name,
+                url: other.forumUrl ?? other.discordUrl,
+                id: other.id,
+                authors: other.authors,
+                gameVersion: other.gameVersion,
+                modVersion: other.modVersion,
+                threadLastPostOn: other.threadLastPostOn,
+              ),
+          ],
+        );
+      }
+    }
+  }
+
+  /// The mod whose thread was posted on most recently first. A mod with no
+  /// readable date goes last — it says nothing, and a page led by it would
+  /// answer the reader's question with a blank.
+  static int _newestThreadFirst(PublicMod a, PublicMod b) {
+    final left = a.threadLastPostOn;
+    final right = b.threadLastPostOn;
+    if (left == null && right == null) return 0;
+    if (left == null) return 1;
+    if (right == null) return -1;
+    // Days are written `YYYY-MM-DD`, so sorting the text backwards is sorting
+    // by day.
+    return right.compareTo(left);
+  }
+
   /// The mods a thread holds that no published mod accounts for.
   ///
   /// Some threads are several mods at once. "Hartley's Miscellaneous Mods" is
@@ -278,15 +402,26 @@ class PublicDataBuilder {
   /// the bundle, was on the site nowhere at all. TriOS has built cards for
   /// these all along (`withSynthesizedAddonEntries`); this is the same idea.
   ///
-  /// Only threads a published mod points at are read. The bundle keeps every
-  /// thread ever scraped, while the merge only walks the mod index and the
-  /// newest board pages, so the bundle holds old threads no published mod
-  /// stands for. Publishing out of those would hand permanent addresses to any
-  /// number of mods nobody has vetted, and an id, once given, is kept for ever.
+  /// Every thread in the bundle is read, whether or not a published mod points
+  /// at it. The merge only learns about a mod from the board listings or from
+  /// Discord, so a thread whose title carries no bracketed game version, or one
+  /// that has fallen behind the newest board pages, never reaches the merge —
+  /// and its mods reached the site nowhere at all. Topic 35651, "Computica's
+  /// Faction Forks", is seven mods that were scraped, read and then dropped for
+  /// exactly that reason.
+  ///
+  /// What keeps an unvetted thread safe is the grounding, not the merge: a
+  /// candidate has to be a `main` mod, have its name written in the author's
+  /// own opening run, and have a download tied to it. Those three are the whole
+  /// gate. The model's own mod-or-not answer is deliberately not used — over
+  /// the current data not one thread it calls a non-mod lists a `main` mod with
+  /// a download, so it would remove nothing, and it is wrong often enough
+  /// ("Iron Legion Faction Mod" is a no, a thread titled "Delete." is a yes)
+  /// that it is a poor gate.
   List<({ScrapedMod mod, String threadTitle})> _threadOnlyMods({
     required List<ScrapedMod> mods,
     required Map<String, QbModSummary> threads,
-    required ForumDataBundle? bundle,
+    required _ReadPost Function(String? topicId) postsOf,
   }) {
     // Every published mod on each thread, not just one. A thread reached
     // through Useful.Tithes also holds Big Pilum Energy and Disco.Balls, and
@@ -301,10 +436,10 @@ class PublicDataBuilder {
     }
 
     final standIns = <({ScrapedMod mod, String threadTitle})>[];
-    for (final entry in publishedByTopic.entries) {
+    for (final entry in threads.entries) {
       final topicId = entry.key;
-      final thread = threads[topicId];
-      if (thread == null) continue;
+      final thread = entry.value;
+      final published = publishedByTopic[topicId] ?? const <ScrapedMod>[];
 
       final mainMods = [
         for (final llmMod in thread.llm?.mods ?? const <LlmMod>[])
@@ -314,11 +449,14 @@ class PublicDataBuilder {
       // called — that is what a published mod pointing at this thread means.
       // TriOS reads a single-main thread the same way, and it is what keeps a
       // thread called "Red - the Oculian Armada" tied to the mod called "Red".
-      if (mainMods.length < 2) continue;
+      //
+      // With no published mod behind the thread there is nothing for that
+      // single entry to be, so the rule stands down. Most of the mods this
+      // change brings in are single-mod threads: ExtendedControls, Custom
+      // Start, Ship Editor, ThirstSector.
+      if (published.isNotEmpty && mainMods.length < 2) continue;
+      if (mainMods.isEmpty) continue;
 
-      final published = entry.value;
-      final postWords =
-          plainWordsOf(cleanPostHtml(bundle?.details[topicId]?.contentHtml));
       final claimed = <String>[];
 
       for (final llmMod in mainMods) {
@@ -334,8 +472,15 @@ class PublicDataBuilder {
         // invented here would get a permanent address nobody can take back. So
         // the post has to name it, the way `_groundNeeds` makes the post name
         // anything a mod is said to need.
-        if (!_postNames(name, postWords)) {
-          _log.warning('Left out "$name" (topic $topicId): the post never '
+        // Every one of the author's opening posts. A thread that lists its
+        // mods in the first post and describes them in a second names them in
+        // both, and reading only the first would leave the second post's mods
+        // looking invented.
+        if (!_postNames(name, postsOf(topicId).allWords)) {
+          // Ordinary news, not a warning: every thread in the bundle comes
+          // through here, so this is hundreds of lines a run, and a run's log
+          // is read to see what was published.
+          _log.info('Left out "$name" (topic $topicId): the post never '
               'names it.');
           continue;
         }
@@ -352,8 +497,13 @@ class PublicDataBuilder {
           mod: _standInFor(llmMod, thread, published),
           threadTitle: thread.title,
         ));
+        // Which kind of thread it came off, so a run's log tells the two apart:
+        // a thread the merge already knows, or one it has never heard of.
+        final kindOfThread = published.isEmpty
+            ? 'a thread no published mod points at'
+            : 'a thread a published mod already stands on';
         _log.info('Publishing "$name" as a mod of its own, from topic '
-            '$topicId ("${thread.title}").');
+            '$topicId ("${thread.title}") — $kindOfThread.');
       }
     }
     return standIns;
@@ -534,9 +684,11 @@ class PublicDataBuilder {
     final extras = chosen?.extras;
     final downloads = _downloadsFor(chosen, threadDownloads);
 
+    final lastPost = parseForumDate(thread?.lastPostDate);
     final copiedSummary = usableSummary(mod.summary);
     final generatedSummary = usableSummary(extras?.summary?.sentence);
     final shownName = displayName(mod.name);
+    final pictures = _picturesFor(mod, chosen, authorAvatarPath);
 
     return PublicMod(
       id: id,
@@ -548,7 +700,8 @@ class PublicDataBuilder {
       sources: _sourcesFor(mod, thread),
       gameVersion: _firstNonEmpty([mod.gameVersionReq, thread?.gameVersion]),
       modVersion: _firstNonEmpty([extras?.version, mod.modVersion]),
-      imageUrl: _imageUrlFor(mod, chosen, authorAvatarPath),
+      imageUrl: pictures.shown,
+      announcementImageUrl: pictures.announcement,
       summary: copiedSummary ?? generatedSummary,
       summaryIsGenerated: copiedSummary == null && generatedSummary != null,
       aiSummary: generatedSummary,
@@ -562,6 +715,7 @@ class PublicDataBuilder {
       isWorkInProgress: thread?.isWip ?? false,
       lastReleaseDate: releases.isEmpty ? null : _lastReleaseDate(releases),
       addedOn: _addedOn(mod, thread, postDate, topicId),
+      threadLastPostOn: lastPost == null ? null : writeDay(lastPost),
       needs: _neededMods(extras?.needs, id, modsByName),
       partOfThreadTitle: partOfThreadTitle,
     );
@@ -600,6 +754,25 @@ class PublicDataBuilder {
     }
     dates.sort();
     return writeDay(dates.first);
+  }
+
+  /// The stretch of the author's post that describes this one mod, or null.
+  ///
+  /// Only for a thread carrying several mods: a thread about one mod publishes
+  /// the whole post and needs none of this. The model said where the words
+  /// start and end and the extractor found them in one of the posts, so all
+  /// that is left is to cut them out. It is tried against each post in turn
+  /// because the extractor only promised the words are in one of them.
+  static String? _sectionAbout(LlmMod? chosen, _ReadPost post) {
+    final anchors = chosen?.descriptionAnchors;
+    if (anchors == null || anchors.isEmpty) return null;
+
+    for (final html in post.postsHtml) {
+      final section =
+          sliceDescriptionHtml(html, anchors.startsWith, anchors.endsWith);
+      if (section != null) return section;
+    }
+    return null;
   }
 
   /// The mods this one needs, each pointed at its own page where we have one.
@@ -653,14 +826,22 @@ class PublicDataBuilder {
     final sharesItsThread = _isSharedThread(thread);
     final usablePost = sharesItsThread ? null : post;
 
+    // On a shared thread the post is about every mod at once — but plenty of
+    // authors write a paragraph about each mod under its own name, and that
+    // paragraph is that mod's description. Where the model pointed at one and
+    // the words were found in the post, they are cut out and published as the
+    // author's, because they are.
+    final ownSection = sharesItsThread ? _sectionAbout(chosen, post) : null;
+
     // The author's own post first. Before this, the description was whichever
     // text the merge liked best, which for the bigger mods was the Discord
     // announcement — Nexerelin's page said "4X in Starsector. Download: ..."
     // rather than anything about the mod. On a shared thread the fallback is
     // the mod's own merged text, which for a mod posted on Discord is its own
     // announcement: still the author's words, and about this mod alone.
-    final copiedDescription =
-        usablePost?.words ?? _firstNonEmpty([mod.description]);
+    final copiedDescription = usablePost?.words ??
+        plainWordsOf(ownSection) ??
+        _firstNonEmpty([mod.description]);
     final generatedDescription = _firstNonEmpty([extras?.summary?.paragraph]);
     final isGenerated = copiedDescription == null && generatedDescription != null;
 
@@ -669,6 +850,7 @@ class PublicDataBuilder {
       listing: listing,
       description: copiedDescription ?? generatedDescription,
       descriptionHtml: usablePost?.html ??
+          ownSection ??
           plainTextAsHtml(copiedDescription ?? generatedDescription),
       descriptionIsGenerated: isGenerated,
       aiDescription: generatedDescription,
@@ -687,7 +869,9 @@ class PublicDataBuilder {
       discordUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]),
       nexusUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.NexusMods]]),
       releases: releases,
-      olderVersions: const [],
+      threadLastPostOn: listing.threadLastPostOn,
+      // Filled once every mod has a record — see [_fillSameNameMods].
+      sameNameMods: const [],
       addons: _addonsFor(chosen, thread),
       partOfThreadTitle: listing.partOfThreadTitle,
     );
@@ -736,8 +920,10 @@ class PublicDataBuilder {
     return null;
   }
 
-  /// The other mods on the same thread that lean on this one. Mods the LLM
-  /// called separate are left off — they are their own mod, not an add-on.
+  /// The other downloads on the same thread that are not mods of their own:
+  /// add-ons that need this mod, and other builds of it. Each carries which of
+  /// the two it is, so the page can keep them apart. Mods the LLM called
+  /// separate are left off — they are their own mod, not an add-on.
   ///
   /// On a thread that is several mods at once, an add-on belongs to whichever
   /// of them it says it needs, and is left off the others: four mods sharing a
@@ -769,6 +955,13 @@ class PublicDataBuilder {
         .where(belongsHere)
         .map((m) => PublicAddon(
               name: m.name,
+              // The LLM's own two words, carried through rather than flattened
+              // to one. A variant is another build of the mod and is installed
+              // instead of it, so a page that calls it an add-on is telling the
+              // reader to install both.
+              role: m.role == LlmModRole.variant
+                  ? PublicAddonRole.variant
+                  : PublicAddonRole.addon,
               requires: _firstNonEmpty([m.requires]),
               downloads:
                   sortedDownloads(m.downloads.map(_fromLlmDownload).toList()),
@@ -846,30 +1039,53 @@ class PublicDataBuilder {
     for (final image in mod.getImages().values) {
       add(image.url ?? image.proxyUrl, image.description);
     }
-    for (final image in detail?.images ?? const <ImageRef>[]) {
+    // Every one of the author's opening posts: a thread that keeps its
+    // downloads in a second post usually keeps its screenshots there too.
+    for (final image in detail?.allImages ?? const <ImageRef>[]) {
       add(image.originalUrl, image.alt);
     }
     return gallery;
   }
 
-  /// The one picture the card shows.
+  /// The picture the site shows, and the picture from the mod's announcement.
   ///
-  /// The same order TriOS's catalog picks in, so a mod looks the same in both:
-  /// the picture the merge kept first, then the one the LLM found in the post,
-  /// then the author's forum avatar. TriOS falls back to the installed mod's
-  /// icon after that, which a website has no way to read.
+  /// Two pictures can be on offer. One is the picture the LLM found in the
+  /// author's forum post; the other is the picture the merge kept, which comes
+  /// from the Discord or Nexus post announcing the mod, since the forum
+  /// scraper collects none. The post's picture is shown by default: it is the
+  /// one the author put at the top of their own thread, where an announcement
+  /// picture is whatever was attached to a message. The announcement one is
+  /// published beside it, so the reader's choice costs the site no extra
+  /// fetch.
+  ///
+  /// This is where the site parts company with TriOS's catalog, which takes
+  /// the merged picture first. A mod can therefore look different in the two,
+  /// which is the point of the setting.
+  ///
+  /// Where the announcement picture is the only one there is, it is what
+  /// [_Pictures.shown] holds and [_Pictures.announcement] is left null — the
+  /// same address twice would only make `mods.json` bigger. The author's forum
+  /// avatar stands in when there is no picture at all. TriOS falls back to the
+  /// installed mod's icon after that, which a website has no way to read.
   ///
   /// Anything that is not a plain web address is dropped, and only then does it
   /// fall through to the next one.
-  String? _imageUrlFor(
+  _Pictures _picturesFor(
     ScrapedMod mod,
     LlmMod? chosen,
     String? authorAvatarPath,
   ) {
-    final images = mod.getImages().values;
-    return stripExternalPrefix(images.isEmpty ? null : images.first.url)
-        ?? stripExternalPrefix(chosen?.image)
-        ?? stripExternalPrefix(_avatarUrl(authorAvatarPath));
+    final merged = mod.getImages().values;
+    final fromPost = stripExternalPrefix(chosen?.image);
+    final fromAnnouncement =
+        stripExternalPrefix(merged.isEmpty ? null : merged.first.url);
+    final avatar = stripExternalPrefix(_avatarUrl(authorAvatarPath));
+
+    final shown = fromPost ?? fromAnnouncement ?? avatar;
+    return _Pictures(
+      shown: shown,
+      announcement: fromAnnouncement == shown ? null : fromAnnouncement,
+    );
   }
 
   /// A forum avatar path is written relative to the forum, so it is made into a

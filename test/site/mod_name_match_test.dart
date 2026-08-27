@@ -89,4 +89,50 @@ void main() {
       expect(modNamesMatch('Useful.Tithes 1.0.a', 'Useful.Tithes'), isTrue);
     });
   });
+
+  group('the key a group of same-name mods share', () {
+    /// The same-name list on a mod's page is a group of mods, not a pair, so it
+    /// is built by filing every mod under one key. That only works while the
+    /// key agrees with the pairwise check on every name.
+    const names = [
+      'Useful.Tithes 1.0.a',
+      'Useful.Tithes',
+      'Useful Tithes',
+      'Lost.Sector',
+      'LOST_SECTOR',
+      '[0.98a] Scy v1.9',
+      '[0.6.2a] Scy',
+      'Disco.Balls 1.1.c - More Lamp Colour Options',
+      'Disco.Balls',
+      'Nexerelin',
+      'Red - the Oculian Armada (0.10.2-RC4) Mod',
+      'LazyLib',
+      'MagicLib',
+      '...',
+      '---',
+    ];
+
+    test('two names share a key exactly when they are one mod', () {
+      for (final a in names) {
+        for (final b in names) {
+          expect(sameNameKey(a) == sameNameKey(b), modNamesMatch(a, b),
+              reason: '"$a" against "$b"');
+        }
+      }
+    });
+
+    test('a blank name is the one it cannot speak for', () {
+      // modNamesMatch says a blank name matches nothing, not even another
+      // blank. The key cannot say that, so whoever groups on it leaves blank
+      // names out — which is what the builder does.
+      expect(modNamesMatch('', ''), isFalse);
+      expect(sameNameKey(''), sameNameKey('  '));
+    });
+
+    test('a name of nothing but punctuation keeps its own key', () {
+      // Everything but letters and numbers comes out of these, so they would
+      // all come down to the same empty key and read as one mod.
+      expect(sameNameKey('...'), isNot(sameNameKey('---')));
+    });
+  });
 }

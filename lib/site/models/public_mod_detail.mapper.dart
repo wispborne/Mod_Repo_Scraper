@@ -20,7 +20,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       PublicDownloadMapper.ensureInitialized();
       PublicSupportLinkMapper.ensureInitialized();
       ModReleaseMapper.ensureInitialized();
-      PublicOlderVersionMapper.ensureInitialized();
+      PublicSameNameModMapper.ensureInitialized();
       PublicAddonMapper.ensureInitialized();
     }
     return _instance!;
@@ -143,15 +143,16 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     opt: true,
     def: const [],
   );
-  static List<PublicOlderVersion> _$olderVersions(PublicModDetail v) =>
-      v.olderVersions;
-  static const Field<PublicModDetail, List<PublicOlderVersion>>
-  _f$olderVersions = Field(
-    'olderVersions',
-    _$olderVersions,
+  static String? _$threadLastPostOn(PublicModDetail v) => v.threadLastPostOn;
+  static const Field<PublicModDetail, String> _f$threadLastPostOn = Field(
+    'threadLastPostOn',
+    _$threadLastPostOn,
     opt: true,
-    def: const [],
   );
+  static List<PublicSameNameMod> _$sameNameMods(PublicModDetail v) =>
+      v.sameNameMods;
+  static const Field<PublicModDetail, List<PublicSameNameMod>> _f$sameNameMods =
+      Field('sameNameMods', _$sameNameMods, opt: true, def: const []);
   static List<PublicAddon> _$addons(PublicModDetail v) => v.addons;
   static const Field<PublicModDetail, List<PublicAddon>> _f$addons = Field(
     'addons',
@@ -187,7 +188,8 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     #discordUrl: _f$discordUrl,
     #nexusUrl: _f$nexusUrl,
     #releases: _f$releases,
-    #olderVersions: _f$olderVersions,
+    #threadLastPostOn: _f$threadLastPostOn,
+    #sameNameMods: _f$sameNameMods,
     #addons: _f$addons,
     #partOfThreadTitle: _f$partOfThreadTitle,
   };
@@ -215,7 +217,8 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       discordUrl: data.dec(_f$discordUrl),
       nexusUrl: data.dec(_f$nexusUrl),
       releases: data.dec(_f$releases),
-      olderVersions: data.dec(_f$olderVersions),
+      threadLastPostOn: data.dec(_f$threadLastPostOn),
+      sameNameMods: data.dec(_f$sameNameMods),
       addons: data.dec(_f$addons),
       partOfThreadTitle: data.dec(_f$partOfThreadTitle),
     );
@@ -310,10 +313,10 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
   get releases;
   ListCopyWith<
     $R,
-    PublicOlderVersion,
-    PublicOlderVersionCopyWith<$R, PublicOlderVersion, PublicOlderVersion>
+    PublicSameNameMod,
+    PublicSameNameModCopyWith<$R, PublicSameNameMod, PublicSameNameMod>
   >
-  get olderVersions;
+  get sameNameMods;
   ListCopyWith<
     $R,
     PublicAddon,
@@ -340,7 +343,8 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     String? discordUrl,
     String? nexusUrl,
     List<ModRelease>? releases,
-    List<PublicOlderVersion>? olderVersions,
+    String? threadLastPostOn,
+    List<PublicSameNameMod>? sameNameMods,
     List<PublicAddon>? addons,
     String? partOfThreadTitle,
   });
@@ -417,13 +421,13 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
   @override
   ListCopyWith<
     $R,
-    PublicOlderVersion,
-    PublicOlderVersionCopyWith<$R, PublicOlderVersion, PublicOlderVersion>
+    PublicSameNameMod,
+    PublicSameNameModCopyWith<$R, PublicSameNameMod, PublicSameNameMod>
   >
-  get olderVersions => ListCopyWith(
-    $value.olderVersions,
+  get sameNameMods => ListCopyWith(
+    $value.sameNameMods,
     (v, t) => v.copyWith.$chain(t),
-    (v) => call(olderVersions: v),
+    (v) => call(sameNameMods: v),
   );
   @override
   ListCopyWith<
@@ -457,7 +461,8 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     Object? discordUrl = $none,
     Object? nexusUrl = $none,
     List<ModRelease>? releases,
-    List<PublicOlderVersion>? olderVersions,
+    Object? threadLastPostOn = $none,
+    List<PublicSameNameMod>? sameNameMods,
     List<PublicAddon>? addons,
     Object? partOfThreadTitle = $none,
   }) => $apply(
@@ -483,7 +488,8 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       if (discordUrl != $none) #discordUrl: discordUrl,
       if (nexusUrl != $none) #nexusUrl: nexusUrl,
       if (releases != null) #releases: releases,
-      if (olderVersions != null) #olderVersions: olderVersions,
+      if (threadLastPostOn != $none) #threadLastPostOn: threadLastPostOn,
+      if (sameNameMods != null) #sameNameMods: sameNameMods,
       if (addons != null) #addons: addons,
       if (partOfThreadTitle != $none) #partOfThreadTitle: partOfThreadTitle,
     }),
@@ -515,7 +521,8 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     discordUrl: data.get(#discordUrl, or: $value.discordUrl),
     nexusUrl: data.get(#nexusUrl, or: $value.nexusUrl),
     releases: data.get(#releases, or: $value.releases),
-    olderVersions: data.get(#olderVersions, or: $value.olderVersions),
+    threadLastPostOn: data.get(#threadLastPostOn, or: $value.threadLastPostOn),
+    sameNameMods: data.get(#sameNameMods, or: $value.sameNameMods),
     addons: data.get(#addons, or: $value.addons),
     partOfThreadTitle: data.get(
       #partOfThreadTitle,
@@ -992,175 +999,224 @@ class _PublicSupportLinkCopyWithImpl<$R, $Out>
   ) => _PublicSupportLinkCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
-class PublicOlderVersionMapper extends ClassMapperBase<PublicOlderVersion> {
-  PublicOlderVersionMapper._();
+class PublicSameNameModMapper extends ClassMapperBase<PublicSameNameMod> {
+  PublicSameNameModMapper._();
 
-  static PublicOlderVersionMapper? _instance;
-  static PublicOlderVersionMapper ensureInitialized() {
+  static PublicSameNameModMapper? _instance;
+  static PublicSameNameModMapper ensureInitialized() {
     if (_instance == null) {
-      MapperContainer.globals.use(_instance = PublicOlderVersionMapper._());
+      MapperContainer.globals.use(_instance = PublicSameNameModMapper._());
     }
     return _instance!;
   }
 
   @override
-  final String id = 'PublicOlderVersion';
+  final String id = 'PublicSameNameMod';
 
-  static String _$title(PublicOlderVersion v) => v.title;
-  static const Field<PublicOlderVersion, String> _f$title = Field(
+  static String _$title(PublicSameNameMod v) => v.title;
+  static const Field<PublicSameNameMod, String> _f$title = Field(
     'title',
     _$title,
   );
-  static String _$url(PublicOlderVersion v) => v.url;
-  static const Field<PublicOlderVersion, String> _f$url = Field('url', _$url);
-  static String? _$gameVersion(PublicOlderVersion v) => v.gameVersion;
-  static const Field<PublicOlderVersion, String> _f$gameVersion = Field(
+  static String? _$url(PublicSameNameMod v) => v.url;
+  static const Field<PublicSameNameMod, String> _f$url = Field(
+    'url',
+    _$url,
+    opt: true,
+  );
+  static String? _$id(PublicSameNameMod v) => v.id;
+  static const Field<PublicSameNameMod, String> _f$id = Field(
+    'id',
+    _$id,
+    opt: true,
+  );
+  static List<String> _$authors(PublicSameNameMod v) => v.authors;
+  static const Field<PublicSameNameMod, List<String>> _f$authors = Field(
+    'authors',
+    _$authors,
+    opt: true,
+    def: const [],
+  );
+  static String? _$gameVersion(PublicSameNameMod v) => v.gameVersion;
+  static const Field<PublicSameNameMod, String> _f$gameVersion = Field(
     'gameVersion',
     _$gameVersion,
     opt: true,
   );
-  static String? _$modVersion(PublicOlderVersion v) => v.modVersion;
-  static const Field<PublicOlderVersion, String> _f$modVersion = Field(
+  static String? _$modVersion(PublicSameNameMod v) => v.modVersion;
+  static const Field<PublicSameNameMod, String> _f$modVersion = Field(
     'modVersion',
     _$modVersion,
     opt: true,
   );
+  static String? _$threadLastPostOn(PublicSameNameMod v) => v.threadLastPostOn;
+  static const Field<PublicSameNameMod, String> _f$threadLastPostOn = Field(
+    'threadLastPostOn',
+    _$threadLastPostOn,
+    opt: true,
+  );
 
   @override
-  final MappableFields<PublicOlderVersion> fields = const {
+  final MappableFields<PublicSameNameMod> fields = const {
     #title: _f$title,
     #url: _f$url,
+    #id: _f$id,
+    #authors: _f$authors,
     #gameVersion: _f$gameVersion,
     #modVersion: _f$modVersion,
+    #threadLastPostOn: _f$threadLastPostOn,
   };
   @override
   final bool ignoreNull = true;
 
-  static PublicOlderVersion _instantiate(DecodingData data) {
-    return PublicOlderVersion(
+  static PublicSameNameMod _instantiate(DecodingData data) {
+    return PublicSameNameMod(
       title: data.dec(_f$title),
       url: data.dec(_f$url),
+      id: data.dec(_f$id),
+      authors: data.dec(_f$authors),
       gameVersion: data.dec(_f$gameVersion),
       modVersion: data.dec(_f$modVersion),
+      threadLastPostOn: data.dec(_f$threadLastPostOn),
     );
   }
 
   @override
   final Function instantiate = _instantiate;
 
-  static PublicOlderVersion fromMap(Map<String, dynamic> map) {
-    return ensureInitialized().decodeMap<PublicOlderVersion>(map);
+  static PublicSameNameMod fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<PublicSameNameMod>(map);
   }
 
-  static PublicOlderVersion fromJson(String json) {
-    return ensureInitialized().decodeJson<PublicOlderVersion>(json);
+  static PublicSameNameMod fromJson(String json) {
+    return ensureInitialized().decodeJson<PublicSameNameMod>(json);
   }
 }
 
-mixin PublicOlderVersionMappable {
+mixin PublicSameNameModMappable {
   String toJson() {
-    return PublicOlderVersionMapper.ensureInitialized()
-        .encodeJson<PublicOlderVersion>(this as PublicOlderVersion);
+    return PublicSameNameModMapper.ensureInitialized()
+        .encodeJson<PublicSameNameMod>(this as PublicSameNameMod);
   }
 
   Map<String, dynamic> toMap() {
-    return PublicOlderVersionMapper.ensureInitialized()
-        .encodeMap<PublicOlderVersion>(this as PublicOlderVersion);
+    return PublicSameNameModMapper.ensureInitialized()
+        .encodeMap<PublicSameNameMod>(this as PublicSameNameMod);
   }
 
-  PublicOlderVersionCopyWith<
-    PublicOlderVersion,
-    PublicOlderVersion,
-    PublicOlderVersion
+  PublicSameNameModCopyWith<
+    PublicSameNameMod,
+    PublicSameNameMod,
+    PublicSameNameMod
   >
   get copyWith =>
-      _PublicOlderVersionCopyWithImpl<PublicOlderVersion, PublicOlderVersion>(
-        this as PublicOlderVersion,
+      _PublicSameNameModCopyWithImpl<PublicSameNameMod, PublicSameNameMod>(
+        this as PublicSameNameMod,
         $identity,
         $identity,
       );
   @override
   String toString() {
-    return PublicOlderVersionMapper.ensureInitialized().stringifyValue(
-      this as PublicOlderVersion,
+    return PublicSameNameModMapper.ensureInitialized().stringifyValue(
+      this as PublicSameNameMod,
     );
   }
 
   @override
   bool operator ==(Object other) {
-    return PublicOlderVersionMapper.ensureInitialized().equalsValue(
-      this as PublicOlderVersion,
+    return PublicSameNameModMapper.ensureInitialized().equalsValue(
+      this as PublicSameNameMod,
       other,
     );
   }
 
   @override
   int get hashCode {
-    return PublicOlderVersionMapper.ensureInitialized().hashValue(
-      this as PublicOlderVersion,
+    return PublicSameNameModMapper.ensureInitialized().hashValue(
+      this as PublicSameNameMod,
     );
   }
 }
 
-extension PublicOlderVersionValueCopy<$R, $Out>
-    on ObjectCopyWith<$R, PublicOlderVersion, $Out> {
-  PublicOlderVersionCopyWith<$R, PublicOlderVersion, $Out>
-  get $asPublicOlderVersion => $base.as(
-    (v, t, t2) => _PublicOlderVersionCopyWithImpl<$R, $Out>(v, t, t2),
+extension PublicSameNameModValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, PublicSameNameMod, $Out> {
+  PublicSameNameModCopyWith<$R, PublicSameNameMod, $Out>
+  get $asPublicSameNameMod => $base.as(
+    (v, t, t2) => _PublicSameNameModCopyWithImpl<$R, $Out>(v, t, t2),
   );
 }
 
-abstract class PublicOlderVersionCopyWith<
+abstract class PublicSameNameModCopyWith<
   $R,
-  $In extends PublicOlderVersion,
+  $In extends PublicSameNameMod,
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get authors;
   $R call({
     String? title,
     String? url,
+    String? id,
+    List<String>? authors,
     String? gameVersion,
     String? modVersion,
+    String? threadLastPostOn,
   });
-  PublicOlderVersionCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+  PublicSameNameModCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
 }
 
-class _PublicOlderVersionCopyWithImpl<$R, $Out>
-    extends ClassCopyWithBase<$R, PublicOlderVersion, $Out>
-    implements PublicOlderVersionCopyWith<$R, PublicOlderVersion, $Out> {
-  _PublicOlderVersionCopyWithImpl(super.value, super.then, super.then2);
+class _PublicSameNameModCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, PublicSameNameMod, $Out>
+    implements PublicSameNameModCopyWith<$R, PublicSameNameMod, $Out> {
+  _PublicSameNameModCopyWithImpl(super.value, super.then, super.then2);
 
   @override
-  late final ClassMapperBase<PublicOlderVersion> $mapper =
-      PublicOlderVersionMapper.ensureInitialized();
+  late final ClassMapperBase<PublicSameNameMod> $mapper =
+      PublicSameNameModMapper.ensureInitialized();
+  @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get authors =>
+      ListCopyWith(
+        $value.authors,
+        (v, t) => ObjectCopyWith(v, $identity, t),
+        (v) => call(authors: v),
+      );
   @override
   $R call({
     String? title,
-    String? url,
+    Object? url = $none,
+    Object? id = $none,
+    List<String>? authors,
     Object? gameVersion = $none,
     Object? modVersion = $none,
+    Object? threadLastPostOn = $none,
   }) => $apply(
     FieldCopyWithData({
       if (title != null) #title: title,
-      if (url != null) #url: url,
+      if (url != $none) #url: url,
+      if (id != $none) #id: id,
+      if (authors != null) #authors: authors,
       if (gameVersion != $none) #gameVersion: gameVersion,
       if (modVersion != $none) #modVersion: modVersion,
+      if (threadLastPostOn != $none) #threadLastPostOn: threadLastPostOn,
     }),
   );
   @override
-  PublicOlderVersion $make(CopyWithData data) => PublicOlderVersion(
+  PublicSameNameMod $make(CopyWithData data) => PublicSameNameMod(
     title: data.get(#title, or: $value.title),
     url: data.get(#url, or: $value.url),
+    id: data.get(#id, or: $value.id),
+    authors: data.get(#authors, or: $value.authors),
     gameVersion: data.get(#gameVersion, or: $value.gameVersion),
     modVersion: data.get(#modVersion, or: $value.modVersion),
+    threadLastPostOn: data.get(#threadLastPostOn, or: $value.threadLastPostOn),
   );
 
   @override
-  PublicOlderVersionCopyWith<$R2, PublicOlderVersion, $Out2> $chain<$R2, $Out2>(
+  PublicSameNameModCopyWith<$R2, PublicSameNameMod, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
-  ) => _PublicOlderVersionCopyWithImpl<$R2, $Out2>($value, $cast, t);
+  ) => _PublicSameNameModCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
 class PublicAddonMapper extends ClassMapperBase<PublicAddon> {
@@ -1180,6 +1236,13 @@ class PublicAddonMapper extends ClassMapperBase<PublicAddon> {
 
   static String _$name(PublicAddon v) => v.name;
   static const Field<PublicAddon, String> _f$name = Field('name', _$name);
+  static String _$role(PublicAddon v) => v.role;
+  static const Field<PublicAddon, String> _f$role = Field(
+    'role',
+    _$role,
+    opt: true,
+    def: PublicAddonRole.addon,
+  );
   static String? _$requires(PublicAddon v) => v.requires;
   static const Field<PublicAddon, String> _f$requires = Field(
     'requires',
@@ -1197,6 +1260,7 @@ class PublicAddonMapper extends ClassMapperBase<PublicAddon> {
   @override
   final MappableFields<PublicAddon> fields = const {
     #name: _f$name,
+    #role: _f$role,
     #requires: _f$requires,
     #downloads: _f$downloads,
   };
@@ -1206,6 +1270,7 @@ class PublicAddonMapper extends ClassMapperBase<PublicAddon> {
   static PublicAddon _instantiate(DecodingData data) {
     return PublicAddon(
       name: data.dec(_f$name),
+      role: data.dec(_f$role),
       requires: data.dec(_f$requires),
       downloads: data.dec(_f$downloads),
     );
@@ -1277,7 +1342,12 @@ abstract class PublicAddonCopyWith<$R, $In extends PublicAddon, $Out>
     PublicDownloadCopyWith<$R, PublicDownload, PublicDownload>
   >
   get downloads;
-  $R call({String? name, String? requires, List<PublicDownload>? downloads});
+  $R call({
+    String? name,
+    String? role,
+    String? requires,
+    List<PublicDownload>? downloads,
+  });
   PublicAddonCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
 
@@ -1303,11 +1373,13 @@ class _PublicAddonCopyWithImpl<$R, $Out>
   @override
   $R call({
     String? name,
+    String? role,
     Object? requires = $none,
     List<PublicDownload>? downloads,
   }) => $apply(
     FieldCopyWithData({
       if (name != null) #name: name,
+      if (role != null) #role: role,
       if (requires != $none) #requires: requires,
       if (downloads != null) #downloads: downloads,
     }),
@@ -1315,6 +1387,7 @@ class _PublicAddonCopyWithImpl<$R, $Out>
   @override
   PublicAddon $make(CopyWithData data) => PublicAddon(
     name: data.get(#name, or: $value.name),
+    role: data.get(#role, or: $value.role),
     requires: data.get(#requires, or: $value.requires),
     downloads: data.get(#downloads, or: $value.downloads),
   );

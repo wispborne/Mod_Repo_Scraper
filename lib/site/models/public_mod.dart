@@ -67,7 +67,19 @@ class PublicMod with PublicModMappable {
   final String? modVersion;
 
   /// One picture for the card. Null when the mod has none.
+  ///
+  /// This is the picture from the author's forum post where there is one, and
+  /// what the site shows unless the reader has asked for the announcement
+  /// picture instead — see [announcementImageUrl].
   final String? imageUrl;
+
+  /// The picture from the Discord or Nexus post announcing the mod, which the
+  /// reader can ask to see instead of the forum post's one.
+  ///
+  /// Null when that picture is already what [imageUrl] holds, which is every
+  /// mod with only one picture — the same address twice would only make
+  /// `mods.json` bigger. So the site reads this or [imageUrl], in that order.
+  final String? announcementImageUrl;
 
   /// A single line describing the mod.
   final String? summary;
@@ -138,6 +150,23 @@ class PublicMod with PublicModMappable {
   /// mean on the site.
   final String? addedOn;
 
+  /// The day the mod's forum thread was last posted on, as `YYYY-MM-DD`. Null
+  /// when the mod has no thread, and null when the forum gave a date with no
+  /// day in it — it writes "Today at 03:12:22 PM" for a recent post, which
+  /// names no day.
+  ///
+  /// It is what separates a live thread from an archive, and that is the one
+  /// thing a reader needs when two mods carry one name. Everything else
+  /// published about such a pair is either the same on both or missing: the
+  /// names match, the author is often the same person, plenty of these threads
+  /// carry no game version, and [addedOn] says when the thread started rather
+  /// than whether anybody still posts on it.
+  ///
+  /// The day and not the moment, because the forum writes its times with no
+  /// time zone on them. Published as a moment, every reader's browser would
+  /// read them as its own local time and some would land on the wrong day.
+  final String? threadLastPostOn;
+
   /// The other mods this one will not run without. Nearly every Starsector mod
   /// needs LazyLib, MagicLib, GraphicsLib or Nexerelin, and knowing which is
   /// the single most useful thing a reader can be told before they download.
@@ -166,6 +195,7 @@ class PublicMod with PublicModMappable {
     this.gameVersion,
     this.modVersion,
     this.imageUrl,
+    this.announcementImageUrl,
     this.summary,
     this.summaryIsGenerated = false,
     this.aiSummary,
@@ -179,6 +209,7 @@ class PublicMod with PublicModMappable {
     this.isWorkInProgress = false,
     this.lastReleaseDate,
     this.addedOn,
+    this.threadLastPostOn,
     this.needs = const [],
     this.partOfThreadTitle,
   });

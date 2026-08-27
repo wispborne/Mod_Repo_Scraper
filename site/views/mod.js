@@ -79,6 +79,7 @@ export async function render(root, parts) {
   root.append(el('div', { class: 'stack' }, [
     modHeader(mod, detail, shownName, currentVersion),
     needsLine(mod),
+    sameNameMods(detail),
     description(detail),
     gallery(detail),
     downloads(detail),
@@ -86,7 +87,6 @@ export async function render(root, parts) {
     releases(detail),
     addons(detail),
     facts(detail),
-    olderVersions(detail),
     moreByTheAuthor(mod, everyMod, currentVersion),
     similarMods(mod, everyMod, currentVersion),
   ]));
@@ -496,8 +496,31 @@ function releases(detail) {
   ]);
 }
 
+/// The other downloads on the same thread, in two boxes rather than one.
+///
+/// They used to share a box headed "Add-ons on the same thread", which told a
+/// reader that "Postmodern Carriers Lite" was something to install as well as
+/// Postmodern Carriers. It is the same mod cut down, and you install it
+/// instead. Anything the extractor called a variant is another build; anything
+/// else needs the mod and goes beside it.
 function addons(detail) {
   const list = detail.addons || [];
+  if (!list.length) return null;
+
+  const versions = list.filter((a) => a.role === 'variant');
+  const extras = list.filter((a) => a.role !== 'variant');
+
+  return el('div', { class: 'stack' }, [
+    addonBox(extras, 'Add-ons on the same thread', null),
+    addonBox(
+      versions,
+      'Other versions of this mod',
+      'Install one of these instead of the mod above, not as well as it.',
+    ),
+  ]);
+}
+
+function addonBox(list, heading, note) {
   if (!list.length) return null;
 
   const box = el('div', { class: 'stack' });
@@ -511,7 +534,9 @@ function addons(detail) {
     ]));
   }
   return el('section', { class: 'panel' }, [
-    el('h2', { text: 'Add-ons on the same thread' }), box,
+    el('h2', { text: heading }),
+    note ? el('p', { class: 'card-authors', text: note }) : null,
+    box,
   ]);
 }
 
@@ -575,29 +600,59 @@ function facts(detail) {
   ]);
 }
 
-/// Older threads for the same mod. There are none yet — matching an old thread
-/// to the mod it became is a separate job — so this box stays out of the way
-/// until there are.
-function olderVersions(detail) {
-  const list = detail.olderVersions || [];
-  if (!list.length) return null;
+/// The other mods on the site that carry this one's name.
+///
+/// Dozens of names here belong to more than one mod. Some are a mod's own older
+/// thread, which often holds the last build that ran on an older game version.
+/// Some are a fork that kept the name of the mod it forked, which is often the
+/// only build that runs on the current one. Some are two people who happened to
+/// pick the same name. All three are worth keeping, so the site keeps them all
+/// and says which is which instead of choosing for the reader.
+///
+/// The day each thread was last posted on leads the facts, because it is the
+/// one that separates a live thread from an archive. Everything else about a
+/// pair like this is either the same on both or missing.
+function sameNameMods(detail) {
+  const others = detail.sameNameMods || [];
+  if (!others.length) return null;
 
   const rows = el('div', { class: 'mod-rows' });
-  for (const older of list) {
-    rows.append(el('a', {
-      class: 'mod-row', href: older.url, target: '_blank', rel: 'noopener nofollow',
-    }, [
-      el('div', { class: 'row-main' }, [
-        el('div', { class: 'row-title', text: older.title }),
-        el('div', {
-          class: 'row-sub',
-          text: [older.modVersion, older.gameVersion].filter(Boolean).join(' · '),
-        }),
-      ]),
+  for (const other of others) {
+    const saidAbout = [
+      (other.authors || []).length ? `by ${joinNames(other.authors)}` : null,
+      other.threadLastPostOn
+        ? `thread last posted ${formatDay(other.threadLastPostOn)}`
+        : null,
+      other.gameVersion ? `for Starsector ${other.gameVersion}` : null,
+      other.modVersion ? `version ${other.modVersion}` : null,
+    ].filter(Boolean);
+
+    // A page here where we have one, and the forum thread where we do not.
+    const inner = other.id
+      ? el('a', { class: 'row-inner', href: `#/mods/${other.id}` })
+      : el('a', {
+          class: 'row-inner', href: other.url,
+          target: '_blank', rel: 'noopener nofollow',
+        });
+    inner.append(el('div', { class: 'row-main' }, [
+      el('div', { class: 'row-title', text: other.title }),
+      saidAbout.length
+        ? el('div', { class: 'row-sub', text: saidAbout.join(' · ') })
+        : null,
     ]));
+    rows.append(el('div', { class: 'mod-row' }, [inner]));
   }
-  return el('section', { class: 'panel' }, [
-    el('h2', { text: 'Older versions' }), rows,
+
+  const many = others.length > 1;
+  return el('section', { class: 'panel name-share' }, [
+    el('h2', { text: `${many ? 'Other mods' : 'Another mod'} called this` }),
+    el('p', {
+      class: 'sub',
+      text: `${many ? 'These carry' : 'It carries'} the same name. `
+        + `${many ? 'Each' : 'It'} may be an older thread for this mod, a fork `
+        + 'of it, or a different mod altogether.',
+    }),
+    rows,
   ]);
 }
 

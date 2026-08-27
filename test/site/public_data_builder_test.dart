@@ -39,6 +39,7 @@ void main() {
     String? summary = 'Adds diplomacy and invasions.',
     String? description,
     Map<String, Image> images = const {},
+    List<String> authors = const ['Histidine'],
   }) =>
       ScrapedMod(
         name: name,
@@ -46,7 +47,7 @@ void main() {
         summary: summary,
         images: images,
         gameVersionReq: '0.98a',
-        authorsList: const ['Histidine'],
+        authorsList: authors,
         categories: const ['Total Conversions'],
         sources: const [ModSource.Index],
         urls: {
@@ -62,13 +63,16 @@ void main() {
     List<LlmMod> llmMods = const [],
     bool isWip = false,
     String? createdDate,
+    String? lastPostDate,
+    String author = 'Histidine',
   }) =>
       QbModSummary(
         topicId: topicId,
         title: title,
         gameVersion: '0.98a',
-        author: 'Histidine',
+        author: author,
         createdDate: createdDate,
+        lastPostDate: lastPostDate,
         topicUrl:
             'https://fractalsoftworks.com/forum/index.php?topic=$topicId.0',
         isWip: isWip,
@@ -211,11 +215,14 @@ void main() {
     expect(detail.gallery.map((i) => i.url), ['https://i.imgur.com/shot.png']);
   });
 
-  test('the card picture is picked the way TriOS picks it', () {
-    // The merged picture first, then the one the LLM found in the post, then
-    // the author's forum avatar — the same order TriOS's catalog falls through,
-    // so a mod looks the same in both.
-    final withMerged = builder.build(
+  test('the card picture is the post\'s, and the announcement one rides beside '
+      'it', () {
+    // The picture the LLM found in the author's forum post leads, because it
+    // is the one the author put at the top of their own thread; a Discord
+    // picture is whatever was attached to an announcement. This is where the
+    // site parts company with TriOS's catalog, which takes the merged picture
+    // first — so both are published and the reader's setting picks.
+    final withBoth = builder.build(
       mods: [
         forumMod(images: const {
           '1': Image(id: '1', url: 'https://i.imgur.com/merged.png'),
@@ -227,9 +234,12 @@ void main() {
         '9175': postOf('<p>Look</p>', avatarPath: 'avatars/histidine.png'),
       }),
     );
-    expect(withMerged.list.mods.single.imageUrl,
+    expect(withBoth.list.mods.single.imageUrl, 'https://x/l.png');
+    expect(withBoth.list.mods.single.announcementImageUrl,
         'https://i.imgur.com/merged.png');
 
+    // One picture and no other: the announcement field is left out, because
+    // the same address twice would only make mods.json bigger.
     final withLlm = builder.build(
       mods: [forumMod()],
       bundle: bundleOf(index: [
@@ -239,7 +249,9 @@ void main() {
       }),
     );
     expect(withLlm.list.mods.single.imageUrl, 'https://x/l.png');
+    expect(withLlm.list.mods.single.announcementImageUrl, isNull);
 
+    // Neither: the author's forum avatar stands in.
     final withAvatar = builder.build(
       mods: [forumMod()],
       bundle: bundleOf(index: [thread()], details: {
@@ -907,6 +919,315 @@ void main() {
     });
   });
 
+  group('a thread the merge never saw', () {
+    /// Topic 35651, "Computica's Faction Forks": a thread whose title carries
+    /// no bracketed game version, so the forum scraper drops it from the board
+    /// listing, whose author never posted it on Discord, and which the LLM has
+    /// read seven mods off. Nothing on the site pointed at it, so none of them
+    /// reached the site at all.
+    QbModSummary forksThread({List<LlmMod> llmMods = const []}) => thread(
+          topicId: 35651,
+          title: "Computica's Faction Forks",
+          author: 'Computica',
+          lastPostDate: 'August 12, 2026, 04:15:02 PM',
+          llmMods: llmMods,
+        );
+
+    LlmMod fork(String name) => LlmMod(
+          name: name,
+          downloads: [
+            LlmDownload(url: 'https://example.com/${name.toLowerCase()}.zip'),
+          ],
+        );
+
+    test('one mod on a thread nothing points at is published', () {
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(
+          index: [
+            thread(),
+            forksThread(llmMods: [fork('Kwin')]),
+          ],
+          details: {
+            '35651': postOf('<p>Kwin, a fork kept up to date.</p>',
+                topicId: 35651),
+          },
+        ),
+      );
+
+      // The single-main-mod rule says one entry on a thread is the mod that
+      // thread is about. With no merged mod behind it there is nothing for it
+      // to be, so it is published.
+      final kwin = data.list.mods.singleWhere((m) => m.name == 'Kwin');
+      expect(kwin.id, isNotEmpty);
+      expect(kwin.partOfThreadTitle, "Computica's Faction Forks");
+      expect(kwin.sources, ['forum']);
+      expect(kwin.bestDownload?.url, 'https://example.com/kwin.zip');
+      expect(kwin.forumUrl, contains('topic=35651'));
+    });
+
+    test('every main mod on such a thread is published', () {
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(
+          index: [
+            thread(),
+            forksThread(llmMods: [
+              fork('Kwin'),
+              fork('Farsight Drive'),
+              fork('FSF Military Corporation'),
+            ]),
+          ],
+          details: {
+            '35651': postOf(
+              '<p>Kwin, Farsight Drive and FSF Military Corporation.</p>',
+              topicId: 35651,
+            ),
+          },
+        ),
+      );
+
+      expect(
+        data.list.mods
+            .where((m) => m.partOfThreadTitle != null)
+            .map((m) => m.name),
+        containsAll(['Kwin', 'Farsight Drive', 'FSF Military Corporation']),
+      );
+      expect(data.list.mods, hasLength(4));
+    });
+
+    test('a thread with nothing grounded on it publishes nothing', () {
+      PublicSiteData buildWith({
+        required List<LlmMod> llmMods,
+        required String post,
+      }) =>
+          builder.build(
+            mods: [forumMod()],
+            bundle: bundleOf(
+              index: [thread(), forksThread(llmMods: llmMods)],
+              details: {'35651': postOf(post, topicId: 35651)},
+            ),
+          );
+
+      // No main mod at all: a help thread, or one the model read nothing off.
+      expect(
+        buildWith(llmMods: const [], post: '<p>Does anybody know why?</p>')
+            .list
+            .mods,
+        hasLength(1),
+      );
+
+      // A name the post never writes. A model asked what a thread holds pads
+      // the list, and an id, once given, can never be taken back.
+      expect(
+        buildWith(
+          llmMods: [fork('Chinese Translation Pack')],
+          post: '<p>Nothing here says that name.</p>',
+        ).list.mods,
+        hasLength(1),
+      );
+
+      // Named, but with nothing to download.
+      expect(
+        buildWith(
+          llmMods: [LlmMod(name: 'Kwin', downloads: const [])],
+          post: '<p>Kwin is coming when it is ready.</p>',
+        ).list.mods,
+        hasLength(1),
+      );
+    });
+
+    test('an add-on or a variant on such a thread is not a mod of its own', () {
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(
+          index: [
+            thread(),
+            forksThread(llmMods: [
+              LlmMod(
+                name: 'Kwin Extra Portraits',
+                role: LlmModRole.addon,
+                requires: 'Kwin',
+                downloads: [LlmDownload(url: 'https://example.com/extra.zip')],
+              ),
+              LlmMod(
+                name: 'Kwin Lite',
+                role: LlmModRole.variant,
+                downloads: [LlmDownload(url: 'https://example.com/lite.zip')],
+              ),
+            ]),
+          ],
+          details: {
+            '35651': postOf('<p>Kwin Extra Portraits and Kwin Lite.</p>',
+                topicId: 35651),
+          },
+        ),
+      );
+
+      expect(data.list.mods, hasLength(1));
+      expect(data.list.mods.single.name, 'Nexerelin');
+    });
+
+    test("a fork keeping the original's name gets a page of its own", () {
+      final data = builder.build(
+        mods: [
+          forumMod(
+            name: 'Junk Pirates',
+            topicId: 161,
+            summary: null,
+            authors: const ['mendonca'],
+          ),
+        ],
+        bundle: bundleOf(
+          index: [
+            thread(topicId: 161, title: '[0.98a] Junk Pirates'),
+            forksThread(llmMods: [fork('Junk Pirates')]),
+          ],
+          details: {
+            '35651': postOf('<p>Junk Pirates, forked and kept working.</p>',
+                topicId: 35651),
+          },
+        ),
+      );
+
+      expect(data.list.mods, hasLength(2));
+      final merged =
+          data.list.mods.singleWhere((m) => m.partOfThreadTitle == null);
+      final forked =
+          data.list.mods.singleWhere((m) => m.partOfThreadTitle != null);
+
+      // The merged mod is walked first, so it keeps the plain address and the
+      // fork takes the numbered one. Nobody's existing link moves.
+      expect(merged.id, 'junk-pirates');
+      expect(forked.id, 'junk-pirates-2');
+
+      // And each page names the other, because two pages called "Junk Pirates"
+      // with nothing to tell them apart is worse than one.
+      expect(data.details[merged.id]!.sameNameMods.single.id, forked.id);
+      expect(data.details[forked.id]!.sameNameMods.single.id, merged.id);
+    });
+  });
+
+  group('the day a thread was last posted on', () {
+    test('is published when the forum gives a readable one', () {
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(
+          index: [thread(lastPostDate: 'August 12, 2026, 04:15:02 PM')],
+        ),
+      );
+
+      final mod = data.list.mods.single;
+      expect(mod.threadLastPostOn, '2026-08-12');
+      expect(data.details[mod.id]!.threadLastPostOn, mod.threadLastPostOn);
+    });
+
+    test('is absent for a date that names no day', () {
+      // The forum writes "Today at 03:12:22 PM" for a recent post, which says
+      // nothing about which day it means.
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(index: [thread(lastPostDate: 'Today at 03:12:22 PM')]),
+      );
+
+      expect(data.list.mods.single.threadLastPostOn, isNull);
+    });
+
+    test('is absent for a mod with no forum thread', () {
+      final data = builder.build(
+        mods: const [
+          ScrapedMod(
+            name: 'Quality Captains',
+            sources: [ModSource.Discord],
+            urls: {ModUrlType.Discord: 'https://discord.com/x/y'},
+          ),
+        ],
+        bundle: bundleOf(),
+      );
+
+      expect(data.list.mods.single.threadLastPostOn, isNull);
+    });
+  });
+
+  group('mods that share a name', () {
+    test('each page names the others, newest thread first', () {
+      final data = builder.build(
+        mods: [
+          forumMod(
+            name: 'Scy',
+            topicId: 29535,
+            summary: null,
+            authors: const ['Tartiflette'],
+          ),
+          forumMod(
+            name: 'Scy',
+            topicId: 8010,
+            summary: null,
+            authors: const ['Tartiflette'],
+          ),
+          forumMod(
+            name: 'Kadur Remnant',
+            topicId: 12000,
+            summary: null,
+            authors: const ['Mephyr'],
+          ),
+        ],
+        bundle: bundleOf(index: [
+          thread(
+            topicId: 29535,
+            title: '[0.98a] Scy v1.9',
+            lastPostDate: 'August 12, 2026, 04:15:02 PM',
+          ),
+          thread(
+            topicId: 8010,
+            title: '[0.6.2a] Scy v0.4',
+            lastPostDate: 'March 04, 2015, 01:33:25 AM',
+          ),
+          thread(topicId: 12000, title: '[0.98a] Kadur Remnant'),
+        ]),
+      );
+
+      String idOfTopic(int topicId) => data.list.mods
+          .singleWhere((m) => m.forumUrl!.contains('topic=$topicId'))
+          .id;
+
+      final live = data.details[idOfTopic(29535)]!;
+      final archived = data.details[idOfTopic(8010)]!;
+
+      final onTheLivePage = live.sameNameMods.single;
+      expect(onTheLivePage.id, idOfTopic(8010));
+      expect(onTheLivePage.authors, ['Tartiflette']);
+      expect(onTheLivePage.threadLastPostOn, '2015-03-04');
+      expect(onTheLivePage.url, contains('topic=8010'));
+
+      expect(archived.sameNameMods.single.id, idOfTopic(29535));
+
+      // A name nothing else carries says nothing about anybody.
+      expect(data.details[idOfTopic(12000)]!.sameNameMods, isEmpty);
+    });
+
+    test('a name nothing else shares lists nothing', () {
+      final data = builder.build(mods: [forumMod()], bundle: bundleOf());
+      expect(data.details[data.list.mods.single.id]!.sameNameMods, isEmpty);
+    });
+
+    test('the grouping reads two spellings of one name as one', () {
+      final data = builder.build(
+        mods: [
+          forumMod(name: 'Useful.Tithes 1.0.a', topicId: 100, summary: null),
+          forumMod(name: 'Useful Tithes', topicId: 200, summary: null),
+        ],
+        bundle: bundleOf(),
+      );
+
+      for (final mod in data.list.mods) {
+        expect(data.details[mod.id]!.sameNameMods, hasLength(1),
+            reason: 'the version and the dot are not what tells two mods '
+                'apart');
+      }
+    });
+  });
+
   test('a thread about one mod keeps the post as its description', () {
     final data = builder.build(
       mods: [forumMod(description: 'The merged text.')],
@@ -1282,14 +1603,16 @@ void main() {
   });
 
   test('mods.json stays under 2 MB for a mod set the size of the real one', () {
-    // The real set is around 900 mods. A thousand, each with a long name, a
-    // full-length summary, an AI summary beside it, several authors and
-    // categories, and a TriOS link for its download, is the worst case the
-    // browse page has to fetch whole — a
-    // TriOS link carries the mod's details packed into the address, and the
+    // The real set is around 1,100 mods, now that a thread the merge never saw
+    // is published too. Twelve hundred, each with a long name, a full-length
+    // summary, an AI summary beside it, several authors and categories, two
+    // pictures (one from the post and one from Discord, since the reader can
+    // ask for either), the day its thread was last posted on, and a TriOS link
+    // for its download, is the worst case the browse page has to fetch whole —
+    // a TriOS link carries the mod's details packed into the address, and the
     // longest real one runs to about 850 characters.
     final mods = [
-      for (var i = 0; i < 1000; i++)
+      for (var i = 0; i < 1200; i++)
         ScrapedMod(
           name: 'A Rather Long Starsector Mod Name Number $i',
           summary: 'A one-line summary of what this mod does, written out at '
@@ -1317,38 +1640,47 @@ void main() {
     final data = builder.build(
       mods: mods,
       bundle: bundleOf(index: [
-        for (var i = 0; i < 1000; i++)
-          thread(topicId: i, llmMods: [
-            LlmMod(
-              name: 'A Rather Long Starsector Mod Name Number $i',
-              downloads: [
-                LlmDownload(
-                  url: '$trilink$i',
-                  kind: LlmDownloadKind.trios,
-                  requiresManualStep: true,
-                ),
-              ],
-              extras: LlmExtras(
-                summary: LlmModSummary(
-                  sentence: 'The sentence an AI wrote about this mod, at about '
-                      'the length these run to. Every mod carries one beside '
-                      'its own summary, since the reader can ask for either. '
-                      'Mod number $i.',
+        for (var i = 0; i < 1200; i++)
+          thread(
+            topicId: i,
+            lastPostDate: 'August 12, 2026, 04:15:02 PM',
+            llmMods: [
+              LlmMod(
+                name: 'A Rather Long Starsector Mod Name Number $i',
+                image: 'https://cdn.discordapp.com/attachments/1090000000/'
+                    '10900000$i/a-rather-long-screenshot-name-$i.png',
+                downloads: [
+                  LlmDownload(
+                    url: '$trilink$i',
+                    kind: LlmDownloadKind.trios,
+                    requiresManualStep: true,
+                  ),
+                ],
+                extras: LlmExtras(
+                  summary: LlmModSummary(
+                    sentence: 'The sentence an AI wrote about this mod, at '
+                        'about the length these run to. Every mod carries one '
+                        'beside its own summary, since the reader can ask for '
+                        'either. Mod number $i.',
+                  ),
                 ),
               ),
-            ),
-          ]),
+            ],
+          ),
       ]),
     );
     final bytes = utf8
         .encode(const JsonEncoder.withIndent('  ').convert(data.list.toMap()))
         .length;
 
-    expect(data.list.mods, hasLength(1000));
+    expect(data.list.mods, hasLength(1200));
     expect(bytes, lessThan(2 * 1024 * 1024),
         reason: 'mods.json came to ${(bytes / 1024).round()} KB');
     expect(data.list.mods.first.bestDownload, isNotNull,
         reason: 'the worst case has to include what a card downloads');
+    expect(data.list.mods.first.threadLastPostOn, isNotNull,
+        reason: 'the day a thread was last posted on is one more field on the '
+            'file with the size limit, so the worst case carries it');
   });
 
   test('nothing internal reaches the published files', () async {
