@@ -415,7 +415,7 @@ function nothingMatched(onClear) {
     el('h3', { text: 'No mods match' }),
     el('p', { text: 'Nothing here matches what you asked for. Try fewer words, '
       + 'or clear the filters and start again.' }),
-    el('p', {}, [button]),
+    el('p', { class: 'notice-action' }, [button]),
   ]);
 }
 
