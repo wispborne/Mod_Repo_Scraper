@@ -12,6 +12,7 @@ import '../models/assumed_download.dart';
 import '../models/mod_detail.dart';
 import '../models/post_extraction.dart';
 import '../url_normalizer.dart';
+import '../../../../site/description_slice.dart';
 import '../../../../site/gallery_filter.dart';
 import 'extraction_store.dart';
 import 'llm_client.dart';
@@ -57,6 +58,11 @@ class _RawMod {
   /// The other mods this one needs, before they are checked against the post.
   final List<String> needs;
 
+  /// Where in the post the author describes this mod: the first few words and
+  /// the last few words of that stretch of text. Checked against the posts
+  /// before it is kept.
+  final LlmDescriptionAnchors? descriptionAnchors;
+
   _RawMod({
     required this.name,
     required this.role,
@@ -72,7 +78,57 @@ class _RawMod {
     this.saveCompatibility,
     this.summary,
     this.needs = const [],
+    this.descriptionAnchors,
   });
+}
+
+/// The author's opening posts, cleaned up for the model.
+///
+/// [posts] is one entry per post, in the order they were posted — the prompt
+/// shows them apart, and a description anchor has to sit inside one of them.
+/// [combined] is the same thing as a single post, which is what every check
+/// that treats a thread as one lump of text reads.
+class _ReadPosts {
+  final List<ReducedPost> posts;
+  final ReducedPost combined;
+
+  _ReadPosts(this.posts, this.combined);
+
+  factory _ReadPosts.of(QbModDetail detail) {
+    final posts = [
+      for (final post in detail.openingPosts)
+        PostReducer.reduce(post.contentHtml),
+    ];
+
+    final links = <String, ReducedLink>{};
+    final urls = <String>{};
+    for (final post in posts) {
+      for (final link in post.links) {
+        links.putIfAbsent(
+            PostReducer.normalizeForMatching(link.url), () => link);
+      }
+      urls.addAll(post.urlSet);
+    }
+
+    return _ReadPosts(
+      posts,
+      ReducedPost(
+        text: posts
+            .map((p) => p.text)
+            .where((t) => t.trim().isNotEmpty)
+            .join('\n\n'),
+        links: links.values.toList(),
+        urlSet: urls,
+      ),
+    );
+  }
+
+  /// The first post's text. Empty when the thread somehow has no posts.
+  String get firstText => posts.isEmpty ? '' : posts.first.text;
+
+  /// The author's later posts' text, in order.
+  List<String> get followUpTexts =>
+      posts.length < 2 ? const [] : [for (final p in posts.skip(1)) p.text];
 }
 
 /// The model's answer: the list of mods it found for the thread, and its call
@@ -110,6 +166,7 @@ class PostExtractor {
     'sourceCode',
     'saveCompatibility',
     'needs',
+    'descriptionAnchors',
   ];
 
   final LlmClient _client;
@@ -146,10 +203,24 @@ class PostExtractor {
   final Set<int>? testTopicIds;
   final String _dataPath;
 
+  /// How many topics may be talking to the model at the same time. A caller
+  /// can start a read for every topic it has and move on; only this many are
+  /// actually in flight, and the rest wait their turn. From
+  /// `llm_max_concurrent_calls`.
+  final int maxConcurrentCalls;
+
   final Lock _lock = Lock();
   int _consecutiveFailures = 0;
   bool _bailed = false;
   int _processed = 0;
+
+  late final _CallSlots _slots =
+      _CallSlots(maxConcurrentCalls < 1 ? 1 : maxConcurrentCalls);
+
+  /// Set when a caller asked for no more calls (a cancelled run). Reads
+  /// already talking to the model finish and are kept; reads still waiting
+  /// their turn come back without calling.
+  bool _stopAsked = false;
 
   int _testCallCount = 0;
   final List<Map<String, dynamic>> _testReport = [];
@@ -161,6 +232,7 @@ class PostExtractor {
     required String dataPath,
     this.maxConsecutiveFailures = 10,
     this.maxTopics,
+    this.maxConcurrentCalls = 3,
     this.maxTokens,
     this.maxInputChars,
     this.generateSummaries = false,
@@ -175,6 +247,12 @@ class PostExtractor {
         _log = logger ?? Logger('PostExtractor');
 
   bool get hasBailed => _bailed;
+
+  /// Asks for no more calls this run. Reads already talking to the model
+  /// finish and their answers are kept; reads still waiting their turn come
+  /// back without calling. For a cancelled run with reads queued up — they
+  /// should not keep spending money after the person said stop.
+  void stopNewCalls() => _stopAsked = true;
 
   /// How many live calls this run has spent, counting the ones that failed.
   /// This is what [maxTopics] caps, so a caller can tell whether the run still
@@ -195,23 +273,27 @@ class PostExtractor {
   // Entry point
   // ---------------------------------------------------------------------------
 
-  Future<void> extractForTopic(
+  /// Returns true when a live call was spent on this topic (a failed call
+  /// counts — it still spent the budget), false when a stored answer, a
+  /// guardrail, or [stopNewCalls] meant no call was made. Test mode always
+  /// returns false; it keeps its own counter ([testCallCount]).
+  Future<bool> extractForTopic(
     QbModDetail detail,
     List<DownloadCandidate> ruleCandidates,
   ) async {
     // Never spend a call on a stub post.
     if (detail.isPlaceholderDetail) {
       _log.fine('Skipping placeholder topic ${detail.topicId}');
-      return;
+      return false;
     }
 
     if (testMode) {
       await _extractTestMode(detail, ruleCandidates);
-      return;
+      return false;
     }
 
-    final reduced = PostReducer.reduce(detail.contentHtml);
-    final userPrompt = _buildUserPrompt(detail, reduced, ruleCandidates);
+    final read = _ReadPosts.of(detail);
+    final userPrompt = _buildUserPrompt(detail, read, ruleCandidates);
 
     final fingerprint = LlmExtractionStore.computeFingerprint(
       userPrompt: userPrompt,
@@ -229,16 +311,47 @@ class PostExtractor {
     if (_store.isFresh(
         detail.topicId, fingerprint, ExtractionPrompt.promptVersion)) {
       _log.fine('LLM store hit for topic ${detail.topicId}');
-      return;
+      return false;
     }
 
-    // Check if we've stopped or hit the limit before making a call.
-    if (!await _reserveSlot()) {
-      _log.fine('Skipping topic ${detail.topicId} '
-          '(${_bailed ? 'LLM gave up' : 'limit reached'})');
-      return;
-    }
+    // Wait for a turn. Callers fire a read per topic without waiting for the
+    // answers, so this is the one place that keeps the calls to
+    // [maxConcurrentCalls] at a time. Everything past this point — the call
+    // and putting its answer away — happens inside the slot.
+    await _slots.take();
+    try {
+      // The run was cancelled while this read waited its turn.
+      if (_stopAsked) {
+        _log.fine('Skipping topic ${detail.topicId} (asked to stop)');
+        return false;
+      }
 
+      // Check if we've stopped or hit the limit before making a call. Inside
+      // the slot on purpose: budget is spent in the order calls are actually
+      // made, not the order reads were started.
+      if (!await _reserveSlot()) {
+        _log.fine('Skipping topic ${detail.topicId} '
+            '(${_bailed ? 'LLM gave up' : 'limit reached'})');
+        return false;
+      }
+
+      await _callAndStore(detail, read, ruleCandidates, userPrompt, fingerprint);
+      return true;
+    } finally {
+      _slots.release();
+    }
+  }
+
+  /// The live half of [extractForTopic]: one call to the model, the answer
+  /// checked against the post and put in the store. Runs inside a
+  /// [_CallSlots] slot, after the budget was spent on it.
+  Future<void> _callAndStore(
+    QbModDetail detail,
+    _ReadPosts read,
+    List<DownloadCandidate> ruleCandidates,
+    String userPrompt,
+    String fingerprint,
+  ) async {
     final request = LlmRequest(
       systemPrompt:
           ExtractionPrompt.buildSystemPrompt(includeSummary: generateSummaries),
@@ -263,10 +376,10 @@ class PostExtractor {
     _log.info('LLM ok for topic ${detail.topicId} '
         '(${attempt.response.usageSummary})');
 
-    final postUrls = _postUrls(detail, reduced, ruleCandidates);
+    final postUrls = _postUrls(detail, read.combined, ruleCandidates);
     final postImages = _postImages(detail);
-    final postRepoUrls = _postRepoUrls(detail, reduced, ruleCandidates);
-    final checked = _checkAgainstPost(detail.topicId, attempt.answer, reduced,
+    final postRepoUrls = _postRepoUrls(detail, read.combined, ruleCandidates);
+    final checked = _checkAgainstPost(detail.topicId, attempt.answer, read,
         postUrls, postImages, postRepoUrls,
         truncated: attempt.response.wasTruncated, postTitle: detail.title);
     final mods = await _resolveMods(checked, ruleCandidates);
@@ -290,12 +403,14 @@ class PostExtractor {
 
   String _buildUserPrompt(
     QbModDetail detail,
-    ReducedPost reduced,
+    _ReadPosts read,
     List<DownloadCandidate> ruleCandidates,
   ) {
+    final reduced = read.combined;
+
     // Flag reduced links the scraper already marked downloadable.
     final downloadable = <String, bool>{
-      for (final l in detail.links)
+      for (final l in detail.allLinks)
         PostReducer.normalizeForMatching(l.url): l.isDownloadable,
     };
     final links = reduced.links
@@ -314,12 +429,29 @@ class PostExtractor {
     // Trim only the body text when a cap is set, so a very long post can't
     // overflow the model's context window. The title and links are still sent
     // in full below, and grounding checks against the whole post.
-    var bodyText = reduced.text;
-    if (maxInputChars != null && bodyText.length > maxInputChars!) {
-      _log.warning(
-          'Post body for topic ${detail.topicId} is ${bodyText.length} chars; '
-          'trimming to $maxInputChars before sending to the LLM');
-      bodyText = bodyText.substring(0, maxInputChars!);
+    //
+    // The author's later posts keep their words; the first post gives up
+    // whatever room is left over. Those later posts are short and are usually
+    // where the downloads are, while the first post is the long write-up — so
+    // trimming in the order they were posted would let a huge first post push
+    // the Downloads post out of the prompt entirely, which is the very thing
+    // reading them was for.
+    var bodyText = read.firstText;
+    final followUpTexts = read.followUpTexts;
+    final cap = maxInputChars;
+    if (cap != null) {
+      final followUpLength =
+          followUpTexts.fold<int>(0, (n, text) => n + text.length);
+      final roomForFirst = cap - followUpLength;
+      if (bodyText.length > roomForFirst) {
+        _log.warning(
+            'The opening posts of topic ${detail.topicId} run to '
+            '${bodyText.length + followUpLength} chars; trimming the first '
+            'post to ${roomForFirst < 0 ? 0 : roomForFirst} before sending to '
+            'the LLM, and sending the author\'s other '
+            '${followUpTexts.length} post(s) whole');
+        bodyText = roomForFirst <= 0 ? '' : bodyText.substring(0, roomForFirst);
+      }
     }
 
     // The post's images, so the model can tie one to a mod. Donation buttons,
@@ -328,7 +460,7 @@ class PostExtractor {
     // offering one. The filter is the site's own (see gallery_filter.dart), so
     // the two can never disagree about what a donation button looks like.
     final images = [
-      for (final img in detail.images)
+      for (final img in detail.allImages)
         if (!isBadgeOrDonationImage(img.originalUrl))
           (url: img.originalUrl, alt: img.alt),
     ];
@@ -341,6 +473,7 @@ class PostExtractor {
       gameVersion: detail.gameVersion,
       // The thread title helps the model name each mod, so it is always sent.
       modTitle: detail.title,
+      followUpTexts: followUpTexts,
     );
   }
 
@@ -486,6 +619,17 @@ class PostExtractor {
       }
     }
 
+    LlmDescriptionAnchors? anchors;
+    final rawAnchors = m['descriptionAnchors'];
+    if (rawAnchors is Map<String, dynamic>) {
+      final startsWith = asString(rawAnchors['startsWith']);
+      final endsWith = asString(rawAnchors['endsWith']);
+      if (startsWith != null && endsWith != null) {
+        anchors =
+            LlmDescriptionAnchors(startsWith: startsWith, endsWith: endsWith);
+      }
+    }
+
     return _RawMod(
       name: asString(m['name']) ?? '',
       role: LlmModRole.orMain(asString(m['role'])),
@@ -501,6 +645,7 @@ class PostExtractor {
       saveCompatibility: asString(m['saveCompatibility']),
       summary: summary,
       needs: needs,
+      descriptionAnchors: anchors,
     );
   }
 
@@ -566,7 +711,7 @@ class PostExtractor {
   List<_CheckedMod> _checkAgainstPost(
     int topicId,
     _LlmAnswer answer,
-    ReducedPost reduced,
+    _ReadPosts read,
     Set<String> postUrls,
     Map<String, String> postImages,
     List<Uri> postRepoUrls, {
@@ -577,12 +722,13 @@ class PostExtractor {
     // image alt text), link URLs, and link labels. Facts can sit in the title,
     // a badge, or a link. Version numbers in particular often live only in the
     // thread title (e.g. "My Mod v1.2.3").
-    final corpus = _fullPostText(reduced, postTitle);
+    final corpus = _fullPostText(read.combined, postTitle);
+    final postTexts = [for (final post in read.posts) post.text];
 
     final checked = <_CheckedMod>[];
     for (final mod in answer.mods) {
       final c = _checkMod(topicId, mod, postUrls, postImages, postRepoUrls,
-          corpus,
+          corpus, postTexts,
           truncated: truncated);
       if (!c.isEmpty) checked.add(c);
     }
@@ -595,7 +741,8 @@ class PostExtractor {
     Set<String> postUrls,
     Map<String, String> postImages,
     List<Uri> postRepoUrls,
-    String corpus, {
+    String corpus,
+    List<String> postTexts, {
     required bool truncated,
   }) {
     // Downloads: every URL must appear in the post.
@@ -723,7 +870,36 @@ class PostExtractor {
       // nothing to find in the post.
       summary: mod.summary,
       needs: _groundNeeds(topicId, mod.needs, corpus, mod.name),
+      descriptionAnchors:
+          _groundAnchors(topicId, mod.descriptionAnchors, postTexts, mod.name),
     );
+  }
+
+  /// The description anchors the post really backs up, or null.
+  ///
+  /// Both ends have to be found in one post, the start at or before the end. A
+  /// model asked where a mod's description sits will point somewhere whether the
+  /// words are there or not, and what it points at is published as the author's
+  /// own writing — so anything that cannot be found is thrown away rather than
+  /// guessed at. Anchors that straddle two posts are dropped for the same
+  /// reason: text cut from two places was never one description.
+  LlmDescriptionAnchors? _groundAnchors(
+    int topicId,
+    LlmDescriptionAnchors? anchors,
+    List<String> postTexts,
+    String name,
+  ) {
+    if (anchors == null || anchors.isEmpty) return null;
+
+    for (final text in postTexts) {
+      if (anchorsFoundIn(text, anchors.startsWith, anchors.endsWith)) {
+        return anchors;
+      }
+    }
+
+    _log.warning('Dropped where "$name" is described (topic $topicId): the '
+        'words are not in any one of the author\'s posts.');
+    return null;
   }
 
   /// The needed mods the post really names.
@@ -869,7 +1045,7 @@ class PostExtractor {
     // kept. The reducer's URL set is lowercased for matching, so it goes last:
     // it is the only place a URL written as bare text turns up, and a
     // lowercased repository link still works, but it is not what the post says.
-    for (final l in detail.links) {
+    for (final l in detail.allLinks) {
       add(l.url);
     }
     for (final l in reduced.links) {
@@ -922,7 +1098,7 @@ class PostExtractor {
     for (final u in reduced.urlSet) {
       add(u);
     }
-    for (final l in detail.links) {
+    for (final l in detail.allLinks) {
       add(l.url);
     }
     for (final c in ruleCandidates) {
@@ -937,7 +1113,7 @@ class PostExtractor {
   /// are left out — they are never offered to the model as a mod image.
   Map<String, String> _postImages(QbModDetail detail) {
     final images = <String, String>{};
-    for (final img in detail.images) {
+    for (final img in detail.allImages) {
       final url = img.originalUrl.trim();
       if (url.isEmpty || isBadgeOrDonationImage(url)) continue;
       images[PostReducer.normalizeForMatching(
@@ -1033,6 +1209,7 @@ class PostExtractor {
         downloads: downloads,
         image: mod.image,
         extras: _buildExtras(mod),
+        descriptionAnchors: mod.descriptionAnchors,
       ));
     }
     return result;
@@ -1151,8 +1328,8 @@ class PostExtractor {
 
     if (!await _reserveTestSlot()) return;
 
-    final reduced = PostReducer.reduce(detail.contentHtml);
-    final userPrompt = _buildUserPrompt(detail, reduced, ruleCandidates);
+    final read = _ReadPosts.of(detail);
+    final userPrompt = _buildUserPrompt(detail, read, ruleCandidates);
     final request = LlmRequest(
       systemPrompt:
           ExtractionPrompt.buildSystemPrompt(includeSummary: generateSummaries),
@@ -1187,11 +1364,11 @@ class PostExtractor {
     };
 
     if (answer != null) {
-      final postUrls = _postUrls(detail, reduced, ruleCandidates);
+      final postUrls = _postUrls(detail, read.combined, ruleCandidates);
       final postImages = _postImages(detail);
-      final postRepoUrls = _postRepoUrls(detail, reduced, ruleCandidates);
+      final postRepoUrls = _postRepoUrls(detail, read.combined, ruleCandidates);
       final checked = _checkAgainstPost(
-          detail.topicId, answer, reduced, postUrls, postImages, postRepoUrls,
+          detail.topicId, answer, read, postUrls, postImages, postRepoUrls,
           truncated: response?.wasTruncated ?? false, postTitle: detail.title);
       final mods = await _resolveMods(checked, ruleCandidates);
       record['isMod'] = answer.isMod;
@@ -1274,6 +1451,9 @@ class _CheckedMod {
   /// The other mods this one needs, once checked against the post.
   final List<String> needs;
 
+  /// Where the author describes this mod, once found in one of the posts.
+  final LlmDescriptionAnchors? descriptionAnchors;
+
   _CheckedMod({
     required this.name,
     required this.role,
@@ -1289,6 +1469,7 @@ class _CheckedMod {
     this.saveCompatibility,
     this.summary,
     this.needs = const [],
+    this.descriptionAnchors,
   });
 
   /// True when nothing downloadable or factual survived grounding. A name alone
@@ -1306,4 +1487,35 @@ class _CheckedMod {
       saveCompatibility == null &&
       needs.isEmpty &&
       (summary == null || summary!.isEmpty);
+}
+
+/// A fixed number of turns. [take] waits until one of [limit] slots is free;
+/// [release] hands the slot straight to whoever has waited longest. This is
+/// what holds [PostExtractor] to `llm_max_concurrent_calls` topics talking to
+/// the model at once, however many reads its callers have started.
+class _CallSlots {
+  final int limit;
+  int _inUse = 0;
+  final List<Completer<void>> _waiting = [];
+
+  _CallSlots(this.limit);
+
+  Future<void> take() {
+    if (_inUse < limit) {
+      _inUse++;
+      return Future.value();
+    }
+    final turn = Completer<void>();
+    _waiting.add(turn);
+    return turn.future;
+  }
+
+  void release() {
+    if (_waiting.isNotEmpty) {
+      // The slot passes straight along, so _inUse stays as it is.
+      _waiting.removeAt(0).complete();
+    } else {
+      _inUse--;
+    }
+  }
 }

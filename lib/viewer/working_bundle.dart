@@ -166,11 +166,30 @@ class WorkingBundle {
               ImageRef(
                   originalUrl: image.originalUrl, localPath: '', alt: image.alt),
           ],
+          extraPosts: [
+            for (final post in detail.extraPosts)
+              QbForumPost(
+                contentHtml: HtmlProcessor.stripSessionIds(post.contentHtml),
+                images: [
+                  for (final image in post.images)
+                    ImageRef(
+                        originalUrl: image.originalUrl,
+                        localPath: '',
+                        alt: image.alt),
+                ],
+                links: post.links,
+                postDate: post.postDate,
+                lastEditDate: post.lastEditDate,
+              ),
+          ],
         )
         .toMap();
     map.remove('contentHtml');
     map[BundleSnapshotStore.fingerprintKey] =
         BundleSnapshotStore.fingerprintOf(html);
+    // The author's later posts lose their text the same way, so this side and a
+    // saved snapshot are the same shape and can be compared field for field.
+    map['extraPosts'] = BundleSnapshotStore.postsWithoutText(map['extraPosts']);
     return map;
   }
 

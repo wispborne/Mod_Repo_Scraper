@@ -123,6 +123,26 @@ class BundlePublisher {
         contentHtml: HtmlProcessor.stripSessionIds(detail.contentHtml),
         images: strippedImages,
         links: detail.links,
+        // The author's own later posts, cleaned the same way. They ride beside
+        // the first post rather than joining it: `contentHtml` still means the
+        // first post alone, which is what TriOS already reads.
+        extraPosts: [
+          for (final post in detail.extraPosts)
+            QbForumPost(
+              contentHtml: HtmlProcessor.stripSessionIds(post.contentHtml),
+              images: [
+                for (final img in post.images)
+                  ImageRef(
+                    originalUrl: img.originalUrl,
+                    localPath: '',
+                    alt: img.alt,
+                  ),
+              ],
+              links: post.links,
+              postDate: post.postDate,
+              lastEditDate: post.lastEditDate,
+            ),
+        ],
         scrapedAt: detail.scrapedAt,
         isPlaceholderDetail: detail.isPlaceholderDetail,
       );

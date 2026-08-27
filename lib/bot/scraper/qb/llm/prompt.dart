@@ -7,7 +7,7 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 13;
+  static const int promptVersion = 16;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -60,9 +60,20 @@ class ExtractionPrompt {
         : '';
 
     return '''
-You read a single forum post about a Starsector mod and pull out facts that are
-actually present in the post. You return ONLY a JSON object in the exact shape
-below. No prose, no markdown, no comments.
+You read the opening posts of a forum thread about a Starsector mod and pull out
+facts that are actually present in them. You return ONLY a JSON object in the
+exact shape below. No prose, no markdown, no comments.
+
+You may be given more than one post. They are all by the same author, they open
+the same thread, and you read them together as one. The number of posts is unrelated
+to the number of mods in them.
+Below, "the post" means all of the posts you were given.
+
+The post text has "[link: <url>]" written into it, marking where each link sat.
+That is our note, not the author's words. Use it to see which mod a download
+belongs to: a link written right by a mod's name is that mod's download. Never
+copy a marker into "name", "descriptionAnchors", a changelog entry, or any other
+field of copied text.
 
 Hard rules:
 - Copy text exactly as it appears. NEVER summarize, paraphrase, translate, or
@@ -71,11 +82,11 @@ Hard rules:
   URL. Never "fix up" a URL.
 - The mod's own version is NOT the game version it targets. If the post says it
   targets a game version, do not report that as the mod's version.
-- List ONLY mods that can actually be downloaded from THIS post. Do NOT add a
+- List ONLY mods that can actually be downloaded from THIS thread. Do NOT add a
   mod that is merely mentioned, recommended, linked as a successor, or that has
   to be downloaded somewhere else. Example: a post for one mod that also links a
-  successor mod and recommends a separate tool still has EXACTLY ONE mod — the
-  one this thread is about.$summaryRule
+  successor mod and recommends a separate tool wouldn't add the successor and tool to this thread.
+  $summaryRule
 
 Return this JSON object:
 {
@@ -105,7 +116,11 @@ Return this JSON object:
       "license": "<the license exactly as stated in the post, or null>",
       "sourceCode": "<the URL of the page where this mod's code is kept, copied from the post, or null>",
       "saveCompatibility": "<the post's own words on whether it can be added to an existing save or needs a new game, copied exactly, or null>",
-      "needs": ["<the name of another mod this one will not run without>", "..."]$summaryField
+      "needs": ["<the name of another mod this one will not run without>", "..."],
+      "descriptionAnchors": {
+        "startsWith": "<the first few words of the run of text that describes THIS mod, copied exactly>",
+        "endsWith": "<the last few words of that same run of text, copied exactly>"
+      }$summaryField
     }
   ]
 }
@@ -122,19 +137,34 @@ Guidance:
     load into the game.
   When unsure, say true. It is safer to keep a borderline thread than to drop a
   real mod.
-- Most posts describe exactly one mod, so "mods" is usually a one-item list with
-  role "main". Use more than one entry only when the post really offers more than
-  one downloadable mod.
-- "role" tells how each mod relates to the others:
-  - "main": the mod this thread is about.
-  - "addon": an optional extra that needs another mod to work. Set "requires" to
-    that mod's exact name.
-  - "separate": a second, unrelated mod that also has its own download here.
-  - "variant": an alternative build of the main mod (e.g. a lite version).
+- Most threads are about exactly one mod, so "mods" is usually a one-item list
+  with role "main". But some threads are a collection of mods, or have addon/example/etc mods.
+  - Count the names that have a download of their own. That is how many entries
+    you return. What each one's "role" is, is worked out separately below.
+- "role" tells how each mod relates to the OTHER mods declared on this thread.
+  - "main": a mod you can install on its own, without any other mod from this
+    thread. Some threads have multiple "main" mods.
+  - "addon": a mod that needs another mod FROM THIS THREAD to work. Set
+    "requires" to that mod's exact name.
+  - "variant": another build of a main mod on this thread — a lite version, a version
+    for an older game release.
+  Example: A thread opens with "MyLib — this must be enabled if you use
+  any of the other mods listed here", and then describes five packs of ships.
+  That is SIX entries: "MyLib" with role "main", and five with role "addon" and
+  "requires": "MyLib".
+  Example: A thread for a ship pack that says it requires MagicLib. This is one main mod.
+  Example: A thread describes the author's philosophy in the first post and lists 5 mods
+    with downloads they made in the second post. This is 5 main mods.
+  Example: A thread for a mod that has the titular mod as well as a stripped-down version.
+    This is one main mod and one variant.
+  Example: A thread has a mod that the thread title is about as well as a 'standalone' mod
+    that adds one ship as an alternative to one in the main mod. This is two main mods because
+     the second one is standalone, not needing the first one to run.
+
 - Add-on vs mirror — do not confuse these:
   - A DIFFERENT file that adds to or extends the mod is its OWN mod entry, with
     role "addon".
-  - The SAME file offered on another host is NOT a new mod. It is another
+  - The SAME file (incl version) offered on another host is NOT a new mod. It is another
     download under the same mod, with kind "mirror".
 - "downloads" is that mod's real download links. You are given the links the
   scraper already auto-detected: confirm the real ones, add any it missed
@@ -142,7 +172,7 @@ Guidance:
   out anything that is not a download of the mod. A mod may offer more than one
   link — list each. Use "kind":
   - "direct": a normal download of the mod's file.
-  - "mirror": the same file offered on another host.
+  - "mirror": the same file (incl version) offered on another host.
   - "trios": an "Install with TriOS" link.
 - The changelog has two parts, and a post can have BOTH — return each part that
   the post actually has. Summarizing the changelog or fixing up a url will result in them being treated as invalid!
@@ -197,11 +227,31 @@ Guidance:
     "Requirements" or "Dependencies" heading.
   - Give the mod's NAME only, as the post writes it. Not a link, not a version,
     not a sentence. One entry per mod.
+  - "needs" is for mods you get somewhere ELSE. A mod on THIS thread that this
+    one will not run without goes in "requires", with role "addon" — not here.
   - Only mods the post says are REQUIRED. A mod that is merely recommended,
     supported, compatible, or "works well with" is NOT a requirement, and nor is
     the game itself or a Java version.
   - Leave it as an empty list when the post names no requirement. Do not guess a
     library from what the mod appears to do.
+- "descriptionAnchors" points at the author's own words about ONE mod. You do
+  not write a description — you say where the author's already is:
+  - Use it when a thread carries several mods and the author writes about each
+    one separately, for example a paragraph per mod under or above its name. That
+    paragraph is that mod's description.
+  - "startsWith" is the first few words of that run of text, copied exactly.
+    "endsWith" is the last few words of the SAME run, copied exactly. Five to
+    ten words each is right. Copy them letter for letter — they are looked up in
+    the post, and anything not found there is thrown away.
+  - The run must be one unbroken stretch of text inside ONE post. Never point at
+    the start in one post and the end in another, and never stitch together
+    pieces from different places.
+  - Do not include the mod's own name line, the version line, or the download
+    link if you can start after them — the description is what the mod does.
+    Never let an anchor take in a "[link: ...]" marker; it is our note, so it is
+    not in the author's text and the anchor will be thrown away.
+  - Leave it null when the thread is about a single mod, when the author does
+    not describe this mod separately, or whenever you are unsure.
 - Leave any field null/empty when the post does not state it. Do not guess.$summaryGuidance
 ''';
   }
@@ -267,6 +317,15 @@ Guidance:
         'type': 'array',
         'items': {'type': 'string'},
       },
+      'descriptionAnchors': {
+        'type': ['object', 'null'],
+        'properties': {
+          'startsWith': nullableString(),
+          'endsWith': nullableString(),
+        },
+        'required': ['startsWith', 'endsWith'],
+        'additionalProperties': false,
+      },
     };
 
     final modRequired = <String>[
@@ -282,6 +341,7 @@ Guidance:
       'sourceCode',
       'saveCompatibility',
       'needs',
+      'descriptionAnchors',
     ];
 
     if (includeSummary) {
@@ -326,6 +386,7 @@ Guidance:
     List<({String url, String? alt})> images = const [],
     String? gameVersion,
     String? modTitle,
+    List<String> followUpTexts = const [],
   }) {
     final buffer = StringBuffer();
 
@@ -337,9 +398,21 @@ Guidance:
       buffer.writeln();
     }
 
-    buffer.writeln('=== POST TEXT (spoiler boxes included) ===');
+    buffer.writeln('=== POST TEXT (spoiler boxes included; '
+        '"[link: <url>]" marks where a link sat) ===');
     buffer.writeln(reducedText.trim());
     buffer.writeln();
+
+    // The author's own later posts, if the thread has any. Threads that keep
+    // their downloads in a second post are the reason these are sent at all.
+    for (var i = 0; i < followUpTexts.length; i++) {
+      final text = followUpTexts[i].trim();
+      if (text.isEmpty) continue;
+      buffer.writeln('=== FOLLOW-UP POST ${i + 1} BY THE SAME AUTHOR '
+          '(same thread, read it with the post above) ===');
+      buffer.writeln(text);
+      buffer.writeln();
+    }
 
     buffer.writeln('=== LINKS IN THE POST ===');
     if (links.isEmpty) {
@@ -368,9 +441,7 @@ Guidance:
       buffer.writeln('(none)');
     } else {
       for (final img in images) {
-        final alt = img.alt != null && img.alt!.trim().isNotEmpty
-            ? '  "${img.alt!.trim()}"'
-            : '';
+        final alt = img.alt != null && img.alt!.trim().isNotEmpty ? '  "${img.alt!.trim()}"' : '';
         buffer.writeln('- ${img.url}$alt');
       }
     }

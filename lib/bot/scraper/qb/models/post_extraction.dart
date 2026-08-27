@@ -145,6 +145,25 @@ class LlmExtras with LlmExtrasMappable {
       (needs == null || needs!.isEmpty);
 }
 
+/// Where in the author's post the description of one mod starts and ends.
+///
+/// The model never writes a description — it says where the author's own words
+/// are, and the words themselves are cut out of the post. Both ends must be
+/// found in the same post, in this order, or the whole thing is dropped: that is
+/// what keeps a made-up description from ever reaching a page.
+@MappableClass(ignoreNull: true)
+class LlmDescriptionAnchors with LlmDescriptionAnchorsMappable {
+  /// The first few words of the mod's description, copied from the post.
+  final String startsWith;
+
+  /// The last few words of that same stretch of text, copied from the post.
+  final String endsWith;
+
+  LlmDescriptionAnchors({this.startsWith = '', this.endsWith = ''});
+
+  bool get isEmpty => startsWith.trim().isEmpty || endsWith.trim().isEmpty;
+}
+
 /// What kind of link a download is. Plain, lowercase words so the viewer and
 /// TriOS can match on them.
 /// - [direct]: a normal download of the mod's file.
@@ -239,6 +258,13 @@ class LlmMod with LlmModMappable {
   final String? image;
   final LlmExtras? extras;
 
+  /// Where the author's own description of this mod sits in the post, when the
+  /// thread carries several mods and the author wrote about each separately.
+  /// Both ends have been found in one post, so the words between them are the
+  /// author's. Null on a thread about a single mod, and whenever the check
+  /// failed. See [LlmDescriptionAnchors].
+  final LlmDescriptionAnchors? descriptionAnchors;
+
   LlmMod({
     this.name = '',
     this.role = LlmModRole.main,
@@ -246,6 +272,7 @@ class LlmMod with LlmModMappable {
     this.downloads = const [],
     this.image,
     this.extras,
+    this.descriptionAnchors,
   });
 
   /// True when this mod carries nothing worth publishing. An image alone does

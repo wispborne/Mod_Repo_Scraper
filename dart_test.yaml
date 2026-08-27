@@ -1,0 +1,9 @@
+tags:
+  # The live-model tests in test/llm_live/. They need a local LLM and take
+  # minutes, so `dart test` skips them and says so. Run them with:
+  #
+  #   dart test test/llm_live --tags llm --run-skipped
+  #
+  # See test/llm_live/README.md.
+  llm:
+    skip: "needs a local model — run: dart test test/llm_live --tags llm --run-skipped"

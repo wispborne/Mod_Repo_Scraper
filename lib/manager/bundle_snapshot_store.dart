@@ -116,10 +116,30 @@ class BundleSnapshotStore {
           if (field.key != 'contentHtml') '${field.key}': field.value,
       };
       withoutHtml[fingerprintKey] = fingerprintOf(detail['contentHtml']);
+      withoutHtml['extraPosts'] = postsWithoutText(detail['extraPosts']);
       trimmedDetails['${entry.key}'] = withoutHtml;
     }
     copy['details'] = trimmedDetails;
     return copy;
+  }
+
+  /// The author's later posts with their HTML swapped for fingerprints, the
+  /// same way the first post's is. A thread with none comes back as an empty
+  /// list, which is also how a snapshot saved before these existed reads.
+  static List<dynamic> postsWithoutText(Object? posts) {
+    if (posts is! List) return const [];
+    return [
+      for (final post in posts)
+        if (post is Map)
+          <String, dynamic>{
+            for (final field in post.entries)
+              if (field.key != 'contentHtml') '${field.key}': field.value,
+            if (post.containsKey('contentHtml'))
+              fingerprintKey: fingerprintOf(post['contentHtml']),
+          }
+        else
+          post,
+    ];
   }
 
   /// A short stand-in for a post's text: same text, same fingerprint. Null when

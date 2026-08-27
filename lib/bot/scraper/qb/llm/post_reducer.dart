@@ -9,7 +9,8 @@ typedef ReducedLink = ({String url, String text, bool isDownloadable});
 class ReducedPost {
   /// Readable post text with HTML tags removed and special characters decoded.
   /// Spoiler-box contents are kept (unlike the regex link extractor, which
-  /// strips them).
+  /// strips them). Each link is left where it sat, written as
+  /// `[link: <url>]`, so the model can see which mod a download sits by.
   final String text;
 
   /// Every `<a href>` in the post (including inside spoilers), url + anchor text.
@@ -80,9 +81,35 @@ class PostReducer {
       links.add((url: href, text: text, isDownloadable: false));
     }
 
-    // Build the reduced text: turn block-level tags into line breaks, strip the
-    // rest, decode entities, tidy whitespace.
-    var text = cleaned.replaceAll(_blockBreak, '\n');
+    // Build the reduced text: write each link back in where it sat, turn
+    // block-level tags into line breaks, strip the rest, decode entities,
+    // tidy whitespace.
+    //
+    // The URL is written in beside the anchor's own words because stripping
+    // the tag used to throw it away: the model got a mod's name in one place
+    // and a bare list of URLs somewhere else, with nothing saying which went
+    // with which. On a thread offering several mods — a name, a paragraph and
+    // a download each, one after another — sitting next to each other is the
+    // only thing tying a download to its mod, and without it every download
+    // landed under the first mod named. Real case: topic 35651, where each
+    // download is a badge image inside a link with no words of its own, so
+    // seven forks came back as one mod with seven downloads.
+    //
+    // The marker is `[link: <url>]`; the prompt tells the model that is the
+    // scraper's note and not the author's words.
+    var text = cleaned.replaceAllMapped(_anchorRegex, (m) {
+      final href = m.group(1)!.trim();
+      final inner = m.group(2)!;
+      if (href.isEmpty ||
+          href.startsWith('#') ||
+          href.startsWith('javascript:')) {
+        return inner;
+      }
+      // The href goes in as written; entities are decoded over the whole text
+      // below, so it ends up spelled the way the links list spells it.
+      return '$inner [link: $href]';
+    });
+    text = text.replaceAll(_blockBreak, '\n');
     // Keep image alt text before dropping tags — license/version badges carry
     // their label there (e.g. alt="License: MIT").
     text = text.replaceAllMapped(_imgTag, (m) {

@@ -313,6 +313,24 @@ function renderEntry(root, entry) {
     post.append(fold(`Links (${detail.links.length})`, linkList(detail.links)));
   }
 
+  // The author's own later posts. Some threads keep every download in a second
+  // post, so these are read for downloads and facts the same way the first one
+  // is — but they are not the thread's description, which is why they are shown
+  // under it rather than joined onto it.
+  for (const [i, extra] of (detail?.extraPosts || []).entries()) {
+    post.append(el('h3', { text: `The author's post ${i + 2}` }));
+    const when = [extra.postDate, extra.lastEditDate && `last edited ${extra.lastEditDate}`]
+      .filter(Boolean).join(' · ');
+    if (when) post.append(el('p', { class: 'change-note', text: when }));
+    if (extra.contentHtml) post.append(postFrame(extra.contentHtml));
+    if ((extra.images || []).length) {
+      post.append(fold(`Images (${extra.images.length})`, imageList(extra.images)));
+    }
+    if ((extra.links || []).length) {
+      post.append(fold(`Links (${extra.links.length})`, linkList(extra.links)));
+    }
+  }
+
   const found = el('div', { class: 'panel' });
   found.append(el('h2', { text: 'Pulled out of the post' }));
 

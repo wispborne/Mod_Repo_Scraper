@@ -1,0 +1,81 @@
+{
+ "topicId": 34161,
+ "title": "Hartley's Miscellaneous Mods",
+ "author": "SirHartley",
+ "authorTitle": "Global Moderator",
+ "authorPostCount": 1231,
+ "authorAvatarPath": "https://fractalsoftworks.com/forum/index.php?action=dlattach;attach=6148;type=avatar",
+ "postDate": "October 04, 2025, 08:31:46 AM",
+ "lastEditDate": "March 28, 2026, 02:35:19 PM by SirHartley",
+ "contentHtml": "<strong>These are my mods that do not have their own thread:</strong><br><span style=\"font-size: 8pt;\" class=\"bbc_size\">I've made a bunch of things that are too small to deserve their own threads over the years, so here goes.</span><br><br><hr><table class=\"bbc_table\"><tbody><tr><td> <img src=\"https://i.imgur.com/Wn6fJRQ.png\" alt=\"\" class=\"bbc_img\"> </td><td>&nbsp; &nbsp; </td><td><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>[0.98a] Useful.Tithes</strong></span><br>A small mod making pather tithes more useful.<br><br>Paying tithes to a luddic path fleet causes all pather fleets in the star system to stop harassing you for a while, including newly spawned fleets and any fleets entering the system.<br><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><strong><a href=\"https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Download</a></strong></span><br><span style=\"font-size: 8pt;\" class=\"bbc_size\"><span style=\"color: green;\" class=\"bbc_color\">Safe to add to ongoing games.</span></span><br></td></tr></tbody></table><hr><br><hr><table class=\"bbc_table\"><tbody><tr><td> <img src=\"https://i.imgur.com/foNUf16.png\" alt=\"\" class=\"bbc_img\"> </td><td>&nbsp; &nbsp; </td><td><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>[0.98a] Big Pilum Energy</strong></span><br>Balance is for losers.<br><br>Doubles Pilum movement speed because I am terrible at the game and pilum spam is my lifeline.<br><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><strong><a href=\"https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.d/Big.Pilum.Energy1.0.d.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Download</a></strong></span><br><span style=\"font-size: 8pt;\" class=\"bbc_size\"><span style=\"color: green;\" class=\"bbc_color\">Safe to add to ongoing games.</span></span><br></td></tr></tbody></table><hr><br><hr><table class=\"bbc_table\"><tbody><tr><td> <img src=\"https://i.imgur.com/nGcxyQ8.png\" alt=\"\" class=\"bbc_img\"> </td><td>&nbsp; &nbsp; </td><td><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>[0.98a] Lost.Sector</strong></span><br>A mod focused on exploration and quest content.<br><br>This is my <a href=\"https://fractalsoftworks.com/forum/index.php?topic=27556.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">LOST_SECTOR</a> fork. Made in 0.97 for personal use to fix some of the issues that had been bugging me, with the departure of Kissa from the modding scene, I decided to publish it - with permission.<br><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><strong><a href=\"https://github.com/SirHartley/Lost.Sector/releases/download/1.0.b/Lost.Sector1.0.b.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Download</a></strong></span><br><span style=\"font-size: 8pt;\" class=\"bbc_size\"><span style=\"color: orange;\" class=\"bbc_color\">Requires a new game.</span></span><br></td></tr></tbody></table><hr><br><hr><table class=\"bbc_table\"><tbody><tr><td> <img src=\"https://i.imgur.com/4rVRIke.png\" alt=\"\" class=\"bbc_img\"> </td><td>&nbsp; &nbsp; </td><td><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>[0.98a] Disco.Balls</strong></span><br>More orbital lamp colour options.<br><br>Adds the option to make your lamp play Carameldansen and go disco, and adds more colours to the selection. This is a thinly veiled meme.<br><br><strong>Known issue:</strong> Loading a save while the song is playing makes it play twice (and twice as loud). This is a feature and will not be fixed.<br><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><strong><a href=\"https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Download</a></strong></span><br><span style=\"font-size: 8pt;\" class=\"bbc_size\"><span style=\"color: green;\" class=\"bbc_color\">Safe to add to ongoing games.</span></span><br></td></tr></tbody></table><hr><br><strong>These are mods that do have their own thread, but I ran out of space in my signature for:</strong><br><br><hr><table class=\"bbc_table\"><tbody><tr><td> <img src=\"https://i.imgur.com/AO9LQbl.png\" alt=\"\" class=\"bbc_img\"> </td><td>&nbsp; &nbsp; </td><td><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>[0.98a] Corrupt.Officials</strong></span><br>This is a challenge mode intended to balance out the extreme passive income colonies can provide.<br><br>The mechanic imposes a diminishing-returns penalty on colonies whose net income exceeds a configurable cutoff.<br><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><strong><a href=\"https://fractalsoftworks.com/forum/index.php?topic=35125.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Forum Thread</a></strong></span><br><span style=\"font-size: 8pt;\" class=\"bbc_size\"><span style=\"color: green;\" class=\"bbc_color\">Safe to add to ongoing games.</span></span><br></td></tr></tbody></table><hr>",
+ "images": [
+  {
+   "originalUrl": "https://i.imgur.com/Wn6fJRQ.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/foNUf16.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/nGcxyQ8.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/4rVRIke.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/AO9LQbl.png",
+   "alt": ""
+  }
+ ],
+ "links": [
+  {
+   "url": "https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip",
+   "text": "Download",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://github.com/SirHartley/Big-Pilum-Energy/releases/download/1.0.d/Big.Pilum.Energy1.0.d.zip",
+   "text": "Download",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=27556.0",
+   "text": "LOST_SECTOR",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://github.com/SirHartley/Lost.Sector/releases/download/1.0.b/Lost.Sector1.0.b.zip",
+   "text": "Download",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip",
+   "text": "Download",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=35125.0",
+   "text": "Forum Thread",
+   "isExternal": false,
+   "isDownloadable": false
+  }
+ ],
+ "extraPosts": [
+  {
+   "contentHtml": "reserved",
+   "images": [],
+   "links": [],
+   "postDate": "October 04, 2025, 09:24:14 AM",
+   "lastEditDate": "March 28, 2026, 02:33:34 PM by SirHartley"
+  }
+ ],
+ "isPlaceholderDetail": false
+}

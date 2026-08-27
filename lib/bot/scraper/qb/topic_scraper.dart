@@ -22,6 +22,11 @@ class QbTopicScraper {
     r'^https?://.+\.(png|jpg|jpeg|gif|webp|bmp|svg)',
     caseSensitive: false,
   );
+  /// How many of the author's follow-up posts to keep. Enough for a thread that
+  /// reserves a few posts for downloads and changelogs, small enough that a
+  /// thread where the author talks to themselves for a page does not balloon.
+  static const int _maxFollowUpPosts = 10;
+
   static final RegExp _postCountDigits = RegExp(r'[\d,]+');
   static final RegExp _postDateRegex =
       RegExp(r'on:\s*(.+?)\s*(?:\u00ab|\u00bb|Â»|»)');
@@ -69,13 +74,12 @@ class QbTopicScraper {
       // Resolve lazy images in the parsed DOM
       _resolveLazyImages(doc);
 
-      final firstPost = doc.querySelector(
-              '#forumposts .windowbg') ??
-          doc.querySelector('#forumposts .windowbg2');
-      if (firstPost == null) {
+      final posts = _postElements(doc);
+      if (posts.isEmpty) {
         _log.warning('No posts found on topic $topicId');
         return null;
       }
+      final firstPost = posts.first;
 
       final title = _extractTitle(doc);
       final versionMatch = ForumConstants.gameVersionRegex.firstMatch(title);
@@ -87,6 +91,12 @@ class QbTopicScraper {
       final images = _extractImageUrls(contentHtml);
       final rawLinks = _extractLinks(contentHtml);
       final links = await _classifyDownloadableLinks(rawLinks);
+      final extraPosts = await _readFollowUpPosts(posts, authorInfo.author);
+
+      if (extraPosts.isNotEmpty) {
+        _log.info('Topic $topicId: kept ${extraPosts.length} more post(s) by '
+            '${authorInfo.author} after the first one');
+      }
 
       return QbModDetail(
         topicId: topicId,
@@ -101,6 +111,7 @@ class QbTopicScraper {
         contentHtml: contentHtml,
         images: images,
         links: links,
+        extraPosts: extraPosts,
         scrapedAt: DateTime.now().toUtc(),
       );
     } catch (e) {
@@ -108,6 +119,62 @@ class QbTopicScraper {
       return null;
     }
   }
+
+  /// Every post on the page, in the order they were posted.
+  ///
+  /// A post is a `.windowbg`/`.windowbg2` block holding a poster block. The two
+  /// classes alternate down the page, so both are needed; the poster check is
+  /// what keeps a quote box or an attachment row from being read as a post.
+  List<Element> _postElements(Document doc) {
+    final blocks =
+        doc.querySelectorAll('#forumposts .windowbg, #forumposts .windowbg2');
+    final posts = [
+      for (final block in blocks)
+        if (block.querySelector('div.poster') != null) block,
+    ];
+    if (posts.isNotEmpty) return posts;
+
+    // An odd page shape: fall back to the single-post lookup used before.
+    final only = doc.querySelector('#forumposts .windowbg') ??
+        doc.querySelector('#forumposts .windowbg2');
+    return only == null ? const [] : [only];
+  }
+
+  /// The author's own posts directly after the first one, stopping at the first
+  /// reply by anybody else.
+  ///
+  /// Some authors keep the thread's downloads and per-mod write-ups in a second
+  /// post of their own, and reading those is the point of this. Stopping at
+  /// somebody else's reply is what keeps the author's later answers out: those
+  /// carry links to unfinished builds and version numbers that are not the
+  /// release.
+  Future<List<QbForumPost>> _readFollowUpPosts(
+    List<Element> posts,
+    String author,
+  ) async {
+    // With no name to compare against, every post looks like the author's.
+    if (author.isEmpty) return const [];
+
+    final followUps = <QbForumPost>[];
+    for (final post in posts.skip(1)) {
+      if (followUps.length >= _maxFollowUpPosts) break;
+      if (_authorNameOf(post) != author) break;
+
+      final contentHtml = _extractContentHtml(post);
+      final links = await _classifyDownloadableLinks(_extractLinks(contentHtml));
+      followUps.add(QbForumPost(
+        contentHtml: contentHtml,
+        images: _extractImageUrls(contentHtml),
+        links: links,
+        postDate: _extractPostDate(post),
+        lastEditDate: _extractLastEditDate(post, contentHtml),
+      ));
+    }
+    return followUps;
+  }
+
+  String _authorNameOf(Element post) =>
+      post.querySelector('div.poster h4 a')?.text.trim() ?? '';
 
   void _resolveLazyImages(Document doc) {
     for (final img in doc.querySelectorAll('img')) {

@@ -663,6 +663,154 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
   ) => _LlmExtrasCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
+class LlmDescriptionAnchorsMapper
+    extends ClassMapperBase<LlmDescriptionAnchors> {
+  LlmDescriptionAnchorsMapper._();
+
+  static LlmDescriptionAnchorsMapper? _instance;
+  static LlmDescriptionAnchorsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = LlmDescriptionAnchorsMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'LlmDescriptionAnchors';
+
+  static String _$startsWith(LlmDescriptionAnchors v) => v.startsWith;
+  static const Field<LlmDescriptionAnchors, String> _f$startsWith = Field(
+    'startsWith',
+    _$startsWith,
+    opt: true,
+    def: '',
+  );
+  static String _$endsWith(LlmDescriptionAnchors v) => v.endsWith;
+  static const Field<LlmDescriptionAnchors, String> _f$endsWith = Field(
+    'endsWith',
+    _$endsWith,
+    opt: true,
+    def: '',
+  );
+
+  @override
+  final MappableFields<LlmDescriptionAnchors> fields = const {
+    #startsWith: _f$startsWith,
+    #endsWith: _f$endsWith,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static LlmDescriptionAnchors _instantiate(DecodingData data) {
+    return LlmDescriptionAnchors(
+      startsWith: data.dec(_f$startsWith),
+      endsWith: data.dec(_f$endsWith),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static LlmDescriptionAnchors fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<LlmDescriptionAnchors>(map);
+  }
+
+  static LlmDescriptionAnchors fromJson(String json) {
+    return ensureInitialized().decodeJson<LlmDescriptionAnchors>(json);
+  }
+}
+
+mixin LlmDescriptionAnchorsMappable {
+  String toJson() {
+    return LlmDescriptionAnchorsMapper.ensureInitialized()
+        .encodeJson<LlmDescriptionAnchors>(this as LlmDescriptionAnchors);
+  }
+
+  Map<String, dynamic> toMap() {
+    return LlmDescriptionAnchorsMapper.ensureInitialized()
+        .encodeMap<LlmDescriptionAnchors>(this as LlmDescriptionAnchors);
+  }
+
+  LlmDescriptionAnchorsCopyWith<
+    LlmDescriptionAnchors,
+    LlmDescriptionAnchors,
+    LlmDescriptionAnchors
+  >
+  get copyWith =>
+      _LlmDescriptionAnchorsCopyWithImpl<
+        LlmDescriptionAnchors,
+        LlmDescriptionAnchors
+      >(this as LlmDescriptionAnchors, $identity, $identity);
+  @override
+  String toString() {
+    return LlmDescriptionAnchorsMapper.ensureInitialized().stringifyValue(
+      this as LlmDescriptionAnchors,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return LlmDescriptionAnchorsMapper.ensureInitialized().equalsValue(
+      this as LlmDescriptionAnchors,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return LlmDescriptionAnchorsMapper.ensureInitialized().hashValue(
+      this as LlmDescriptionAnchors,
+    );
+  }
+}
+
+extension LlmDescriptionAnchorsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, LlmDescriptionAnchors, $Out> {
+  LlmDescriptionAnchorsCopyWith<$R, LlmDescriptionAnchors, $Out>
+  get $asLlmDescriptionAnchors => $base.as(
+    (v, t, t2) => _LlmDescriptionAnchorsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class LlmDescriptionAnchorsCopyWith<
+  $R,
+  $In extends LlmDescriptionAnchors,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? startsWith, String? endsWith});
+  LlmDescriptionAnchorsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _LlmDescriptionAnchorsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, LlmDescriptionAnchors, $Out>
+    implements LlmDescriptionAnchorsCopyWith<$R, LlmDescriptionAnchors, $Out> {
+  _LlmDescriptionAnchorsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<LlmDescriptionAnchors> $mapper =
+      LlmDescriptionAnchorsMapper.ensureInitialized();
+  @override
+  $R call({String? startsWith, String? endsWith}) => $apply(
+    FieldCopyWithData({
+      if (startsWith != null) #startsWith: startsWith,
+      if (endsWith != null) #endsWith: endsWith,
+    }),
+  );
+  @override
+  LlmDescriptionAnchors $make(CopyWithData data) => LlmDescriptionAnchors(
+    startsWith: data.get(#startsWith, or: $value.startsWith),
+    endsWith: data.get(#endsWith, or: $value.endsWith),
+  );
+
+  @override
+  LlmDescriptionAnchorsCopyWith<$R2, LlmDescriptionAnchors, $Out2>
+  $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
+      _LlmDescriptionAnchorsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class LlmDownloadMapper extends ClassMapperBase<LlmDownload> {
   LlmDownloadMapper._();
 
@@ -895,6 +1043,7 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
       MapperContainer.globals.use(_instance = LlmModMapper._());
       LlmDownloadMapper.ensureInitialized();
       LlmExtrasMapper.ensureInitialized();
+      LlmDescriptionAnchorsMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -941,6 +1090,10 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
     _$extras,
     opt: true,
   );
+  static LlmDescriptionAnchors? _$descriptionAnchors(LlmMod v) =>
+      v.descriptionAnchors;
+  static const Field<LlmMod, LlmDescriptionAnchors> _f$descriptionAnchors =
+      Field('descriptionAnchors', _$descriptionAnchors, opt: true);
 
   @override
   final MappableFields<LlmMod> fields = const {
@@ -950,6 +1103,7 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
     #downloads: _f$downloads,
     #image: _f$image,
     #extras: _f$extras,
+    #descriptionAnchors: _f$descriptionAnchors,
   };
   @override
   final bool ignoreNull = true;
@@ -962,6 +1116,7 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
       downloads: data.dec(_f$downloads),
       image: data.dec(_f$image),
       extras: data.dec(_f$extras),
+      descriptionAnchors: data.dec(_f$descriptionAnchors),
     );
   }
 
@@ -1018,6 +1173,12 @@ abstract class LlmModCopyWith<$R, $In extends LlmMod, $Out>
   >
   get downloads;
   LlmExtrasCopyWith<$R, LlmExtras, LlmExtras>? get extras;
+  LlmDescriptionAnchorsCopyWith<
+    $R,
+    LlmDescriptionAnchors,
+    LlmDescriptionAnchors
+  >?
+  get descriptionAnchors;
   $R call({
     String? name,
     String? role,
@@ -1025,6 +1186,7 @@ abstract class LlmModCopyWith<$R, $In extends LlmMod, $Out>
     List<LlmDownload>? downloads,
     String? image,
     LlmExtras? extras,
+    LlmDescriptionAnchors? descriptionAnchors,
   });
   LlmModCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -1050,6 +1212,15 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
   LlmExtrasCopyWith<$R, LlmExtras, LlmExtras>? get extras =>
       $value.extras?.copyWith.$chain((v) => call(extras: v));
   @override
+  LlmDescriptionAnchorsCopyWith<
+    $R,
+    LlmDescriptionAnchors,
+    LlmDescriptionAnchors
+  >?
+  get descriptionAnchors => $value.descriptionAnchors?.copyWith.$chain(
+    (v) => call(descriptionAnchors: v),
+  );
+  @override
   $R call({
     String? name,
     String? role,
@@ -1057,6 +1228,7 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
     List<LlmDownload>? downloads,
     Object? image = $none,
     Object? extras = $none,
+    Object? descriptionAnchors = $none,
   }) => $apply(
     FieldCopyWithData({
       if (name != null) #name: name,
@@ -1065,6 +1237,7 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
       if (downloads != null) #downloads: downloads,
       if (image != $none) #image: image,
       if (extras != $none) #extras: extras,
+      if (descriptionAnchors != $none) #descriptionAnchors: descriptionAnchors,
     }),
   );
   @override
@@ -1075,6 +1248,10 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
     downloads: data.get(#downloads, or: $value.downloads),
     image: data.get(#image, or: $value.image),
     extras: data.get(#extras, or: $value.extras),
+    descriptionAnchors: data.get(
+      #descriptionAnchors,
+      or: $value.descriptionAnchors,
+    ),
   );
 
   @override

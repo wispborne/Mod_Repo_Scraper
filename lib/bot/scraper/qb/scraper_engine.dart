@@ -269,8 +269,11 @@ class QbScraperEngine {
       _reportProgress();
 
       // --- Topic Scraping (pipelined) ---
-      // ThrottledClient serializes network calls; this buffer only overlaps
-      // in-memory work (parse, regex, disk write) with the next request's wait.
+      // ThrottledClient serializes network calls; this buffer overlaps the
+      // in-memory work (parse, regex, disk write) and the download checks with
+      // the next request's wait. LLM reads are not waited for in here:
+      // onTopicSaved only starts them (see ScraperService._scrape), so a slow
+      // model never holds up the next forum fetch.
       const maxPending = 3;
       final pending = <Future<void>>{};
 
@@ -398,8 +401,10 @@ class QbScraperEngine {
     var s = summary;
 
     if (detail != null) {
+      // The whole opening run counts here: a thread whose only downloads sit in
+      // the author's second post would otherwise be dropped before it is saved.
       if (s.sourceBoard == 3 &&
-          !ForumConstants.hasFileHostingLinks(detail.links)) {
+          !ForumConstants.hasFileHostingLinks(detail.allLinks)) {
         _log.info(
             'Board-3 topic ${s.topicId} has no qualifying external links; skipping.');
         currentJob.processedTopics++;
@@ -436,6 +441,16 @@ class QbScraperEngine {
         contentHtml: processedHtml,
         images: detail.images,
         links: detail.links,
+        extraPosts: [
+          for (final post in detail.extraPosts)
+            QbForumPost(
+              contentHtml: HtmlProcessor.processHtml(post.contentHtml),
+              images: post.images,
+              links: post.links,
+              postDate: post.postDate,
+              lastEditDate: post.lastEditDate,
+            ),
+        ],
         scrapedAt: detail.scrapedAt,
         isPlaceholderDetail: detail.isPlaceholderDetail,
       );

@@ -61,12 +61,19 @@ export function itemList(items) {
     // says what that value is here, rather than under a part with no name.
     if ('before' in item || 'after' in item) row.append(valueLine(item));
     for (const part of item.parts || []) {
-      row.append(el('div', { class: 'item-part' }, [
+      const partRow = el('div', { class: 'item-part' }, [
         el('span', { class: 'item-part-name', text: part.name }),
-        el('span', { class: 'diff-before', text: diffText(part.before) }),
-        el('span', { class: 'item-arrow', text: '→' }),
-        el('span', { class: 'diff-after', text: diffText(part.after) }),
-      ]));
+      ]);
+      if (part.note) {
+        // A part whose two values are no use on screen — a post's text, which
+        // a snapshot keeps only a fingerprint of.
+        partRow.append(el('span', { class: 'change-note', text: part.note }));
+      } else {
+        partRow.append(el('span', { class: 'diff-before', text: diffText(part.before) }));
+        partRow.append(el('span', { class: 'item-arrow', text: '→' }));
+        partRow.append(el('span', { class: 'diff-after', text: diffText(part.after) }));
+      }
+      row.append(partRow);
     }
     if (item.items && item.items.length) row.append(itemList(item.items));
     list.append(row);

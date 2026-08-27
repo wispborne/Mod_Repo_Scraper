@@ -30,6 +30,8 @@ final List<ComparedField> bundleFields = [
   ComparedField('links', itemsOf: _linkItems),
   ComparedField('downloads', itemsOf: _downloadItems),
   ComparedField('llm', label: 'LLM facts', itemsOf: _llmItems),
+  ComparedField('extraPosts',
+      label: 'the author\'s other posts', itemsOf: _extraPostItems),
 ];
 
 /// The post text is not kept in a snapshot, only a fingerprint of it, so there
@@ -39,6 +41,54 @@ String _describePostChange(Object? before, Object? after) {
   if (after == null) return 'The post text is no longer saved.';
   return 'The post text changed. The words themselves are not kept in a '
       'snapshot, so open the topic to see what it says now.';
+}
+
+/// What moved among the author's own later posts.
+///
+/// They carry no name to be told apart by, so they are lined up by where they
+/// sit in the thread: the author's second post is compared against the author's
+/// second post. Their text is not kept — a snapshot holds a fingerprint of it,
+/// the same as the first post — so a changed post is said in words.
+List<Map<String, dynamic>> _extraPostItems(Object? before, Object? after) {
+  final was = _asList(before);
+  final now = _asList(after);
+  final items = <Map<String, dynamic>>[];
+
+  final count = was.length > now.length ? was.length : now.length;
+  for (var i = 0; i < count; i++) {
+    // The first post is post one, so the first of these is post two.
+    final label = 'the author\'s post ${i + 2}';
+    final a = i < was.length ? was[i] : null;
+    final b = i < now.length ? now[i] : null;
+
+    if (a == null) {
+      items.add({'change': 'added', 'label': label});
+      continue;
+    }
+    if (b == null) {
+      items.add({'change': 'removed', 'label': label});
+      continue;
+    }
+    if (a is! Map || b is! Map) continue;
+
+    final parts = <Map<String, dynamic>>[
+      // The fingerprints are two pieces of gibberish; that they differ is the
+      // whole of what can be said, so it is said rather than shown.
+      if (sameness(a['contentFingerprint']) != sameness(b['contentFingerprint']))
+        {
+          'name': 'post text',
+          'note': _describePostChange(
+              a['contentFingerprint'], b['contentFingerprint']),
+        },
+      ..._partsThatMoved(a, b, const {
+        'postDate': 'posted',
+        'lastEditDate': 'last edited',
+      }, skip: const {'contentFingerprint'}),
+    ];
+    if (parts.isEmpty) continue;
+    items.add({'change': 'changed', 'label': label, 'parts': parts});
+  }
+  return items;
 }
 
 /// One topic, with its index row, its detail and its downloads put back
@@ -102,6 +152,7 @@ Map<String, dynamic> _topicRow(
         detail is Map ? ((detail['images'] as List?) ?? const []).length : null,
     'links': detail is Map ? detail['links'] : null,
     'downloads': download is List ? download : null,
+    'extraPosts': detail is Map ? detail['extraPosts'] : null,
   };
 }
 
@@ -367,6 +418,7 @@ List<Map<String, dynamic>> _llmItems(Object? was, Object? now) {
         'role': 'role',
         'requires': 'requires',
         'image': 'image',
+        'descriptionAnchors': 'where it is described',
       }, skip: const {'name', 'extras', 'downloads'}),
       ..._partsThatMoved(
         _flattenExtras(a['extras']),

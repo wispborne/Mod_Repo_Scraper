@@ -17,6 +17,7 @@ class QbModDetailMapper extends ClassMapperBase<QbModDetail> {
       MapperContainer.globals.use(_instance = QbModDetailMapper._());
       ImageRefMapper.ensureInitialized();
       LinkRefMapper.ensureInitialized();
+      QbForumPostMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -104,6 +105,13 @@ class QbModDetailMapper extends ClassMapperBase<QbModDetail> {
     opt: true,
     def: const [],
   );
+  static List<QbForumPost> _$extraPosts(QbModDetail v) => v.extraPosts;
+  static const Field<QbModDetail, List<QbForumPost>> _f$extraPosts = Field(
+    'extraPosts',
+    _$extraPosts,
+    opt: true,
+    def: const [],
+  );
   static DateTime _$scrapedAt(QbModDetail v) => v.scrapedAt;
   static const Field<QbModDetail, DateTime> _f$scrapedAt = Field(
     'scrapedAt',
@@ -133,6 +141,7 @@ class QbModDetailMapper extends ClassMapperBase<QbModDetail> {
     #contentHtml: _f$contentHtml,
     #images: _f$images,
     #links: _f$links,
+    #extraPosts: _f$extraPosts,
     #scrapedAt: _f$scrapedAt,
     #isPlaceholderDetail: _f$isPlaceholderDetail,
   };
@@ -154,6 +163,7 @@ class QbModDetailMapper extends ClassMapperBase<QbModDetail> {
       contentHtml: data.dec(_f$contentHtml),
       images: data.dec(_f$images),
       links: data.dec(_f$links),
+      extraPosts: data.dec(_f$extraPosts),
       scrapedAt: data.dec(_f$scrapedAt),
       isPlaceholderDetail: data.dec(_f$isPlaceholderDetail),
     );
@@ -222,6 +232,12 @@ abstract class QbModDetailCopyWith<$R, $In extends QbModDetail, $Out>
   ListCopyWith<$R, ImageRef, ImageRefCopyWith<$R, ImageRef, ImageRef>>
   get images;
   ListCopyWith<$R, LinkRef, LinkRefCopyWith<$R, LinkRef, LinkRef>> get links;
+  ListCopyWith<
+    $R,
+    QbForumPost,
+    QbForumPostCopyWith<$R, QbForumPost, QbForumPost>
+  >
+  get extraPosts;
   $R call({
     int? topicId,
     String? title,
@@ -236,6 +252,7 @@ abstract class QbModDetailCopyWith<$R, $In extends QbModDetail, $Out>
     String? contentHtml,
     List<ImageRef>? images,
     List<LinkRef>? links,
+    List<QbForumPost>? extraPosts,
     DateTime? scrapedAt,
     bool? isPlaceholderDetail,
   });
@@ -265,6 +282,17 @@ class _QbModDetailCopyWithImpl<$R, $Out>
         (v) => call(links: v),
       );
   @override
+  ListCopyWith<
+    $R,
+    QbForumPost,
+    QbForumPostCopyWith<$R, QbForumPost, QbForumPost>
+  >
+  get extraPosts => ListCopyWith(
+    $value.extraPosts,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(extraPosts: v),
+  );
+  @override
   $R call({
     int? topicId,
     String? title,
@@ -279,6 +307,7 @@ class _QbModDetailCopyWithImpl<$R, $Out>
     String? contentHtml,
     List<ImageRef>? images,
     List<LinkRef>? links,
+    List<QbForumPost>? extraPosts,
     Object? scrapedAt = $none,
     bool? isPlaceholderDetail,
   }) => $apply(
@@ -296,6 +325,7 @@ class _QbModDetailCopyWithImpl<$R, $Out>
       if (contentHtml != null) #contentHtml: contentHtml,
       if (images != null) #images: images,
       if (links != null) #links: links,
+      if (extraPosts != null) #extraPosts: extraPosts,
       if (scrapedAt != $none) #scrapedAt: scrapedAt,
       if (isPlaceholderDetail != null)
         #isPlaceholderDetail: isPlaceholderDetail,
@@ -316,6 +346,7 @@ class _QbModDetailCopyWithImpl<$R, $Out>
     contentHtml: data.get(#contentHtml, or: $value.contentHtml),
     images: data.get(#images, or: $value.images),
     links: data.get(#links, or: $value.links),
+    extraPosts: data.get(#extraPosts, or: $value.extraPosts),
     scrapedAt: data.get(#scrapedAt, or: $value.scrapedAt),
     isPlaceholderDetail: data.get(
       #isPlaceholderDetail,
@@ -624,5 +655,202 @@ class _LinkRefCopyWithImpl<$R, $Out>
   @override
   LinkRefCopyWith<$R2, LinkRef, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
       _LinkRefCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class QbForumPostMapper extends ClassMapperBase<QbForumPost> {
+  QbForumPostMapper._();
+
+  static QbForumPostMapper? _instance;
+  static QbForumPostMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = QbForumPostMapper._());
+      ImageRefMapper.ensureInitialized();
+      LinkRefMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'QbForumPost';
+
+  static String _$contentHtml(QbForumPost v) => v.contentHtml;
+  static const Field<QbForumPost, String> _f$contentHtml = Field(
+    'contentHtml',
+    _$contentHtml,
+    opt: true,
+    def: '',
+  );
+  static List<ImageRef> _$images(QbForumPost v) => v.images;
+  static const Field<QbForumPost, List<ImageRef>> _f$images = Field(
+    'images',
+    _$images,
+    opt: true,
+    def: const [],
+  );
+  static List<LinkRef> _$links(QbForumPost v) => v.links;
+  static const Field<QbForumPost, List<LinkRef>> _f$links = Field(
+    'links',
+    _$links,
+    opt: true,
+    def: const [],
+  );
+  static String? _$postDate(QbForumPost v) => v.postDate;
+  static const Field<QbForumPost, String> _f$postDate = Field(
+    'postDate',
+    _$postDate,
+    opt: true,
+  );
+  static String? _$lastEditDate(QbForumPost v) => v.lastEditDate;
+  static const Field<QbForumPost, String> _f$lastEditDate = Field(
+    'lastEditDate',
+    _$lastEditDate,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<QbForumPost> fields = const {
+    #contentHtml: _f$contentHtml,
+    #images: _f$images,
+    #links: _f$links,
+    #postDate: _f$postDate,
+    #lastEditDate: _f$lastEditDate,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static QbForumPost _instantiate(DecodingData data) {
+    return QbForumPost(
+      contentHtml: data.dec(_f$contentHtml),
+      images: data.dec(_f$images),
+      links: data.dec(_f$links),
+      postDate: data.dec(_f$postDate),
+      lastEditDate: data.dec(_f$lastEditDate),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static QbForumPost fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<QbForumPost>(map);
+  }
+
+  static QbForumPost fromJson(String json) {
+    return ensureInitialized().decodeJson<QbForumPost>(json);
+  }
+}
+
+mixin QbForumPostMappable {
+  String toJson() {
+    return QbForumPostMapper.ensureInitialized().encodeJson<QbForumPost>(
+      this as QbForumPost,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return QbForumPostMapper.ensureInitialized().encodeMap<QbForumPost>(
+      this as QbForumPost,
+    );
+  }
+
+  QbForumPostCopyWith<QbForumPost, QbForumPost, QbForumPost> get copyWith =>
+      _QbForumPostCopyWithImpl<QbForumPost, QbForumPost>(
+        this as QbForumPost,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return QbForumPostMapper.ensureInitialized().stringifyValue(
+      this as QbForumPost,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return QbForumPostMapper.ensureInitialized().equalsValue(
+      this as QbForumPost,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return QbForumPostMapper.ensureInitialized().hashValue(this as QbForumPost);
+  }
+}
+
+extension QbForumPostValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, QbForumPost, $Out> {
+  QbForumPostCopyWith<$R, QbForumPost, $Out> get $asQbForumPost =>
+      $base.as((v, t, t2) => _QbForumPostCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class QbForumPostCopyWith<$R, $In extends QbForumPost, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<$R, ImageRef, ImageRefCopyWith<$R, ImageRef, ImageRef>>
+  get images;
+  ListCopyWith<$R, LinkRef, LinkRefCopyWith<$R, LinkRef, LinkRef>> get links;
+  $R call({
+    String? contentHtml,
+    List<ImageRef>? images,
+    List<LinkRef>? links,
+    String? postDate,
+    String? lastEditDate,
+  });
+  QbForumPostCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _QbForumPostCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, QbForumPost, $Out>
+    implements QbForumPostCopyWith<$R, QbForumPost, $Out> {
+  _QbForumPostCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<QbForumPost> $mapper =
+      QbForumPostMapper.ensureInitialized();
+  @override
+  ListCopyWith<$R, ImageRef, ImageRefCopyWith<$R, ImageRef, ImageRef>>
+  get images => ListCopyWith(
+    $value.images,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(images: v),
+  );
+  @override
+  ListCopyWith<$R, LinkRef, LinkRefCopyWith<$R, LinkRef, LinkRef>> get links =>
+      ListCopyWith(
+        $value.links,
+        (v, t) => v.copyWith.$chain(t),
+        (v) => call(links: v),
+      );
+  @override
+  $R call({
+    String? contentHtml,
+    List<ImageRef>? images,
+    List<LinkRef>? links,
+    Object? postDate = $none,
+    Object? lastEditDate = $none,
+  }) => $apply(
+    FieldCopyWithData({
+      if (contentHtml != null) #contentHtml: contentHtml,
+      if (images != null) #images: images,
+      if (links != null) #links: links,
+      if (postDate != $none) #postDate: postDate,
+      if (lastEditDate != $none) #lastEditDate: lastEditDate,
+    }),
+  );
+  @override
+  QbForumPost $make(CopyWithData data) => QbForumPost(
+    contentHtml: data.get(#contentHtml, or: $value.contentHtml),
+    images: data.get(#images, or: $value.images),
+    links: data.get(#links, or: $value.links),
+    postDate: data.get(#postDate, or: $value.postDate),
+    lastEditDate: data.get(#lastEditDate, or: $value.lastEditDate),
+  );
+
+  @override
+  QbForumPostCopyWith<$R2, QbForumPost, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _QbForumPostCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 

@@ -1,0 +1,113 @@
+{
+ "topicId": 35651,
+ "title": "Computica's Faction Forks - Updated 7/16/2026 | Stellar Networks Released",
+ "author": "Computica",
+ "authorTitle": "Lieutenant",
+ "authorPostCount": 88,
+ "authorAvatarPath": "https://fractalsoftworks.com/forum/index.php?action=dlattach;attach=15860;type=avatar",
+ "postDate": "June 26, 2026, 06:35:43 PM",
+ "lastEditDate": "July 16, 2026, 08:21:44 AM by Computica",
+ "contentHtml": "<div align=\"center\"><span style=\"color: red;\" class=\"bbc_color\"><strong><a href=\"https://fractalsoftworks.com/forum/index.php?topic=35651.msg525117#msg525117\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">ANY FORKS OR PATCHES THAT OG AUTHORS WANT TAKEN DOWN WILL BE REMOVED TO STAY IN COMPLIANCE WITH MODERATOR RULES</a></strong></span><br><img src=\"https://raw.githubusercontent.com/Compterra/Computica-Faction-Forks/refs/heads/main/assets/computicas-faction-forks-banner.png\" alt=\"\" width=\"1024\" class=\"bbc_img resized\"><br><br><span style=\"font-size: 18pt;\" class=\"bbc_size\"><strong>Computica's Faction Forks</strong></span><br><em>Restoring abandoned factions | Translating Chinese mods | Cleaning code | Polishing gameplay</em></div><br><hr><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>What is this?</strong></span><br><br><strong>Computica's Faction Forks</strong> is a rehabilitation project for older Starsector faction mods, abandoned projects, and Chinese-language mods that deserve a second life.<br><br>The goal is not to erase the identity of the original mods, but to make them easier to play, easier to maintain, and easier to enjoy on modern Starsector installs.<br><br>This project focuses on:<br><br><ul class=\"bbc_list\"><li><strong>Restoring older faction mods</strong> that are outdated, broken, abandoned, or difficult to run.</li><li><strong>Translating Chinese mods into proper English</strong>, with natural phrasing instead of rough machine translation.</li><li><strong>Code optimization and cleanup</strong> to reduce bloat, fix errors, and improve maintainability.</li><li><strong>Balance and polish tweaks</strong> where needed, especially when something is clearly broken, awkward, or unfinished.</li><li><strong>Compatibility bridging</strong> with major non-faction mods such as Ashes of The Domain, Industrial.Evolution, Nexerelin, and Star Lords.</li></ul><hr><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>Project Philosophy</strong></span><br><br>These are <strong>forks</strong>, not hostile takeovers.<br><br>The intent is to honor the original work while making it playable, readable, and stable for the current community. Original authors, artists, translators, and contributors will be credited wherever possible.<br><br>If you are an original creator and have concerns about one of these forks, please contact me. I am willing to correct credits, adjust distribution, or remove material if needed.<br><br><div class=\"quoteheader\"><div class=\"topslice_quote\">Quote</div></div><blockquote class=\"bbc_standard_quote\"><strong>Honor the past. Improve the present. Forge the future.</strong><br></blockquote><div class=\"quotefooter\"><div class=\"botslice_quote\"></div></div><br><hr><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>What I Usually Change</strong></span><br><br>Depending on the condition of each mod, a fork may include:<br><br><ul class=\"bbc_list\"><li>Updated mod_info files</li><li>Crash fixes</li><li>CSV cleanup</li><li>Faction, market, and ship data corrections</li><li>Weapon, hullmod, and variant fixes</li><li>Translation and localization improvements</li><li>Balance tweaks</li><li>Removal of broken, unused, or redundant code</li><li>General quality-of-life improvements</li></ul>I try to avoid unnecessary redesigns unless the mod is so broken or unfinished that deeper work is needed.<br><br><hr><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>Chinese Mod Translation Work</strong></span><br><br>Some of the mods handled here originate from the Chinese Starsector community. These often have interesting factions, ships, systems, and worldbuilding, but the English text can be difficult to understand or incomplete.<br><br>For those projects, I focus on:<br><br><ul class=\"bbc_list\"><li>Natural English faction descriptions</li><li>Readable ship, weapon, hullmod, and industry names</li><li>Clear tooltips and descriptions</li><li>Consistent naming conventions</li><li>Preserving the original tone where possible</li></ul>This is not just a machine translation and upload.The goal is to make the text feel like it belongs in a polished English Starsector mod.<br><br><hr><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>Development Tools / Assistance</strong></span><br><br>I am also using <strong>Codex</strong> as part of the workflow.<br><br>Codex helps with code review, refactoring, bug hunting, JSON/CSV cleanup, scripting assistance, and identifying possible optimization paths. Final decisions, testing priorities, balance judgment, and release direction are still handled manually.<br><br>In short:<br><br><ul class=\"bbc_list\"><li><strong>Human-led project</strong></li><li><strong>Codex-assisted cleanup and development</strong></li><li><strong>Community feedback welcome</strong></li></ul><hr><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>Current Forks / Releases</strong></span><br><br>This section will be updated as forks become available.<br><br><strong>Kwin's Sector Industry Compilation:</strong> <em><span style=\"color: purple;\" class=\"bbc_color\">Updated 6/30/2026</span></em><br><strong>Farsight Drive:</strong> <em><span style=\"color: purple;\" class=\"bbc_color\">Updated 7/16/2026</span></em><br><strong>Junk Pirates/ASP/PACK:</strong> <em><span style=\"color: purple;\" class=\"bbc_color\">Updated 7/16/2026</span></em><br><strong>Valkyrians:</strong> <em><span style=\"color: purple;\" class=\"bbc_color\">Updated 7/16/2026</span></em><br><strong>FSF:</strong> <em><span style=\"color: purple;\" class=\"bbc_color\">Updated 7/16/2026</span></em><br><strong>Blackrock Drive Yards:</strong> <em><span style=\"color: purple;\" class=\"bbc_color\">Updated 7/16/2026</span></em><br><strong>Neutrino Corporation:</strong> Waiting for permission...<br><strong>Mico's Gundams and Vortex Aliens:</strong> Testing...<br><strong>Avali Expeditionary Fleet:</strong> Paused...<br><strong>Eridani Combine:</strong> Testing...<br><strong>The Nomads:</strong> Paused...<br><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>Patch Only Release</strong></span><br><br>This section only includes Patches and/or Patchers<br><br><a href=\"https://github.com/Compterra/Computica-Faction-Forks/blob/ae9516ab63b4dbdff61a59edbe4eeb73d58edab3/Patches/IRON_SHELL_BUGFIX_LOG.md\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><span style=\"color: red;\" class=\"bbc_color\"><strong>Iron Shell:</strong> 1.18.3aj <strong> 130+ Bug-fix log Only, Patch sub-mod removed</strong></span> <em><span style=\"color: purple;\" class=\"bbc_color\">Updated 7/5/2026</span></em></a><br><strong>Stellar networks:</strong> <em><span style=\"color: purple;\" class=\"bbc_color\">Updated 7/5/2026</span></em><br><br><em>Each release will include notes explaining what was changed, what was fixed, what remains unfinished, and whether the fork should be considered stable, beta, or experimental.</em><br><br><hr><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>Bug Reports</strong></span><br><br>When reporting bugs, please include:<br><br><ul class=\"bbc_list\"><li>The name of the fork/mod</li><li>Your Starsector version</li><li>Your mod list</li><li>The crash log, if applicable</li><li>What you were doing when the issue occurred</li></ul>Logs and reproduction steps help a lot.<br><br><hr><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>Compatibility Bridging</strong></span><br><br>In addition to restoring and polishing faction mods, <strong>Computica's Faction Forks</strong> also aims to improve compatibility with major non-faction mods and broader campaign-layer systems.<br><br>The goal is to help older or translated factions interact more cleanly with popular Starsector ecosystem mods instead of feeling isolated, broken, or outdated.<br><br>Current compatibility targets include:<br><br><ul class=\"bbc_list\"><li><strong>LunaLib</strong></li><li><strong>Ashes of The Domain</strong></li><li><strong>Industrial.Evolution</strong></li><li><strong>Nexerelin</strong></li><li><strong>Star Lords</strong></li></ul>Compatibility work may include:<br><br><ul class=\"bbc_list\"><li>Faction integration fixes</li><li>Market and industry adjustments</li><li>Diplomacy and invasion behavior review</li><li>Campaign-layer balance checks</li><li>Economy and production compatibility passes</li><li>Correcting broken or outdated mod interactions</li><li>Adding support where the original mod never had it</li><li>New Buildings</li><li>S-Mod Support</li></ul>These bridges will vary by fork. Some factions may only need light cleanup, while others may require deeper campaign-side work to function properly alongside larger modlists.<br><br><strong>Notes:</strong><br>Compatibility support does not mean every possible mod combination is guaranteed. The goal is practical stability, better integration, and cleaner behavior with commonly used Starsector mod setups.<br>These forks may touch code, data files, faction behavior, markets, variants, or translations. Compatibility will vary depending on the original mod and how much work was required.<br>I will try to document known conflicts when they are discovered.<br><hr><br><span style=\"font-size: 14pt;\" class=\"bbc_size\"><strong>Credits</strong></span><br><br>Full credit goes to the original mod authors, artists, translators, and contributors whose work made these factions possible in the first place.<br><br>This project exists because old mods are worth preserving, and good ideas should not disappear just because a version number changed.<br><br><strong>Computica's Faction Forks</strong><br><em>Restore. Refine. Optimize. Translate. Polish.</em><br>",
+ "images": [
+  {
+   "originalUrl": "https://raw.githubusercontent.com/Compterra/Computica-Faction-Forks/refs/heads/main/assets/computicas-faction-forks-banner.png",
+   "alt": ""
+  }
+ ],
+ "links": [
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=35651.msg525117#msg525117",
+   "text": "ANY FORKS OR PATCHES THAT OG AUTHORS WANT TAKEN DOWN WILL BE REMOVED TO STAY IN COMPLIANCE WITH MODERATOR RULES",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://github.com/Compterra/Computica-Faction-Forks/blob/ae9516ab63b4dbdff61a59edbe4eeb73d58edab3/Patches/IRON_SHELL_BUGFIX_LOG.md",
+   "text": "Iron Shell: 1.18.3aj  130+ Bug-fix log Only, Patch sub-mod removed Updated 7/5/2026",
+   "isExternal": true,
+   "isDownloadable": false
+  }
+ ],
+ "extraPosts": [
+  {
+   "contentHtml": "<a href=\"https://github.com/Compterra/Starsector-CFF-Kwin/archive/refs/heads/main.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/badge/KWIN%20RELEASE-v1.0.5-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white\" alt=\"\" class=\"bbc_img\"></a><br><strong>Kwin's Sector Industry Compilation</strong><br>Current version: <strong>Starsector <em>0.98a</em></strong><br>A Starsector faction and content compilation for <em>0.98a</em>, Kwin’s Sector Industry Compilation adds four lore-rich corporations with unique ships, weapons, fighters, hullmods, colony Charter Offices, and specialized procurement storefronts. Build a Charter Office to partner with Zenith Era, Yunze General Ordnance, Monolith Ordnance, or Flicker Aviation, each offering distinct colony bonuses and market access, from Yunze weapon sales to Flicker aviation hardware and Monolith warships.<br><br><a href=\"https://github.com/Compterra/Starsector-CFF-FarsightDrive/archive/refs/heads/main.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/badge/FARSIGHT%20DRIVE%20RELEASE-v4.3.4-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white\" alt=\"\" class=\"bbc_img\"></a><br><strong>Farsight Drive</strong><br>Current version: <strong>Starsector <em>0.98a</em></strong><br>Farsight Drive adds a secretive Eridani biotech faction to the Persean Sector, bringing living crystal ships, experimental karma-driven hullmods, unusual weapons, relief fleets, charter offices, and lore-heavy encounters tied to the Reflecting-Light Crystal and Farsight’s sealed archives.<br><br><a href=\"https://github.com/Compterra/Starsector-CFF-JunkPirates/archive/refs/heads/main.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/badge/JUNK%20PIRATES%20RELEASE-v1.1.3-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white\" alt=\"\" class=\"bbc_img\"></a><br><strong>Junk Pirates</strong><br>Current version: <strong>Starsector <em>0.98a</em></strong><br>A restored compatibility release of mendonca's Junk Pirates, PACK, and ASP Syndicate content for Starsector 0.98a-RC8. This fork is a local restoration pass for modern Starsector. It includes dependency metadata updates, Nexerelin faction setup, save-load recovery work, relation cleanup, <del>LunaLib settings</del>, <del>Starship Legends support</del>, first-pass ship balance, and cross-mod compatibility work.<br><br><a href=\"https://github.com/Compterra/Starsector-CFF-Valkyrians/archive/refs/tags/v4.0.4.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/badge/VALKYRIANS%20RELEASE-v4.0.4-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white\" alt=\"\" class=\"bbc_img\"></a><br><strong>Valkyrians</strong><br>Current version: <strong>Starsector <em>0.98a</em></strong><br>An translated and extremely polished fork of Valkyrians with new buildings and plenty of code clean up and modernization.<br><br><a href=\"https://github.com/Compterra/Starsector-CFF-BRDY/archive/refs/heads/main.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/badge/BRDY%20RELEASE-v1.0.7-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white\" alt=\"\" class=\"bbc_img\"></a><br><strong>Blackrock Drive Yards</strong><br>Current version: <strong>Starsector <em>0.98a</em></strong><br>A more modernized and updated version of BRDY.<br><br><a href=\"https://github.com/Compterra/Starsector-CFF-FSF/archive/refs/heads/main.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/badge/FSF%20RELEASE-v1.0.8-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white\" alt=\"\" class=\"bbc_img\"></a><br><strong>FSF Military Corporation</strong><br>Current version: <strong>Starsector <em>0.98a</em></strong><br>An translated and extremely polished fork of FSF with plenty of fixes across the mod.<br><br><a href=\"https://github.com/Compterra/Starsector-UFP-StelNet/archive/refs/heads/main.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/badge/STELLAR%20NETWORKS-v3.4.0-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white\" alt=\"\" class=\"bbc_img\"></a><br><strong>Stellar Networks</strong><br>Current version: <strong>Starsector <em>0.98a</em></strong><br>Unofficial Patched of StelNet, due to community request I've brushed this up and solved issues with CPU cycles and remote contact call incompatibility with mods like UAF on StelNets end. Market refresh is throttled to every 0.25 seconds and walks a cached market list. Fixed UI issues and bugs, tag filters, and LunaLib settings. I fixed that and more issues the forum had with the mod.",
+   "images": [
+    {
+     "originalUrl": "https://img.shields.io/badge/KWIN%20RELEASE-v1.0.5-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white",
+     "alt": ""
+    },
+    {
+     "originalUrl": "https://img.shields.io/badge/FARSIGHT%20DRIVE%20RELEASE-v4.3.4-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white",
+     "alt": ""
+    },
+    {
+     "originalUrl": "https://img.shields.io/badge/JUNK%20PIRATES%20RELEASE-v1.1.3-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white",
+     "alt": ""
+    },
+    {
+     "originalUrl": "https://img.shields.io/badge/VALKYRIANS%20RELEASE-v4.0.4-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white",
+     "alt": ""
+    },
+    {
+     "originalUrl": "https://img.shields.io/badge/BRDY%20RELEASE-v1.0.7-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white",
+     "alt": ""
+    },
+    {
+     "originalUrl": "https://img.shields.io/badge/FSF%20RELEASE-v1.0.8-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white",
+     "alt": ""
+    },
+    {
+     "originalUrl": "https://img.shields.io/badge/STELLAR%20NETWORKS-v3.4.0-7B2CBF?style=for-the-badge&amp;labelColor=090A1A&amp;logo=github&amp;logoColor=white",
+     "alt": ""
+    }
+   ],
+   "links": [
+    {
+     "url": "https://github.com/Compterra/Starsector-CFF-Kwin/archive/refs/heads/main.zip",
+     "text": "",
+     "isExternal": true,
+     "isDownloadable": true
+    },
+    {
+     "url": "https://github.com/Compterra/Starsector-CFF-FarsightDrive/archive/refs/heads/main.zip",
+     "text": "",
+     "isExternal": true,
+     "isDownloadable": true
+    },
+    {
+     "url": "https://github.com/Compterra/Starsector-CFF-JunkPirates/archive/refs/heads/main.zip",
+     "text": "",
+     "isExternal": true,
+     "isDownloadable": true
+    },
+    {
+     "url": "https://github.com/Compterra/Starsector-CFF-Valkyrians/archive/refs/tags/v4.0.4.zip",
+     "text": "",
+     "isExternal": true,
+     "isDownloadable": true
+    },
+    {
+     "url": "https://github.com/Compterra/Starsector-CFF-BRDY/archive/refs/heads/main.zip",
+     "text": "",
+     "isExternal": true,
+     "isDownloadable": true
+    },
+    {
+     "url": "https://github.com/Compterra/Starsector-CFF-FSF/archive/refs/heads/main.zip",
+     "text": "",
+     "isExternal": true,
+     "isDownloadable": true
+    },
+    {
+     "url": "https://github.com/Compterra/Starsector-UFP-StelNet/archive/refs/heads/main.zip",
+     "text": "",
+     "isExternal": true,
+     "isDownloadable": true
+    }
+   ],
+   "postDate": "June 26, 2026, 06:50:19 PM",
+   "lastEditDate": "July 16, 2026, 08:17:10 AM by Computica"
+  }
+ ],
+ "isPlaceholderDetail": false
+}

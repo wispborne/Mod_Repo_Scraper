@@ -257,6 +257,16 @@ export function modCard(mod, assumedUrls) {
   }
   card.append(llmDownloadsTable(mod.downloads || [], assumedUrls));
   if (mod.extras) card.append(extrasBlock(mod.extras));
+  // Where the author describes this mod, on a thread that carries several. The
+  // LLM only points; the words themselves are cut out of the post when the site
+  // is built, so what is worth showing here is what it pointed at.
+  const anchors = mod.descriptionAnchors;
+  if (anchors && anchors.startsWith && anchors.endsWith) {
+    card.append(fieldList([
+      ['Described from', `"${anchors.startsWith}"`],
+      ['…up to', `"${anchors.endsWith}"`],
+    ]));
+  }
   return card;
 }
 

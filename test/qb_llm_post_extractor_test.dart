@@ -122,6 +122,41 @@ void main() {
       expect(reduced.links.map((l) => l.url), contains('https://example.com/mod.zip'));
       expect(reduced.urlSet, contains('https://example.com/mod.zip'));
     });
+
+    test('a link is left where it sat, beside its own words', () {
+      final reduced = PostReducer.reduce(
+          'Get it here: <a href="https://example.com/mod.zip">Download</a>');
+      expect(reduced.text,
+          'Get it here: Download [link: https://example.com/mod.zip]');
+    });
+
+    test('a badge-image link still lands next to the mod it belongs to', () {
+      // Topic 35651's shape: every download is a shields.io badge inside a link
+      // with no words of its own, and the mod's name is the line after it. The
+      // URL has to stay by that name or nothing says which mod it downloads.
+      final reduced = PostReducer.reduce(
+          '<a href="https://github.com/x/Starsector-CFF-Kwin/archive/main.zip">'
+          '<img src="https://img.shields.io/badge/KWIN-v1.0.5" alt=""></a><br>'
+          "<strong>Kwin's Sector Industry Compilation</strong><br>"
+          'Adds four lore-rich corporations.<br><br>'
+          '<a href="https://github.com/x/Starsector-CFF-FarsightDrive/archive/main.zip">'
+          '<img src="https://img.shields.io/badge/FARSIGHT-v4.3.4" alt=""></a><br>'
+          '<strong>Farsight Drive</strong><br>'
+          'Adds a secretive Eridani biotech faction.');
+
+      final lines = reduced.text.split('\n');
+      final kwin = lines.indexWhere((l) => l.contains('Sector Industry'));
+      final farsight = lines.indexWhere((l) => l.contains('Farsight Drive'));
+      expect(kwin, greaterThan(0));
+      expect(farsight, greaterThan(kwin));
+      expect(lines[kwin - 1], contains('Starsector-CFF-Kwin'));
+      expect(lines[farsight - 1], contains('Starsector-CFF-FarsightDrive'));
+    });
+
+    test('an anchor that is not a link is left as its words alone', () {
+      final reduced = PostReducer.reduce('see <a href="#top">the top</a>');
+      expect(reduced.text, 'see the top');
+    });
   });
 
   group('checking answers against the post', () {
