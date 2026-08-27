@@ -89,6 +89,7 @@ export async function render(root, parts) {
     facts(detail),
     moreByTheAuthor(mod, everyMod, currentVersion),
     similarMods(mod, everyMod, currentVersion),
+    rawInfo(detail, id),
   ]));
 }
 
@@ -714,6 +715,90 @@ function strip(mods, currentVersion, { alreadyOrdered = false } = {}) {
     row.append(modCard(mod, currentVersion));
   }
   return row;
+}
+
+/// The "See raw info" fold at the very foot of the page: everything the site
+/// holds about this mod, straight from its published file, laid out field by
+/// field. It is for working out why a page looks wrong — a reader never needs
+/// it, so it sits closed and quiet under everything else, and its insides are
+/// only built the first time somebody opens it.
+function rawInfo(detail, id) {
+  const fold = el('details', { class: 'raw-info' }, [
+    el('summary', { text: 'See raw info' }),
+  ]);
+  let built = false;
+  fold.addEventListener('toggle', () => {
+    if (built || !fold.open) return;
+    built = true;
+    fold.append(rawInfoBody(detail, id));
+  });
+  return fold;
+}
+
+function rawInfoBody(detail, id) {
+  const file = `mods/${encodeURIComponent(id)}.json`;
+  const copy = el('button', { class: 'btn', text: 'Copy as JSON' });
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(detail, null, 2));
+      copy.textContent = 'Copied';
+    } catch {
+      copy.textContent = 'Could not copy';
+    }
+    setTimeout(() => { copy.textContent = 'Copy as JSON'; }, 2000);
+  });
+
+  return el('div', { class: 'panel raw-info-body' }, [
+    el('div', { class: 'raw-info-tools' }, [
+      copy,
+      el('a', {
+        class: 'btn', href: DATA_BASE + file, target: '_blank', rel: 'noopener',
+        text: 'Open the file',
+        title: `The published file this is read from: ${file}`,
+      }),
+    ]),
+    el('div', { class: 'raw-tree' }, [rawValue(detail)]),
+  ]);
+}
+
+/// One value from the mod's file, whatever its shape, drawn so it can be read:
+/// an object as field names down the left, a list as numbered entries, a long
+/// or HTML string as a scrolling block of plain text (never put into the page
+/// as markup), an address as a link, and everything else as itself.
+function rawValue(value) {
+  if (value === null || value === undefined) {
+    return el('span', { class: 'raw-none', text: 'nothing' });
+  }
+  if (Array.isArray(value)) {
+    if (!value.length) return el('span', { class: 'raw-none', text: 'empty list' });
+    const rows = el('div', { class: 'raw-branch' });
+    value.forEach((entry, i) => {
+      rows.append(el('span', { class: 'raw-name', text: `${i + 1}.` }),
+        el('div', { class: 'raw-cell' }, [rawValue(entry)]));
+    });
+    return rows;
+  }
+  if (typeof value === 'object') {
+    const keys = Object.keys(value);
+    if (!keys.length) return el('span', { class: 'raw-none', text: 'empty' });
+    const rows = el('div', { class: 'raw-branch' });
+    for (const key of keys) {
+      rows.append(el('span', { class: 'raw-name', text: key }),
+        el('div', { class: 'raw-cell' }, [rawValue(value[key])]));
+    }
+    return rows;
+  }
+  if (typeof value === 'string') {
+    if (value.length > 160 || value.includes('\n') || value.includes('<')) {
+      return el('pre', { class: 'raw-text', text: value });
+    }
+    if (/^https?:\/\//.test(value)) {
+      return el('a', {
+        href: value, target: '_blank', rel: 'noopener nofollow', text: value,
+      });
+    }
+  }
+  return el('span', { text: String(value) });
 }
 
 /// Most recently released first, then by name. A mod with no release yet sorts
