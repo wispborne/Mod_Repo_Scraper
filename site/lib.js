@@ -481,6 +481,75 @@ export function showPicture(images, at = 0) {
   close.focus();
 }
 
+/// A note above a list, saying in a sentence or two where the list came from,
+/// with a button that opens the long answer in a box over the page.
+///
+/// The short version has to be on the page — a reader who never presses
+/// anything should still know the list can be wrong. The long version is
+/// behind a press because it is five paragraphs, and five paragraphs above
+/// every visit to the front page is somebody else's page.
+export function noteWithMore(shortText, { title, paragraphs, moreLabel }) {
+  const more = el('button', {
+    type: 'button', class: 'note-more', text: moreLabel || 'More about this',
+  });
+  more.addEventListener('click', () => openInfoDialog(title, paragraphs));
+
+  return el('div', { class: 'list-note' }, [
+    el('p', {}, [el('span', { text: `${shortText} ` }), more]),
+  ]);
+}
+
+/// The box that note opens: a heading, some paragraphs, and a way out.
+///
+/// It is a real `<dialog>`, so Escape closes it and the keyboard stays inside
+/// it, and it is thrown away on closing rather than left in the page — nothing
+/// here is worth keeping between presses.
+export function openInfoDialog(title, paragraphs) {
+  // Where the keyboard was before this opened, so closing it puts the reader
+  // back on the button they pressed.
+  const cameFrom = document.activeElement;
+
+  const close = el('button', {
+    type: 'button', class: 'info-close', text: '×', 'aria-label': 'Close',
+  });
+  const dialog = el('dialog', { class: 'info-dialog' }, [
+    el('div', { class: 'info-inner' }, [
+      el('div', { class: 'info-head' }, [el('h2', { text: title }), close]),
+      ...paragraphs.map((text) => el('p', { class: 'about-line', text })),
+    ]),
+  ]);
+
+  // Closing means taking it out of the page, not only shutting it. Every way
+  // out goes through here, and it is safe to call twice.
+  const shut = () => {
+    window.removeEventListener('hashchange', shut);
+    if (dialog.open) dialog.close();
+    dialog.remove();
+    if (cameFrom && cameFrom.focus) cameFrom.focus();
+  };
+
+  close.addEventListener('click', shut);
+  // A click on the dimmed page behind the box closes it, the same way the
+  // settings box works. The box itself is the dialog's one child, so a click
+  // on the dialog element and nowhere inside that child is the backdrop.
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog) shut();
+  });
+  // Escape is the browser's own way out. It is caught here rather than through
+  // the dialog's `close` event, which not every browser sends.
+  dialog.addEventListener('cancel', shut);
+  dialog.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') shut();
+  });
+  // The back button is a way out of this too, or the box would sit over
+  // whatever page the reader landed on next.
+  window.addEventListener('hashchange', shut);
+
+  document.body.append(dialog);
+  dialog.showModal();
+  close.focus();
+}
+
 /// The line that names the mods something needs, with each one linked where
 /// this site has a page for it.
 ///
