@@ -769,6 +769,22 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 
 .mod-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .btn-big { padding: 9px 18px; font-size: var(--type-normal); }
+
+/* Support links belong near the actions, but use quiet outlined pills so the
+   download and original post remain the first things the eye lands on. */
+.support-row {
+  display: flex; gap: 8px 10px; align-items: center; flex-wrap: wrap;
+  margin-top: 2px; font-size: var(--type-small); color: var(--text-dim);
+}
+.support-label { font-weight: 600; color: var(--text-dim); }
+.support-links { display: flex; gap: 7px; flex-wrap: wrap; }
+.support-links a {
+  padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface-2); color: var(--text);
+}
+.support-links a:hover {
+  border-color: var(--primary); color: var(--primary); text-decoration: none;
+}
 /* A section of a mod's page. It used to be a bordered box with a ruled
    heading — two lines to say what one gap says. */
 .panel {
