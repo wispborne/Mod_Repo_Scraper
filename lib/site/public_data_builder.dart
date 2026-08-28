@@ -711,6 +711,7 @@ class PublicDataBuilder {
       downloadCount: downloads.length,
       forumUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Forum]]),
       discordUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]),
+      nexusUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.NexusMods]]),
       sourceIsPublic: _firstNonEmpty([extras?.sourceCode]) != null,
       isWorkInProgress: thread?.isWip ?? false,
       lastReleaseDate: releases.isEmpty ? null : _lastReleaseDate(releases),

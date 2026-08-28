@@ -285,6 +285,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     _$discordUrl,
     opt: true,
   );
+  static String? _$nexusUrl(PublicMod v) => v.nexusUrl;
+  static const Field<PublicMod, String> _f$nexusUrl = Field(
+    'nexusUrl',
+    _$nexusUrl,
+    opt: true,
+  );
   static bool _$sourceIsPublic(PublicMod v) => v.sourceIsPublic;
   static const Field<PublicMod, bool> _f$sourceIsPublic = Field(
     'sourceIsPublic',
@@ -353,6 +359,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #downloadCount: _f$downloadCount,
     #forumUrl: _f$forumUrl,
     #discordUrl: _f$discordUrl,
+    #nexusUrl: _f$nexusUrl,
     #sourceIsPublic: _f$sourceIsPublic,
     #isWorkInProgress: _f$isWorkInProgress,
     #lastReleaseDate: _f$lastReleaseDate,
@@ -386,6 +393,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       downloadCount: data.dec(_f$downloadCount),
       forumUrl: data.dec(_f$forumUrl),
       discordUrl: data.dec(_f$discordUrl),
+      nexusUrl: data.dec(_f$nexusUrl),
       sourceIsPublic: data.dec(_f$sourceIsPublic),
       isWorkInProgress: data.dec(_f$isWorkInProgress),
       lastReleaseDate: data.dec(_f$lastReleaseDate),
@@ -494,6 +502,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     int? downloadCount,
     String? forumUrl,
     String? discordUrl,
+    String? nexusUrl,
     bool? sourceIsPublic,
     bool? isWorkInProgress,
     DateTime? lastReleaseDate,
@@ -583,6 +592,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     int? downloadCount,
     Object? forumUrl = $none,
     Object? discordUrl = $none,
+    Object? nexusUrl = $none,
     bool? sourceIsPublic,
     bool? isWorkInProgress,
     Object? lastReleaseDate = $none,
@@ -613,6 +623,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (downloadCount != null) #downloadCount: downloadCount,
       if (forumUrl != $none) #forumUrl: forumUrl,
       if (discordUrl != $none) #discordUrl: discordUrl,
+      if (nexusUrl != $none) #nexusUrl: nexusUrl,
       if (sourceIsPublic != null) #sourceIsPublic: sourceIsPublic,
       if (isWorkInProgress != null) #isWorkInProgress: isWorkInProgress,
       if (lastReleaseDate != $none) #lastReleaseDate: lastReleaseDate,
@@ -653,6 +664,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     downloadCount: data.get(#downloadCount, or: $value.downloadCount),
     forumUrl: data.get(#forumUrl, or: $value.forumUrl),
     discordUrl: data.get(#discordUrl, or: $value.discordUrl),
+    nexusUrl: data.get(#nexusUrl, or: $value.nexusUrl),
     sourceIsPublic: data.get(#sourceIsPublic, or: $value.sourceIsPublic),
     isWorkInProgress: data.get(#isWorkInProgress, or: $value.isWorkInProgress),
     lastReleaseDate: data.get(#lastReleaseDate, or: $value.lastReleaseDate),

@@ -508,6 +508,29 @@ void main() {
     expect(mod.discordUrl, 'https://discord.com/channels/1/2');
   });
 
+  test('a Nexus-only mod carries its Nexus page for summary actions', () {
+    final data = builder.build(
+      mods: const [
+        ScrapedMod(
+          name: 'Nexus Mod',
+          authorsList: ['Someone'],
+          sources: [ModSource.NexusMods],
+          urls: {
+            ModUrlType.NexusMods: 'https://www.nexusmods.com/starsector/mods/42',
+          },
+        ),
+      ],
+      bundle: bundleOf(),
+    );
+
+    final mod = data.list.mods.single;
+    expect(mod.forumUrl, isNull);
+    expect(mod.discordUrl, isNull);
+    expect(mod.nexusUrl, 'https://www.nexusmods.com/starsector/mods/42');
+    expect(mod.toMap()['nexusUrl'],
+        'https://www.nexusmods.com/starsector/mods/42');
+  });
+
   test('a category nobody has seen before is left off rather than guessed', () {
     final data = builder.build(
       mods: [

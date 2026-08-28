@@ -107,7 +107,7 @@ class PublicMod with PublicModMappable {
   final bool hasDirectDownload;
 
   /// The download a button should offer, picked by `download_order.dart`. Null
-  /// when the mod has none, in which case the site offers the forum thread.
+  /// when the mod has none, in which case the site offers its original page.
   ///
   /// This is the one thing about downloads that `mods.json` carries, because
   /// browse loads that file whole and draws hundreds of cards from it — a card
@@ -132,6 +132,13 @@ class PublicMod with PublicModMappable {
   /// forum thread, and every one of them is on Discord. Without this their
   /// cards are the only ones on the page offering nothing at all.
   final String? discordUrl;
+
+  /// The mod's Nexus Mods page. Null when it is not on Nexus.
+  ///
+  /// Nexus-only mods need this in the compact list for the same reason forum
+  /// and Discord links live here: a card or row can offer the download and the
+  /// original page without fetching the mod's full record first.
+  final String? nexusUrl;
 
   /// True when we know where the mod's code is kept.
   final bool sourceIsPublic;
@@ -205,6 +212,7 @@ class PublicMod with PublicModMappable {
     this.downloadCount = 0,
     this.forumUrl,
     this.discordUrl,
+    this.nexusUrl,
     this.sourceIsPublic = false,
     this.isWorkInProgress = false,
     this.lastReleaseDate,
