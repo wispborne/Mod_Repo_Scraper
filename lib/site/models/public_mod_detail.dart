@@ -31,10 +31,10 @@ class PublicModDetail with PublicModDetailMappable {
   final bool descriptionIsGenerated;
 
   /// The paragraph the LLM wrote about this mod, whenever there is one — even
-  /// when [description] already holds the author's own post. A reader who asks
-  /// for AI summaries always sees this above the post, so it has to be
-  /// published beside it rather than instead of it. Plain words, no
-  /// formatting.
+  /// when [description] already holds the author's own post. The detail page
+  /// shows this in its own section unless the reader turned AI summaries off,
+  /// so it has to be published beside the author's post rather than instead of
+  /// it. Plain words, no formatting.
   final String? aiDescription;
 
   /// The author's own words on whether the mod can be added to a game already
@@ -106,9 +106,9 @@ class PublicModDetail with PublicModDetailMappable {
   /// only one mod on it.
   final List<PublicAddon> addons;
 
-  /// The title of the thread this mod was found on, for a mod with no thread of
-  /// its own. The same field as [PublicMod.partOfThreadTitle], repeated here so
-  /// the page stands alone, and null for a merged mod for the same reason.
+  /// The title of the shared thread this mod was found on. The same field as
+  /// [PublicMod.partOfThreadTitle], repeated here so the page stands alone.
+  /// Null when this is the only mod on its thread and for every merged mod.
   final String? partOfThreadTitle;
 
   PublicModDetail({

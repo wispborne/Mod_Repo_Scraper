@@ -38,11 +38,8 @@ class _JoinedMod {
   /// The forum topic id from the mod's forum link, or null when it has none.
   final String? topicId;
 
-  /// The thread this mod was read out of, for a mod that has no thread of its
-  /// own — one of several posted in somebody else's. Null for a merged mod.
-  ///
-  /// It is both the mark of a stand-in and the title the page shows, because
-  /// the two are the same fact.
+  /// The shared thread this mod was read out of. Null when the thread holds
+  /// only this mod, and for a merged mod.
   final String? partOfThreadTitle;
 
   const _JoinedMod({
@@ -51,10 +48,6 @@ class _JoinedMod {
     this.topicId,
     this.partOfThreadTitle,
   });
-
-  /// True when this mod came out of a thread's reading rather than the merge.
-  /// The releases rule needs to tell the two apart.
-  bool get isFromThreadOnly => partOfThreadTitle != null;
 }
 
 /// The two pictures a mod can be shown with: the one the site shows, and the
@@ -225,12 +218,15 @@ class PublicDataBuilder {
     // filed against a forum topic — can be handed to the right mod.
     final joined = <_JoinedMod>[];
     final takenIds = <String>{};
-    final everyMod = <({ScrapedMod mod, String? threadTitle})>[
-      for (final mod in mods) (mod: mod, threadTitle: null),
+    final everyMod = <({ScrapedMod mod, String? partOfThreadTitle})>[
+      for (final mod in mods) (mod: mod, partOfThreadTitle: null),
       for (final standIn in threadOnly)
-        (mod: standIn.mod, threadTitle: standIn.threadTitle),
+        (mod: standIn.mod, partOfThreadTitle: standIn.partOfThreadTitle),
     ];
-    for (final (mod: mod, threadTitle: threadTitle) in everyMod) {
+    for (final (
+          mod: mod,
+          partOfThreadTitle: partOfThreadTitle,
+        ) in everyMod) {
       final topicId =
           ModMerger.extractForumTopicId(mod.getUrls()[ModUrlType.Forum]);
       final id = idStore.idFor(mod.name, mark: markFor(mod, topicId));
@@ -252,7 +248,7 @@ class PublicDataBuilder {
         mod: mod,
         id: id,
         topicId: topicId,
-        partOfThreadTitle: threadTitle,
+        partOfThreadTitle: partOfThreadTitle,
       ));
     }
 
@@ -418,7 +414,7 @@ class PublicDataBuilder {
   /// a download, so it would remove nothing, and it is wrong often enough
   /// ("Iron Legion Faction Mod" is a no, a thread titled "Delete." is a yes)
   /// that it is a poor gate.
-  List<({ScrapedMod mod, String threadTitle})> _threadOnlyMods({
+  List<({ScrapedMod mod, String? partOfThreadTitle})> _threadOnlyMods({
     required List<ScrapedMod> mods,
     required Map<String, QbModSummary> threads,
     required _ReadPost Function(String? topicId) postsOf,
@@ -435,7 +431,7 @@ class PublicDataBuilder {
       publishedByTopic.putIfAbsent(topicId, () => []).add(mod);
     }
 
-    final standIns = <({ScrapedMod mod, String threadTitle})>[];
+    final standIns = <({ScrapedMod mod, String? partOfThreadTitle})>[];
     for (final entry in threads.entries) {
       final topicId = entry.key;
       final thread = entry.value;
@@ -495,7 +491,7 @@ class PublicDataBuilder {
         claimed.add(name);
         standIns.add((
           mod: _standInFor(llmMod, thread, published),
-          threadTitle: thread.title,
+          partOfThreadTitle: mainMods.length > 1 ? thread.title : null,
         ));
         // Which kind of thread it came off, so a run's log tells the two apart:
         // a thread the merge already knows, or one it has never heard of.

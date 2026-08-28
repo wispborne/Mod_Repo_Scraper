@@ -983,7 +983,8 @@ void main() {
       // to be, so it is published.
       final kwin = data.list.mods.singleWhere((m) => m.name == 'Kwin');
       expect(kwin.id, isNotEmpty);
-      expect(kwin.partOfThreadTitle, "Computica's Faction Forks");
+      expect(kwin.partOfThreadTitle, isNull,
+          reason: 'a thread holding one mod is not a shared thread');
       expect(kwin.sources, ['forum']);
       expect(kwin.bestDownload?.url, 'https://example.com/kwin.zip');
       expect(kwin.forumUrl, contains('topic=35651'));
@@ -1114,10 +1115,10 @@ void main() {
       );
 
       expect(data.list.mods, hasLength(2));
-      final merged =
-          data.list.mods.singleWhere((m) => m.partOfThreadTitle == null);
-      final forked =
-          data.list.mods.singleWhere((m) => m.partOfThreadTitle != null);
+      final merged = data.list.mods
+          .singleWhere((m) => m.forumUrl?.contains('topic=161') ?? false);
+      final forked = data.list.mods
+          .singleWhere((m) => m.forumUrl?.contains('topic=35651') ?? false);
 
       // The merged mod is walked first, so it keeps the plain address and the
       // fork takes the numbered one. Nobody's existing link moves.
