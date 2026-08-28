@@ -1,85 +1,217 @@
 ## Context
 
-`DiscordReader.readAllMessages` walks each configured channel by listing its threads and reading each thread's messages. That is the only shape it knows. Every channel in the config today is a Discord forum channel, so it has never needed another.
+`DiscordReader.readAllMessages` currently treats every configured channel as a
+forum channel. It lists threads and reads up to 100 messages from each thread.
+Three of the four channels added by this change hold mod announcements as direct
+messages instead. The current reader silently finds no mods in message channels.
 
-The four channels this change adds are all disused, and three of them predate forum channels entirely — Discord only launched those in late 2022, and these were made in April 2017, March 2021 and May 2023. In a plain text channel there are no threads to walk, so pointing the reader at one today finds nothing and reports nothing: no crash, no warning, no mods.
+`parseAsSingleMessage` already turns one direct message into one `ScrapedMod`.
+It came from the older scraper that read these channels. It is unreachable in
+the current path and has no direct-message fixtures.
 
-The parser for the other shape is already in the file. `parseAsSingleMessage` takes one message and builds a `ScrapedMod` from it, including the right Discord permalink. It came across in the Dart port from the earlier scraper, which was written for exactly these channels and ran against them for years. In this repo it is unreachable — the only branch that calls it needs a message with no parent thread, and every message in the current path has one — and it has no tests, where `parseAsThread` has eighteen.
-
-Two facts constrain the shape of the solution. The scraper runs twice a day from cron on a Linux host, so anything read on every run is read about seven hundred times a year. And a mod's web address comes from a permanent id handed out the first time it is seen and never reclaimed, so the first run that reads these channels is the one that decides several hundred addresses for good.
+The scraper runs twice a day. Re-reading fixed archives would waste thousands
+of Discord calls each week. The first accepted run also creates permanent site
+ids, so an incomplete or badly parsed first result is expensive to repair.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Read a Discord text channel as one mod per message, alongside the existing one-mod-per-thread reading.
-- Read a channel nobody posts in any more only once, and keep the answer.
-- Make a change to the message parser re-read every archive by itself, with nothing to do on the server.
-- Keep every existing behaviour of the forum-channel path exactly as it is, including its cost.
+- Read message channels as one mod announcement per ordinary message.
+- Keep the existing forum path at one page of at most 100 messages per thread.
+- Save only complete live archive reads.
+- Save each completed archive channel before starting the next one.
+- Let parser and filtering changes refresh archives through a code-held version.
+- Make the first real run reversible until publication is approved.
 
 **Non-Goals:**
 
-- Working out whether an old mod is still worth having. Everything found is published; see `docs/adr/0001-no-liveness-filter-on-archived-discord-mods.md`.
-- Changing the merge. An old announcement of a mod that still exists is grouped with it and dropped by same-source dedup, and that is the wanted behaviour.
-- Marking archive-found mods in `ModRepo.json` or on the site. They are ordinary mods.
-- Cutting the API cost of the live forum channels. That is what `openspec/changes/discord-incremental-cache` is for, and it comes after this.
-- Rewriting `parseAsSingleMessage`. It is proven code from the scraper that read these channels; the plan is to confirm it survived the port, not to redo it.
+- Deciding whether an old mod is still useful or alive.
+- Changing merge rules.
+- Marking archive-found mods in output files.
+- Reducing the cost of live forum channels.
+- Rewriting `parseAsSingleMessage` before real fixtures show a problem.
+
+## Existing Groundwork
+
+The current forum reader now fails the Discord source instead of returning a
+partial answer when message reads, thread-detail reads, archived-thread walks,
+or author opt-out checks do not finish. Reaction users are read in pages of 100.
+A test enforces the existing one-page, 100-message forum limit. The archive feature
+must keep those guarantees.
 
 ## Decisions
 
-### Discord tells us the channel's shape; the config tells us whether it is dead
+### Discord supplies the channel type; config supplies archive status
 
-Two separate facts, and only one of them is knowable from the API. The channel fetch the reader already makes on every channel returns a `type` field — 15 for a forum, 0 for plain text — and today that answer is parsed and thrown away. Adding one field to the `Channel` model is enough to branch on it, so no config entry can be filled in wrong.
+Discord type 0 (`GUILD_TEXT`) and type 5 (`GUILD_ANNOUNCEMENT`) hold messages.
+Types 15 (`GUILD_FORUM`) and 16 (`GUILD_MEDIA`) hold threads. The reader handles
+those four values explicitly.
 
-Whether anyone still posts in a channel is not in the API at all. It cannot be derived from the channel type either: `1115946075262550016` is a **forum** channel and also long dead. It could in principle be derived from position in the config list — everything but the last is an archive — and that was rejected, because it makes the meaning of a line depend on its order, so shuffling the list silently changes what gets fetched, and it breaks the day two channels are live at once. So archive-ness is an explicit third part on the entry.
+Old raw recordings do not contain `Channel.type`. A missing value therefore
+uses the old forum path. A present value that is not supported logs the channel
+id and type, then fails the Discord source. Sending an unsupported value down
+the forum path could silently produce no mods.
 
-An unknown type falls back to the forum path. That is what every channel did before this change, so a Discord API change cannot turn a working channel into a silent one.
+Direct-message history also contains replies and system messages. `Message`
+gains its required Discord `type` field. Only ordinary type 0 messages become
+mods. Replies, thread notices, pin notices, boosts, and other system messages
+are ignored. Threads attached to a message channel are side conversations and
+are not read.
 
-### A separate file for the archive answers, not the existing Discord cache
+### One named config value describes one channel
 
-`discord_cache.json` is the Discord source's own derived cache, written whole after every successful scrape and read back by a merge. Putting the archive answers in it would not work: any run that skipped the archives would rewrite the file without them. So the archives get `discord_archive_cache.json`, keyed by channel id, in the same working folder and covered by the same `/*_cache.json` gitignore rule.
+`modrepo_discord_channels` contains comma-separated entries in this form:
 
-Committing the answers to the repo was considered — immutable data really is a fact rather than a cache, and checking it in would let someone rebuild the site with no Discord token. Rejected because no scraped data is checked into this repo at all, and breaking that rule as a side effect of this change is the wrong way to decide it.
+`<channel id>:<game version>[:archive]`
 
-The archive mods still have to end up **inside** `discord_cache.json` along with the live channels' mods when a scrape writes it. A `mergeModRepo` job touches no network and reads Discord mods only from that file, so leaving them out would make every archive mod vanish from any merge-only run. This is the easiest thing in the change to get wrong and it fails silently.
+Parsing produces a `DiscordChannelSettings` value with `channelId`,
+`gameVersion`, and `isArchive`. A missing third part means live. The only valid
+third part is `archive`. Unknown third parts and duplicate channel ids are
+warned about and skipped. An entry with fewer than two parts is still ignored,
+and one bad entry does not hide its neighbors.
 
-### A version number in the code, not a switch on the server
+Archive status stays in config because Discord does not expose it. Channel type
+stays out of config because Discord does expose it.
 
-A saved answer that is never re-read is a trap: improve the parser and the stale answers stay for ever. "Delete the file to force a re-read" is a footgun when the thing running the scraper is cron on a box nobody logs into.
+The old key remains unsupported, matching the repository's last config rename.
+The production migration has an explicit backup and startup check.
 
-So the saved answers are keyed on the channel id **and** a version number that lives in the code. Bumping it in the same commit as a parser change means the next scheduled run re-reads every archive without anyone doing anything. This is exactly what `ExtractionPrompt.promptVersion` already does for the LLM extraction cache in the QB pipeline — same problem, same shape, and a reader who knows one will recognise the other.
+### A complete read is required before an archive can be saved
 
-### The page ceiling becomes the caller's, and says when it fires
+One channel read is complete only when all work required for that channel
+finishes:
 
-`_getMessages` stops after 25 pages of 100. For a forum thread that is far more than one ever holds, so it has never fired. An archive channel could hold more than 2,500 announcements, and the walk goes newest-first — so the messages it would drop are the oldest ones, which are exactly the mods this change exists to find. Worse, it drops them silently.
+- channel metadata was read;
+- active and archived thread lists finished when the channel holds threads;
+- every required thread detail was read;
+- every allowed message page finished;
+- every author opt-out lookup finished; and
+- the walk did not find more direct messages beyond its ceiling.
 
-The ceiling becomes a parameter: 25 for a thread, 200 for a text channel. And hitting it is logged either way, because a guard that discards data without saying so is worse than no guard.
+Any failure throws `DiscordReadException`. The manager then uses the last
+complete `discord_cache.json`, as it does for other Discord scrape failures.
 
-## Risks / Trade-offs
+The archive store is never written while `CachingClient.isReplaying`. A replay
+miss must fail the Discord scrape and fall back to the saved Discord source
+cache. It must not create a permanent answer from an old recording.
 
-- **The ported parser may have drifted.** `parseAsSingleMessage` has never run in this repo and nothing tests it. A subtle drift — taking the wrong line as the name — mints permanent web addresses for mangled mods. → The first run is done against a **copy** of the data folder, with the output read by hand before anything real happens. Note that `idStore.save()` fires inside the site build, before publishing is involved, so "run it but do not push" does not protect `mod-ids.json`; only a separate folder does. A command-line run cannot publish at all (`PublishService` is only built by the viewer server), so the copy is safe as long as the server is not pointed at the same folder.
+The four configured archives are known to contain messages. An empty result is
+accepted only when Discord channel metadata says there is no last message or
+thread and the first history request also returns empty. Any other empty result
+is treated as incomplete and is not saved.
 
-- **Real messages from those channels then become fixtures.** The dry run hands over a dozen genuine archived announcements at no extra cost, and pasting the interesting ones into `discord_reader_test.dart` is how every other parser in that file earned its trust.
+### The manager owns the archive store path
 
-- **The volume is a guess.** Two channels produce 464 mods today. Four more could be anywhere from 300 to 1,200, and nothing tells us until the dry run. `mods.json` is at 1.41 MB against a 2 MB pinned limit, which is roughly 450 mods of headroom; the limit goes to 3 MB. → If the dry run lands past about 900 new mods, 3 MB is not enough either and the choice between trimming a field and splitting the file has to be made then. The dry run is what tells us, before anything is published.
+`ModRepoService` constructs `DiscordArchiveStore` from
+`ModRepoEnvironment.workingPath` and passes it to the reader. `BotConfig` never
+supplies a filesystem path.
 
-- **The config key rename can silently disable Discord.** An unedited `config.properties` on the production host would leave `modrepo_discord_channels` unset, and the reader would find no channels. → The startup unknown-key warning names `modrepo_discord_forum_channels` as unrecognised, and the reader already logs that it found no channels in the config. This is the same trade this project took in commit `176b630`, which renamed every key at once with no aliases.
+The file has a small schema version and one entry per channel. Each entry holds
+the reader version and unstamped `ScrapedMod` values. A missing file is an empty
+store. Invalid JSON or an unknown schema is logged and treated as an empty
+store so the live read can rebuild it.
 
-- **It collides with `discord-incremental-cache`.** That proposal reworks the same per-thread fetch path and its design is keyed entirely on threads. → This change lands first. That one is unstarted — a proposal with no code — so it can be written against a reader that already knows there are two shapes of channel, rather than retrofitted.
+Each complete channel replaces its entry and saves immediately. Saving writes a
+temporary file beside the cache and atomically replaces the old file. A crash
+cannot leave half a JSON document, and a later channel failure does not lose an
+earlier completed channel.
 
-- **Archive channels might not be as fixed as we think.** If a channel is merely disused rather than locked, someone could post in it and we would never see it. → Bumping the version number re-reads everything, so the recovery is one line and a deploy.
+### Reader version covers every saved behavior
+
+The reader version is bumped when any change can alter stored mods. This
+includes direct-message parsing, message eligibility, cleanup, URL and image
+extraction, and author opt-out handling.
+
+The archive store keeps mods before the channel's fallback game version is
+applied. Loading an entry applies the current config value to mods that do not
+carry their own game version. Correcting an approximate channel label therefore
+does not require a reader-version bump or another Discord read.
+
+### Direct-message pagination proves whether it finished
+
+Forum threads keep the current total limit of 100 messages. This change does not
+increase their cost or change which replies their parser sees.
+
+A message channel may keep 200 pages of 100 messages. If page 200 is full, the
+reader makes one probe request for one older message. An empty probe proves the
+walk ended exactly at 20,000. A nonempty probe means the channel exceeds the
+20,000-message limit. The run logs the channel and count, fails that archive read, and
+saves nothing for it.
+
+### Later author opt-outs require a deliberate refresh
+
+A read-once cache cannot notice a reaction added later. If an author adds the
+🕸️ reaction or asks for removal, the maintainer bumps the reader version and
+runs the Discord scrape once. The refreshed result then removes the mod from
+`discord_cache.json` and later output. This manual process is accepted because
+these channels are disused, but it is recorded as part of the decision rather
+than left accidental.
+
+### The dry run examines existing mods as well as new ones
+
+Same-source dedup removes an old announcement only when another Discord copy
+also exists. A forum-only current mod can receive the archive's Discord link,
+source, or image during a cross-source merge. Merge debug and the existing diff
+viewer are therefore required during the dry run.
+
+The `mods.json` limit is not raised in advance. The copied-data run measures the
+real result. The test limit is then set with a small stated margin, or the file
+is split or trimmed if one file is no longer reasonable.
+
+## Risks and Responses
+
+- **The parser may no longer match current messages.** Run against copied data first, then turn real
+  archive messages into tests before touching production data.
+- **A channel may contain more than 20,000 messages.** The probe makes that a failed,
+  unsaved read instead of a permanent partial result.
+- **A config rename can disable Discord.** Back up and edit the real config,
+  then require a startup log that names the expected channel count and contains
+  no old-key warning.
+- **The first live read is slow.** The run instructions state that hundreds of
+  Discord requests are expected and that Discord has no two-minute source
+  timeout.
+- **The archive store can be lost or corrupt.** It is a rebuildable cache. A
+  complete live run rebuilds it.
 
 ## Migration Plan
 
-1. Write the openspec proposal, specs and tasks. *(this document)*
-2. Build it, with tests for the new code — the shape dispatch, the config entry with three parts, the archive read-once path, the page ceiling's log line.
-3. Copy `qb_data` and `outputs` into a scratch folder and run the scraper there with `qb_data_path` pointing at the copy. Read the new mods and their ids by hand.
-4. Take a dozen real messages from that run and turn them into `parseAsSingleMessage` fixtures.
-5. Throw the copy away. Run for real, and check the archive cache was written and the second run makes no Discord calls for those channels.
+1. Implement and test the feature without adding the four production entries.
+2. Compile the scraper executable from the repository.
+3. Create a scratch working folder. Copy `qb_data`, `outputs`,
+   `forum_cache.json`, `nexus_cache.json`, and `discord_cache.json` into it.
+4. Put a scratch `config.properties` beside the executable. Point
+   `qb_data_path` at the copied data. Use an absolute `publish_site_path`. Turn
+   off QB, Forum, and Nexus for the live Discord scrape. Keep
+   `modrepo_use_cached=false`.
+5. Start the manager against the scratch folder. Confirm no other manager or
+   viewer uses the real data folder.
+6. Run a Discord-only scrape to populate the copied archive and Discord caches.
+   Then run a merge-only job so the copied Forum and Nexus caches participate.
+7. Inspect archive counts, parsed names, downloads, and new ids. Use merge debug
+   and the diff viewer to inspect every changed existing mod.
+8. Check the measured `mods.json` size. Set and test the new limit only after
+   that measurement.
+9. Add real direct-message fixtures for plain text, several links, attachments,
+   no download, replies, system messages, author opt-out, and channel types 0
+   and 5. Run analysis and the full test suite.
+10. Back up the real `config.properties`, `qb_data/mod-ids.json`,
+    `discord_cache.json`, `outputs`, and generated site files. Confirm no publish
+    job is running.
+11. Replace the old config key, add the four archive entries, and start the real
+    run. Confirm startup reports the expected channel count and no old-key
+    warning.
+12. Confirm `discord_archive_cache.json` contains four complete entries. Run a
+    second scrape and confirm no archive-channel calls were made.
+13. Review the full output diff before publishing.
 
-Rolling back means restoring `mod-ids.json` and `discord_archive_cache.json` from before the run and reverting the config line — which works cleanly only while nothing has been published. That is the whole reason for step 3.
+Before publication, rollback restores every backup from step 10, removes the
+new archive cache, and restores the old config. After publication, removal is a
+normal data correction because permanent ids may already have been shared.
 
 ## Open Questions
 
-- How many mods do the four channels actually hold? Unknown until step 3, and it decides whether 3 MB is enough for `mods.json`.
-- `825068217361760306` ran from March 2021 to May 2023, spanning both 0.95a and 0.95.1a; it is labelled `0.95.1a`, where more of its life was spent. `305506161615175680` spans 0.8a through 0.9.1a and is labelled `0.9.1a`. Under the one-label-per-channel rule these are accepted as approximations, and the early posts in each are labelled newer than they really are.
+- How many mods do the four channels produce? The scratch run decides the site
+  file limit.
+- Two game-version labels cover channels that span several game releases. The
+  cache design keeps those labels editable without another Discord read.

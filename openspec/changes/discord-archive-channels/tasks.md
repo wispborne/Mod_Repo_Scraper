@@ -1,56 +1,141 @@
-## 1. The config entry gains a third part, and the key is renamed
+## 0. Existing Discord reads fail instead of returning partial data
 
-- [ ] 1.1 In `lib/bot/common.dart`, rename `modrepo_discord_forum_channels` to `modrepo_discord_channels` in `_recognizedKeys` — the old name is gone with no alias, so an unedited config file is caught by the existing unknown-key warning
-- [ ] 1.2 Rename `BotConfig.discordForumChannelIdsAndGameVersions` to `discordChannelsAndGameVersions`, and follow the renames through `lib/bot/scraper/discord_reader.dart`, `lib/manager/scraper_settings.dart` and `lib/manager/modrepo_service.dart`
-- [ ] 1.3 Change what `_parseForumChannelIds` returns so an entry can say it is an archive: `<channel id>:<game version>[:archive]`. Keep the existing rule that an entry with fewer than two parts is ignored, and keep the whole list readable when one entry is malformed
-- [ ] 1.4 Rename that parser to match what it now parses, and give it a comment saying why archive-ness is in the config when the channel's shape is not
-- [ ] 1.5 Run `dart run build_runner build --delete-conflicting-outputs` — `BotConfig` is a `@MappableClass`, so `common.mapper.dart` has to be regenerated, never hand-edited
-- [ ] 1.6 Update `config.example.properties`: the new key name, the four new channels, and a plain-English note saying what the third part means and that Discord tells us the rest
-- [ ] 1.7 Tests in `test/config_test.dart` — the new key reads, an entry with `:archive` is marked, an entry without it is not, a malformed entry is skipped and its neighbours still read, and both existing example-config tests still pass
+- [x] 0.1 Through `DiscordReader.readAllMessages`, test that a malformed or
+  failed message response fails the Discord scrape
+- [x] 0.2 Make message-read failures throw `DiscordReadException` instead of
+  returning messages collected before the failure
+- [x] 0.3 Test and enforce the same rule for failed forum-thread detail reads and
+  an archived-thread walk that cannot finish
+- [x] 0.4 Test and enforce the same rule for failed author opt-out lookups
+- [x] 0.5 Read reaction users in pages of 100 and test an author found on the
+  second page
+- [x] 0.6 Add a characterization test that keeps forum threads at one page of at
+  most 100 messages
 
-## 2. The reader learns there are two shapes of channel
+## 1. Parse one named setting for each Discord channel
 
-- [ ] 2.1 Add `type` to the `Channel` model in `lib/bot/scraper/discord_reader.dart`, with named constants for Discord's numbering (15 forum, 16 media, 0 text) and a helper saying whether each post in this channel is its own thread
-- [ ] 2.2 Make an unknown or missing type fall back to the forum path, so a Discord API change cannot turn a working channel silent
-- [ ] 2.3 Run `build_runner` again — `Channel` is a `@MappableClass` too
-- [ ] 2.4 Split the per-channel work: fetch the channel once, then send it to either the thread reader or the new message reader. `_readAllThreadsFromForumChannelId` takes the already-fetched `Channel` instead of fetching its own
-- [ ] 2.5 Pull the 🕸️ opt-out check out of the thread loop into one function both readers call, keeping its two log lines word for word — the check is per message, and a reaction only counts when it came from the person who wrote the post
-- [ ] 2.6 Write the text-channel reader: walk the channel's own messages, drop the ones with no text, apply the opt-out check, run each survivor through the existing `parseAsSingleMessage`, then `_cleanUpMod` and drop empty names — the same tail the thread reader already has
-- [ ] 2.7 Do not read threads hanging off a text channel, and say why in a comment: these channels are announcement-only, so a thread is a side conversation and reading both would bring one mod in twice
+- [ ] 1.1 Add `DiscordChannelSettings` with `channelId`, `gameVersion`, and
+  `isArchive`; use a list of these values through `BotConfig`,
+  `ModRepoEnvironment`, and `DiscordReader`
+- [ ] 1.2 Rename `modrepo_discord_forum_channels` to
+  `modrepo_discord_channels` in `Common._recognizedKeys`, with no alias
+- [ ] 1.3 Parse `<channel id>:<game version>[:archive]`; a missing third part is
+  live and the only accepted third part is `archive`
+- [ ] 1.4 Warn and skip an unknown third part or a duplicate channel id; keep
+  parsing neighboring entries when one entry is bad
+- [ ] 1.5 Test live entries, archive entries, malformed entries, unknown third
+  parts, duplicate ids, and both example-config checks through
+  `Common.readConfig`
+- [ ] 1.6 Update `config.example.properties` with the new key, the four archive
+  entries, and a plain-English migration note
+- [ ] 1.7 Regenerate `common.mapper.dart` with build runner; do not edit it by
+  hand
 
-## 3. The message walk stops loudly
+## 2. Dispatch supported channel and message types explicitly
 
-- [ ] 3.1 Give `_getMessages` a page ceiling the caller picks, with named constants — 25 pages for a forum thread as now, 200 for a text channel
-- [ ] 3.2 Log when the walk stops because it hit the ceiling rather than because a short page came back, naming the channel and how many messages were read
-- [ ] 3.3 Test both: a channel smaller than the ceiling is read whole with nothing logged about it, and one larger stops and says so
+- [ ] 2.1 Add nullable `type` to `Channel`, with named values for message
+  channels 0 and 5 and thread channels 15 and 16
+- [ ] 2.2 Through `DiscordReader.readAllMessages`, test types 0, 5, 15, and 16;
+  test that a missing type uses the forum path and a present unsupported type
+  fails with the channel id and type in the error
+- [ ] 2.3 Fetch each channel once, then send it to the message reader or the
+  existing thread reader; do not read threads attached to a message channel
+- [ ] 2.4 Add required Discord `type` to `Message`; only type 0 direct messages
+  can become mods, while replies and system messages are ignored
+- [ ] 2.5 Test ordinary messages, replies, thread notices, pin notices, and other
+  real system-message fixtures through the public reader
+- [ ] 2.6 Pull the 🕸️ author check into one function used by message and thread channels
+  without changing its two existing log messages
+- [ ] 2.7 Run build runner for the changed `Channel` and `Message` models
 
-## 4. An archive channel is read once
+## 3. Prove whether a direct-message walk finished
 
-- [ ] 4.1 Write the archive store — one file, `discord_archive_cache.json`, in the working folder beside the other per-source caches, holding each archive channel's mods keyed by channel id, plus the reader version they were written under
-- [ ] 4.2 Add the reader version constant with a comment saying to bump it whenever the message parser changes, and pointing at `ExtractionPrompt.promptVersion` as the same idea in the QB pipeline
-- [ ] 4.3 In `readAllMessages`, take an archive channel's mods from the store when they are there and the version matches; otherwise read it from Discord and write them
-- [ ] 4.4 Make sure the archive mods go into the Discord source's own `discord_cache.json` alongside the live channels' mods when a scrape writes it — a merge that touches no network reads only that file, so leaving them out loses every archive mod silently
-- [ ] 4.5 Test: a first run reads an archive from Discord and writes the store; a second run with the same version makes no Discord calls for it; raising the version makes the next run read it again
-- [ ] 4.6 Test: a merge with no scrape still sees the archive channels' mods
-- [ ] 4.7 Check the file is covered by the existing `/*_cache.json` line in `.gitignore` rather than adding a new one
+- [ ] 3.1 Keep the existing total limit of 100 messages for one forum thread
+- [ ] 3.2 Let a message channel keep up to 200 pages of 100 messages
+- [ ] 3.3 When page 200 is full, make one one-message probe request before the
+  oldest kept message
+- [ ] 3.4 Treat an empty probe as complete; treat a nonempty probe as an
+  incomplete read that throws `DiscordReadException` and logs the channel and
+  count
+- [ ] 3.5 Test a short channel, exactly 20,000 messages, and more than 20,000
+  messages through `DiscordReader.readAllMessages`
 
-## 5. The four channels, and the size limit
+## 4. Save only complete live archive results
 
-- [ ] 5.1 Add the four channels to `config.example.properties`: `1115946075262550016:0.96a:archive`, `1104110077075542066:0.96a:archive`, `825068217361760306:0.95.1a:archive`, `305506161615175680:0.9.1a:archive`
-- [ ] 5.2 Check every game version is spelled the way `ModRepo.json` already spells it — `0.9.1a` not `0.91`, `0.95.1a` not `0.95` — since the string goes through `Version.parse` and drives the site's version filter
-- [ ] 5.3 Raise the pinned limit in `test/site/public_data_builder_test.dart` from 2 MB to 3 MB, with a comment saying why it moved
+- [ ] 4.1 Add `DiscordArchiveStore`, constructed by `ModRepoService` from
+  `ModRepoEnvironment.workingPath` and passed into `DiscordReader`
+- [ ] 4.2 Give the file a schema version and each channel entry a reader version;
+  keep the stored mods free of the config fallback game version
+- [ ] 4.3 Treat a missing, corrupt, or unknown-schema file as an empty cache and
+  log why a live rebuild is needed
+- [ ] 4.4 Define the reader-version comment to cover parsing, message filtering,
+  cleanup, URL and image extraction, and author opt-out behavior
+- [ ] 4.5 Never write the archive store while `CachingClient.isReplaying`; a
+  replay miss fails the Discord scrape so the manager can use `discord_cache`
+- [ ] 4.6 Save an archive entry only after channel metadata, thread lists, thread
+  details, allowed message pages, and reaction checks all finish
+- [ ] 4.7 Accept an empty archive only when metadata reports no last message or
+  thread and the first history response is empty; treat other empty results as
+  incomplete
+- [ ] 4.8 Save each completed channel immediately by writing beside the cache and
+  atomically replacing it
+- [ ] 4.9 Apply the current configured fallback game version when live or cached
+  mods are added to the run, not before archive storage
 
-## 6. Docs
+## 5. Test cache and merge behavior at public boundaries
 
-- [ ] 6.1 Add the vocabulary to the Discord part of `CLAUDE.md`: forum channel (one mod per thread), text channel (one mod per message), archive channel (nobody posts there, read once), announcement (one post, one mod)
-- [ ] 6.2 Write down the read-once rule, the version number that forces a re-read, and the trap that archive mods have to reach `discord_cache.json` or a merge-only run loses them
-- [ ] 6.3 Note in `CLAUDE.md`'s caching section that `discord_archive_cache.json` is a third kind of thing on disk — a derived cache that is never invalidated by age, only by the version number
+- [ ] 5.1 Test that a first complete live read writes one archive entry and a
+  second run with the same reader version makes no calls for that channel
+- [ ] 5.2 Test that a reader-version change refreshes every archive and that a
+  game-version config change does not require a Discord call
+- [ ] 5.3 Test that message, thread, reaction, ceiling, and unexpected-empty
+  failures write no entry while preserving entries completed earlier in the run
+- [ ] 5.4 Test corrupt and unknown-schema cache recovery and atomic replacement
+- [ ] 5.5 Test that raw replay never populates the archive store
+- [ ] 5.6 Test that archive mods are written into `discord_cache.json` with live
+  Discord mods and remain available to a merge-only job
+- [ ] 5.7 Add real `parseAsSingleMessage` fixtures covering names, downloads,
+  attachments, missing downloads, replies, and system messages
 
-## 7. The careful first run
+## 6. Document the finished behavior
 
-- [ ] 7.1 Copy `qb_data` and `outputs` into a scratch folder, and make a config pointing `qb_data_path` at the copy with the four channels turned on
-- [ ] 7.2 Run the scraper with that folder as its working directory, and check the viewer server is not running against the real folder
-- [ ] 7.3 Read the run: how many mods each archive channel produced, what names they got, and what ids `mod-ids.json` in the copy handed out. Look for mangled names, which is what a drifted parser looks like
-- [ ] 7.4 Check `mods.json` in the copy against the 3 MB limit, and say plainly if it does not fit — that is a decision to take before publishing, not after
-- [ ] 7.5 Take a dozen real messages from the run — a plain one, one with several links, one with an attachment, one with no download — and turn them into `parseAsSingleMessage` tests in `test/discord_reader_test.dart`, checking the name and the right download for each
-- [ ] 7.6 Throw the copy away, run for real, and check that the archive cache was written and a second run makes no Discord calls for those channels
+- [ ] 6.1 Update the Discord section of `CLAUDE.md` with message channels, thread
+  channels, archive channels, mod announcements, supported Discord type values,
+  and the unchanged 100-message forum limit
+- [ ] 6.2 Document complete-read requirements, live-only atomic saves, reader
+  version coverage, game-version timing, and the path from archive entries into
+  `discord_cache.json`
+- [ ] 6.3 Document the manual later-opt-out process: bump the reader version,
+  rerun Discord once, rebuild, and publish the removal
+- [ ] 6.4 Note that `discord_archive_cache.json` is a derived cache rebuilt after
+  corruption or an unknown schema
+
+## 7. Run against copied data before production
+
+- [ ] 7.1 Compile the scraper executable and create a scratch working folder
+- [ ] 7.2 Copy `qb_data`, `outputs`, `forum_cache.json`, `nexus_cache.json`, and
+  `discord_cache.json` into the scratch folder
+- [ ] 7.3 Create a scratch config with an absolute `publish_site_path`, copied
+  `qb_data_path`, live Discord reads, and QB, Forum, and Nexus scraping off
+- [ ] 7.4 Start the manager against the scratch folder and confirm no process is
+  using the real data folder
+- [ ] 7.5 Run a Discord-only scrape, then a merge-only job so the copied Forum and
+  Nexus caches participate
+- [ ] 7.6 Inspect archive counts, parsed names, downloads, and new ids; use merge
+  debug and the diff viewer to inspect every changed existing mod
+- [ ] 7.7 Measure `mods.json`, then set its tested limit with a stated margin or
+  change the file design if one file is no longer reasonable
+- [ ] 7.8 Turn real messages from message and thread channels into parser and filtering
+  fixtures; run analysis and the full test suite
+
+## 8. Migrate and verify production safely
+
+- [ ] 8.1 Back up real `config.properties`, `qb_data/mod-ids.json`,
+  `discord_cache.json`, `outputs`, and generated site files
+- [ ] 8.2 Replace the old Discord channel key and add the four archive entries;
+  confirm startup reports the expected count with no old-key warning
+- [ ] 8.3 Run once and confirm four complete archive entries were saved; run
+  again and confirm no archive-channel calls were made
+- [ ] 8.4 Review the complete output diff before publishing
+- [ ] 8.5 Before publication, rollback restores every backup, removes
+  `discord_archive_cache.json`, and restores the old config

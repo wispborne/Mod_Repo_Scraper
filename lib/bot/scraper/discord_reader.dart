@@ -26,6 +26,16 @@ import 'scraped_mod.dart';
 
 part 'discord_reader.mapper.dart';
 
+class DiscordReadException implements Exception {
+  final String message;
+  final Object? cause;
+
+  const DiscordReadException(this.message, [this.cause]);
+
+  @override
+  String toString() => cause == null ? message : '$message: $cause';
+}
+
 class DiscordReader {
   static const String baseUrl = "https://discord.com/api";
 
@@ -596,7 +606,14 @@ class DiscordReader {
               await _getChannel(serverId: serverId, channelId: thread.id, authToken: authToken, client: client);
           channels.add(channel);
         } catch (e, stackTrace) {
-          timber.w(t: e, message: () => "Error getting channel info");
+          timber.e(t: e, message: () => "Error getting channel info");
+          Error.throwWithStackTrace(
+            DiscordReadException(
+              'Could not read forum thread ${thread.name ?? thread.id}',
+              e,
+            ),
+            stackTrace,
+          );
         }
       }
       return channels;
@@ -618,8 +635,10 @@ class DiscordReader {
     while (hasMore) {
       runs++;
       if (runs > 50) {
-        timber.e(message: () => "Fetched 'more archives' 50 times, probably an error. Stopping.");
-        break;
+        throw DiscordReadException(
+          'Could not finish reading archived forum threads for channel '
+          '$channelId after 50 pages',
+        );
       }
 
       final uri = Uri.parse("$baseUrl/channels/$channelId/threads/archived/public").replace(
@@ -684,10 +703,10 @@ class DiscordReader {
 
         final decoded = jsonDecode(response.body);
         if (decoded is! List) {
-          timber.w(
-              message: () =>
-                  "Expected List from Discord messages API but got ${decoded.runtimeType}: ${response.body.length > 200 ? response.body.substring(0, 200) : response.body}");
-          break;
+          throw DiscordReadException(
+            'Discord did not return a message list for channel '
+            '${channelName ?? channelId}',
+          );
         }
 
         final newMessages = decoded.map((json) => MessageMapper.fromMap(json)).toList()
@@ -701,9 +720,17 @@ class DiscordReader {
           timber.i(message: () => "Found all ${messages.length} posts in channel $channelName.");
           break;
         }
-      } catch (e) {
-        timber.w(t: e, message: () => "Error getting messages for $uri, run $runs");
-        break;
+      } catch (e, stackTrace) {
+        timber.e(t: e, message: () => "Error getting messages for $uri, run $runs");
+        if (e is DiscordReadException) rethrow;
+        Error.throwWithStackTrace(
+          DiscordReadException(
+            'Could not read every message from channel '
+            '${channelName ?? channelId}',
+            e,
+          ),
+          stackTrace,
+        );
       }
     }
 
@@ -719,26 +746,57 @@ class DiscordReader {
   }) async {
     try {
       timber.i(message: () => "Checking to see who reacted to message $messageId with 🕸️.");
+      const pageSize = 100;
+      final reacters = <User>[];
+      String? after;
 
-      final response = await _makeHttpRequestWithRateLimiting(client, () async {
-        return await client.get(
-          Uri.parse("$baseUrl/channels/$channelId/messages/$messageId/reactions/$emoji"),
-          headers: {
-            "Authorization": "Bot $authToken",
-            "Accept": "application/json",
-          },
-        );
-      });
+      while (true) {
+        final uri = Uri.parse(
+          "$baseUrl/channels/$channelId/messages/$messageId/reactions/$emoji",
+        ).replace(queryParameters: {
+          'limit': pageSize.toString(),
+          if (after != null) 'after': after,
+        });
+        final response = await _makeHttpRequestWithRateLimiting(client, () async {
+          return await client.get(
+            uri,
+            headers: {
+              "Authorization": "Bot $authToken",
+              "Accept": "application/json",
+            },
+          );
+        });
 
-      final decoded = jsonDecode(response.body);
-      if (decoded is! List) {
-        timber.w(message: () => "Expected List from Discord reactions API but got ${decoded.runtimeType}");
-        return [];
+        final decoded = jsonDecode(response.body);
+        if (decoded is! List) {
+          throw DiscordReadException(
+            'Discord did not return the users needed for the author opt-out check '
+            'on message $messageId',
+          );
+        }
+
+        final page = decoded.map((json) => UserMapper.fromMap(json)).toList();
+        reacters.addAll(page);
+        if (page.length < pageSize) return reacters;
+
+        final nextAfter = page.last.id;
+        if (nextAfter == after) {
+          throw DiscordReadException(
+            'Discord repeated a page during the author opt-out check on '
+            'message $messageId',
+          );
+        }
+        after = nextAfter;
       }
-      return decoded.map((json) => UserMapper.fromMap(json)).toList();
     } catch (e, stackTrace) {
       timber.e(t: e, message: () => "Error getting reacters");
-      return [];
+      Error.throwWithStackTrace(
+        DiscordReadException(
+          'Could not complete the author opt-out check for message $messageId',
+          e,
+        ),
+        stackTrace,
+      );
     }
   }
 
@@ -778,11 +836,18 @@ class DiscordReader {
         continue;
       }
 
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw DiscordReadException(
+          'Discord request failed with HTTP ${response.statusCode}',
+        );
+      }
+
       return response;
     }
 
-    // If we exhausted retries, make one final call and return whatever we get.
-    return await call();
+    throw const DiscordReadException(
+      'Discord rate limit did not clear after 6 attempts',
+    );
   }
 
   static final RegExp _discordUnrecognizedEmojiRegex = RegExp(r'(<:.+?:.+?>)');

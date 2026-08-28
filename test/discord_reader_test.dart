@@ -1,8 +1,307 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:mod_repo_scraper/bot/common.dart';
 import 'package:test/test.dart';
 import 'package:mod_repo_scraper/bot/scraper/discord_reader.dart';
 import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 
+const _serverId = 'server';
+const _forumChannelId = 'forum';
+const _threadId = 'thread';
+
+BotConfig _discordConfig() => const BotConfig(
+      lessScraping: false,
+      enableForums: false,
+      enableDiscord: true,
+      enableNexus: false,
+      logLevel: 'INFO',
+      discordAuthToken: 'token',
+      discordServerId: _serverId,
+      discordForumChannelIdsAndGameVersions: {_forumChannelId: '0.98a'},
+    );
+
+MockClient _forumClient({
+  required Future<http.Response> Function(http.Request request) messages,
+  Future<http.Response> Function(http.Request request)? reactions,
+  Future<http.Response> Function(http.Request request)? threadDetails,
+  Future<http.Response> Function(http.Request request)? archivedThreads,
+  bool includeActiveThread = true,
+  void Function(http.Request request)? onRequest,
+}) {
+  return MockClient((request) async {
+    onRequest?.call(request);
+    final path = request.url.path;
+
+    if (path == '/api/channels/$_forumChannelId') {
+      return http.Response(jsonEncode({'id': _forumChannelId, 'name': 'mods'}), 200);
+    }
+    if (path == '/api/guilds/$_serverId/threads/active') {
+      return http.Response(
+        jsonEncode({
+          'threads': includeActiveThread
+              ? [
+                  {
+                    'id': _threadId,
+                    'name': 'Test Mod',
+                    'parent_id': _forumChannelId,
+                    'timestamp': '2026-01-01T00:00:00.000Z',
+                  },
+                ]
+              : <Object>[],
+        }),
+        200,
+      );
+    }
+    if (path == '/api/channels/$_forumChannelId/threads/archived/public') {
+      final handler = archivedThreads;
+      if (handler != null) return handler(request);
+      return http.Response(jsonEncode({'threads': <Object>[], 'has_more': false}), 200);
+    }
+    if (path == '/api/channels/$_threadId') {
+      final handler = threadDetails;
+      if (handler != null) return handler(request);
+      return http.Response(
+        jsonEncode({
+          'id': _threadId,
+          'name': 'Test Mod',
+          'parent_id': _forumChannelId,
+          'timestamp': '2026-01-01T00:00:00.000Z',
+        }),
+        200,
+      );
+    }
+    if (path == '/api/channels/$_threadId/messages') {
+      return messages(request);
+    }
+    if (path.contains('/reactions/')) {
+      final handler = reactions;
+      if (handler == null) {
+        throw StateError('The test did not expect a reaction request.');
+      }
+      return handler(request);
+    }
+
+    throw StateError('The test did not expect ${request.method} ${request.url}.');
+  });
+}
+
 void main() {
+  group('readAllMessages', () {
+    test('fails when Discord does not return a complete message list', () async {
+      final client = _forumClient(
+        messages: (_) async => http.Response(
+          jsonEncode({'message': 'Missing access'}),
+          403,
+        ),
+      );
+
+      await expectLater(
+        DiscordReader.readAllMessages(_discordConfig(), httpClient: client),
+        throwsA(isA<DiscordReadException>()),
+      );
+    });
+
+    test('fails when a message request returns an error with a list body', () async {
+      final client = _forumClient(
+        messages: (_) async => http.Response(jsonEncode(<Object>[]), 403),
+      );
+
+      await expectLater(
+        DiscordReader.readAllMessages(_discordConfig(), httpClient: client),
+        throwsA(isA<DiscordReadException>()),
+      );
+    });
+
+    test('fails when Discord cannot read a forum thread', () async {
+      final client = _forumClient(
+        threadDetails: (_) async => http.Response(
+          jsonEncode({'message': 'Missing access'}),
+          403,
+        ),
+        messages: (_) async => http.Response(jsonEncode(<Object>[]), 200),
+      );
+
+      await expectLater(
+        DiscordReader.readAllMessages(_discordConfig(), httpClient: client),
+        throwsA(
+          isA<DiscordReadException>().having(
+            (error) => error.message,
+            'message',
+            contains('forum thread'),
+          ),
+        ),
+      );
+    });
+
+    test('fails when archived forum-thread pagination cannot finish', () async {
+      final client = _forumClient(
+        includeActiveThread: false,
+        archivedThreads: (_) async => http.Response(
+          jsonEncode({'threads': <Object>[], 'has_more': true}),
+          200,
+        ),
+        messages: (_) async => http.Response(jsonEncode(<Object>[]), 200),
+      );
+
+      await expectLater(
+        DiscordReader.readAllMessages(_discordConfig(), httpClient: client),
+        throwsA(
+          isA<DiscordReadException>().having(
+            (error) => error.message,
+            'message',
+            contains('archived forum threads'),
+          ),
+        ),
+      );
+    });
+
+    test('fails when Discord cannot complete an author opt-out check', () async {
+      final client = _forumClient(
+        messages: (_) async => http.Response.bytes(
+          utf8.encode(jsonEncode([
+            {
+              'id': 'message',
+              'content': 'Test Mod\nA test mod.',
+              'timestamp': '2026-01-01T00:00:00.000Z',
+              'author': {'id': 'author', 'username': 'Author'},
+              'reactions': [
+                {
+                  'count': 1,
+                  'emoji': {'name': DiscordReader.noscrapeReaction},
+                },
+              ],
+            },
+          ])),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        ),
+        reactions: (_) async => http.Response(
+          jsonEncode({'message': 'Missing access'}),
+          403,
+        ),
+      );
+
+      await expectLater(
+        DiscordReader.readAllMessages(_discordConfig(), httpClient: client),
+        throwsA(
+          isA<DiscordReadException>().having(
+            (error) => error.message,
+            'message',
+            contains('author opt-out check'),
+          ),
+        ),
+      );
+    });
+
+    test('fails when an opt-out request returns an error with a list body', () async {
+      final client = _forumClient(
+        messages: (_) async => http.Response.bytes(
+          utf8.encode(jsonEncode([
+            {
+              'id': 'message',
+              'content': 'Test Mod\nA test mod.',
+              'timestamp': '2026-01-01T00:00:00.000Z',
+              'author': {'id': 'author', 'username': 'Author'},
+              'reactions': [
+                {
+                  'count': 1,
+                  'emoji': {'name': DiscordReader.noscrapeReaction},
+                },
+              ],
+            },
+          ])),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        ),
+        reactions: (_) async => http.Response(jsonEncode(<Object>[]), 500),
+      );
+
+      await expectLater(
+        DiscordReader.readAllMessages(_discordConfig(), httpClient: client),
+        throwsA(isA<DiscordReadException>()),
+      );
+    });
+
+    test('checks every reaction page for an author opt-out', () async {
+      var reactionRequests = 0;
+      final client = _forumClient(
+        messages: (_) async => http.Response.bytes(
+          utf8.encode(jsonEncode([
+            {
+              'id': 'message',
+              'content': 'Test Mod\nA test mod.',
+              'timestamp': '2026-01-01T00:00:00.000Z',
+              'author': {'id': 'author', 'username': 'Author'},
+              'reactions': [
+                {
+                  'count': 101,
+                  'emoji': {'name': DiscordReader.noscrapeReaction},
+                },
+              ],
+            },
+          ])),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        ),
+        reactions: (request) async {
+          reactionRequests++;
+          final after = request.url.queryParameters['after'];
+          final users = after == null
+              ? List.generate(
+                  100,
+                  (index) => {
+                    'id': index.toString().padLeft(3, '0'),
+                    'username': 'Other $index',
+                  },
+                )
+              : [
+                  {'id': 'author', 'username': 'Author'},
+                ];
+          return http.Response(jsonEncode(users), 200);
+        },
+      );
+
+      final mods = await DiscordReader.readAllMessages(
+        _discordConfig(),
+        httpClient: client,
+      );
+
+      expect(mods, isEmpty);
+      expect(reactionRequests, 2);
+    });
+
+    test('keeps forum threads limited to one page of 100 messages', () async {
+      var messageRequests = 0;
+      final client = _forumClient(
+        messages: (_) async {
+          messageRequests++;
+          return http.Response(
+            jsonEncode(List.generate(
+              100,
+              (index) => {
+                'id': 'message-$index',
+                'content': index == 0 ? 'Test Mod\nA test mod.' : 'Follow-up $index',
+                'timestamp': DateTime.utc(2026, 1, 1).add(Duration(seconds: index)).toIso8601String(),
+                'author': {'id': 'author', 'username': 'Author'},
+              },
+            )),
+            200,
+          );
+        },
+      );
+
+      final mods = await DiscordReader.readAllMessages(
+        _discordConfig(),
+        httpClient: client,
+      );
+
+      expect(mods, hasLength(1));
+      expect(messageRequests, 1);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // getForumUrlFromMessage — pure function tests with real Discord data
   // ---------------------------------------------------------------------------

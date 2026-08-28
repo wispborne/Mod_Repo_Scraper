@@ -2,28 +2,34 @@
 
 The Unofficial Starsector Chat has four disused mod-announcement channels going
 back to 2017. Whether a mod reaches Starmodder currently depends on where its
-author happened to post: a 2016 mod with a forum thread is on the site, and a
-2016 mod announced only on Discord is nowhere. We read all four channels and
-publish everything in them, with no rule that tries to work out whether a mod is
-still alive.
+author posted it. A mod with a forum thread is visible. A mod announced only in
+an old Discord channel may be missing.
 
-We considered filtering — by a working download link, by a newer mod of the same
-name, by a cut-off date. Every such rule is wrong in both directions. People do
-play old game versions, and a dead link does not mean a dead mod. The site
-already has the right mechanism: Browse leaves out mods for older game versions
-behind a switch that is on by default, so these mods are hidden from the default
-view without anyone deciding they are worthless.
+We will read all four channels and publish every valid mod announcement. We will
+not try to decide whether each mod is still alive.
+
+We considered filtering by a working download, a newer mod with the same name,
+or a cutoff date. Each rule gives wrong answers. People still play old game
+versions. A dead link does not prove that a mod is unwanted. Browse already
+hides old game versions behind its default switch, so these mods do not crowd
+the normal current-version view.
 
 ## Consequences
 
-This is the part that cannot be undone. A mod's web address comes from a
-permanent id in `mod-ids.json`, handed out the first time the mod is seen and
-kept for ever. Publishing several hundred long-dead mods mints several hundred
-permanent addresses, and there is no way to reclaim them if we change our minds.
-That is why the first run is done against a copied data folder and read by hand
-before anything real happens.
+A mod's site address comes from a permanent id in `mod-ids.json`. The first real
+run could create several hundred permanent addresses. That run must therefore
+happen against copied data first. Parsed names, new ids, downloads, and changes
+to existing mods must be checked before production data is touched.
 
-It also means `mods.json`, which the browse page fetches whole, grows — its
-pinned size limit went from 2 MB to 3 MB to make room. And these mods go to
-TriOS too, since they ride in `ModRepo.json`, with nothing marking them as
-archive finds.
+An old Discord announcement is not always discarded. If a current copy exists
+only on the forum, a cross-source merge can add the old Discord link, source, or
+image to that existing mod. The copied-data run must use merge debug and inspect
+those changes as well as newly added mods.
+
+`mods.json` will grow, but its size limit will not be guessed in advance. The
+copied-data run will measure the real result. The test limit will then be raised
+with a stated margin, or the file will be split or trimmed if one file is no
+longer reasonable.
+
+The archive origin is not added to `ModRepo.json` or the site. Accepted archive
+mods are ordinary Discord mods and also reach TriOS.
