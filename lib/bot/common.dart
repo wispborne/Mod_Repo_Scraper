@@ -426,9 +426,9 @@ class BotConfig with BotConfigMappable {
   final int? llmMaxInputChars;
   /// Ask the server to turn off "thinking" for reasoning models (Qwen3, ...).
   /// This task is plain extraction, so thinking only wastes output space and
-  /// can fill the whole reply before the answer is written. Only for local
-  /// servers (Ollama, vLLM, ...); leave off for cloud services, which reject
-  /// the extra request fields.
+  /// can fill the whole reply before the answer is written. The request client
+  /// sends the control expected by OpenRouter or by the configured local
+  /// server.
   final bool llmDisableThinking;
   /// Ask the primary endpoint to force the answer into the exact JSON shape
   /// (`response_format: json_schema`). A server that honours it (e.g. llama.cpp)
@@ -464,9 +464,8 @@ class BotConfig with BotConfigMappable {
   final String? llmFallbackModel;
   /// API key for the fallback service. Optional, same as [llmApiToken].
   final String? llmFallbackApiToken;
-  /// "Turn off thinking" for the fallback service. Defaults to false — cloud
-  /// services (OpenRouter, ...) reject the extra request fields, so leave it off
-  /// unless the fallback is itself a local server.
+  /// "Turn off thinking" for the fallback service. The request client sends
+  /// the control expected by OpenRouter or by the configured local server.
   final bool llmFallbackDisableThinking;
   /// The [llmStructuredOutput] switch for the fallback endpoint. Leave off for
   /// OpenRouter and most cloud providers, which often reject a json_schema

@@ -94,6 +94,42 @@ void main() {
     });
   });
 
+  group('OpenAiCompatibleClient disable thinking', () {
+    test('uses OpenRouter reasoning controls for OpenRouter', () async {
+      final cap = _CapturingClient();
+      final client = OpenAiCompatibleClient(
+        client: cap.build(),
+        baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+        model: 'test',
+        disableThinking: true,
+      );
+
+      await client.complete(_request());
+
+      expect(cap.lastBody!['reasoning'], {'effort': 'none'});
+      expect(cap.lastBody!, isNot(contains('think')));
+      expect(cap.lastBody!, isNot(contains('chat_template_kwargs')));
+    });
+
+    test('keeps the existing local-server thinking controls', () async {
+      final cap = _CapturingClient();
+      final client = OpenAiCompatibleClient(
+        client: cap.build(),
+        baseUrl: 'http://localhost:8080/v1/chat/completions',
+        model: 'test',
+        disableThinking: true,
+      );
+
+      await client.complete(_request());
+
+      expect(cap.lastBody!['think'], false);
+      expect(cap.lastBody!['chat_template_kwargs'], {
+        'enable_thinking': false,
+      });
+      expect(cap.lastBody!, isNot(contains('reasoning')));
+    });
+  });
+
   group('ExtractionPrompt.buildResponseSchema', () {
     test('is a strict object with the top-level shape', () {
       final s = ExtractionPrompt.buildResponseSchema();

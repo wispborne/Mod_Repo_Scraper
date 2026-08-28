@@ -25,10 +25,8 @@ class OpenAiCompatibleClient implements LlmClient {
   final String? _apiToken;
 
   /// When true, ask the endpoint to turn off "thinking" for reasoning models
-  /// (Qwen3, ...). Sent as both Ollama's native `think` flag and the
-  /// chat-template argument that Qwen3/vLLM read, so it works across local
-  /// servers. Left off for cloud endpoints (OpenRouter, OpenAI), which reject
-  /// unknown body fields.
+  /// (Qwen3, ...). OpenRouter receives its `reasoning.effort` control. Other
+  /// endpoints receive the existing local-server controls.
   final bool _disableThinking;
 
   /// When true, and the request carries a schema, ask the endpoint to force the
@@ -95,10 +93,13 @@ class OpenAiCompatibleClient implements LlmClient {
       'stream': false,
     };
     if (_disableThinking) {
-      // `think` is Ollama's native switch; `chat_template_kwargs.enable_thinking`
-      // is what Qwen3/vLLM read. Sending both covers the common local servers.
-      payload['think'] = false;
-      payload['chat_template_kwargs'] = {'enable_thinking': false};
+      if (uri.host.toLowerCase() == 'openrouter.ai') {
+        payload['reasoning'] = {'effort': 'none'};
+      } else {
+        // Keep the working local-server controls unchanged.
+        payload['think'] = false;
+        payload['chat_template_kwargs'] = {'enable_thinking': false};
+      }
     }
     final body = jsonEncode(payload);
 
@@ -107,7 +108,8 @@ class OpenAiCompatibleClient implements LlmClient {
       response = await _client.post(
         uri,
         headers: {
-          if (_apiToken != null && _apiToken!.isNotEmpty) 'Authorization': 'Bearer $_apiToken',
+          if (_apiToken != null && _apiToken!.isNotEmpty)
+            'Authorization': 'Bearer $_apiToken',
           'Content-Type': 'application/json',
         },
         body: body,
@@ -118,7 +120,8 @@ class OpenAiCompatibleClient implements LlmClient {
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw LlmException('Error response (status ${response.statusCode}): ${_previewBody(response.body)}');
+      throw LlmException(
+          'Error response (status ${response.statusCode}): ${_previewBody(response.body)}');
     }
 
     return _parseResponse(response.body);
@@ -168,15 +171,20 @@ class OpenAiCompatibleClient implements LlmClient {
     // llama.cpp reports speed in a `timings` block. Cloud endpoints omit it, so
     // every field here may be absent.
     final timings = decoded['timings'];
-    double? timing(String key) => timings is Map<String, dynamic> && timings[key] is num
-        ? (timings[key] as num).toDouble()
-        : null;
+    double? timing(String key) =>
+        timings is Map<String, dynamic> && timings[key] is num
+            ? (timings[key] as num).toDouble()
+            : null;
 
     return LlmResponse(
       content: content,
-      promptTokens: usage is Map<String, dynamic> ? asInt(usage['prompt_tokens']) : null,
-      completionTokens: usage is Map<String, dynamic> ? asInt(usage['completion_tokens']) : null,
-      totalTokens: usage is Map<String, dynamic> ? asInt(usage['total_tokens']) : null,
+      promptTokens:
+          usage is Map<String, dynamic> ? asInt(usage['prompt_tokens']) : null,
+      completionTokens: usage is Map<String, dynamic>
+          ? asInt(usage['completion_tokens'])
+          : null,
+      totalTokens:
+          usage is Map<String, dynamic> ? asInt(usage['total_tokens']) : null,
       finishReason: finishReason,
       promptTokensPerSecond: timing('prompt_per_second'),
       completionTokensPerSecond: timing('predicted_per_second'),
@@ -185,5 +193,6 @@ class OpenAiCompatibleClient implements LlmClient {
     );
   }
 
-  static String _previewBody(String body) => body.length > 300 ? '${body.substring(0, 300)}…' : body;
+  static String _previewBody(String body) =>
+      body.length > 300 ? '${body.substring(0, 300)}…' : body;
 }
