@@ -106,7 +106,7 @@ void main() {
 
       await client.complete(_request());
 
-      expect(cap.lastBody!['reasoning'], {'effort': 'none'});
+      expect(cap.lastBody!['reasoning'], {'enabled': false});
       expect(cap.lastBody!, isNot(contains('think')));
       expect(cap.lastBody!, isNot(contains('chat_template_kwargs')));
     });

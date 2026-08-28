@@ -47,12 +47,21 @@ class LiveLlmSettings {
     );
   }
 
-  /// The server's own address, without the chat-completions path — what the
-  /// health check asks.
-  Uri? get origin {
+  /// The models endpoint next to the configured chat-completions endpoint.
+  Uri? get modelsUrl {
     final uri = Uri.tryParse(baseUrl);
     if (uri == null || !uri.hasAuthority) return null;
-    return Uri(scheme: uri.scheme, host: uri.host, port: uri.port);
+    final segments = [...uri.pathSegments];
+    if (segments.length < 2 ||
+        segments[segments.length - 2] != 'chat' ||
+        segments.last != 'completions') {
+      return null;
+    }
+    segments
+      ..removeLast()
+      ..removeLast()
+      ..add('models');
+    return uri.replace(pathSegments: segments, query: null, fragment: null);
   }
 }
 
@@ -73,16 +82,15 @@ Future<String?> _check() async {
   if (settings.model.trim().isEmpty) {
     return 'no model named — set LLM_MODEL, or llm_model in config.properties';
   }
-  final origin = settings.origin;
-  if (origin == null) {
+  final modelsUrl = settings.modelsUrl;
+  if (modelsUrl == null) {
     return 'llm_base_url is not a URL: "${settings.baseUrl}"';
   }
   try {
-    final answer = await http
-        .get(origin.resolve('/v1/models'))
-        .timeout(const Duration(seconds: 5));
+    final answer =
+        await http.get(modelsUrl).timeout(const Duration(seconds: 5));
     if (answer.statusCode >= 400) {
-      return 'the model server at $origin answered ${answer.statusCode}';
+      return 'the model server at $modelsUrl answered ${answer.statusCode}';
     }
     final body = jsonDecode(answer.body);
     final ids = <String>[
@@ -91,11 +99,11 @@ Future<String?> _check() async {
           if (m is Map && m['id'] is String) m['id'] as String,
     ];
     if (ids.isNotEmpty && !ids.contains(settings.model)) {
-      return 'the server at $origin does not offer "${settings.model}"';
+      return 'the server at $modelsUrl does not offer "${settings.model}"';
     }
     return null;
   } catch (e) {
-    return 'no model server at $origin ($e)';
+    return 'no model server at $modelsUrl ($e)';
   }
 }
 

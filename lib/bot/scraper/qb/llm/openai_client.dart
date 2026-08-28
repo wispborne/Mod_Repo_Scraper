@@ -25,7 +25,7 @@ class OpenAiCompatibleClient implements LlmClient {
   final String? _apiToken;
 
   /// When true, ask the endpoint to turn off "thinking" for reasoning models
-  /// (Qwen3, ...). OpenRouter receives its `reasoning.effort` control. Other
+  /// (Qwen3, ...). OpenRouter receives its `reasoning.enabled` control. Other
   /// endpoints receive the existing local-server controls.
   final bool _disableThinking;
 
@@ -94,7 +94,7 @@ class OpenAiCompatibleClient implements LlmClient {
     };
     if (_disableThinking) {
       if (uri.host.toLowerCase() == 'openrouter.ai') {
-        payload['reasoning'] = {'effort': 'none'};
+        payload['reasoning'] = {'enabled': false};
       } else {
         // Keep the working local-server controls unchanged.
         payload['think'] = false;
