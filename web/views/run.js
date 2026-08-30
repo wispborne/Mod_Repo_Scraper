@@ -2,7 +2,7 @@
 
 import { api, el, clear, go, errorPanel, MissingFile, noticeDialog, rawJson, breadcrumbs, buildHash } from '../lib.js';
 import * as manager from '../manager.js';
-import { progressBar, managerOffPanel } from './runs.js';
+import { progressBar, managerOffPanel, stopRunButton } from './runs.js';
 
 const DEFAULT_TAIL = 200;
 const MORE_TAIL = 2000;
@@ -136,6 +136,7 @@ function header(record, live) {
       },
     }),
   ]);
+  if (record.state === 'running') row.append(stopRunButton(record.id));
   head.append(row);
   addWhatChangedLink(row, record.id, { live });
   return head;

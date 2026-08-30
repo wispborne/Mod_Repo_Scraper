@@ -139,7 +139,8 @@ void main() {
     });
 
     test('a kind nobody has heard of', () async {
-      final res = await call('POST', 'jobs', body: {'kind': 'takeOverTheWorld'});
+      final res =
+          await call('POST', 'jobs', body: {'kind': 'takeOverTheWorld'});
       expect(res.statusCode, 400);
       final body = jsonDecode(await res.readAsString()) as Map;
       expect(body['error'], contains('is not a kind of job'));
@@ -174,7 +175,8 @@ void main() {
     final queued = await json('POST', 'jobs', body: {'kind': 'rebuildBundle'});
     await service.started.future;
 
-    final cancelled = await json('POST', 'jobs/cancel');
+    final cancelled =
+        await json('POST', 'jobs/cancel', body: {'runId': queued['id']});
     expect(cancelled['cancelled'], isTrue);
     expect(cancelled['runId'], queued['id']);
 
@@ -183,6 +185,22 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     final record = await json('GET', 'runs/${queued['id']}');
     expect(record['state'], 'cancelled');
+  });
+
+  test('cancel with an old run id does not stop the current run', () async {
+    service.holdUntilReleased();
+    final queued = await json('POST', 'jobs', body: {'kind': 'rebuildBundle'});
+    await service.started.future;
+
+    final response =
+        await call('POST', 'jobs/cancel', body: {'runId': 'an-older-run'});
+    expect(response.statusCode, HttpStatus.conflict);
+    final answer =
+        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+    expect(answer['error'], contains('is no longer running'));
+    expect(manager.currentRun?.id, queued['id']);
+
+    service.release();
   });
 
   test('the runs list is newest first and pages', () async {

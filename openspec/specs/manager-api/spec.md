@@ -6,7 +6,7 @@ Let the local website start, watch and stop scraper jobs and read past runs, whi
 ## Requirements
 
 ### Requirement: Job endpoints on the server
-The server SHALL offer, under `/api/manager/`: submit a job (`POST /jobs`, body is a `JobRequest` in its mapper shape, answered right away with the queued run record), see status (`GET /status`: whether the manager is on, the absolute data path, the current run with live phase and current item, and the queued runs), and cancel the current job (`POST /jobs/cancel`). Jobs submitted over HTTP SHALL run through the same `JobManager` and appear in the same run history as CLI runs.
+The server SHALL offer, under `/api/manager/`: submit a job (`POST /jobs`, body is a `JobRequest` in its mapper shape, answered right away with the queued run record), see status (`GET /status`: whether the manager is on, the absolute data path, the current run with live phase and current item, and the queued runs), and cancel the current job (`POST /jobs/cancel`). A cancel request MAY name the expected current run with `runId`; when it does, the server SHALL stop nothing if another run is current. Jobs submitted over HTTP SHALL run through the same `JobManager` and appear in the same run history as CLI runs.
 
 #### Scenario: Submit and watch a job
 - **WHEN** a client posts an `extractLlm` request for topics 123 and 456
@@ -23,6 +23,10 @@ The server SHALL offer, under `/api/manager/`: submit a job (`POST /jobs`, body 
 #### Scenario: Cancel with nothing running
 - **WHEN** a client posts to `/jobs/cancel` while the queue is empty
 - **THEN** the answer says in plain words that nothing was running, and nothing breaks
+
+#### Scenario: Cancel from a stale run page
+- **WHEN** a client asks to cancel run A by id after run B has become current
+- **THEN** the server refuses the request and run B keeps running
 
 ### Requirement: Bad requests are refused with a reason
 The server SHALL answer 400 with a plain-words reason when a job body does not parse, names an unknown kind, or asks for a per-topic kind (`rescrapeTopics`, `resolveDownloads`, `extractLlm`) with no topic ids. A refused request SHALL NOT appear in run history.

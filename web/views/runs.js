@@ -93,29 +93,7 @@ function drawLive(node, s) {
         field('LLM calls', String((record.counters && record.counters.llmCalls) || 0)),
       ])
     );
-    panel.append(
-      el('button', {
-        class: 'btn btn-danger',
-        text: 'Stop this run',
-        onclick: async (ev) => {
-          const yes = await askDialog({
-            title: 'Stop this run?',
-            message: 'It stops between topics and keeps everything it has '
-              + 'already saved.',
-            confirmLabel: 'Stop it',
-            danger: true,
-          });
-          if (!yes) return;
-          ev.target.disabled = true;
-          try {
-            const answer = await manager.cancelCurrent();
-            noticeDialog('Stopping', answer.message || 'Asked the run to stop.');
-          } catch (err) {
-            noticeDialog('That didn\'t work', err.message);
-          }
-        },
-      })
-    );
+    panel.append(stopRunButton(record.id));
   }
 
   const queued = s.queued || [];
@@ -135,6 +113,33 @@ function drawLive(node, s) {
     panel.append(list);
   }
   node.append(panel);
+}
+
+/// The confirmed stop action shared by the Runs view and a live run's page.
+export function stopRunButton(runId) {
+  return el('button', {
+    class: 'btn btn-danger',
+    text: 'Stop this run',
+    onclick: async (ev) => {
+      const button = ev.currentTarget;
+      const yes = await askDialog({
+        title: 'Stop this run?',
+        message: 'It stops between topics and keeps everything it has '
+          + 'already saved.',
+        confirmLabel: 'Stop it',
+        danger: true,
+      });
+      if (!yes) return;
+      button.disabled = true;
+      try {
+        const answer = await manager.cancelCurrent(runId);
+        noticeDialog('Stopping', answer.message || 'Asked the run to stop.');
+      } catch (err) {
+        button.disabled = false;
+        noticeDialog('That didn\'t work', err.message);
+      }
+    },
+  });
 }
 
 function topicNote(request) {

@@ -136,13 +136,34 @@ class ManagerApi {
     return request;
   }
 
-  Response _cancelJob(Request req) {
+  Future<Response> _cancelJob(Request req) async {
+    String? expectedRunId;
+    final body = await req.readAsString();
+    if (body.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic> && decoded['runId'] is String) {
+          expectedRunId = decoded['runId'] as String;
+        }
+      } catch (_) {
+        return _error(
+            'The stop request could not be read: the body is not JSON.',
+            status: HttpStatus.badRequest);
+      }
+    }
+
     final current = manager.currentRun;
     if (current == null) {
       return _json({
         'cancelled': false,
         'message': 'Nothing is running, so there was nothing to stop.',
       });
+    }
+    if (expectedRunId != null && current.id != expectedRunId) {
+      return _error(
+        'Run $expectedRunId is no longer running, so nothing was stopped.',
+        status: HttpStatus.conflict,
+      );
     }
     manager.cancelCurrent();
     return _json({

@@ -200,9 +200,11 @@ export async function submitJob(request) {
   return record;
 }
 
-/// Asks the running job to stop.
-export async function cancelCurrent() {
-  const answer = await post('/jobs/cancel', {});
+/// Asks the running job to stop. When a run id is supplied, the server checks
+/// it before stopping anything. This keeps an old page from stopping the next
+/// run if the one it was showing finished just before the click arrived.
+export async function cancelCurrent(runId = null) {
+  const answer = await post('/jobs/cancel', runId ? { runId } : {});
   refresh();
   return answer;
 }

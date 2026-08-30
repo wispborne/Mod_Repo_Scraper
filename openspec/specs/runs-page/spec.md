@@ -17,7 +17,11 @@ The frontend SHALL have a Runs view (`#/runs`) showing the current run (live pro
 - **THEN** the run stops between topics, keeps what it saved, and shows as cancelled in the history list
 
 ### Requirement: A run's detail page tells the whole story
-The detail page (`#/runs/<id>`) SHALL show the full record — including the stored request — and the run's log (default tail, with a way to load more). While that run is live, the log SHALL refresh along with the status. A **run again** button SHALL post the stored request as a new job and go to it.
+The detail page (`#/runs/<id>`) SHALL show the full record — including the stored request — and the run's log (default tail, with a way to load more). While that run is live, the log SHALL refresh along with the status and offer a confirmed stop button. A **run again** button SHALL post the stored request as a new job and go to it.
+
+#### Scenario: Stopping from a run page
+- **WHEN** the user clicks "Stop this run" on the page for the current run and confirms
+- **THEN** that run is asked to stop, and a stale page never stops a different current run
 
 #### Scenario: Reading a failed run
 - **WHEN** the user opens a failed run
