@@ -474,8 +474,15 @@ export function takeScrollPlaced() {
 /// Opens a screenshot over the page, with the rest of them a keypress away.
 ///
 /// A raw image in a new tab loses the reader their place and gives them a
-/// browser tab to close; this keeps them where they were. Escape or a click on
-/// the backdrop closes it, and the arrow keys move between pictures.
+/// browser tab to close; this keeps them where they were. Escape, the ×, or a
+/// click on the dark area closes it; the arrow keys, the edge buttons, or a
+/// sideways swipe move between pictures, and Home/End jump to the ends. A
+/// picture can be looked at closely: the wheel, a pinch, a double press, or
+/// the +/− buttons zoom in on the spot under the pointer, a drag moves around
+/// the zoomed picture, and 0 or another double press puts it back. A swipe
+/// down closes, the way phone galleries do. The pictures either side are
+/// fetched ahead of time so stepping is instant, and "Open original" is there
+/// for the reader who wants the full file after all.
 ///
 /// [images] is the list of `{url, caption}` still on the page, and [at] is
 /// which one to open first.
@@ -487,9 +494,17 @@ export function showPicture(images, at = 0) {
   // back on the very screenshot they picked.
   const cameFrom = document.activeElement;
 
-  const shot = el('img', { class: 'big-picture-shot', alt: '' });
+  const shot = el('img', {
+    class: 'big-picture-shot', alt: '', draggable: 'false',
+  });
+  const note = el('div', { class: 'big-picture-note' });
   const caption = el('div', { class: 'big-picture-caption' });
-  const counter = el('div', { class: 'big-picture-counter' });
+  const counter = el('div', { class: 'big-picture-counter', 'aria-live': 'polite' });
+  const fileName = el('div', { class: 'big-picture-name' });
+  const original = el('a', {
+    class: 'big-picture-original', text: 'Open original',
+    target: '_blank', rel: 'noopener noreferrer',
+  });
 
   const close = el('button', {
     class: 'big-picture-close', text: '×', title: 'Close (Esc)',
@@ -503,54 +518,364 @@ export function showPicture(images, at = 0) {
     class: 'big-picture-step forward', text: '›', title: 'Next (→)',
     'aria-label': 'Next screenshot',
   });
+  const zoomOut = el('button', {
+    class: 'big-picture-zoom-button', text: '−', title: 'Zoom out (−)',
+    'aria-label': 'Zoom out',
+  });
+  const zoomIn = el('button', {
+    class: 'big-picture-zoom-button', text: '+', title: 'Zoom in (+)',
+    'aria-label': 'Zoom in',
+  });
 
+  const middle = el('div', { class: 'big-picture-middle' }, [shot, note]);
   const box = el('div', {
     class: 'big-picture', role: 'dialog', 'aria-modal': 'true',
     'aria-label': 'Screenshot',
   }, [
-    el('div', { class: 'big-picture-middle' }, [shot]),
-    el('div', { class: 'big-picture-foot' }, [caption, counter]),
+    middle,
+    el('div', { class: 'big-picture-foot' }, [
+      caption,
+      el('div', { class: 'big-picture-tools' }, [counter, fileName, original]),
+    ]),
+    el('div', { class: 'big-picture-zoom' }, [zoomOut, zoomIn]),
     close,
     images.length > 1 ? back : null,
     images.length > 1 ? forward : null,
   ]);
 
+  // --- Zoom. Scale 1 is the picture fitted to the screen; the translation is
+  // in screen pixels from the centre of the box.
+
+  const FIT = 1;
+  const MAX_ZOOM = 8;
+  let scale = FIT;
+  let tx = 0;
+  let ty = 0;
+
+  const apply = () => {
+    shot.style.transform = scale === FIT && !tx && !ty
+      ? '' : `translate(${tx}px, ${ty}px) scale(${scale})`;
+    box.classList.toggle('zoomed', scale > FIT);
+    zoomOut.disabled = scale <= FIT;
+    zoomIn.disabled = scale >= MAX_ZOOM;
+  };
+
+  // A zoomed picture can be dragged around but never right off the screen: the
+  // drag stops where an edge of the picture meets the edge of its box. At fit
+  // size this pins it to the centre.
+  const clampPan = () => {
+    const overX = Math.max(0, (shot.clientWidth * scale - middle.clientWidth) / 2);
+    const overY = Math.max(0, (shot.clientHeight * scale - middle.clientHeight) / 2);
+    tx = Math.max(-overX, Math.min(overX, tx));
+    ty = Math.max(-overY, Math.min(overY, ty));
+  };
+
+  // Zooms so the spot at (x, y) stays put — zooming toward a corner should
+  // bring that corner closer, not the middle of the picture.
+  const zoomAt = (x, y, toScale) => {
+    const next = Math.max(FIT, Math.min(MAX_ZOOM, toScale));
+    if (next === scale) return;
+    const r = middle.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const qx = (x - cx - tx) / scale;
+    const qy = (y - cy - ty) / scale;
+    scale = next;
+    tx = x - cx - qx * scale;
+    ty = y - cy - qy * scale;
+    if (scale === FIT) { tx = 0; ty = 0; }
+    clampPan();
+    apply();
+  };
+
+  // The picture eases to its new place for a press (a button, a key, a double
+  // press) but follows the hand instantly for a wheel, drag or pinch. The
+  // class comes off when the easing ends — or at the next hands-on gesture,
+  // for the browsers that never fire transitionend on an unchanged transform.
+  const settle = () => shot.classList.add('settle');
+  const unsettle = () => shot.classList.remove('settle');
+  shot.addEventListener('transitionend', unsettle);
+
+  const zoomFromCentre = (factor) => {
+    settle();
+    const r = middle.getBoundingClientRect();
+    zoomAt(r.left + r.width / 2, r.top + r.height / 2, scale * factor);
+  };
+
+  const resetZoom = () => {
+    scale = FIT;
+    tx = 0;
+    ty = 0;
+    apply();
+  };
+
+  const toggleZoom = (x, y) => {
+    settle();
+    if (scale > FIT) resetZoom();
+    else zoomAt(x, y, 2.5);
+  };
+
+  // --- Showing a picture.
+
+  // The pictures either side are asked for as soon as one is shown, so
+  // stepping to them is a change, not a wait.
+  const preloaded = new Set();
+  const preload = (i) => {
+    if (images.length < 2) return;
+    const url = images[(i + images.length) % images.length].url;
+    if (preloaded.has(url)) return;
+    preloaded.add(url);
+    new Image().src = url;
+  };
+
+  // The picture's own file name, when its address ends in one — a reader
+  // saving a picture or reporting a broken one wants to know which file it
+  // was. An address that hides the file behind a script ("index.php?…") gets
+  // no guess rather than a wrong one.
+  const IMAGE_FILE = /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i;
+  const fileNameOf = (url) => {
+    try {
+      const last = decodeURIComponent(
+        new URL(url, location.href).pathname.split('/').pop() || '');
+      return IMAGE_FILE.test(last) ? last : '';
+    } catch {
+      return '';
+    }
+  };
+
   const draw = () => {
     const image = images[showing];
+    unsettle();
+    resetZoom();
+    note.hidden = true;
+    shot.hidden = false;
+    middle.classList.add('is-loading');
     shot.src = image.url;
+    // A picture already fetched fires no load event worth waiting for.
+    if (shot.complete && shot.naturalWidth) middle.classList.remove('is-loading');
     shot.alt = image.caption || '';
     caption.textContent = image.caption || '';
     counter.textContent =
       images.length > 1 ? `${showing + 1} of ${images.length}` : '';
+    fileName.textContent = fileNameOf(image.url);
+    fileName.hidden = !fileName.textContent;
+    original.href = image.url;
+    preload(showing + 1);
+    preload(showing - 1);
   };
+
+  shot.addEventListener('load', () => middle.classList.remove('is-loading'));
+  shot.addEventListener('error', () => {
+    middle.classList.remove('is-loading');
+    shot.hidden = true;
+    note.textContent = 'This picture could not be loaded.';
+    note.hidden = false;
+  });
 
   const step = (by) => {
     showing = (showing + by + images.length) % images.length;
     draw();
   };
 
+  const onResize = () => { clampPan(); apply(); };
+
   const shut = () => {
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('hashchange', shut);
+    window.removeEventListener('resize', onResize);
     document.body.classList.remove('picture-open');
     box.remove();
     if (cameFrom && cameFrom.focus) cameFrom.focus();
   };
 
+  // --- Keyboard.
+
+  // Tab stays inside the box while it is open — behind it is a whole page of
+  // links the keyboard would otherwise wander off into, unseen.
+  const trapTab = (e) => {
+    const focusable = [...box.querySelectorAll('button:not(:disabled), a[href]')];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      last.focus();
+      e.preventDefault();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      first.focus();
+      e.preventDefault();
+    }
+  };
+
   function onKey(e) {
+    if (e.key === 'Tab') { trapTab(e); return; }
     if (e.key === 'Escape') shut();
     else if (e.key === 'ArrowLeft') step(-1);
     else if (e.key === 'ArrowRight') step(1);
+    else if (e.key === 'Home') { showing = 0; draw(); }
+    else if (e.key === 'End') { showing = images.length - 1; draw(); }
+    else if (e.key === '+' || e.key === '=') zoomFromCentre(1.5);
+    else if (e.key === '-' || e.key === '_') zoomFromCentre(1 / 1.5);
+    else if (e.key === '0') { settle(); resetZoom(); }
     else return;
     e.preventDefault();
   }
 
-  // A click on the picture itself must not close it — only one past the edges.
-  box.addEventListener('click', (e) => { if (e.target === box) shut(); });
+  // --- The wheel zooms. There is nothing behind the box to scroll, and a
+  // reader reaching for the wheel over a picture means "closer".
+
+  middle.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    unsettle();
+    const amount = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+    zoomAt(e.clientX, e.clientY, scale * Math.exp(-amount * 0.002));
+  }, { passive: false });
+
+  // --- Fingers and the mouse button, all through pointer events so they read
+  // the same: one pointer at fit size swipes, one pointer zoomed in drags the
+  // picture around, two pointers pinch.
+
+  const pointers = new Map();
+  let start = null;
+  // A drag ends with a click, and that click must not close the box or count
+  // as a tap.
+  let gestureMoved = false;
+  let lastPointerType = 'mouse';
+  let lastTap = { time: 0, x: 0, y: 0 };
+
+  // Where the pointers are now is the wrong baseline once a finger is added or
+  // lifted — the gesture starts over from the current picture state.
+  const beginGesture = () => {
+    const p = [...pointers.values()];
+    start = {
+      scale, tx, ty,
+      x: p[0].x,
+      y: p[0].y,
+      spread: p.length > 1 ? Math.hypot(p[1].x - p[0].x, p[1].y - p[0].y) : 0,
+      midX: p.length > 1 ? (p[0].x + p[1].x) / 2 : p[0].x,
+      midY: p.length > 1 ? (p[0].y + p[1].y) / 2 : p[0].y,
+    };
+  };
+
+  middle.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    unsettle();
+    lastPointerType = e.pointerType;
+    // So the drag keeps working when the pointer leaves the box. Refused for a
+    // pointer the browser no longer considers active, which is fine — the
+    // gesture still works, it just lets go at the edge.
+    try {
+      middle.setPointerCapture(e.pointerId);
+    } catch { /* keep going without it */ }
+    pointers.set(e.pointerId, {
+      x: e.clientX, y: e.clientY, type: e.pointerType,
+    });
+    if (pointers.size === 1) gestureMoved = false;
+    if (pointers.size <= 2) beginGesture();
+  });
+
+  middle.addEventListener('pointermove', (e) => {
+    const p = pointers.get(e.pointerId);
+    if (!p || !start) return;
+    p.x = e.clientX;
+    p.y = e.clientY;
+    const all = [...pointers.values()];
+    if (all.length >= 2) {
+      // A pinch: the spread between the fingers sets the zoom, and the
+      // midpoint's travel drags at the same time. Worked out from where the
+      // gesture began, not from the last move, so nothing drifts.
+      gestureMoved = true;
+      const spread = Math.hypot(all[1].x - all[0].x, all[1].y - all[0].y);
+      const midX = (all[0].x + all[1].x) / 2;
+      const midY = (all[0].y + all[1].y) / 2;
+      const next = Math.max(FIT, Math.min(MAX_ZOOM,
+        start.scale * (spread / (start.spread || 1))));
+      const r = middle.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const qx = (start.midX - cx - start.tx) / start.scale;
+      const qy = (start.midY - cy - start.ty) / start.scale;
+      scale = next;
+      tx = midX - cx - qx * scale;
+      ty = midY - cy - qy * scale;
+      if (scale === FIT) { tx = 0; ty = 0; }
+      clampPan();
+      apply();
+      return;
+    }
+    const dx = p.x - start.x;
+    const dy = p.y - start.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) gestureMoved = true;
+    if (scale > FIT) {
+      tx = start.tx + dx;
+      ty = start.ty + dy;
+      clampPan();
+      apply();
+    } else {
+      // At fit size a drag is a swipe in the making. The picture follows the
+      // pointer, so letting go feels like finishing something.
+      shot.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+  });
+
+  const endPointer = (e) => {
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+    const wasTouch = p.type !== 'mouse';
+    pointers.delete(e.pointerId);
+    if (pointers.size) {
+      beginGesture();
+      return;
+    }
+    if (start && scale === FIT && gestureMoved) {
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) && images.length > 1) {
+        step(dx < 0 ? 1 : -1);
+      } else if (dy > 80 && Math.abs(dy) > Math.abs(dx)) {
+        shut();
+        return;
+      } else {
+        // Not enough of a swipe to mean anything: ease back to the middle.
+        settle();
+        apply();
+      }
+    }
+    // A double tap zooms. The browser's own dblclick is left to the mouse, or
+    // one double tap would zoom in and straight back out.
+    if (wasTouch && !gestureMoved && e.type === 'pointerup') {
+      const now = performance.now();
+      const near = Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30;
+      if (now - lastTap.time < 350 && near) {
+        toggleZoom(e.clientX, e.clientY);
+        lastTap = { time: 0, x: 0, y: 0 };
+      } else {
+        lastTap = { time: now, x: e.clientX, y: e.clientY };
+      }
+    }
+    start = null;
+  };
+  middle.addEventListener('pointerup', endPointer);
+  middle.addEventListener('pointercancel', endPointer);
+
+  middle.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    if (lastPointerType === 'touch') return;
+    toggleZoom(e.clientX, e.clientY);
+  });
+
+  // A click on the picture itself must not close it — only one on the dark
+  // area around it, and never the click a drag or swipe ends with.
+  box.addEventListener('click', (e) => {
+    if (gestureMoved) return;
+    if (e.target === box || e.target === middle) shut();
+  });
   close.addEventListener('click', shut);
   back.addEventListener('click', () => step(-1));
   forward.addEventListener('click', () => step(1));
+  zoomIn.addEventListener('click', () => zoomFromCentre(1.5));
+  zoomOut.addEventListener('click', () => zoomFromCentre(1 / 1.5));
   document.addEventListener('keydown', onKey);
+  window.addEventListener('resize', onResize);
   // The back button is a way out of this too. Without it the picture would sit
   // over whatever page the reader landed on next.
   window.addEventListener('hashchange', shut);
