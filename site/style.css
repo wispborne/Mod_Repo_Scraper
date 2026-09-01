@@ -99,7 +99,6 @@
   --pad-page: 16px 16px 40px;   /* round the whole page */
   --pad-block: 12px 14px;  /* inside a panel or a notice */
   --pad-cell: 6px 10px;    /* inside a card's words, a row, a release */
-  --pad-front: 8px 0 12px; /* above and below the front page's search box */
   --pad-bar: 6px 16px;     /* the bar at the top */
 
   --page-width: 1200px;
@@ -152,7 +151,6 @@
   --pad-page: 28px 20px 64px;
   --pad-block: 20px 22px;
   --pad-cell: 10px 12px;
-  --pad-front: 18px 0 22px;
   --pad-bar: 10px 16px;
 }
 
@@ -659,17 +657,6 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 }
 
 /* --- Home page --- */
-
-/* The front of the site: the search box. Everything else on Home comes after
-   it. */
-.front {
-  display: flex; flex-direction: column; align-items: center; gap: var(--gap);
-  text-align: center;
-  padding: var(--pad-front);
-}
-.front .search-row { width: 100%; max-width: 620px; }
-.front .search-box { font-size: var(--type-big); padding: 12px 16px; }
-.front-hint { color: var(--text-dim); font-size: var(--type-small); margin: 0; }
 
 .release-day { margin-bottom: var(--gap-wide); }
 .release-day > h3 { font-size: var(--type-normal); color: var(--text-dim); font-weight: 600; }
