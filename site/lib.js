@@ -364,48 +364,56 @@ export function thumbnail(url, className) {
   });
 }
 
-/// Where the page was scrolled to when the reader left it.
-///
-/// The router notes this before it empties the page for the next view. It has
-/// to be read at that moment: emptying the page leaves nothing to scroll, so
-/// the browser says the position is zero from then on, and a view that asked
-/// after the fact would only ever get zero back.
-let scrollWhenLeft = 0;
-let scrollFromBottomWhenLeft = 0;
+/// Which page's scroll position sessionStorage should file under right now.
 let activeScrollKey = null;
 
 function scrollStorageKey(hash) {
   return `starmodderPageScroll:${hash}`;
 }
 
-export function notePageScroll() {
-  scrollWhenLeft = window.scrollY;
+/// Where the page is scrolled to right now, plus how far that is from the
+/// bottom — so a page left at its very foot can be put back at the foot even
+/// after its height has changed.
+function currentScrollPosition() {
+  const at = window.scrollY;
   const bottom = document.documentElement.scrollHeight - window.innerHeight;
-  scrollFromBottomWhenLeft = Math.max(0, bottom - scrollWhenLeft);
+  return { at, fromBottom: Math.max(0, bottom - at) };
 }
 
-export function pageScrollWhenLeft() {
-  return scrollWhenLeft;
+/// Saves the current position under the current key. Remembering the position
+/// is a convenience; storage that is full or switched off must not stop the
+/// page from working.
+function saveScrollPosition(position) {
+  if (activeScrollKey === null) return;
+  try {
+    sessionStorage.setItem(activeScrollKey, JSON.stringify(position));
+  } catch { /* keep going without it */ }
 }
 
-export function pageScrollFromBottomWhenLeft() {
-  return scrollFromBottomWhenLeft;
-}
+// The browser also remembers a scroll position per history entry and puts it
+// back on Back/Forward — a beat after the router has already placed the page,
+// and often with a stale value, since the browser records the position at its
+// own moments. This code covers every case the browser would, so the native
+// handling is switched off. The one job it was doing for us — restoring after
+// a reload — is kept by saving the position as the page is left for good;
+// routing never fires pagehide, so the two saves cannot fight.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.addEventListener('pagehide', () => {
+  saveScrollPosition(currentScrollPosition());
+});
 
 /// Saves the page being left and returns the position for the page being drawn.
+///
+/// The position has to be read here, before the router empties the page:
+/// emptying it leaves nothing to scroll, so the browser says zero from then on.
 /// The current key follows address changes made without routing, so each
 /// filtered list is remembered under the address the reader actually left.
 export function preparePageScroll(hash) {
-  notePageScroll();
-  const position = {
-    at: pageScrollWhenLeft(),
-    fromBottom: pageScrollFromBottomWhenLeft(),
-  };
+  stopPlacing();
+  const position = currentScrollPosition();
+  saveScrollPosition(position);
   const nextKey = scrollStorageKey(hash);
   const samePage = activeScrollKey === nextKey;
-  if (activeScrollKey !== null) {
-    sessionStorage.setItem(activeScrollKey, JSON.stringify(position));
-  }
   activeScrollKey = nextKey;
 
   // Settings redraw the current address directly. Keep the position just
@@ -422,13 +430,18 @@ export function preparePageScroll(hash) {
   return saved;
 }
 
-/// Restores a saved position after the new page has been drawn.
+/// Restores a saved position after the new page has been drawn. Says whether
+/// it placed the page, so the router knows to leave the scroll alone.
 export function restorePageScroll(saved) {
-  if (saved && saved.at > 0) {
-    noteScrollPlaced();
-    placePageScroll(saved);
-  }
+  if (!saved || !(saved.at > 0)) return false;
+  placePageScroll(saved);
+  return true;
 }
+
+/// Stops the current placement, if one is running. Called when the next page
+/// starts drawing, so a placement never scrolls a page it was not made for —
+/// the Back button fires none of the events placePageScroll listens for.
+let stopPlacing = () => {};
 
 /// A page can gain height as its pictures finish laying out. Keep its saved
 /// place while that happens. Stop when the reader interacts with the page.
@@ -448,27 +461,13 @@ function placePageScroll(saved) {
     observer.disconnect();
     clearTimeout(timeout);
     for (const event of events) window.removeEventListener(event, stop);
+    stopPlacing = () => {};
   };
   for (const event of events) {
     window.addEventListener(event, stop, { once: true, passive: true });
   }
   const timeout = setTimeout(stop, 10000);
-}
-
-/// Set when a page has been put where the reader left it, so the router leaves
-/// it alone instead of scrolling to the top over the top of it.
-let scrollPlacedByView = false;
-
-export function noteScrollPlaced() {
-  scrollPlacedByView = true;
-}
-
-/// True when a view placed the page since the last time this was asked. Asking
-/// clears it, so it only ever counts for the page it was set on.
-export function takeScrollPlaced() {
-  const placed = scrollPlacedByView;
-  scrollPlacedByView = false;
-  return placed;
+  stopPlacing = stop;
 }
 
 /// Opens a screenshot over the page, with the rest of them a keypress away.
