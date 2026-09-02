@@ -33,7 +33,7 @@ const site = address();
 const NAV = [
   { route: 'home', label: 'Home' },
   { route: 'browse', label: 'Browse mods' },
-  { route: 'authors', label: 'People' },
+  { route: 'authors', label: 'Mod authors' },
   { route: 'list', label: 'My list' },
   { route: 'about', label: 'About' },
 ];
@@ -304,7 +304,9 @@ function mountHeaderSearch() {
       for (const hit of hits) drop.append(suggestion(hit, hide));
     }
     if (people.length) {
-      drop.append(el('div', { class: 'suggestion-group', text: 'People' }));
+      drop.append(el('div', {
+        class: 'suggestion-group', text: 'Mod authors',
+      }));
       for (const person of people) drop.append(personSuggestion(person, hide));
     }
     prepareSuggestions();
