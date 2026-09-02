@@ -1,31 +1,93 @@
 import 'display_name.dart';
 import 'models/public_mod.dart';
 
-/// A small page of its own for each mod, at `mods/<id>/index.html`.
+/// A mod's own page, at `mods/<id>/index.html`.
 ///
-/// The site itself lives behind `#/mods/<id>`, and a hash is never sent to a
-/// server — so every link anyone shared showed the same title and no picture in
-/// Discord, and a search engine saw one page standing for nine hundred mods.
+/// Every mod has a real page of its own on disk, and that is the mod's address:
+/// the site's links point at it, the address bar shows it, and a reader who
+/// copies it gets a link that Discord and a search engine can fetch and read.
+/// Before this, the whole site lived behind `#/mods/<id>`, and a hash is never
+/// sent to a server — so every shared link showed the same title and no
+/// picture, and a search engine saw one page standing for nine hundred mods.
 ///
-/// This is the fix, and it is deliberately the smallest one that works: a plain
-/// file per mod carrying that mod's title, description and picture, one line of
-/// visible words, and a script that sends a person straight on to the real
-/// page. Any static web server serves it. Nothing here needs Cloudflare, a
-/// redirect rule, or a server that can read the address.
+/// The page is the site's own front document with one region of its head
+/// swapped: this mod's `<base>`, title, description and preview tags in place
+/// of the site's own. So the header, the settings box, the footer and the
+/// scripts are written once, in `site/index.html`, and a mod's page can never
+/// drift from the rest of the site.
 ///
-/// There is no `canonical` link on purpose. The only address this page could
-/// name is the site's own with a fragment on the end, and a search engine drops
-/// the fragment — so every one of the nine hundred pages would end up declaring
-/// the front page as the real one, which is exactly the state these pages exist
-/// to end.
+/// The `<base>` is what lets the document sit two folders down and still find
+/// everything: its stylesheet, its scripts and the data files all resolve back
+/// beside the front document. It is also why the swapped region is the first
+/// thing in the head — a `<base>` has to come before the first relative address
+/// on the page.
+///
+/// There is no `canonical` link on purpose. The address this page has *is* the
+/// canonical one now, and saying so adds nothing.
 
-/// The little page for [mod].
-String buildModPageHtml(PublicMod mod) {
+/// The two marks in `site/index.html` around the region that changes from page
+/// to page. Both are in that file; a copy without them is not one this can
+/// build a mod's page from.
+const String modPageHeadStart = '<!--page-head-->';
+const String modPageHeadEnd = '<!--/page-head-->';
+
+/// The page for [mod], built out of [shell] — the text of `site/index.html`.
+///
+/// With no shell, or one that has lost its marks, this falls back to a small
+/// page that sends the reader to the site's hash address for the same mod. That
+/// still works and still carries the preview tags; the only thing lost is the
+/// address bar keeping the mod's own address.
+String buildModPageHtml(PublicMod mod, {String? shell}) {
   final name = mod.displayName ?? displayName(mod.name);
-  final page = '../../#/mods/${Uri.encodeComponent(mod.id)}';
   final about = _describe(mod, name);
   final picture = _webPicture(mod.imageUrl);
 
+  final head = _head(name: name, about: about, picture: picture);
+  if (shell == null) return _redirectingPage(mod, name, about, picture);
+
+  final start = shell.indexOf(modPageHeadStart);
+  final end = shell.indexOf(modPageHeadEnd);
+  if (start < 0 || end < start) {
+    return _redirectingPage(mod, name, about, picture);
+  }
+
+  return shell.replaceRange(start, end + modPageHeadEnd.length, head);
+}
+
+/// The head region this mod's page carries in place of the site's own.
+String _head({
+  required String name,
+  required String about,
+  required String? picture,
+}) {
+  final lines = <String>[
+    // Two folders up is the site itself, where every script, style and data
+    // file this page asks for actually lives.
+    '<base href="../../">',
+    '<title>${_escape(name)} | Starmodder</title>',
+    '<meta name="description" content="${_attribute(about)}">',
+    '<meta property="og:type" content="article">',
+    '<meta property="og:site_name" content="Starmodder">',
+    '<meta property="og:title" content="${_attribute(name)}">',
+    '<meta property="og:description" content="${_attribute(about)}">',
+    if (picture != null)
+      '<meta property="og:image" content="${_attribute(picture)}">',
+    '<meta name="twitter:card" '
+        'content="${picture == null ? 'summary' : 'summary_large_image'}">',
+  ];
+  return lines.join('\n  ');
+}
+
+/// The stand-in for when the site's own document cannot be read: the preview
+/// tags, one line of visible words, and a script sending a reader on to the
+/// site's hash address for this mod.
+String _redirectingPage(
+  PublicMod mod,
+  String name,
+  String about,
+  String? picture,
+) {
+  final page = '../../#/mods/${Uri.encodeComponent(mod.id)}';
   return '''
 <!DOCTYPE html>
 <html lang="en">
@@ -71,7 +133,8 @@ String? _webPicture(String? url) {
   final trimmed = url?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;
   final lower = trimmed.toLowerCase();
-  if (!lower.startsWith('http://') && !lower.startsWith('https://')) return null;
+  if (!lower.startsWith('http://') && !lower.startsWith('https://'))
+    return null;
   return trimmed;
 }
 

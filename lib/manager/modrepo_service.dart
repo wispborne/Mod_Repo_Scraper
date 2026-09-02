@@ -55,6 +55,7 @@ class ModRepoService implements JobRunner {
             PublicSiteStep(
               dataPath: environment.snapshotPath,
               outputPath: environment.outputPath,
+              sitePath: environment.sitePath,
             ),
         _createNetworkClient = createNetworkClient ?? http.Client.new;
 
@@ -260,7 +261,8 @@ class ModRepoService implements JobRunner {
       client = await CachingClient.fromFile(cacheFile.path);
     } else if (request.replayAllowed) {
       // Writes each answer as it arrives, so a run that dies keeps what it got.
-      client = CachingClient(_createNetworkClient(), recordPath: cacheFile.path);
+      client =
+          CachingClient(_createNetworkClient(), recordPath: cacheFile.path);
     } else {
       client = _createNetworkClient();
     }
@@ -287,7 +289,8 @@ class ModRepoService implements JobRunner {
     try {
       final client = await CachingClient.fromFile(cacheFile.path);
       final mods = await DiscordReader.readAllMessages(
-              environment.toReaderConfig(), httpClient: client) ??
+              environment.toReaderConfig(),
+              httpClient: client) ??
           const <ScrapedMod>[];
       reporter.log('Read ${mods.length} Discord mods back from the saved '
           'answers.');
@@ -298,8 +301,9 @@ class ModRepoService implements JobRunner {
     }
   }
 
-  File _cacheFileFor(ModSourceKind source) =>
-      File(p.join(environment.workingPath, '${_sourceName(source).toLowerCase()}_cache.json'));
+  File _cacheFileFor(ModSourceKind source) => File(p.join(
+      environment.workingPath,
+      '${_sourceName(source).toLowerCase()}_cache.json'));
 
   Future<List<ScrapedMod>?> _readCache(
     ModSourceKind source,
@@ -345,8 +349,7 @@ class ModRepoService implements JobRunner {
       'totalCount': merged.length,
       'lastUpdated': DateTime.now().toIso8601String(),
     };
-    await file
-        .writeAsString(const JsonEncoder.withIndent('  ').convert(data));
+    await file.writeAsString(const JsonEncoder.withIndent('  ').convert(data));
     reporter.log('Saved ${merged.length} mods to ${file.absolute.path}.');
   }
 

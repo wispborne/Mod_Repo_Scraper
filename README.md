@@ -45,9 +45,20 @@ share the whole thing as one link.
 The pages are dark by default and light for anyone whose computer asks for
 light pages. Both are checked for readable contrast.
 
+Every mod has a real page of its own at `mods/<id>/`, and that is the mod's
+address: the site links to it, the address bar shows it, and copying it out of
+the address bar gives a link that Discord and a search engine can fetch and
+read. Each of those pages is the site's own `index.html` with its title,
+description and picture swapped for that mod's, so a shared link previews as
+that mod rather than as the site.
+
+Every other page is still a hash on the front document — `#/browse`, `#/about`.
+Moving between the two shapes never reloads the site: a click on any link to one
+of our own pages becomes a history entry, and Back and Forward draw whatever the
+address then names.
+
 The web server has to serve `index.html` for a folder — every static host does,
-and the local one here is set up the same way. That is what makes a link to
-`mods/<id>/` show that mod's name and picture when it is pasted into Discord.
+and the local one here is set up the same way.
 
 A publish copies the data files and the contents of `site/` into the published
 repo together, so that repo is a complete, servable copy of the site next to the

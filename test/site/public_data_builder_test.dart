@@ -186,9 +186,8 @@ void main() {
       urls: const {ModUrlType.Discord: 'https://discord.com/channels/1/2'},
     );
 
-    final detail = builder
-        .build(mods: [discordOnly], bundle: bundleOf())
-        .details['quality-captains']!;
+    final detail = builder.build(
+        mods: [discordOnly], bundle: bundleOf()).details['quality-captains']!;
     expect(detail.description, 'Officers gain skills you choose.');
     expect(detail.descriptionHtml, '<p>Officers gain skills you choose.</p>');
     expect(detail.descriptionIsGenerated, isFalse);
@@ -202,7 +201,9 @@ void main() {
 
     final data = builder.build(
       mods: [forumMod(name: 'Nexerelin')],
-      bundle: bundleOf(index: [thread()], details: {
+      bundle: bundleOf(index: [
+        thread()
+      ], details: {
         '9175': postOf(post, images: [
           ImageRef(originalUrl: 'https://i.imgur.com/shot.png'),
           ImageRef(originalUrl: 'https://ko-fi.com/img/donate.png'),
@@ -215,7 +216,8 @@ void main() {
     expect(detail.gallery.map((i) => i.url), ['https://i.imgur.com/shot.png']);
   });
 
-  test('the card picture is the post\'s, and the announcement one rides beside '
+  test(
+      'the card picture is the post\'s, and the announcement one rides beside '
       'it', () {
     // The picture the LLM found in the author's forum post leads, because it
     // is the one the author put at the top of their own thread; a Discord
@@ -229,7 +231,8 @@ void main() {
         }),
       ],
       bundle: bundleOf(index: [
-        thread(llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:https://x/l.png')]),
+        thread(
+            llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:https://x/l.png')]),
       ], details: {
         '9175': postOf('<p>Look</p>', avatarPath: 'avatars/histidine.png'),
       }),
@@ -243,7 +246,8 @@ void main() {
     final withLlm = builder.build(
       mods: [forumMod()],
       bundle: bundleOf(index: [
-        thread(llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:https://x/l.png')]),
+        thread(
+            llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:https://x/l.png')]),
       ], details: {
         '9175': postOf('<p>Look</p>', avatarPath: 'avatars/histidine.png'),
       }),
@@ -254,7 +258,9 @@ void main() {
     // Neither: the author's forum avatar stands in.
     final withAvatar = builder.build(
       mods: [forumMod()],
-      bundle: bundleOf(index: [thread()], details: {
+      bundle: bundleOf(index: [
+        thread()
+      ], details: {
         '9175': postOf('<p>Look</p>', avatarPath: 'avatars/histidine.png'),
       }),
     );
@@ -267,7 +273,9 @@ void main() {
     // TriOS does not go looking through the post for one, so neither does this.
     final data = builder.build(
       mods: [forumMod()],
-      bundle: bundleOf(index: [thread()], details: {
+      bundle: bundleOf(index: [
+        thread()
+      ], details: {
         '9175': postOf('<img src="https://i.imgur.com/shot.png" width="900">',
             images: [ImageRef(originalUrl: 'https://i.imgur.com/shot.png')]),
       }),
@@ -312,8 +320,7 @@ void main() {
       ]),
     );
 
-    final nexerelin =
-        data.list.mods.firstWhere((m) => m.id == 'nexerelin');
+    final nexerelin = data.list.mods.firstWhere((m) => m.id == 'nexerelin');
     expect(nexerelin.needs.map((n) => n.name), ['LazyLib', 'Kadur Remnant']);
     expect(nexerelin.needs.first.id, 'lazylib',
         reason: 'a mod we have a page for becomes a link');
@@ -339,8 +346,10 @@ void main() {
 
   test('a mod named twice is only needed once', () {
     final data = builder.build(
-      mods: [forumMod(name: 'Nexerelin', topicId: 9175),
-        forumMod(name: 'LazyLib', topicId: 5444)],
+      mods: [
+        forumMod(name: 'Nexerelin', topicId: 9175),
+        forumMod(name: 'LazyLib', topicId: 5444)
+      ],
       bundle: bundleOf(index: [
         thread(llmMods: [
           LlmMod(
@@ -351,8 +360,8 @@ void main() {
       ]),
     );
 
-    expect(
-        data.list.mods.firstWhere((m) => m.id == 'nexerelin').needs, hasLength(1));
+    expect(data.list.mods.firstWhere((m) => m.id == 'nexerelin').needs,
+        hasLength(1));
   });
 
   test('the site has its own categories, and keeps the raw names on the page',
@@ -362,7 +371,11 @@ void main() {
         ScrapedMod(
           name: 'Nexerelin',
           authorsList: const ['Histidine'],
-          categories: const ['Ship Pack', 'Weapon/Fighter Pack', 'Discord Only'],
+          categories: const [
+            'Ship Pack',
+            'Weapon/Fighter Pack',
+            'Discord Only'
+          ],
           sources: const [ModSource.Index, ModSource.Discord],
           urls: const {
             ModUrlType.Forum:
@@ -415,7 +428,8 @@ void main() {
 
     final mod = data.list.mods.single;
     expect(mod.bestDownload?.kind, 'trios',
-        reason: 'a TriOS link installs what the mod needs as well, so it leads');
+        reason:
+            'a TriOS link installs what the mod needs as well, so it leads');
     expect(mod.bestDownload?.needsAnotherStep, isFalse,
         reason: 'opening a TriOS link is the step, so it never counts as one');
     expect(mod.downloadCount, 3);
@@ -516,7 +530,8 @@ void main() {
           authorsList: ['Someone'],
           sources: [ModSource.NexusMods],
           urls: {
-            ModUrlType.NexusMods: 'https://www.nexusmods.com/starsector/mods/42',
+            ModUrlType.NexusMods:
+                'https://www.nexusmods.com/starsector/mods/42',
           },
         ),
       ],
@@ -620,22 +635,25 @@ void main() {
     final data = builder.build(
       mods: [forumMod(name: 'Industrial.Evolution', topicId: 15380)],
       bundle: bundleOf(index: [
-        thread(topicId: 15380, title: '[0.98a] Industrial.Evolution 3.5.2', llmMods: [
-          LlmMod(
-            name: 'Industrial.Evolution',
-            extras: LlmExtras(version: '3.5.2'),
-          ),
-          LlmMod(
-            name: 'IndEvo Vanilla Structures',
-            role: LlmModRole.addon,
-            requires: 'Industrial.Evolution',
-            downloads: [LlmDownload(url: 'https://example.com/addon.zip')],
-          ),
-          LlmMod(
-            name: 'Some Unrelated Mod',
-            role: LlmModRole.separate,
-          ),
-        ]),
+        thread(
+            topicId: 15380,
+            title: '[0.98a] Industrial.Evolution 3.5.2',
+            llmMods: [
+              LlmMod(
+                name: 'Industrial.Evolution',
+                extras: LlmExtras(version: '3.5.2'),
+              ),
+              LlmMod(
+                name: 'IndEvo Vanilla Structures',
+                role: LlmModRole.addon,
+                requires: 'Industrial.Evolution',
+                downloads: [LlmDownload(url: 'https://example.com/addon.zip')],
+              ),
+              LlmMod(
+                name: 'Some Unrelated Mod',
+                role: LlmModRole.separate,
+              ),
+            ]),
       ]),
     );
 
@@ -678,7 +696,8 @@ void main() {
 
     List<ScrapedMod> mergedHartleyMods() => [
           forumMod(name: 'Useful.Tithes 1.0.a', topicId: 34161, summary: null),
-          forumMod(name: 'Big Pilum Energy 1.0.d', topicId: 34161, summary: null),
+          forumMod(
+              name: 'Big Pilum Energy 1.0.d', topicId: 34161, summary: null),
           forumMod(
               name: 'Disco.Balls 1.1.c - More Lamp Colour Options',
               topicId: 34161,
@@ -712,8 +731,7 @@ void main() {
       expect(data.list.mods, hasLength(4),
           reason: 'three merged mods and the one only the thread knew about');
 
-      final lost =
-          data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
+      final lost = data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
       expect(lost.partOfThreadTitle, "Hartley's Miscellaneous Mods");
       expect(lost.sources, ['forum']);
       expect(lost.bestDownload?.url, 'https://example.com/lost.zip');
@@ -762,7 +780,8 @@ void main() {
             summary: null,
             description: 'A small mod making pather tithes more useful.',
           ),
-          forumMod(name: 'Big Pilum Energy 1.0.d', topicId: 34161, summary: null),
+          forumMod(
+              name: 'Big Pilum Energy 1.0.d', topicId: 34161, summary: null),
         ],
         bundle: bundleOf(
           index: [hartleysThread()],
@@ -775,7 +794,8 @@ void main() {
 
       // Its own words, not the post about all four.
       final tithes = data.details[idOf('Useful.Tithes')]!;
-      expect(tithes.description, 'A small mod making pather tithes more useful.');
+      expect(
+          tithes.description, 'A small mod making pather tithes more useful.');
       expect(tithes.descriptionIsGenerated, isFalse);
       expect(tithes.description, isNot(contains('Big Pilum')));
 
@@ -851,7 +871,9 @@ void main() {
                   name: 'Tithes Extra Icons',
                   role: LlmModRole.addon,
                   requires: 'Useful.Tithes',
-                  downloads: [LlmDownload(url: 'https://example.com/icons.zip')],
+                  downloads: [
+                    LlmDownload(url: 'https://example.com/icons.zip')
+                  ],
                 ),
               ],
             ),
@@ -867,7 +889,8 @@ void main() {
       );
 
       // Not a mod of its own.
-      expect(data.list.mods.where((m) => m.name == 'Tithes Extra Icons'), isEmpty);
+      expect(
+          data.list.mods.where((m) => m.name == 'Tithes Extra Icons'), isEmpty);
 
       String idOf(String name) =>
           data.list.mods.singleWhere((m) => m.name.startsWith(name)).id;
@@ -896,7 +919,8 @@ void main() {
         ),
       );
 
-      final hartleys = data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
+      final hartleys =
+          data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
       final kissas = data.list.mods.singleWhere((m) => m.name == 'LOST_SECTOR');
       expect(hartleys.id, isNot(kissas.id));
       expect(hartleys.partOfThreadTitle, "Hartley's Miscellaneous Mods");
@@ -972,8 +996,8 @@ void main() {
             forksThread(llmMods: [fork('Kwin')]),
           ],
           details: {
-            '35651': postOf('<p>Kwin, a fork kept up to date.</p>',
-                topicId: 35651),
+            '35651':
+                postOf('<p>Kwin, a fork kept up to date.</p>', topicId: 35651),
           },
         ),
       );
@@ -1369,8 +1393,7 @@ void main() {
     expect(copied.list.mods.single.summaryIsGenerated, isFalse);
   });
 
-  test('the AI summary and paragraph are published beside the copied ones',
-      () {
+  test('the AI summary and paragraph are published beside the copied ones', () {
     // The reader can ask for the AI words always, even on a mod whose author
     // wrote their own. That choice is made in the browser, so both blocks of
     // words have to be in the file for it to pick between.
@@ -1480,8 +1503,7 @@ void main() {
       ],
     );
 
-    expect(data.feed.releases.map((r) => r.modId),
-        ['second-mod', 'nexerelin']);
+    expect(data.feed.releases.map((r) => r.modId), ['second-mod', 'nexerelin']);
   });
 
   test('a picture stored as ext:<url> is published as a plain URL', () {
@@ -1531,8 +1553,10 @@ void main() {
 
     expect(File(p.join(builder.siteDir, 'mods.json')).existsSync(), isTrue);
     expect(File(p.join(builder.siteDir, 'updates.json')).existsSync(), isTrue);
-    expect(File(p.join(builder.modsDir, 'nexerelin.json')).existsSync(), isTrue);
-    expect(File(p.join(builder.modsDir, 'second-mod.json')).existsSync(), isTrue);
+    expect(
+        File(p.join(builder.modsDir, 'nexerelin.json')).existsSync(), isTrue);
+    expect(
+        File(p.join(builder.modsDir, 'second-mod.json')).existsSync(), isTrue);
   });
 
   test('the release feed is written out beside the rest', () async {
@@ -1553,11 +1577,11 @@ void main() {
     final feed = File(p.join(builder.siteDir, 'updates.xml'));
     expect(feed.existsSync(), isTrue,
         reason: 'a reader who subscribed has nothing to read without it');
-    expect(feed.readAsStringSync(), contains('<title>Nexerelin 0.12.2</title>'));
+    expect(
+        feed.readAsStringSync(), contains('<title>Nexerelin 0.12.2</title>'));
   });
 
-  test('each mod gets a little page of its own, for links and search engines',
-      () async {
+  test('each mod gets a page of its own, which is also its address', () async {
     await builder.write(builder.build(
       mods: [forumMod(name: 'Nexerelin')],
       bundle: bundleOf(),
@@ -1567,6 +1591,32 @@ void main() {
     expect(page.existsSync(), isTrue);
 
     final html = page.readAsStringSync();
+    // Named for the mod, so a shared link previews as that mod.
+    expect(html, contains('<title>Nexerelin | Starmodder</title>'));
+    // And it is the site itself, so the address is a page a reader can land
+    // on rather than one that bounces them somewhere else.
+    expect(html, contains('<base href="../../">'));
+    expect(html, contains('src="app.js"'));
+    expect(html, isNot(contains('location.replace')));
+  });
+
+  test('a mod page is built from the site\'s own document', () async {
+    // Point the builder at a folder with no site in it: the pages still get
+    // written, and still preview, but fall back to sending the reader to the
+    // site's hash address for the mod. A missing site is a log line, not a
+    // failed run.
+    final without = PublicDataBuilder(
+      outputPath: p.join(dir.path, 'outputs-without-site'),
+      idStore: idStore,
+      sitePath: p.join(dir.path, 'no-site-here'),
+    );
+    await without.write(without.build(
+      mods: [forumMod(name: 'Nexerelin')],
+      bundle: bundleOf(),
+    ));
+
+    final html = File(p.join(without.modsDir, 'nexerelin', 'index.html'))
+        .readAsStringSync();
     expect(html, contains('<title>Nexerelin | Starmodder</title>'));
     expect(html, contains('../../#/mods/nexerelin'));
   });
@@ -1576,12 +1626,14 @@ void main() {
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
       bundle: bundleOf(),
     ));
-    expect(Directory(p.join(builder.modsDir, 'second-mod')).existsSync(), isTrue);
+    expect(
+        Directory(p.join(builder.modsDir, 'second-mod')).existsSync(), isTrue);
 
     await builder.write(builder.build(mods: [forumMod()], bundle: bundleOf()));
     expect(
         Directory(p.join(builder.modsDir, 'second-mod')).existsSync(), isFalse);
-    expect(Directory(p.join(builder.modsDir, 'nexerelin')).existsSync(), isTrue);
+    expect(
+        Directory(p.join(builder.modsDir, 'nexerelin')).existsSync(), isTrue);
   });
 
   test('a mod that is gone loses its page on the next write', () async {
@@ -1589,10 +1641,12 @@ void main() {
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
       bundle: bundleOf(),
     ));
-    expect(File(p.join(builder.modsDir, 'second-mod.json')).existsSync(), isTrue);
+    expect(
+        File(p.join(builder.modsDir, 'second-mod.json')).existsSync(), isTrue);
 
     await builder.write(builder.build(mods: [forumMod()], bundle: bundleOf()));
-    expect(File(p.join(builder.modsDir, 'nexerelin.json')).existsSync(), isTrue);
+    expect(
+        File(p.join(builder.modsDir, 'nexerelin.json')).existsSync(), isTrue);
     expect(
         File(p.join(builder.modsDir, 'second-mod.json')).existsSync(), isFalse);
   });
@@ -1614,8 +1668,8 @@ void main() {
       },
     );
 
-    final record = builder.build(mods: [mod], bundle: bundleOf()).list.mods
-        .single;
+    final record =
+        builder.build(mods: [mod], bundle: bundleOf()).list.mods.single;
 
     expect(record.otherAuthorNames.keys, ['Histidine']);
     expect(record.otherAuthorNames['Histidine'], contains('histidine_my'));

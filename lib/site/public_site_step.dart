@@ -36,11 +36,16 @@ class PublicSiteStep {
   /// folder under it.
   final String outputPath;
 
+  /// The website's own files, which each mod's page is built out of. The same
+  /// folder `publish_site_path` names; both default to `site`.
+  final String sitePath;
+
   final Logger _log;
 
   PublicSiteStep({
     required this.dataPath,
     required this.outputPath,
+    this.sitePath = 'site',
     Logger? logger,
   }) : _log = logger ?? Logger('PublicSiteStep');
 
@@ -61,7 +66,9 @@ class PublicSiteStep {
     final found = detector.advance(bundle, bundleId: bundleId);
     store.save(state);
     if (found.isNotEmpty) {
-      _say(log, '${found.length} mods put out a new version: '
+      _say(
+          log,
+          '${found.length} mods put out a new version: '
           '${found.map((r) => '${r.modName} ${r.newVersion}').join(', ')}');
     }
 
@@ -96,7 +103,9 @@ class PublicSiteStep {
     void Function(String message)? log,
   }) async {
     if (mods == null || mods.isEmpty) {
-      _say(log, 'No merged mods to build the website from yet, so its files '
+      _say(
+          log,
+          'No merged mods to build the website from yet, so its files '
           'were left as they were. Run a merge first.');
       return;
     }
@@ -105,7 +114,8 @@ class PublicSiteStep {
     // read stops the run here, before a single file is written — handing out
     // fresh ids would move every mod's page to a new address.
     final idStore = ModIdStore(dataPath)..load();
-    final builder = PublicDataBuilder(outputPath: outputPath, idStore: idStore);
+    final builder = PublicDataBuilder(
+        outputPath: outputPath, idStore: idStore, sitePath: sitePath);
 
     final data = builder.build(
       mods: mods,
@@ -115,7 +125,9 @@ class PublicSiteStep {
     await builder.write(data);
     idStore.save();
 
-    _say(log, 'Built the website files: ${data.list.mods.length} mods and '
+    _say(
+        log,
+        'Built the website files: ${data.list.mods.length} mods and '
         '${data.feed.releases.length} releases in ${builder.siteDir}.');
   }
 
@@ -132,7 +144,8 @@ class PublicSiteStep {
     }
     return [
       for (final item in decoded['items'] as List)
-        if (item is Map) ScrapedModMapper.fromMap(Map<String, dynamic>.from(item)),
+        if (item is Map)
+          ScrapedModMapper.fromMap(Map<String, dynamic>.from(item)),
     ];
   }
 

@@ -145,6 +145,7 @@ class ScraperService implements JobRunner {
       siteStep: PublicSiteStep(
         dataPath: environment.dataPath,
         outputPath: environment.outputPath,
+        sitePath: environment.sitePath,
       ),
       linkClient: links,
       createNetworkClient: createNetworkClient ?? http.Client.new,
@@ -240,8 +241,8 @@ class ScraperService implements JobRunner {
     final client = await _openForumClient(allowReplay: request.replayAllowed);
     final llm = _buildExtractor(request);
     try {
-      final result = await _scrape(scope, client, llm?.extractor, reporter,
-          cancel, 'Scraping topics');
+      final result = await _scrape(
+          scope, client, llm?.extractor, reporter, cancel, 'Scraping topics');
 
       await _redoOutdatedDownloads(reporter, cancel);
 
@@ -268,8 +269,7 @@ class ScraperService implements JobRunner {
         itemsTotal: result.modsScraped,
         errors: result.errors,
         llmCalls: llm?.extractor.liveCallCount ?? 0,
-        guardrailStop:
-            llm == null ? null : _llmStopReason(llm.extractor),
+        guardrailStop: llm == null ? null : _llmStopReason(llm.extractor),
         cancelled: cancel?.isCancelled ?? false,
       );
     } finally {
@@ -415,7 +415,8 @@ class ScraperService implements JobRunner {
         itemsTotal: ids.length,
         errors: errors,
         llmCalls: llm.extractor.liveCallCount,
-        guardrailStop: _llmStopReason(llm.extractor, leftOver: ids.length - done),
+        guardrailStop:
+            _llmStopReason(llm.extractor, leftOver: ids.length - done),
         cancelled: cancel?.isCancelled ?? false,
       );
     } finally {
@@ -443,8 +444,8 @@ class ScraperService implements JobRunner {
         itemsDone: pass.seen,
         itemsTotal: pass.total,
         llmCalls: llm.extractor.liveCallCount,
-        guardrailStop: _llmStopReason(llm.extractor,
-            leftOver: pass.withoutResults),
+        guardrailStop:
+            _llmStopReason(llm.extractor, leftOver: pass.withoutResults),
         cancelled: cancel?.isCancelled ?? false,
       );
     } finally {
@@ -715,8 +716,8 @@ class ScraperService implements JobRunner {
       // refuse.
       stopReason ??= _llmStopReason(extractor);
       if (stopReason == null) {
-        final spentACall = await extractor.extractForTopic(detail,
-            resolver.getCachedCandidates(summary.topicId) ?? const []);
+        final spentACall = await extractor.extractForTopic(
+            detail, resolver.getCachedCandidates(summary.topicId) ?? const []);
         if (spentACall) passCalls++;
       }
 
@@ -743,8 +744,7 @@ class ScraperService implements JobRunner {
           'topic(s) still have no LLM results; run again to carry on where '
           'this run stopped.');
     } else {
-      reporter.log(
-          'LLM: $withoutResults topic(s) still have no LLM results.');
+      reporter.log('LLM: $withoutResults topic(s) still have no LLM results.');
     }
 
     return _CoverageTally(
@@ -826,7 +826,8 @@ class ScraperService implements JobRunner {
   /// polite pause drops to nothing; otherwise pages are fetched live and each
   /// response is written to the file as it arrives.
   Future<_ForumClient> _openForumClient({required bool allowReplay}) async {
-    final cacheFile = io.File(p.join(environment.dataPath, 'qb_raw_cache.json'));
+    final cacheFile =
+        io.File(p.join(environment.dataPath, 'qb_raw_cache.json'));
     final CachingClient caching;
     if (allowReplay && await cacheFile.exists()) {
       caching = await CachingClient.fromFile(cacheFile.path);
@@ -872,8 +873,8 @@ class ScraperService implements JobRunner {
     ThrottledClient? fallbackClient;
     LlmClient client = primary;
     if (settings.hasFallback) {
-      fallbackClient =
-          ThrottledClient(client: http.Client(), delayMs: 250, timeout: timeout);
+      fallbackClient = ThrottledClient(
+          client: http.Client(), delayMs: 250, timeout: timeout);
       final fallback = OpenAiCompatibleClient(
         client: fallbackClient,
         baseUrl: settings.fallbackBaseUrl!,

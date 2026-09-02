@@ -70,10 +70,16 @@ class ScraperEnvironment {
   /// to an LLM no matter what it asks for.
   final LlmSettings? llm;
 
+  /// The public website's own files. Each mod's page is built out of the
+  /// `index.html` in here, so it has to be the same folder a publish copies —
+  /// the one `publish_site_path` names.
+  final String sitePath;
+
   const ScraperEnvironment({
     required this.dataPath,
     this.outputPath = 'outputs',
     this.llm,
+    this.sitePath = 'site',
   });
 
   /// Reads only environment keys. `llm_enabled` is read here for the one thing
@@ -85,6 +91,7 @@ class ScraperEnvironment {
         dataPath: config.qbDataPath,
         outputPath: outputPath,
         llm: config.enableLlm ? LlmSettings.fromConfig(config) : null,
+        sitePath: config.publishSitePath,
       );
 }
 
@@ -173,6 +180,11 @@ class ModRepoEnvironment {
   /// Null when no Nexus token is set up.
   final String? nexusApiToken;
 
+  /// The public website's own files. Each mod's page is built out of the
+  /// `index.html` in here, so it has to be the same folder a publish copies —
+  /// the one `publish_site_path` names.
+  final String sitePath;
+
   const ModRepoEnvironment({
     this.workingPath = '.',
     this.outputPath = 'outputs',
@@ -181,6 +193,7 @@ class ModRepoEnvironment {
     this.discordServerId,
     this.discordForumChannels,
     this.nexusApiToken,
+    this.sitePath = 'site',
   });
 
   /// True when Discord can actually be reached — a token, a server, and at
@@ -207,6 +220,7 @@ class ModRepoEnvironment {
         discordAuthToken: config.discordAuthToken,
         discordServerId: config.discordServerId,
         discordForumChannels: config.discordForumChannelIdsAndGameVersions,
+        sitePath: config.publishSitePath,
         nexusApiToken: config.nexusApiToken,
       );
 

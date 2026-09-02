@@ -155,6 +155,13 @@ class PublicDataBuilder {
   /// folder under it.
   final String outputPath;
 
+  /// The website's own files — the folder holding `index.html`, the stylesheet
+  /// and the scripts. Each mod's page is that `index.html` with one region of
+  /// its head swapped, so the site's chrome is written once and a mod's page
+  /// can never drift from the rest of the site. The same folder
+  /// `publish_site_path` names; both default to `site`.
+  final String sitePath;
+
   final ModIdStore idStore;
 
   final Logger _log;
@@ -162,6 +169,7 @@ class PublicDataBuilder {
   PublicDataBuilder({
     required this.outputPath,
     required this.idStore,
+    this.sitePath = 'site',
     Logger? logger,
   }) : _log = logger ?? Logger('PublicDataBuilder');
 
@@ -612,6 +620,29 @@ class PublicDataBuilder {
     return all;
   }
 
+  /// The site's own front document, which every mod's page is built out of.
+  ///
+  /// Null when it cannot be read or has lost the marks around the region a mod's
+  /// page swaps. That is a log line, not a failure: each mod then gets the small
+  /// redirecting page instead, which still carries the preview tags and still
+  /// reaches the mod — only the address bar keeps the site's hash address rather
+  /// than the mod's own.
+  String? _readShell() {
+    final file = File(p.join(sitePath, 'index.html'));
+    if (!file.existsSync()) {
+      _log.warning('There is no ${file.path} to build the mod pages from, so '
+          'each mod gets a small redirecting page instead.');
+      return null;
+    }
+    final text = file.readAsStringSync();
+    if (!text.contains(modPageHeadStart) || !text.contains(modPageHeadEnd)) {
+      _log.warning('${file.path} has lost its $modPageHeadStart marks, so each '
+          'mod gets a small redirecting page instead.');
+      return null;
+    }
+    return text;
+  }
+
   /// Writes the three files into `<outputs>/site/`. Per-mod files for mods that
   /// are no longer produced are removed, so the folder holds exactly this run's
   /// mods and nothing older.
@@ -624,19 +655,23 @@ class PublicDataBuilder {
     await File(modsFilePath).writeAsString(encoder.convert(data.list.toMap()));
     await File(updatesFilePath)
         .writeAsString(encoder.convert(data.feed.toMap()));
-    await File(updatesXmlFilePath).writeAsString(buildReleaseFeedXml(data.feed));
+    await File(updatesXmlFilePath)
+        .writeAsString(buildReleaseFeedXml(data.feed));
+
+    // Read once for the whole run: every mod's page is this same document.
+    final shell = _readShell();
 
     for (final entry in data.details.entries) {
       await File(p.join(modsDir, '${entry.key}.json'))
           .writeAsString(encoder.convert(entry.value.toMap()));
 
-      // A small page of its own, so a link shared in Discord shows the mod's
-      // name and picture, and a search engine sees one page per mod rather
-      // than one page for all of them.
+      // A page of its own, which is also the mod's address. A link shared in
+      // Discord shows the mod's name and picture, and a search engine sees one
+      // page per mod rather than one page for all of them.
       final folder = Directory(p.join(modsDir, entry.key));
       if (!folder.existsSync()) folder.createSync(recursive: true);
       await File(p.join(folder.path, 'index.html'))
-          .writeAsString(buildModPageHtml(entry.value.listing));
+          .writeAsString(buildModPageHtml(entry.value.listing, shell: shell));
     }
 
     var dropped = 0;
@@ -840,7 +875,8 @@ class PublicDataBuilder {
         plainWordsOf(ownSection) ??
         _firstNonEmpty([mod.description]);
     final generatedDescription = _firstNonEmpty([extras?.summary?.paragraph]);
-    final isGenerated = copiedDescription == null && generatedDescription != null;
+    final isGenerated =
+        copiedDescription == null && generatedDescription != null;
 
     return PublicModDetail(
       generatedAt: builtAt,
@@ -1030,7 +1066,8 @@ class PublicDataBuilder {
       // gallery was as likely to be a "Buy me a coffee" button and a build
       // badge as anything from the game.
       if (!looksLikeAScreenshot(cleaned, sizes: sizes)) return;
-      gallery.add(PublicImage(url: cleaned, caption: _firstNonEmpty([caption])));
+      gallery
+          .add(PublicImage(url: cleaned, caption: _firstNonEmpty([caption])));
     }
 
     for (final image in mod.getImages().values) {

@@ -6,13 +6,14 @@
 
 import {
   aiSummaryMode, buildHash, clear, el, errorPanel, formatDay,
-  formatMoment, applySpacing, go, hashParts, imageChoice, imageUrlOf, loading,
+  formatMoment, applySpacing, go, imageChoice, imageUrlOf, loading,
   modHref, modList, modName, myList,
   preparePageScroll, restorePageScroll, searchHelpField, setAiSummaryMode,
   setImageChoice,
   setSpacingPreference, spacingPreference,
   thumbnail, watchMyList,
 } from './lib.js';
+import { address } from './address.js';
 import { scoreOfTerm } from './search.js';
 import * as home from './views/home.js';
 import * as browse from './views/browse.js';
@@ -24,6 +25,10 @@ import * as list from './views/list.js';
 /// Where this site's code lives. The commit in the footer links into it, so
 /// a bug report can name the exact build.
 const REPO_URL = 'https://github.com/wispborne/Mod_Repo_Scraper';
+
+/// The one place that knows what the address bar means: which page it names,
+/// how to build a link to another, and when the reader has moved.
+const site = address();
 
 const NAV = [
   { route: 'home', label: 'Home' },
@@ -83,9 +88,9 @@ function renderNav(viewId) {
 async function route() {
   // Before anything is cleared, so the view being left can still find out where
   // its reader had got to.
-  const savedScroll = preparePageScroll(location.hash || '#/home');
+  const savedScroll = preparePageScroll(site.scrollKey());
 
-  const parts = hashParts();
+  const parts = site.parts();
   const viewId = parts[0] || 'home';
   renderNav(viewId);
   document.title = 'Starmodder 4: Starsector mods';
@@ -420,13 +425,16 @@ function mountSkipLink() {
   });
 }
 
-window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', () => {
   mountSettings();
   mountHeaderSearch();
   mountSkipLink();
   showFreshness();
   showBuild();
-  if (!location.hash) location.hash = '#/home';
-  else route();
+  // Back, Forward and every link to one of our own pages come through here.
+  site.watch(route);
+  // The front document with nothing after it is Home. Saying so in the address
+  // costs no history entry and means every page on the site names itself.
+  if (!site.parts().length) site.replace('#/home');
+  route();
 });
