@@ -21,6 +21,10 @@ class LlmSettings {
   final bool fallbackDisableThinking;
   final bool fallbackStructuredOutput;
 
+  /// Whether a free primary may fall over to a fallback that charges per token.
+  /// Off by default; see [BotConfig.llmFallbackFreeToPaid].
+  final bool fallbackFreeToPaid;
+
   const LlmSettings({
     this.apiToken,
     required this.model,
@@ -33,6 +37,7 @@ class LlmSettings {
     this.fallbackApiToken,
     this.fallbackDisableThinking = false,
     this.fallbackStructuredOutput = false,
+    this.fallbackFreeToPaid = false,
   });
 
   /// True when a fallback service is set up (both its URL and its model).
@@ -52,6 +57,7 @@ class LlmSettings {
         fallbackApiToken: config.llmFallbackApiToken,
         fallbackDisableThinking: config.llmFallbackDisableThinking,
         fallbackStructuredOutput: config.llmFallbackStructuredOutput,
+        fallbackFreeToPaid: config.llmFallbackFreeToPaid,
       );
 }
 

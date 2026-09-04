@@ -8,6 +8,7 @@ import '../bot/scraper/qb/bundle_publisher.dart';
 import '../bot/scraper/qb/download_resolver.dart';
 import '../bot/scraper/qb/downloadable_probe_cache.dart';
 import '../bot/scraper/qb/json_data_store.dart';
+import '../bot/scraper/qb/llm/endpoint_cost.dart';
 import '../bot/scraper/qb/llm/extraction_store.dart';
 import '../bot/scraper/qb/llm/fallback_llm_client.dart';
 import '../bot/scraper/qb/llm/llm_client.dart';
@@ -889,6 +890,7 @@ class ScraperService implements JobRunner {
         primaryLabel: '${settings.model} @ ${settings.baseUrl}',
         fallbackLabel:
             '${settings.fallbackModel} @ ${settings.fallbackBaseUrl}',
+        switchAllowed: _fallbackSwitchAllowed(settings),
       );
     }
 
@@ -897,6 +899,23 @@ class ScraperService implements JobRunner {
       primaryClient,
       fallbackClient,
     );
+  }
+
+  /// Whether the primary may fall over to the fallback at all.
+  ///
+  /// The only pairing that is blocked is a free primary with a paid fallback,
+  /// because that is the one where switching starts spending money the run was
+  /// not spending. `llm_fallback_free_to_paid` reopens it. Every other pairing —
+  /// both paid, both free, or a paid primary with a cheaper fallback — is always
+  /// allowed.
+  static bool _fallbackSwitchAllowed(LlmSettings settings) {
+    if (settings.fallbackFreeToPaid) return true;
+    final primaryCost =
+        endpointCost(baseUrl: settings.baseUrl, model: settings.model);
+    final fallbackCost = endpointCost(
+        baseUrl: settings.fallbackBaseUrl!, model: settings.fallbackModel!);
+    return !(primaryCost == EndpointCost.free &&
+        fallbackCost == EndpointCost.paid);
   }
 
   PostExtractor _buildPostExtractor(

@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:mod_repo_scraper/bot/common.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/fallback_llm_client.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/llm_client.dart';
+import 'package:mod_repo_scraper/manager/scraper_settings.dart';
 import 'package:test/test.dart';
 
 /// A scripted [LlmClient] that records how many times it was called. Each call
@@ -143,13 +144,118 @@ void main() {
       expect(fallback.callCount, 2);
     });
 
-    test('status-code error (no cause): rethrows, no fallback (4.5)', () async {
-      final primary = _FakeLlmClient([LlmException('Error response (status 500)')]);
+    test('status-code error: falls back (4.5)', () async {
+      // A bad status used to be rethrown. It falls back now: the primary
+      // answered, so it is reachable, but it is no good this run either way and
+      // switching to an endpoint that costs no more is free.
+      final primary =
+          _FakeLlmClient([LlmException('Error response (status 500)')]);
       final fallback = _FakeLlmClient([_ok('fallback')]);
       final client = FallbackLlmClient(primary: primary, fallback: fallback);
 
+      final res = await client.complete(_req());
+
+      expect(res.content, 'fallback');
+      expect(primary.callCount, 1);
+      expect(fallback.callCount, 1);
+    });
+
+    test('after a status-code error, later calls skip the primary (4.5b)',
+        () async {
+      final primary = _FakeLlmClient([
+        LlmException('Error response (status 500)'),
+        _ok('primary-2'),
+      ]);
+      final fallback = _FakeLlmClient([_ok('fb-1'), _ok('fb-2')]);
+      final client = FallbackLlmClient(primary: primary, fallback: fallback);
+
+      final first = await client.complete(_req());
+      final second = await client.complete(_req());
+
+      expect(first.content, 'fb-1');
+      expect(second.content, 'fb-2');
+      expect(primary.callCount, 1);
+      expect(fallback.callCount, 2);
+    });
+
+    test('unreadable answer envelope: falls back', () async {
+      final primary = _FakeLlmClient([LlmException('Response has no choices')]);
+      final fallback = _FakeLlmClient([_ok('fallback')]);
+      final client = FallbackLlmClient(primary: primary, fallback: fallback);
+
+      expect((await client.complete(_req())).content, 'fallback');
+    });
+  });
+
+  group('FallbackLlmClient with switching forbidden', () {
+    test('a connection failure rethrows and the fallback is never called',
+        () async {
+      final primary = _FakeLlmClient([_connectionFailure()]);
+      final fallback = _FakeLlmClient([_ok('fallback')]);
+      final client = FallbackLlmClient(
+          primary: primary, fallback: fallback, switchAllowed: false);
+
+      await expectLater(client.complete(_req()), throwsA(isA<LlmException>()));
+      expect(primary.callCount, 1);
+      expect(fallback.callCount, 0);
+    });
+
+    test('a timeout rethrows and the fallback is never called', () async {
+      final primary = _FakeLlmClient(
+          [LlmException('Request failed', TimeoutException('slow'))]);
+      final fallback = _FakeLlmClient([_ok('fallback')]);
+      final client = FallbackLlmClient(
+          primary: primary, fallback: fallback, switchAllowed: false);
+
       await expectLater(client.complete(_req()), throwsA(isA<LlmException>()));
       expect(fallback.callCount, 0);
+    });
+
+    test('the primary keeps being tried; no latch can open', () async {
+      // Every call must still reach the primary. If a latch closed here, the
+      // run would silently stop asking the free endpoint for the rest of the
+      // run and get nothing at all from either.
+      final primary = _FakeLlmClient([_connectionFailure()]);
+      final fallback = _FakeLlmClient([_ok('fallback')]);
+      final client = FallbackLlmClient(
+          primary: primary, fallback: fallback, switchAllowed: false);
+
+      for (var i = 0; i < 3; i++) {
+        await expectLater(client.complete(_req()), throwsA(isA<LlmException>()));
+      }
+
+      expect(primary.callCount, 3);
+      expect(fallback.callCount, 0);
+    });
+
+    test('a primary that works is still used', () async {
+      final primary = _FakeLlmClient([_ok('primary')]);
+      final fallback = _FakeLlmClient([_ok('fallback')]);
+      final client = FallbackLlmClient(
+          primary: primary, fallback: fallback, switchAllowed: false);
+
+      expect((await client.complete(_req())).content, 'primary');
+      expect(fallback.callCount, 0);
+    });
+
+    test('says once, when built, that the fallback can never fire', () async {
+      final log = Logger('FallbackLlmClientTest.forbidden');
+      final said = <String>[];
+      final sub = log.onRecord.listen((r) {
+        if (r.level == Level.WARNING) said.add(r.message);
+      });
+
+      FallbackLlmClient(
+        primary: _FakeLlmClient([_ok('primary')]),
+        fallback: _FakeLlmClient([_ok('fallback')]),
+        switchAllowed: false,
+        logger: log,
+      );
+      await Future<void>.delayed(Duration.zero);
+      await sub.cancel();
+
+      expect(said, hasLength(1));
+      expect(said.single, contains('llm_fallback_free_to_paid'));
     });
   });
 
@@ -182,6 +288,29 @@ void main() {
           cfg(url: 'https://x/v1/chat/completions', model: 'deepseek/deepseek-chat')
               .llmFallbackEnabled,
           isTrue);
+    });
+  });
+
+  group('BotConfig.llmFallbackFreeToPaid', () {
+    BotConfig cfg({bool? freeToPaid}) => BotConfig(
+          lessScraping: false,
+          enableForums: false,
+          enableDiscord: false,
+          enableNexus: false,
+          logLevel: 'INFO',
+          llmFallbackFreeToPaid: freeToPaid ?? false,
+        );
+
+    test('off unless asked for', () {
+      expect(cfg().llmFallbackFreeToPaid, isFalse);
+    });
+    test('on when set', () {
+      expect(cfg(freeToPaid: true).llmFallbackFreeToPaid, isTrue);
+    });
+    test('LlmSettings.fromConfig carries it through', () {
+      expect(LlmSettings.fromConfig(cfg(freeToPaid: true)).fallbackFreeToPaid,
+          isTrue);
+      expect(LlmSettings.fromConfig(cfg()).fallbackFreeToPaid, isFalse);
     });
   });
 }

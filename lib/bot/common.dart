@@ -121,6 +121,8 @@ class Common {
         llmFallbackStructuredOutput:
             properties['llm_fallback_structured_output']?.toLowerCase() ==
                 'true',
+        llmFallbackFreeToPaid:
+            properties['llm_fallback_free_to_paid']?.toLowerCase() == 'true',
         // Publishing outputs to GitHub.
         publishRepoUrl: _trimOrDefault(properties['publish_repo_url'],
             'git@github.com:wispborne/StarsectorModRepo.git')!,
@@ -189,6 +191,7 @@ class Common {
     'llm_fallback_api_token',
     'llm_fallback_disable_thinking',
     'llm_fallback_structured_output',
+    'llm_fallback_free_to_paid',
     // Publishing outputs to GitHub.
     'publish_repo_url',
     'publish_clone_dir',
@@ -472,6 +475,15 @@ class BotConfig with BotConfigMappable {
   /// request (which would fail the call). Turn on only when the fallback is a
   /// server known to support it.
   final bool llmFallbackStructuredOutput;
+  /// Allow falling over from a free primary to a fallback that charges per
+  /// token. Off by default, so a run that costs nothing today cannot quietly
+  /// start costing money. With a local primary and a cloud fallback — the
+  /// pairing this feature was built for — set this true or the fallback will
+  /// never be used. It makes no difference when both endpoints are paid, both
+  /// are free, or the fallback is the cheaper of the two: those switches are
+  /// always allowed. Which endpoint is which is worked out from its address and
+  /// model name, in `endpoint_cost.dart`.
+  final bool llmFallbackFreeToPaid;
 
   // --- Publishing outputs to GitHub ---
   /// The repo a publish job pushes the output files to. Defaults to the SSH URL
@@ -544,6 +556,7 @@ class BotConfig with BotConfigMappable {
     this.llmFallbackApiToken,
     this.llmFallbackDisableThinking = false,
     this.llmFallbackStructuredOutput = false,
+    this.llmFallbackFreeToPaid = false,
     this.publishRepoUrl = 'git@github.com:wispborne/StarsectorModRepo.git',
     this.publishCloneDir,
     this.publishSitePath = 'site',
