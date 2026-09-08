@@ -193,6 +193,96 @@ void main() {
     expect(detail.descriptionIsGenerated, isFalse);
   });
 
+  test('a Discord-only mod publishes the link its announcement carried', () {
+    // Before this, every download came off a forum thread, so a mod announced
+    // only on Discord reached the site with no download button while its link
+    // sat unread in ModRepo.json. The Astartes Minipack is the real case.
+    final discordOnly = ScrapedMod(
+      name: 'Astartes Minipack',
+      authorsList: const ['woetothee'],
+      sources: const [ModSource.Discord],
+      urls: const {
+        ModUrlType.Discord: 'https://discord.com/channels/1/2/3',
+        ModUrlType.DirectDownload:
+            'https://drive.google.com/file/d/1ANiXX8vidc9fZZAhuo2/view?usp=sharing',
+      },
+    );
+
+    final built = builder.build(mods: [discordOnly], bundle: bundleOf());
+    final listing = built.list.mods.firstWhere((m) => m.id == 'astartes-minipack');
+
+    expect(listing.downloadCount, 1);
+    expect(listing.bestDownload!.url,
+        'https://drive.google.com/file/d/1ANiXX8vidc9fZZAhuo2/view?usp=sharing');
+    // Drive's preview page is a page, so the button must say so — and the
+    // browse page's "goes straight to a file" switch must not claim it.
+    expect(listing.bestDownload!.needsAnotherStep, isTrue);
+    expect(listing.hasDirectDownload, isFalse);
+
+    final detail = built.details['astartes-minipack']!;
+    expect(detail.downloads.single.host, 'Google Drive');
+  });
+
+  test('a Discord download page that is really the forum thread is dropped',
+      () {
+    final discordOnly = ScrapedMod(
+      name: 'Aegis Combat System',
+      authorsList: const ['someone'],
+      sources: const [ModSource.Discord],
+      urls: const {
+        ModUrlType.Discord: 'https://discord.com/channels/1/2/3',
+        ModUrlType.Forum:
+            'https://fractalsoftworks.com/forum/index.php?topic=25807',
+        ModUrlType.DownloadPage:
+            'https://fractalsoftworks.com/forum/index.php?topic=25807',
+      },
+    );
+
+    final built = builder.build(mods: [discordOnly], bundle: bundleOf());
+    final listing =
+        built.list.mods.firstWhere((m) => m.id == 'aegis-combat-system');
+
+    // The honest "On the forum" button, not a "Download page" one that opens
+    // the same thread.
+    expect(listing.downloadCount, 0);
+    expect(listing.bestDownload, isNull);
+    expect(listing.forumUrl,
+        'https://fractalsoftworks.com/forum/index.php?topic=25807');
+  });
+
+  test("a forum thread's own downloads still win over the announcement's", () {
+    final both = ScrapedMod(
+      name: 'Nexerelin',
+      authorsList: const ['Histidine'],
+      sources: const [ModSource.Index, ModSource.Discord],
+      urls: const {
+        ModUrlType.Forum:
+            'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+        ModUrlType.DirectDownload: 'https://example.com/from-discord.zip',
+      },
+    );
+
+    final built = builder.build(
+      mods: [both],
+      bundle: bundleOf(
+        index: [thread()],
+        downloads: {
+          '9175': [
+            AssumedDownloadCandidate(
+              originalUrl: 'https://example.com/from-the-thread.zip',
+              resolvedDirectUrl: 'https://example.com/from-the-thread.zip',
+            ),
+          ],
+        },
+      ),
+    );
+
+    final listing = built.list.mods.firstWhere((m) => m.id == 'nexerelin');
+    expect(listing.bestDownload!.url,
+        'https://example.com/from-the-thread.zip');
+    expect(listing.downloadCount, 1);
+  });
+
   test('the gallery leaves out buttons, badges and tiny pictures', () {
     const post = '<p>Look</p>'
         '<img src="https://i.imgur.com/shot.png" width="900">'

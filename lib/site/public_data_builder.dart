@@ -15,6 +15,7 @@ import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
 import 'days.dart';
 import 'description_slice.dart';
+import 'discord_download.dart';
 import 'display_name.dart';
 import 'download_order.dart';
 import 'gallery_filter.dart';
@@ -713,7 +714,7 @@ class PublicDataBuilder {
     required String? partOfThreadTitle,
   }) {
     final extras = chosen?.extras;
-    final downloads = _downloadsFor(chosen, threadDownloads);
+    final downloads = _downloadsFor(mod, chosen, threadDownloads);
 
     final lastPost = parseForumDate(thread?.lastPostDate);
     final copiedSummary = usableSummary(mod.summary);
@@ -890,7 +891,7 @@ class PublicDataBuilder {
       saveCompatibilityText: _firstNonEmpty([extras?.saveCompatibility]),
       rawCategories: _shelvesFor(mod),
       gallery: _galleryFor(mod, detail, post.pictureSizes),
-      downloads: _downloadsFor(chosen, threadDownloads),
+      downloads: _downloadsFor(mod, chosen, threadDownloads),
       changelog: extras?.changelog?.entries ?? const {},
       changelogUrl: _firstNonEmpty([extras?.changelog?.link]),
       license: _firstNonEmpty([extras?.license]),
@@ -1005,14 +1006,27 @@ class PublicDataBuilder {
   /// The mod's downloads. The LLM's list is used when there is one, because it
   /// knows which download belongs to which mod on the thread; the rules-based
   /// list is the fallback.
+  ///
+  /// Both of those come off a forum thread, so a mod announced only on Discord
+  /// used to end up here with nothing — a quarter of the site's mods, each
+  /// falling back to an "On Discord" button while its download link sat unread
+  /// in `ModRepo.json`. The announcement's own link is the last fallback. It is
+  /// last on purpose: a forum thread's downloads are read from the author's own
+  /// post and are better than one link scraped out of an announcement, so a mod
+  /// that has both is unchanged by this.
   List<PublicDownload> _downloadsFor(
+    ScrapedMod mod,
     LlmMod? chosen,
     List<AssumedDownloadCandidate> threadDownloads,
   ) {
     if (chosen != null && chosen.downloads.isNotEmpty) {
       return sortedDownloads(chosen.downloads.map(_fromLlmDownload).toList());
     }
-    return sortedDownloads(threadDownloads.map(_fromAssumedDownload).toList());
+    if (threadDownloads.isNotEmpty) {
+      return sortedDownloads(threadDownloads.map(_fromAssumedDownload).toList());
+    }
+    final announced = discordDownloadFor(mod.getUrls());
+    return announced == null ? const [] : [announced];
   }
 
   /// The one download a card or a row offers. Every list on the site shows this

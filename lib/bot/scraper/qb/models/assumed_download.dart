@@ -31,7 +31,7 @@ class AssumedDownloadCandidate with AssumedDownloadCandidateMappable {
     return AssumedDownloadCandidate(
       originalUrl: candidate.sourceUrl,
       resolvedDirectUrl: candidate.resolvedUrl,
-      sourceHost: _inferSourceHost(candidate.resolvedUrl),
+      sourceHost: inferSourceHost(candidate.resolvedUrl),
       fileName: candidate.archiveFilename,
       confidence: candidate.confidence.name,
       requiresManualStep: candidate.requiresManualStep,
@@ -39,7 +39,12 @@ class AssumedDownloadCandidate with AssumedDownloadCandidateMappable {
     );
   }
 
-  static String _inferSourceHost(String url) {
+  /// A plain name for where a file is hosted, e.g. "GitHub", "Google Drive".
+  ///
+  /// Public because the website names the host of a Discord announcement's
+  /// download the same way (`discord_download.dart`), and two tables of host
+  /// names would drift apart.
+  static String inferSourceHost(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) return '';
     final host = uri.host.toLowerCase();
