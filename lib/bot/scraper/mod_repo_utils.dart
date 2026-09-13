@@ -64,6 +64,7 @@ class ModRepoUtils {
     ["Derelict_Surveyor", "jdt15"],
     ["astarat.", "Astarat", "Astarat and PureTilt"],
     ["Yogurt Fox", "YogurtFox", "Mycophobia"],
+    ["Belt", "woetothee"],
   ];
 
   /// Splits an author credit like "Ed, Nick XR & Foo and Bar" into the
