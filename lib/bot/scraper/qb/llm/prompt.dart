@@ -86,6 +86,12 @@ Hard rules:
   mod that is merely mentioned, recommended, linked as a successor, or that has
   to be downloaded somewhere else. Example: a post for one mod that also links a
   successor mod and recommends a separate tool wouldn't add the successor and tool to this thread.
+- A patch for another mod is not a mod. Leave it out, even when its download is
+  named after that mod. A patch is a file you copy into another mod's folder to
+  change or overwrite that mod's files. Example: a thread for a mod that fixes
+  ship collisions also offers one download per other ship mod, each named after
+  that mod, holding .ship files to copy into it. That is one entry, the
+  collision mod.
   $summaryRule
 
 Return this JSON object:
