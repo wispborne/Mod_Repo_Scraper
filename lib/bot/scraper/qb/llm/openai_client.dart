@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -15,6 +16,16 @@ import 'llm_client.dart';
 /// Uses a dedicated [ThrottledClient] so calls are spaced out even when several
 /// topics are being processed at once, and LLM traffic stays off the scraper's
 /// caching client.
+///
+/// The answer is streamed, so there are two time limits. [idleTimeout] is how
+/// long to wait with nothing new arriving: a slow model that is still writing
+/// is left alone, and a server that has stopped answering is caught. The wait
+/// for the first words counts too, and that covers the model loading and
+/// reading the prompt. [totalTimeout] caps the whole call, which is what stops
+/// a model stuck repeating itself, since that one never goes quiet.
+///
+/// A server that ignores `stream: true` and sends the whole answer at once is
+/// read as before.
 class OpenAiCompatibleClient implements LlmClient {
   final ThrottledClient _client;
   final String _baseUrl;
@@ -36,6 +47,13 @@ class OpenAiCompatibleClient implements LlmClient {
   /// providers), which fall back to the weaker `json_object` hint.
   final bool _structuredOutput;
 
+  /// Longest wait with nothing new arriving, including the wait for the first
+  /// words.
+  final Duration _idleTimeout;
+
+  /// Longest the whole call may take.
+  final Duration _totalTimeout;
+
   OpenAiCompatibleClient({
     required ThrottledClient client,
     required String baseUrl,
@@ -43,12 +61,16 @@ class OpenAiCompatibleClient implements LlmClient {
     String? apiToken,
     bool disableThinking = false,
     bool structuredOutput = false,
+    Duration idleTimeout = const Duration(minutes: 3),
+    Duration totalTimeout = const Duration(minutes: 15),
   })  : _client = client,
         _baseUrl = baseUrl,
         _model = model,
         _apiToken = apiToken,
         _disableThinking = disableThinking,
-        _structuredOutput = structuredOutput;
+        _structuredOutput = structuredOutput,
+        _idleTimeout = idleTimeout,
+        _totalTimeout = totalTimeout;
 
   @override
   Future<LlmResponse> complete(LlmRequest request) async {
@@ -56,12 +78,6 @@ class OpenAiCompatibleClient implements LlmClient {
     if (uri == null) {
       throw LlmException('Invalid llm_base_url: "$_baseUrl"');
     }
-
-    var userPrompt = request.userPrompt;
-
-    // if (_disableThinking) {
-    //   userPrompt = '/nothink $userPrompt';
-    // }
 
     // Constrain the reply to JSON. A full schema (json_schema) makes a
     // compliant server emit only valid JSON in the exact shape, which removes
@@ -90,7 +106,9 @@ class OpenAiCompatibleClient implements LlmClient {
       'temperature': request.temperature,
       'response_format': responseFormat,
       'max_tokens': request.maxTokens,
-      'stream': false,
+      'stream': true,
+      // Token counts come in the last chunk only when asked for.
+      'stream_options': {'include_usage': true},
     };
     if (_disableThinking) {
       if (uri.host.toLowerCase() == 'openrouter.ai') {
@@ -101,32 +119,141 @@ class OpenAiCompatibleClient implements LlmClient {
         payload['chat_template_kwargs'] = {'enable_thinking': false};
       }
     }
-    final body = jsonEncode(payload);
 
-    http.Response response;
+    final httpRequest = http.Request('POST', uri)
+      ..headers.addAll({
+        if (_apiToken != null && _apiToken!.isNotEmpty)
+          'Authorization': 'Bearer $_apiToken',
+        'Content-Type': 'application/json',
+      })
+      ..body = jsonEncode(payload);
+
+    final clock = Stopwatch()..start();
     try {
-      response = await _client.post(
-        uri,
-        headers: {
-          if (_apiToken != null && _apiToken!.isNotEmpty)
-            'Authorization': 'Bearer $_apiToken',
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      );
+      final pending = _client.send(httpRequest);
+      final http.StreamedResponse response;
+      try {
+        response = await _limit(pending, clock);
+      } on TimeoutException {
+        // If the answer turns up after all, close it rather than leave the
+        // connection open.
+        unawaited(pending
+            .then((r) => r.stream.listen(null).cancel())
+            .catchError((Object _) {}));
+        rethrow;
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final text = await _limit(response.stream.bytesToString(), clock);
+        throw LlmException(
+            'Error response (status ${response.statusCode}): ${_previewBody(text)}');
+      }
+
+      final contentType = response.headers['content-type'] ?? '';
+      if (!contentType.contains('text/event-stream')) {
+        // The server ignored `stream: true` and sent the whole answer at once.
+        final text = await _limit(response.stream.bytesToString(), clock);
+        return _parseResponse(text);
+      }
+      return await _readStream(response, clock);
+    } on LlmException {
+      rethrow;
     } catch (e) {
       // Network error or timeout.
       throw LlmException('Request failed', e);
     }
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw LlmException(
-          'Error response (status ${response.statusCode}): ${_previewBody(response.body)}');
-    }
-
-    return _parseResponse(response.body);
   }
 
+  /// Waits for [future] no longer than the idle limit, or than what is left of
+  /// the total limit if that is less. Throws [TimeoutException] saying which
+  /// limit was hit.
+  Future<T> _limit<T>(Future<T> future, Stopwatch clock) {
+    final left = _totalTimeout - clock.elapsed;
+    final totalTimedOut = TimeoutException(
+        'No complete answer after ${_totalTimeout.inSeconds} s', _totalTimeout);
+    if (left <= Duration.zero) throw totalTimedOut;
+    if (left <= _idleTimeout) {
+      return future.timeout(left, onTimeout: () => throw totalTimedOut);
+    }
+    return future.timeout(_idleTimeout,
+        onTimeout: () => throw TimeoutException(
+            'Nothing new from the model for ${_idleTimeout.inSeconds} s',
+            _idleTimeout));
+  }
+
+  /// Reads a server-sent-events answer: each `data:` line is one JSON chunk
+  /// carrying the next piece of text, and `data: [DONE]` ends it. Token counts
+  /// and llama.cpp's `timings` arrive in the last chunks.
+  Future<LlmResponse> _readStream(
+      http.StreamedResponse response, Stopwatch clock) async {
+    final lines = StreamIterator(response.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter()));
+    final content = StringBuffer();
+    String? finishReason;
+    Object? usage;
+    Object? timings;
+    var done = false;
+    try {
+      while (await _limit(lines.moveNext(), clock)) {
+        // Blank lines end an event. Lines starting with ":" are comments, which
+        // some providers send to keep the connection open.
+        final line = lines.current;
+        if (!line.startsWith('data:')) continue;
+        final data = line.substring(5).trim();
+        if (data == '[DONE]') {
+          done = true;
+          break;
+        }
+
+        final Object? chunk;
+        try {
+          chunk = jsonDecode(data);
+        } catch (e) {
+          throw LlmException('Could not read a chunk of the answer', e);
+        }
+        if (chunk is! Map<String, dynamic>) continue;
+
+        // OpenRouter reports a failure part-way through as a chunk of its own.
+        final error = chunk['error'];
+        if (error != null) {
+          throw LlmException('Error part-way through the answer: '
+              '${_previewBody(jsonEncode(error))}');
+        }
+
+        final choices = chunk['choices'];
+        if (choices is List && choices.isNotEmpty) {
+          final choice = choices.first;
+          if (choice is Map<String, dynamic>) {
+            final delta = choice['delta'];
+            if (delta is Map<String, dynamic> && delta['content'] is String) {
+              content.write(delta['content']);
+            }
+            if (choice['finish_reason'] is String) {
+              finishReason = choice['finish_reason'] as String;
+            }
+          }
+        }
+        if (chunk['usage'] is Map) usage = chunk['usage'];
+        if (chunk['timings'] is Map) timings = chunk['timings'];
+      }
+    } finally {
+      // Closes the connection if we stopped early, so the server stops too.
+      await lines.cancel();
+    }
+
+    if (!done && finishReason == null) {
+      throw LlmException('The answer stopped arriving before it was finished');
+    }
+    return _buildResponse(
+      content: content.toString(),
+      finishReason: finishReason,
+      usage: usage,
+      timings: timings,
+    );
+  }
+
+  /// Reads an answer sent all at once.
   LlmResponse _parseResponse(String responseBody) {
     final Map<String, dynamic> decoded;
     try {
@@ -150,12 +277,23 @@ class OpenAiCompatibleClient implements LlmClient {
     }
 
     final message = firstChoice['message'];
-    final finishReason = firstChoice['finish_reason'] as String?;
-
     final rawContent =
         message is Map<String, dynamic> ? message['content'] : null;
-    final content = rawContent is String ? rawContent : null;
 
+    return _buildResponse(
+      content: rawContent is String ? rawContent : null,
+      finishReason: firstChoice['finish_reason'] as String?,
+      usage: decoded['usage'],
+      timings: decoded['timings'],
+    );
+  }
+
+  LlmResponse _buildResponse({
+    required String? content,
+    required String? finishReason,
+    required Object? usage,
+    required Object? timings,
+  }) {
     if (content == null || content.trim().isEmpty) {
       final why = finishReason == 'length'
           ? 'the answer was cut off at the token limit (finish_reason=length) — '
@@ -165,12 +303,10 @@ class OpenAiCompatibleClient implements LlmClient {
       throw LlmException('No answer text in the response: $why');
     }
 
-    final usage = decoded['usage'];
     int? asInt(Object? v) => v is int ? v : (v is num ? v.toInt() : null);
 
     // llama.cpp reports speed in a `timings` block. Cloud endpoints omit it, so
     // every field here may be absent.
-    final timings = decoded['timings'];
     double? timing(String key) =>
         timings is Map<String, dynamic> && timings[key] is num
             ? (timings[key] as num).toDouble()

@@ -502,13 +502,13 @@ class PostExtractor {
       } on LlmException catch (e) {
         // The call itself failed (network, bad status, timeout, empty answer).
         _log.warning('LLM attempt $attempt failed for topic $topicId: $e');
-        // A timeout means the request ran past the limit. Retrying with the
+        // A timeout means the request ran past a limit. Retrying with the
         // same limit would almost always time out again — just burning more
-        // minutes — so stop now and fall back to the rule-based result. Raise
-        // llm_timeout_seconds if this happens a lot.
+        // minutes — so stop now and fall back to the rule-based result.
         if (e.cause is TimeoutException) {
-          _log.warning('LLM timed out for topic $topicId; not retrying. Raise '
-              'llm_timeout_seconds if this is common.');
+          _log.warning('LLM timed out for topic $topicId; not retrying. If '
+              'this is common, raise llm_idle_timeout_seconds (nothing new '
+              'arrived) or llm_timeout_seconds (the whole call ran too long).');
           return null;
         }
         if (attempt == maxAttempts) return null;

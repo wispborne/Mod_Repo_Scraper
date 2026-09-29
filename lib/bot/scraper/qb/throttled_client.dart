@@ -34,6 +34,14 @@ class ThrottledClient {
     return _inner.post(url, headers: merged, body: body).timeout(timeout);
   }
 
+  /// Sends [request] with the usual spacing but no time limit: the caller reads
+  /// the answer as it arrives and decides for itself how long to wait.
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    await _enforceDelay();
+    request.headers.putIfAbsent('User-Agent', () => _userAgent);
+    return _inner.send(request);
+  }
+
   /// Chains each caller off the previous one so concurrent `get()` calls can't
   /// observe the same `_lastRequestTime` and fire simultaneously.
   Future<void> _enforceDelay() {

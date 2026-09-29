@@ -232,7 +232,14 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     'llmTimeoutSeconds',
     _$llmTimeoutSeconds,
     opt: true,
-    def: 120,
+    def: 900,
+  );
+  static int _$llmIdleTimeoutSeconds(BotConfig v) => v.llmIdleTimeoutSeconds;
+  static const Field<BotConfig, int> _f$llmIdleTimeoutSeconds = Field(
+    'llmIdleTimeoutSeconds',
+    _$llmIdleTimeoutSeconds,
+    opt: true,
+    def: 180,
   );
   static int? _$llmMaxTopics(BotConfig v) => v.llmMaxTopics;
   static const Field<BotConfig, int> _f$llmMaxTopics = Field(
@@ -342,6 +349,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: false,
   );
+  static bool _$llmFallbackFreeToPaid(BotConfig v) => v.llmFallbackFreeToPaid;
+  static const Field<BotConfig, bool> _f$llmFallbackFreeToPaid = Field(
+    'llmFallbackFreeToPaid',
+    _$llmFallbackFreeToPaid,
+    opt: true,
+    def: false,
+  );
   static String _$publishRepoUrl(BotConfig v) => v.publishRepoUrl;
   static const Field<BotConfig, String> _f$publishRepoUrl = Field(
     'publishRepoUrl',
@@ -398,6 +412,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #llmBaseUrl: _f$llmBaseUrl,
     #llmMaxConsecutiveFailures: _f$llmMaxConsecutiveFailures,
     #llmTimeoutSeconds: _f$llmTimeoutSeconds,
+    #llmIdleTimeoutSeconds: _f$llmIdleTimeoutSeconds,
     #llmMaxTopics: _f$llmMaxTopics,
     #llmMaxConcurrentCalls: _f$llmMaxConcurrentCalls,
     #llmMaxTokens: _f$llmMaxTokens,
@@ -414,6 +429,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #llmFallbackApiToken: _f$llmFallbackApiToken,
     #llmFallbackDisableThinking: _f$llmFallbackDisableThinking,
     #llmFallbackStructuredOutput: _f$llmFallbackStructuredOutput,
+    #llmFallbackFreeToPaid: _f$llmFallbackFreeToPaid,
     #publishRepoUrl: _f$publishRepoUrl,
     #publishCloneDir: _f$publishCloneDir,
     #publishSitePath: _f$publishSitePath,
@@ -457,6 +473,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       llmBaseUrl: data.dec(_f$llmBaseUrl),
       llmMaxConsecutiveFailures: data.dec(_f$llmMaxConsecutiveFailures),
       llmTimeoutSeconds: data.dec(_f$llmTimeoutSeconds),
+      llmIdleTimeoutSeconds: data.dec(_f$llmIdleTimeoutSeconds),
       llmMaxTopics: data.dec(_f$llmMaxTopics),
       llmMaxConcurrentCalls: data.dec(_f$llmMaxConcurrentCalls),
       llmMaxTokens: data.dec(_f$llmMaxTokens),
@@ -473,6 +490,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       llmFallbackApiToken: data.dec(_f$llmFallbackApiToken),
       llmFallbackDisableThinking: data.dec(_f$llmFallbackDisableThinking),
       llmFallbackStructuredOutput: data.dec(_f$llmFallbackStructuredOutput),
+      llmFallbackFreeToPaid: data.dec(_f$llmFallbackFreeToPaid),
       publishRepoUrl: data.dec(_f$publishRepoUrl),
       publishCloneDir: data.dec(_f$publishCloneDir),
       publishSitePath: data.dec(_f$publishSitePath),
@@ -573,6 +591,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     String? llmBaseUrl,
     int? llmMaxConsecutiveFailures,
     int? llmTimeoutSeconds,
+    int? llmIdleTimeoutSeconds,
     int? llmMaxTopics,
     int? llmMaxConcurrentCalls,
     int? llmMaxTokens,
@@ -589,6 +608,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     String? llmFallbackApiToken,
     bool? llmFallbackDisableThinking,
     bool? llmFallbackStructuredOutput,
+    bool? llmFallbackFreeToPaid,
     String? publishRepoUrl,
     String? publishCloneDir,
     String? publishSitePath,
@@ -648,6 +668,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     String? llmBaseUrl,
     int? llmMaxConsecutiveFailures,
     int? llmTimeoutSeconds,
+    int? llmIdleTimeoutSeconds,
     Object? llmMaxTopics = $none,
     int? llmMaxConcurrentCalls,
     Object? llmMaxTokens = $none,
@@ -664,6 +685,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     Object? llmFallbackApiToken = $none,
     bool? llmFallbackDisableThinking,
     bool? llmFallbackStructuredOutput,
+    bool? llmFallbackFreeToPaid,
     String? publishRepoUrl,
     Object? publishCloneDir = $none,
     String? publishSitePath,
@@ -708,6 +730,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (llmMaxConsecutiveFailures != null)
         #llmMaxConsecutiveFailures: llmMaxConsecutiveFailures,
       if (llmTimeoutSeconds != null) #llmTimeoutSeconds: llmTimeoutSeconds,
+      if (llmIdleTimeoutSeconds != null)
+        #llmIdleTimeoutSeconds: llmIdleTimeoutSeconds,
       if (llmMaxTopics != $none) #llmMaxTopics: llmMaxTopics,
       if (llmMaxConcurrentCalls != null)
         #llmMaxConcurrentCalls: llmMaxConcurrentCalls,
@@ -730,6 +754,8 @@ class _BotConfigCopyWithImpl<$R, $Out>
         #llmFallbackDisableThinking: llmFallbackDisableThinking,
       if (llmFallbackStructuredOutput != null)
         #llmFallbackStructuredOutput: llmFallbackStructuredOutput,
+      if (llmFallbackFreeToPaid != null)
+        #llmFallbackFreeToPaid: llmFallbackFreeToPaid,
       if (publishRepoUrl != null) #publishRepoUrl: publishRepoUrl,
       if (publishCloneDir != $none) #publishCloneDir: publishCloneDir,
       if (publishSitePath != null) #publishSitePath: publishSitePath,
@@ -793,6 +819,10 @@ class _BotConfigCopyWithImpl<$R, $Out>
       #llmTimeoutSeconds,
       or: $value.llmTimeoutSeconds,
     ),
+    llmIdleTimeoutSeconds: data.get(
+      #llmIdleTimeoutSeconds,
+      or: $value.llmIdleTimeoutSeconds,
+    ),
     llmMaxTopics: data.get(#llmMaxTopics, or: $value.llmMaxTopics),
     llmMaxConcurrentCalls: data.get(
       #llmMaxConcurrentCalls,
@@ -835,6 +865,10 @@ class _BotConfigCopyWithImpl<$R, $Out>
     llmFallbackStructuredOutput: data.get(
       #llmFallbackStructuredOutput,
       or: $value.llmFallbackStructuredOutput,
+    ),
+    llmFallbackFreeToPaid: data.get(
+      #llmFallbackFreeToPaid,
+      or: $value.llmFallbackFreeToPaid,
     ),
     publishRepoUrl: data.get(#publishRepoUrl, or: $value.publishRepoUrl),
     publishCloneDir: data.get(#publishCloneDir, or: $value.publishCloneDir),

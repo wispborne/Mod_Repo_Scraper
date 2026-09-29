@@ -130,11 +130,7 @@ Future<LlmStoreEntry?> readWithTheModel(
 }) async {
   final settings = LiveLlmSettings.read();
   final tempDir = Directory.systemTemp.createTempSync('llm_live');
-  final httpClient = ThrottledClient(
-    client: http.Client(),
-    delayMs: 0,
-    timeout: const Duration(seconds: 300),
-  );
+  final httpClient = ThrottledClient(client: http.Client(), delayMs: 0);
   final store = LlmExtractionStore(tempDir.path, flushEveryN: 1000);
   try {
     final extractor = PostExtractor(
@@ -145,6 +141,8 @@ Future<LlmStoreEntry?> readWithTheModel(
         apiToken: settings.apiToken,
         disableThinking: settings.disableThinking,
         structuredOutput: settings.structuredOutput,
+        idleTimeout: const Duration(seconds: 300),
+        totalTimeout: const Duration(minutes: 15),
       ),
       store: store,
       resolver: QbDownloadResolver(

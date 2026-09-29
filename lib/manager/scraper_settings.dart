@@ -121,8 +121,12 @@ class ScraperGuardrails {
   /// a row.
   final int llmMaxConsecutiveFailures;
 
-  /// How long to wait for one LLM reply, in seconds.
+  /// Longest one LLM call may take in all, in seconds.
   final int llmTimeoutSeconds;
+
+  /// Longest wait with nothing new arriving from the model, in seconds,
+  /// including the wait for the first words.
+  final int llmIdleTimeoutSeconds;
 
   /// Cap on how much the model may write per reply, in tokens. Null uses the
   /// prompt's own default.
@@ -140,7 +144,8 @@ class ScraperGuardrails {
     this.llmMaxTopics,
     this.llmMaxConcurrentCalls = 3,
     this.llmMaxConsecutiveFailures = 10,
-    this.llmTimeoutSeconds = 120,
+    this.llmTimeoutSeconds = 900,
+    this.llmIdleTimeoutSeconds = 180,
     this.llmMaxTokens,
     this.llmMaxInputChars,
     this.bundlesToKeep = 500,
@@ -152,6 +157,7 @@ class ScraperGuardrails {
         llmMaxConcurrentCalls: config.llmMaxConcurrentCalls,
         llmMaxConsecutiveFailures: config.llmMaxConsecutiveFailures,
         llmTimeoutSeconds: config.llmTimeoutSeconds,
+        llmIdleTimeoutSeconds: config.llmIdleTimeoutSeconds,
         llmMaxTokens: config.llmMaxTokens,
         llmMaxInputChars: config.llmMaxInputChars,
         bundlesToKeep: config.qbBundlesToKeep,

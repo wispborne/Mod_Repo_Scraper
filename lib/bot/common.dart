@@ -95,7 +95,9 @@ class Common {
         llmMaxConsecutiveFailures:
             int.tryParse(properties['llm_max_consecutive_failures'] ?? '') ?? 10,
         llmTimeoutSeconds:
-            int.tryParse(properties['llm_timeout_seconds'] ?? '') ?? 120,
+            int.tryParse(properties['llm_timeout_seconds'] ?? '') ?? 900,
+        llmIdleTimeoutSeconds:
+            int.tryParse(properties['llm_idle_timeout_seconds'] ?? '') ?? 180,
         llmMaxTopics: int.tryParse(properties['llm_max_topics'] ?? ''),
         llmMaxConcurrentCalls:
             int.tryParse(properties['llm_max_concurrent_calls'] ?? '') ?? 3,
@@ -175,6 +177,7 @@ class Common {
     'llm_base_url',
     'llm_max_consecutive_failures',
     'llm_timeout_seconds',
+    'llm_idle_timeout_seconds',
     'llm_max_topics',
     'llm_max_concurrent_calls',
     'llm_max_tokens',
@@ -400,12 +403,17 @@ class BotConfig with BotConfigMappable {
   /// Stop calling the LLM for the rest of the run after this many failures in a
   /// row (any success resets the count). Catches a broken or offline service.
   final int llmMaxConsecutiveFailures;
-  /// How long to wait for one LLM reply before giving up, in seconds. A local
-  /// model writing a long answer for a big post can easily need more than a
-  /// minute, so this defaults to 120. A timed-out call is not retried (a retry
-  /// with the same limit would almost always time out again); it falls straight
-  /// back to the rule-based result.
+  /// Longest one LLM call may take in all, in seconds. The answer is streamed,
+  /// so a slow model that is still writing is judged by
+  /// [llmIdleTimeoutSeconds] instead; this cap is what stops a model stuck
+  /// repeating itself. A timed-out call is not retried (a retry with the same
+  /// limit would almost always time out again); it falls straight back to the
+  /// rule-based result.
   final int llmTimeoutSeconds;
+  /// Longest wait with nothing new arriving from the model, in seconds. The
+  /// wait for the first words counts too, which covers the model loading and
+  /// reading the prompt.
+  final int llmIdleTimeoutSeconds;
   /// Optional limit on how many posts the LLM may process per run.
   /// null = no limit (already-processed posts are skipped anyway).
   final int? llmMaxTopics;
@@ -539,7 +547,8 @@ class BotConfig with BotConfigMappable {
     this.llmModel = 'deepseek/deepseek-chat',
     this.llmBaseUrl = 'https://openrouter.ai/api/v1/chat/completions',
     this.llmMaxConsecutiveFailures = 10,
-    this.llmTimeoutSeconds = 120,
+    this.llmTimeoutSeconds = 900,
+    this.llmIdleTimeoutSeconds = 180,
     this.llmMaxTopics,
     this.llmMaxConcurrentCalls = 3,
     this.llmMaxTokens,

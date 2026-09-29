@@ -857,11 +857,11 @@ class ScraperService implements JobRunner {
           testMode: testMode));
     }
 
-    final timeout = Duration(seconds: guardrails.llmTimeoutSeconds);
+    final idleTimeout = Duration(seconds: guardrails.llmIdleTimeoutSeconds);
+    final totalTimeout = Duration(seconds: guardrails.llmTimeoutSeconds);
     // A client of its own keeps LLM calls spaced out and off the scraper's
     // recording client.
-    final primaryClient =
-        ThrottledClient(client: http.Client(), delayMs: 250, timeout: timeout);
+    final primaryClient = ThrottledClient(client: http.Client(), delayMs: 250);
     final primary = OpenAiCompatibleClient(
       client: primaryClient,
       baseUrl: settings.baseUrl,
@@ -869,13 +869,14 @@ class ScraperService implements JobRunner {
       apiToken: settings.apiToken,
       disableThinking: settings.disableThinking,
       structuredOutput: settings.structuredOutput,
+      idleTimeout: idleTimeout,
+      totalTimeout: totalTimeout,
     );
 
     ThrottledClient? fallbackClient;
     LlmClient client = primary;
     if (settings.hasFallback) {
-      fallbackClient = ThrottledClient(
-          client: http.Client(), delayMs: 250, timeout: timeout);
+      fallbackClient = ThrottledClient(client: http.Client(), delayMs: 250);
       final fallback = OpenAiCompatibleClient(
         client: fallbackClient,
         baseUrl: settings.fallbackBaseUrl!,
@@ -883,6 +884,8 @@ class ScraperService implements JobRunner {
         apiToken: settings.fallbackApiToken,
         disableThinking: settings.fallbackDisableThinking,
         structuredOutput: settings.fallbackStructuredOutput,
+        idleTimeout: idleTimeout,
+        totalTimeout: totalTimeout,
       );
       client = FallbackLlmClient(
         primary: primary,
