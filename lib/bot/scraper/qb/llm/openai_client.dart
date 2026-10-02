@@ -326,7 +326,23 @@ class OpenAiCompatibleClient implements LlmClient {
       completionTokensPerSecond: timing('predicted_per_second'),
       promptMs: timing('prompt_ms'),
       completionMs: timing('predicted_ms'),
+      model: _model,
+      endpoint: endpointLabel(_baseUrl),
     );
+  }
+
+  /// The endpoint's address as it is safe to save and show: scheme, host, port
+  /// and path only. A user name, password or query string (where some setups
+  /// put a key) is left off.
+  static String endpointLabel(String baseUrl) {
+    final uri = Uri.tryParse(baseUrl.trim());
+    if (uri == null || uri.host.isEmpty) return baseUrl.trim();
+    return Uri(
+      scheme: uri.scheme,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+      path: uri.path,
+    ).toString();
   }
 
   static String _previewBody(String body) =>

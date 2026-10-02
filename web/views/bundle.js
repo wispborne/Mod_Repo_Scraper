@@ -355,6 +355,7 @@ function renderEntry(root, entry) {
     }
     found.append(el('p', { class: 'loading', text: msg }));
   }
+  if (llm) found.append(llmSourceLine(llm));
 
   found.append(el('h3', { text: `Rule-based downloads (${downloads.length})` }));
   found.append(assumedTable(downloads));
@@ -374,6 +375,17 @@ function renderEntry(root, entry) {
   if (raw) page.append(rawJson(raw, 'Show this thread’s raw data (JSON)'));
 
   root.append(page);
+}
+
+// Which model wrote the LLM answer, and through which endpoint. Answers saved
+// before this was recorded say so rather than showing nothing.
+function llmSourceLine(llm) {
+  let text;
+  if (llm.model && llm.endpoint) text = `Read by ${llm.model} at ${llm.endpoint}`;
+  else if (llm.model) text = `Read by ${llm.model}`;
+  else if (llm.endpoint) text = `Read at ${llm.endpoint}`;
+  else text = 'Which model read this was not recorded (saved before that was kept).';
+  return el('p', { class: 'llm-source', text });
 }
 
 // Timestamps arrive as ISO strings; drop the noise for reading.

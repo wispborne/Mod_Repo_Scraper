@@ -269,9 +269,16 @@ class ViewerApi {
       // index item, so the inspector renders both the same way. `isMod` is not
       // published on the bundle, but the viewer still shows it to explain why a
       // non-mod thread was kept, so it is grafted on from the cache entry here.
+      // The model and endpoint that wrote the answer are grafted on the same
+      // way; neither is ever published.
       'llm': llm == null
           ? null
-          : {...llm.toThreadData().toMap(), 'isMod': llm.isMod},
+          : {
+              ...llm.toThreadData().toMap(),
+              'isMod': llm.isMod,
+              if (llm.model != null) 'model': llm.model,
+              if (llm.endpoint != null) 'endpoint': llm.endpoint,
+            },
     });
   }
 

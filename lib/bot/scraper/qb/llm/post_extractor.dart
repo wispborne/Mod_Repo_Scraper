@@ -393,6 +393,8 @@ class PostExtractor {
         mods: mods,
         isMod: attempt.answer.isMod,
         stats: attempt.response.stats,
+        model: attempt.response.model,
+        endpoint: attempt.response.endpoint,
       ),
     );
   }

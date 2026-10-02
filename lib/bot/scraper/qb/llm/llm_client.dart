@@ -124,6 +124,16 @@ class LlmResponse {
   /// Answer-writing time in milliseconds, when the endpoint reports it.
   final double? completionMs;
 
+  /// The model that was asked, as named in the request. Null when the client
+  /// does not say (test stand-ins).
+  final String? model;
+
+  /// Where the request was sent: the endpoint's address, without any user name,
+  /// password or query on it. Null when the client does not say. With a
+  /// fallback configured this is how a stored answer says which of the two
+  /// endpoints wrote it.
+  final String? endpoint;
+
   const LlmResponse({
     required this.content,
     this.promptTokens,
@@ -134,6 +144,8 @@ class LlmResponse {
     this.completionTokensPerSecond,
     this.promptMs,
     this.completionMs,
+    this.model,
+    this.endpoint,
   });
 
   /// True when the model was cut off at the token limit.
