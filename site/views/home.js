@@ -1,4 +1,4 @@
-// Home: the mods added recently, the kinds of mod, then what came out recently.
+// Home: the mods added recently, the categories, then what came out recently.
 //
 // The release feed is the heart of the page. It is not "threads somebody
 // replied to" — it is mods whose version actually moved forward, worked out by
@@ -33,11 +33,11 @@ export async function render(root) {
   const byId = new Map(mods.map((mod) => [mod.id, mod]));
   const currentVersion = currentGameVersion(mods);
 
-  // The mods added recently first, then the kinds of mod and the releases.
+  // The mods added recently first, then the categories and the releases.
   clear(root);
   root.append(el('div', { class: 'stack' }, [
     recentlyAdded(mods, currentVersion),
-    browseByKind(mods),
+    browseByCategory(mods),
     releasesPanel(releases, byId),
     feedLine(),
   ]));
@@ -53,19 +53,20 @@ function feedLine() {
 
 /// The categories, as a small table under the recently added mods. It is the
 /// front door for a reader who does not know what they are looking for yet.
-function browseByKind(mods) {
+function browseByCategory(mods) {
   const chips = categoryChips(mods);
   if (!chips) return null;
 
   return el('section', { class: 'stack' }, [
-    el('h2', { class: 'quiet-heading', text: 'Browse by kind' }),
+    el('h2', { class: 'section-title', text: 'Browse by category' }),
     chips,
+    el('a', { href: buildHash(['browse']), text: 'See all →' }),
   ]);
 }
 
 function releasesPanel(releases, byId) {
   const head = el('div', { class: 'section-head' }, [
-    el('h2', { class: 'quiet-heading', text: 'Recent updates' }),
+    el('h2', { class: 'section-title', text: 'Recent updates' }),
   ]);
   const panel = el('div', { class: 'stack' }, [head]);
 
@@ -309,7 +310,7 @@ function recentlyAdded(mods, currentVersion) {
 
   return el('section', { class: 'stack' }, [
     el('div', { class: 'section-head' }, [
-      el('h2', { class: 'quiet-heading', text: 'Recently added' }),
+      el('h2', { class: 'section-title', text: 'Recently added' }),
       picker,
     ]),
     strip,

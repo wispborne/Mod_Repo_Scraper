@@ -1,10 +1,8 @@
-// Bits the merge pages share: which merge is being looked at, how a saved merge
-// reads in a picker, and how a value reads in a table cell.
+// Shared merge selection, snapshot labels, and field formatting.
 
 import { api, el, MissingFile } from '../lib.js';
 
-/// Which merge is being looked at. Empty means "the newest one". Kept here so
-/// the pick survives moving between the merge pages.
+/// Selection persists across merge pages; an empty run selects the newest.
 export const picked = { run: '', runs: null };
 
 /// Adds the picked merge to an API call's parameters.
@@ -12,14 +10,13 @@ export function withRun(params = {}) {
   return picked.run ? { ...params, run: picked.run } : params;
 }
 
-/// How a saved merge reads in a picker: when it ran, and what came out of it.
+/// Snapshot date and output count.
 export function runLabel(run) {
   const when = run.savedAt ? new Date(run.savedAt).toLocaleString() : run.id;
-  return run.finalCount != null ? `${when} — ${run.finalCount} mods out` : when;
+  return run.finalCount != null ? `${when} — ${run.finalCount} mods` : when;
 }
 
-/// The saved merges, asked for once per page load. Call [forgetRuns] when
-/// moving to a page, so a merge that finished while the tab sat open shows up.
+/// Cache for one page load. Call forgetRuns on navigation to include new merges.
 export async function loadRuns() {
   if (picked.runs) return picked.runs;
   const data = await api('merge/runs');
@@ -31,8 +28,7 @@ export function forgetRuns() {
   picked.runs = null;
 }
 
-/// What a value looks like in a table cell. Long text is cut short, and a
-/// missing value reads as a dash rather than as "null".
+/// Truncate long values and display missing values as a dash.
 export function cellText(value) {
   if (value == null || value === '') return '—';
   if (Array.isArray(value)) {

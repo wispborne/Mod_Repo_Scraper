@@ -1,4 +1,4 @@
-// #/runs/<id> — one run in full: what was asked for, how it went, and its log.
+// #/runs/<id> — request, result, and log for one run.
 
 import { api, el, clear, go, errorPanel, MissingFile, noticeDialog, rawJson, breadcrumbs, buildHash } from '../lib.js';
 import * as manager from '../manager.js';
@@ -29,7 +29,7 @@ export async function render(root, parts) {
   let rawEl = null;
 
   async function draw() {
-    if (drawing) return; // A redraw is already on its way; let it finish.
+    if (drawing) return;
     drawing = true;
     try {
       await drawOnce();
@@ -70,21 +70,19 @@ export async function render(root, parts) {
     }
     live = record.state === 'running' || record.state === 'queued';
 
-    // The log route says "missing" when the run wrote no file. The shared
-    // fetch helper turns that envelope into a MissingFile, so read it back as
-    // the plain "no log" case rather than an empty one.
+    // MissingFile means no log file, rather than an empty log.
     let log = { lines: [], total: 0, missing: true };
     try {
       const answer = await api(`manager/runs/${encodeURIComponent(id)}/log`, { tail });
       log = answer instanceof MissingFile ? { lines: [], total: 0, missing: true } : answer;
     } catch (_) {
-      // A log we cannot read is not worth an error page; the panel says so.
+      // Keep the record visible when the log is unavailable.
     }
 
     if (!headEl) layOutBlocks();
     headEl = swap(headEl, header(record, live));
     recordEl = swap(recordEl, recordPanel(record));
-    rawEl = swap(rawEl, rawJson(record, 'Show this run’s raw record (JSON)'));
+    rawEl = swap(rawEl, rawJson(record, 'Raw run record (JSON)'));
     updateLog(logView, log, () => {
       tail = tail === DEFAULT_TAIL ? MORE_TAIL : tail * 5;
       draw();
@@ -120,14 +118,14 @@ function header(record, live) {
     el('span', { class: 'run-when', text: record.id }),
     el('button', {
       class: 'btn',
-      text: 'Run this again',
-      title: 'Start a new job asking for exactly the same thing.',
+      text: 'Run again',
+      title: 'Start a new job with the same settings.',
       onclick: async () => {
         try {
           const again = await manager.confirmAndSubmit(record.request);
           if (again) go(`#/runs/${encodeURIComponent(again.id)}`);
         } catch (err) {
-          noticeDialog('The job was not started', err.message);
+          noticeDialog('Could not start job', err.message);
         }
       },
     }),
@@ -146,9 +144,8 @@ export async function addWhatChangedLink(row, runId, { live = false } = {}) {
     row.append(el('a', {
       class: 'btn',
       href: buildHash(['bundle', 'changes'], { b: 'working' }),
-      text: 'What this run has changed so far',
-      title: 'Compare the data on disk right now with the last bundle that was '
-        + 'published. This run has not published one yet.',
+      text: 'Changes so far',
+      title: 'Compare current saved data with the latest published bundle.',
     }));
     return;
   }
@@ -163,14 +160,14 @@ export async function addWhatChangedLink(row, runId, { live = false } = {}) {
   row.append(el('a', {
     class: 'btn',
     href: buildHash(['bundle', 'changes'], { a: ids[at + 1], b: runId }),
-    text: 'What this run changed',
+    text: 'View changes',
     title: 'Compare the bundle this run published with the one before it.',
   }));
 }
 
 function recordPanel(record) {
   const panel = el('div', { class: 'panel' });
-  panel.append(el('h2', { text: 'What happened' }));
+  panel.append(el('h2', { text: 'Run details' }));
 
   const c = record.counters || {};
   const total = c.itemsTotal || 0;
@@ -179,12 +176,12 @@ function recordPanel(record) {
   const list = el('ul', { class: 'field-list' });
   const rows = [
     ['Started', manager.fmtTime(record.startedAt)],
-    ['Finished', record.finishedAt ? manager.fmtTime(record.finishedAt) : 'still going'],
-    ['Took', manager.fmtDuration(record.startedAt, record.finishedAt)],
+    ['Finished', record.finishedAt ? manager.fmtTime(record.finishedAt) : 'Not finished'],
+    ['Duration', manager.fmtDuration(record.startedAt, record.finishedAt)],
     ['Topics done', total ? `${c.itemsDone || 0} of ${total}` : String(c.itemsDone || 0)],
     ['Errors', String(c.errors || 0)],
     ['LLM calls', String(c.llmCalls || 0)],
-    ['Stopped at a cap', record.guardrailStop],
+    ['Limit reached', record.guardrailStop],
     ['Error', record.errorMessage],
   ];
   for (const [label, value] of rows) {
@@ -196,22 +193,22 @@ function recordPanel(record) {
   }
   panel.append(list);
 
-  panel.append(el('h3', { text: 'What was asked for' }));
+  panel.append(el('h3', { text: 'Job settings' }));
   panel.append(el('p', { class: 'run-when', text: manager.describeJob(record.request || {}) }));
   panel.append(requestFields(record.request || {}));
   return panel;
 }
 
-/// The stored request, spelled out — this is what "run this again" will send.
+/// Run again submits this stored request.
 function requestFields(request) {
   const list = el('ul', { class: 'field-list' });
   const topics = request.topicIds || [];
   const rows = [
-    ['Kind', manager.kindLabel(request.kind)],
+    ['Job', manager.kindLabel(request.kind)],
     ['Topics', topics.length ? topics.join(', ') : null],
     ['Scope', request.kind === 'fullRun' ? request.scope : null],
     ['Boards', request.kind === 'fullRun' ? (request.boards || []).join(', ') : null],
-    ['Ask the LLM', request.runLlm ? 'yes' : 'no'],
+    ['LLM extraction', request.runLlm ? 'yes' : 'no'],
     ['Replay saved pages', request.replayAllowed ? 'yes' : 'no'],
   ];
   for (const [label, value] of rows) {
@@ -243,7 +240,7 @@ function newLogView() {
 function updateLog(view, log, onMore, live) {
   const lines = log.lines || [];
   const nothingToShow = log.missing
-    ? 'This run has no log file on disk.'
+    ? 'No log is available for this run.'
     : (lines.length ? null : 'Nothing logged yet.');
 
   if (nothingToShow) {

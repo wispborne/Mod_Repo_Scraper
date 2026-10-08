@@ -1,10 +1,5 @@
-// The two "before and after" pages of the Merge Explorer:
-//   #/merge/groups/<id>/fields   what each source put in, and what came out
-//   #/merge/changes              what changed between two saved merges
-//
-// Which two merges are compared, the search, the filter and the page all ride
-// in the hash query (#/merge/changes?a=…&b=…), so a comparison can be
-// bookmarked and shared.
+// Merge group field values and saved merge comparisons.
+// Comparison state lives in the hash query for bookmarks and shared links.
 
 import {
   api, el, clear, missingPanel, MissingFile, pager, pageSizePreference,
@@ -16,7 +11,7 @@ import { diffTable } from './diff_table.js';
 
 // --- Before and after, field by field ---
 
-/// The badge saying where a value came from.
+/// Identifies the sources contributing a field value.
 function fromBadge(row, members) {
   const from = row.from || [];
   switch (row.verdict) {
@@ -26,11 +21,11 @@ function fromBadge(row, members) {
         text: memberName(members, from[0]),
       });
     case 'agreed':
-      return el('span', { class: 'badge badge-secondary', text: 'they agreed' });
+      return el('span', { class: 'badge badge-secondary', text: 'sources agree' });
     case 'empty':
-      return el('span', { class: 'badge badge-dim', text: 'nothing to take' });
+      return el('span', { class: 'badge badge-dim', text: 'empty' });
     default:
-      return el('span', { class: 'badge badge-warning', text: "couldn't tell" });
+      return el('span', { class: 'badge badge-warning', text: 'source unknown' });
   }
 }
 
@@ -50,7 +45,7 @@ export async function groupFields(body, id) {
   body.append(el('a', {
     class: 'back-link',
     href: `#/merge/groups/${encodeURIComponent(id)}`,
-    text: '‹ Back to the group',
+    text: '‹ Back to group',
   }));
 
   const data = await api(
@@ -62,13 +57,13 @@ export async function groupFields(body, id) {
   }
 
   const members = data.members || [];
-  body.append(el('h2', { text: `Before and after — group #${data.groupIndex}` }));
+  body.append(el('h2', { text: `Field comparison — group #${data.groupIndex}` }));
   body.append(el('p', {
     class: 'run-when',
     text: data.wasMerged
-      ? `${members.length} entries went in and one mod came out. Each row shows `
-        + 'what every entry had and where the final value came from.'
-      : 'Only one entry went in, so nothing was merged. These are its values.',
+      ? `${members.length} entries merged into one mod. Each row shows the `
+        + 'source values, final value, and contributing sources.'
+      : 'One entry; no merge needed. These are its values.',
   }));
 
   const wrap = el('div', { class: 'table-wrapper' });
@@ -76,8 +71,8 @@ export async function groupFields(body, id) {
   table.append(el('thead', {}, el('tr', {}, [
     el('th', { text: 'Field' }),
     ...members.map((m) => el('th', { text: memberHeading(m) })),
-    el('th', { text: 'Came out as' }),
-    el('th', { text: 'From' }),
+    el('th', { text: 'Final value' }),
+    el('th', { text: 'Source' }),
   ])));
 
   const tbody = el('tbody');
@@ -109,7 +104,7 @@ function fromCell(row, members) {
     ]));
   }
   if (!(row.entries || []).length) {
-    cell.append(el('span', { class: 'badge badge-dim', text: 'nothing to take' }));
+    cell.append(el('span', { class: 'badge badge-dim', text: 'empty' }));
   }
   return cell;
 }
@@ -131,11 +126,10 @@ export async function changesPage(body) {
   const runs = data.items || [];
   if (runs.length < 2) {
     return body.append(el('div', { class: 'missing' }, [
-      el('h3', { text: 'Two saved merges are needed to compare' }),
+      el('h3', { text: 'Two saved merges needed' }),
       el('p', {
         text: runs.length === 1
-          ? 'Only one merge has been saved so far. Run another one and this page '
-            + 'will show what changed.'
+          ? 'Only one merge is saved. Run another to compare changes.'
           : 'No merges have been saved yet. Run a merge from the Runs page.',
       }),
     ]));
@@ -178,7 +172,7 @@ export async function changesPage(body) {
   const swap = el('button', {
     class: 'btn',
     text: 'Swap',
-    title: 'Switch which merge counts as older and which as newer.',
+    title: 'Swap older and newer merges.',
     onclick: () => {
       [state.a, state.b] = [state.b, state.a];
       selects.a.value = state.a;
@@ -246,8 +240,7 @@ export async function changesPage(body) {
     if (state.kind) {
       results.append(el('p', {
         class: 'run-when',
-        text: `Showing only the ${kindWord(state.kind)} mods — click the `
-          + 'highlighted card again to show everything.',
+        text: `Showing ${kindWord(state.kind)} mods. Click the selected count to clear the filter.`,
       }));
     }
     for (const row of answer.items || []) {
@@ -258,8 +251,7 @@ export async function changesPage(body) {
         class: 'loading',
         text: state.q || state.kind
           ? 'Nothing matches this search or filter.'
-          : 'These two merges are the same — nothing was added, removed '
-            + 'or changed.',
+          : 'No changes between these merges.',
       }));
     }
     foldAll.refresh();
@@ -286,7 +278,7 @@ export async function changesPage(body) {
           + (value ? ` ${cls}` : '')
           + (filtering ? ' stat-card-filter' : '')
           + (filtering && state.kind === kind ? ' on' : ''),
-        title: filtering ? `Show only the ${kindWord(kind)} mods.` : null,
+        title: filtering ? `Show ${kindWord(kind)} mods.` : null,
         onclick: filtering ? () => {
           state.kind = state.kind === kind ? '' : kind;
           state.page = 0;
@@ -313,11 +305,8 @@ function changeCard(row) {
     el('span', { class: 'change-name', text: row.name || '(no name)' }),
     el('span', { class: 'change-author', text: row.authors || '' }),
     el('span', { class: 'chev', text: '▸' }),
-    // Which fields moved, not just how many — the whole point of the shut row
-    // is to be read without opening it. It comes after the chevron so that the
-    // chevron stays up on the first line; the CSS drops this onto a second.
-    // Left out when there is nothing to say, so an added or removed mod
-    // doesn't carry an empty second line.
+    // Place changed fields after the chevron so they wrap below the name.
+    // Added and removed mods have no field summary.
     changes.length ? el('span', {
       class: 'change-hint',
       text: changedFieldsLine(changes),

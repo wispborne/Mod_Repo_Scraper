@@ -6,15 +6,14 @@ import { el, clear, askDialog } from './lib.js';
 const STATUS_URL = '/api/manager/status';
 const BASE = '/api/manager';
 
-// How often to ask. Fast while there is something to watch, slow otherwise.
+// Poll faster while jobs are active.
 const BUSY_MS = 1000;
 const IDLE_MS = 5000;
 
-/// What each kind of job is called in the interface.
 export const KIND_LABELS = {
   fullRun: 'Full run',
   rescrapeTopics: 'Re-scrape topics',
-  resolveDownloads: 'Re-resolve downloads',
+  resolveDownloads: 'Recheck downloads',
   extractLlm: 'Re-run LLM extraction',
   llmCoveragePass: 'LLM coverage pass',
   llmTest: 'LLM test',
@@ -38,7 +37,7 @@ export const STATE_BADGES = {
   interrupted: 'badge-warning',
 };
 
-// --- Status, and who is listening ---
+// --- Status subscriptions ---
 
 // New subscribers receive the cached status immediately. Null before first poll.
 let lastStatus = null;
@@ -47,17 +46,13 @@ let timer = null;
 // Concurrent refreshes share the same request and wait for its result.
 let inFlight = null;
 
-/// The last thing the server said. Shape:
-///   { on, reason, dataPath, current, queued }
-/// `on: false` means the server has no manager (no config file) — that is a
-/// way to run the viewer, not a fault.
+/// Cached status: { on, reason, dataPath, current, queued }.
+/// `on: false` includes read-only mode and connection failures.
 export function status() {
   return lastStatus;
 }
 
-/// Listen for status. The callback fires right away with whatever we already
-/// know (if anything), then on every fresh answer. Returns a function that
-/// stops the listening.
+/// Emits cached status immediately, then each update. Returns an unsubscribe.
 export function subscribe(fn) {
   listeners.add(fn);
   if (lastStatus) {
@@ -74,8 +69,7 @@ export function subscribe(fn) {
   };
 }
 
-/// Ask now, without waiting for the next beat. Used after starting or
-/// cancelling a job so the interface catches up at once.
+/// Refresh status after a job starts or stops.
 export function refresh() {
   return poll();
 }
@@ -107,14 +101,14 @@ async function askOnce() {
     if (res.status === 503 || body.managerOn === false) {
       announce({
         on: false,
-        reason: body.error || 'The manager is off on this server.',
+        reason: body.error || 'Job management is disabled on this server.',
         current: null,
         queued: [],
       });
     } else if (!res.ok) {
       announce({
         on: false,
-        reason: `The server answered ${res.status} ${res.statusText}.`,
+        reason: `Server returned ${res.status} ${res.statusText}.`,
         current: null,
         queued: [],
       });
@@ -145,7 +139,7 @@ function reschedule() {
   clearTimeout(timer);
   timer = null;
   if (listeners.size === 0) return;
-  if (document.hidden) return; // Nothing to see; pick up again on show.
+  if (document.hidden) return; // Resume when the tab becomes visible.
   timer = setTimeout(poll, isBusy(lastStatus) ? BUSY_MS : IDLE_MS);
 }
 
@@ -175,7 +169,7 @@ async function post(path, body) {
   });
   const answer = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(answer.error || `The server answered ${res.status} ${res.statusText}.`);
+    throw new Error(answer.error || `Server returned ${res.status} ${res.statusText}.`);
   }
   return answer;
 }
@@ -187,60 +181,51 @@ export async function submitJob(request) {
   return record;
 }
 
-/// Asks the running job to stop. When a run id is supplied, the server checks
-/// it before stopping anything. This keeps an old page from stopping the next
-/// run if the one it was showing finished just before the click arrived.
+/// A run id prevents an outdated page from stopping a different run.
 export async function cancelCurrent(runId = null) {
   const answer = await post('/jobs/cancel', runId ? { runId } : {});
   refresh();
   return answer;
 }
 
-// --- Saying what a job will do, and asking first ---
+// --- Job confirmations ---
 
-/// One plain sentence describing a job, including what it costs.
+/// Describes the job and its network and LLM costs before submission.
 export function describeJob(request) {
   const count = (request.topicIds || []).length;
   const topics = count === 1 ? '1 topic' : `${count} topics`;
   switch (request.kind) {
     case 'rescrapeTopics':
-      return `Re-scrape ${topics} fresh from the forum, then work out their `
-        + 'downloads again and ask the LLM again. This makes network requests '
-        + 'and may spend LLM budget.';
+      return `Fetch ${topics} from the forum again, resolve downloads, and `
+        + 're-run LLM extraction. This makes network requests. LLM calls may cost money.';
     case 'resolveDownloads':
-      return `Work out the downloads for ${topics} again, from the posts `
-        + 'already saved. This makes network requests to check the links.';
+      return `Recheck downloads for ${topics} using saved posts. `
+        + 'This makes network requests to check the links.';
     case 'extractLlm':
-      return `Ask the LLM about ${topics} again, from the posts already saved. `
-        + 'This may spend LLM budget.';
+      return `Re-run LLM extraction for ${topics} from saved posts. `
+        + 'LLM calls may cost money.';
     case 'fullRun': {
       const boards = listBoards(request.boards);
-      const llm = request.runLlm ? ', and ask the LLM about each one' : '';
-      return `Go through ${describeScope(request.scope)} on ${boards}, save what `
-        + `it finds${llm}. This makes many network `
-        + `requests${request.runLlm ? ' and may spend LLM budget' : ''}.`;
+      const llm = request.runLlm ? ' and run LLM extraction' : '';
+      return `Scrape ${describeScope(request.scope)} on ${boards}${llm}. `
+        + `This makes network requests.${request.runLlm ? ' LLM calls may cost money.' : ''}`;
     }
     case 'llmCoveragePass':
-      return 'Go through every stored topic and ask the LLM about any that have '
-        + 'no answers yet. No scraping. This may spend LLM budget, up to the '
-        + 'run cap the server was started with.';
+      return 'Run LLM extraction for stored topics with missing or outdated results, '
+        + 'up to the per-run call limit. Uses saved posts. LLM calls may cost money.';
     case 'rebuildBundle':
-      return 'Build forum-data-bundle.json again from what is already saved. '
-        + 'No network requests, no LLM spending.';
+      return 'Rebuild forum-data-bundle.json from saved data. No network or LLM calls.';
     case 'llmTest':
-      return 'Try the LLM prompt on a few topics and write a report. Nothing '
-        + 'else is saved. This spends a little LLM budget.';
+      return 'Test the LLM prompt on a few topics and save a report. '
+        + 'Other data stays unchanged. LLM calls may cost money.';
     case 'mergeModRepo':
-      return 'Merge the mod sources already saved on disk into ModRepo.json. '
-        + 'No network requests, no LLM spending.';
+      return 'Merge saved sources into ModRepo.json. No network or LLM calls.';
     case 'scrapeAndMerge':
-      return `Fetch ${listSources(request.modSources)} fresh, then merge them `
-        + 'into ModRepo.json. This makes network requests and may take a '
-        + 'few minutes. No LLM spending.';
+      return `Fetch ${listSources(request.modSources)}, then merge into ModRepo.json. `
+        + 'This makes network requests. No LLM calls.';
     case 'publishOutputs':
-      return 'Push the current ModRepo.json and forum-data-bundle.json to the '
-        + 'GitHub repo TriOS reads. Publishes whatever is in outputs/ right now. '
-        + 'If nothing changed since last time, nothing is pushed.';
+      return 'Publish the current outputs and website to the GitHub repo TriOS reads. '
+        + 'If nothing changed, nothing is pushed.';
     default:
       return `Run a "${request.kind}" job.`;
   }
@@ -250,7 +235,7 @@ export function describeJob(request) {
 function listBoards(boards) {
   const names = { main: 'main', lesser: 'lesser mods', libraries: 'libraries' };
   const picked = (boards || []).map((b) => names[b] || b);
-  if (!picked.length) return 'no boards at all';
+  if (!picked.length) return 'no boards';
   if (picked.length === 1) return `the ${picked[0]} board`;
   const last = picked.pop();
   return `the ${picked.join(', ')} and ${last} boards`;
@@ -260,7 +245,7 @@ function listBoards(boards) {
 function listSources(sources) {
   const names = { forum: 'the forum', discord: 'Discord', nexus: 'Nexus' };
   const picked = (sources || []).map((s) => names[s] || s);
-  if (!picked.length) return 'no sources at all';
+  if (!picked.length) return 'no sources';
   if (picked.length === 1) return picked[0];
   const last = picked.pop();
   return `${picked.join(', ')} and ${last}`;
@@ -278,23 +263,22 @@ function describeScope(scope) {
     case 'topics':
       return 'the named topics';
     default:
-      return 'anything new or changed';
+      return 'new or changed topics';
   }
 }
 
-/// Describes the job, asks, and sends it if the answer is yes. Returns the new
-/// run record, or null when the user said no.
+/// Returns the submitted run, or null if the confirmation is cancelled.
 export async function confirmAndSubmit(request) {
   const yes = await askDialog({
     title: kindLabel(request.kind),
     message: describeJob(request),
-    confirmLabel: 'Start it',
+    confirmLabel: 'Start job',
   });
   if (!yes) return null;
   return submitJob(request);
 }
 
-// --- The ticked topics ---
+// --- Topic selection ---
 
 // Persist selection across reloads; clear after submission or via Clear.
 const SELECTION_KEY = 'viewerSelectedTopics';
@@ -341,7 +325,7 @@ export const selection = {
     selected.clear();
     announceSelection();
   },
-  /// Listen for changes. Returns a function that stops the listening.
+  /// Returns an unsubscribe function.
   subscribe(fn) {
     selectionListeners.add(fn);
     return () => selectionListeners.delete(fn);
@@ -361,7 +345,6 @@ function announceSelection() {
 
 // --- Sidebar status chip ---
 
-/// Draws the sidebar status chip; clicking it opens Runs.
 export function mountHeaderChip(node) {
   if (!node) return;
   node.setAttribute('href', '#/runs');
@@ -369,7 +352,6 @@ export function mountHeaderChip(node) {
   drawChip(node, status());
 }
 
-/// Shows a status dot and label, with progress while a job runs.
 function drawChip(node, s) {
   clear(node);
 
@@ -387,7 +369,7 @@ function drawChip(node, s) {
   }
   if (!s.on) {
     row('off', '', 'Viewing only');
-    node.title = s.reason || 'The manager is off on this server.';
+    node.title = s.reason || 'Job management is disabled on this server.';
     return;
   }
   const current = s.current;
@@ -395,10 +377,10 @@ function drawChip(node, s) {
     const waiting = (s.queued || []).length;
     if (waiting) {
       row('waiting', '', `${waiting} waiting`);
-      node.title = 'Jobs are queued but nothing is running yet. Click to see them.';
+      node.title = 'View queued jobs.';
     } else {
       row('ready', '', 'Ready');
-      node.title = 'Nothing is running. Click to start a job.';
+      node.title = 'No active job. Open Runs and queue to start one.';
     }
     return;
   }
@@ -416,10 +398,10 @@ function drawChip(node, s) {
     }),
   ]));
   node.title = [current.phase, current.item].filter(Boolean).join(' — ')
-    || 'A job is running. Click to watch it.';
+    || 'View the active job.';
 }
 
-// --- Small shared formatting ---
+// --- Time formatting ---
 
 export function fmtTime(iso) {
   if (!iso) return '—';

@@ -35,7 +35,8 @@ export async function render(root, parts) {
   if (parts.length) return entry(root, parts[0]);
 
   root.append(breadcrumbs([{ label: 'Forum Data Bundle' }]));
-  root.append(el('h1', { text: 'Forum Data Bundle (what TriOS receives)' }));
+  root.append(el('h1', { text: 'Forum Data Bundle' }));
+  root.append(el('p', { class: 'run-when', text: 'Published forum data used by TriOS.' }));
 
   // Search and page ride in the URL, so a reload or the back button brings the
   // same list back.
@@ -50,9 +51,9 @@ export async function render(root, parts) {
     const m = meta.meta;
     root.append(el('div', { class: 'stat-grid' }, [
       stat('Updated at', meta.updatedAt || '—'),
-      stat('Total mods', m.totalMods ?? '—'),
-      stat('Total details', m.totalDetails ?? '—'),
-      stat('Assumed dl entries', m.totalAssumedDownloadEntries ?? '—'),
+      stat('Topics', m.totalMods ?? '—'),
+      stat('Topics with post data', m.totalDetails ?? '—'),
+      stat('Topics with rule-based downloads', m.totalAssumedDownloadEntries ?? '—'),
       stat('Placeholders', m.placeholderDetailCount ?? '—'),
     ]));
   }
@@ -84,8 +85,8 @@ export async function render(root, parts) {
     const table = el('table');
     table.append(el('thead', {}, el('tr', {}, [
       el('th', { text: 'Title' }), el('th', { text: 'Author' }),
-      el('th', { text: 'Game ver' }), el('th', { text: 'Detail?' }),
-      el('th', { text: 'Assumed dl' }),
+      el('th', { text: 'Game version' }), el('th', { text: 'Post saved' }),
+      el('th', { text: 'Rule-based downloads' }),
     ])));
     const tb = el('tbody');
     for (const row of data.items) {
@@ -151,14 +152,12 @@ export async function renderThreadPage(root, topicId, { parent } = {}) {
     topicId: Number(topicId),
     managerOn,
     staleness: await topicStaleness(topicId, data.index || {}, data.detail),
-    // The history page is reached from whichever list this thread was, so the
-    // trail back stays the one the reader came in on.
+    // Keep history breadcrumbs under the originating list.
     historyBase: parent && parent.href === '#/bundle' ? 'bundle' : 'topics',
   });
 }
 
-/// The warning shown when the published bundle is behind this thread. Nothing is
-/// drawn when the bundle is already up to date.
+/// Warns when saved thread data is absent from or newer than the bundle.
 function stalenessBanner(staleness, managerOn) {
   if (!staleness || staleness.state === 'current') return null;
 
@@ -166,20 +165,18 @@ function stalenessBanner(staleness, managerOn) {
   let detail;
   switch (staleness.state) {
     case 'stale':
-      heading = 'The published bundle is behind this thread.';
-      detail = `It was scraped ${stamp(staleness.scrapedAt)}, after the Forum Data `
-        + `Bundle was last built ${stamp(staleness.builtAt)}. Rebuild the bundle to `
+      heading = 'The published bundle is out of date.';
+      detail = `Thread scraped ${stamp(staleness.scrapedAt)}; bundle built `
+        + `${stamp(staleness.builtAt)}. Rebuild the bundle to `
         + 'publish these changes to TriOS.';
       break;
     case 'absent':
-      heading = 'This thread is not in the published bundle yet.';
-      detail = 'Its data is saved on disk but has not been published. Rebuild the '
-        + 'bundle to include it.';
+      heading = 'This thread is not in the published bundle.';
+      detail = 'Thread data is saved locally. Rebuild the bundle to update published data.';
       break;
     default: // noBundle
       heading = 'No Forum Data Bundle has been published yet.';
-      detail = 'This shows the data saved on disk. Rebuild the bundle to publish it '
-        + 'to TriOS.';
+      detail = 'Showing locally saved data. Rebuild the bundle to publish it to TriOS.';
   }
 
   const banner = el('div', { class: 'notice-banner' }, [
@@ -233,14 +230,14 @@ function renderEntry(root, entry) {
   if (banner) page.append(banner);
 
   const fields = el('div', { class: 'panel' });
-  fields.append(el('h2', { text: 'Thread and post fields' }));
+  fields.append(el('h2', { text: 'Thread and post details' }));
   const cols = el('div', { class: 'field-cols' });
 
   const thumb = thumbUrl(idx.thumbnailPath);
   const threadCol = el('div', {});
   threadCol.append(el('h3', { text: 'Thread' }));
   threadCol.append(fieldList([
-    ['Topic id', idx.topicId],
+    ['Topic ID', idx.topicId],
     ['Author', idx.author],
     ['Game version', idx.gameVersion],
     ['Category', idx.category],
@@ -249,7 +246,7 @@ function renderEntry(root, entry) {
     ['Created', idx.createdDate],
     ['Last post', idx.lastPostDate],
     ['Last post by', idx.lastPostBy],
-    ['In the mod index', idx.inModIndex == null ? null : (idx.inModIndex ? 'yes' : 'no')],
+    ['In mod index', idx.inModIndex == null ? null : (idx.inModIndex ? 'yes' : 'no')],
     ['Archived mod index', idx.isArchivedModIndex ? 'yes' : null],
     ['Work in progress', idx.isWip ? 'yes' : null],
     ['Source board', idx.sourceBoard],
@@ -261,8 +258,7 @@ function renderEntry(root, entry) {
   const postCol = el('div', {});
   postCol.append(el('h3', { text: 'First post' }));
   if (detail) {
-    // Skip what just repeats the thread column — only post-only fields, and
-    // shared ones when the post disagrees with the thread.
+    // Omit shared fields unless the post value differs from the thread.
     const differs = (v, threadValue) => (v && v !== threadValue ? v : null);
     postCol.append(fieldList([
       ['Title', differs(detail.title, idx.title)],
@@ -274,7 +270,7 @@ function renderEntry(root, entry) {
       ['Author avatar', detail.authorAvatarPath],
       ['Posted', detail.postDate],
       ['Last edited', detail.lastEditDate],
-      ['Placeholder only', detail.isPlaceholderDetail ? 'yes' : null],
+      ['Placeholder', detail.isPlaceholderDetail ? 'yes' : null],
       ['Scraped at', stamp(detail.scrapedAt)],
     ]));
   } else {
@@ -293,7 +289,7 @@ function renderEntry(root, entry) {
   if (detail && detail.contentHtml) {
     post.append(postFrame(detail.contentHtml));
   } else {
-    post.append(el('p', { class: 'loading', text: 'No post text in the bundle for this thread.' }));
+    post.append(el('p', { class: 'loading', text: 'No post text saved for this thread.' }));
   }
   if (detail && (detail.images || []).length) {
     post.append(fold(`Images (${detail.images.length})`, imageList(detail.images)));
@@ -302,12 +298,9 @@ function renderEntry(root, entry) {
     post.append(fold(`Links (${detail.links.length})`, linkList(detail.links)));
   }
 
-  // The author's own later posts. Some threads keep every download in a second
-  // post, so these are read for downloads and facts the same way the first one
-  // is — but they are not the thread's description, which is why they are shown
-  // under it rather than joined onto it.
+  // Later opening posts contribute downloads and facts, but not the description.
   for (const [i, extra] of (detail?.extraPosts || []).entries()) {
-    post.append(el('h3', { text: `The author's post ${i + 2}` }));
+    post.append(el('h3', { text: `Author’s post ${i + 2}` }));
     const when = [extra.postDate, extra.lastEditDate && `last edited ${extra.lastEditDate}`]
       .filter(Boolean).join(' · ');
     if (when) post.append(el('p', { class: 'change-note', text: when }));
@@ -321,26 +314,24 @@ function renderEntry(root, entry) {
   }
 
   const found = el('div', { class: 'panel' });
-  found.append(el('h2', { text: 'Pulled out of the post' }));
+  found.append(el('h2', { text: 'Extracted data' }));
 
   // A download the LLM lists whose post URL is not in the rule-based list is
   // one the rules missed — set apart in the table.
   const ruleUrls = new Set(downloads.map((d) => normUrl(d.url)));
   if (mods.length) {
-    found.append(el('h3', { text: `Mods the LLM found (${mods.length})` }));
+    found.append(el('h3', { text: `Mods found by LLM (${mods.length})` }));
     found.append(llmModsBlock(mods, ruleUrls));
   } else {
-    found.append(el('h3', { text: 'Mods the LLM found' }));
-    // Three cases share this empty state, and they mean different things:
-    // the LLM never ran (llm is null), it ran and decided this thread is not a
-    // mod release (isMod false), or it ran and simply found nothing to pull out.
+    found.append(el('h3', { text: 'Mods found by LLM' }));
+    // Distinguish missing results, non-mod classification, and an empty mod list.
     let msg;
     if (!llm) {
-      msg = 'The LLM has not run for this thread yet.';
+      msg = 'No LLM results saved for this thread.';
     } else if (llm.isMod === false) {
-      msg = 'The LLM read this thread and decided it is not a downloadable mod.';
+      msg = 'The LLM classified this thread as not a downloadable mod.';
     } else {
-      msg = 'The LLM ran but found no mods to pull out of this post.';
+      msg = 'The LLM returned no mods for this thread.';
     }
     found.append(el('p', { class: 'loading', text: msg }));
   }
@@ -353,24 +344,23 @@ function renderEntry(root, entry) {
   page.append(bottom);
 
   const cardPanel = el('div', { class: 'panel' });
-  cardPanel.append(el('h2', { text: 'TriOS card' }));
-  cardPanel.append(el('div', { class: 'approx-label', text: 'Preview only. The card may look different in TriOS.' }));
+  cardPanel.append(el('h2', { text: 'TriOS card preview' }));
+  cardPanel.append(el('div', { class: 'approx-label', text: 'Approximate layout; appearance may differ in TriOS.' }));
   cardPanel.append(card(idx, detail, downloads, primaryExtras(llm)));
   page.append(cardPanel);
 
-  if (raw) page.append(rawJson(raw, 'Show this thread’s raw data (JSON)'));
+  if (raw) page.append(rawJson(raw, 'Raw thread data (JSON)'));
 
   root.append(page);
 }
 
-// Which model wrote the LLM answer, and through which endpoint. Answers saved
-// before this was recorded say so rather than showing nothing.
+// Older results may lack model and endpoint metadata.
 function llmSourceLine(llm) {
   let text;
-  if (llm.model && llm.endpoint) text = `Read by ${llm.model} at ${llm.endpoint}`;
-  else if (llm.model) text = `Read by ${llm.model}`;
-  else if (llm.endpoint) text = `Read at ${llm.endpoint}`;
-  else text = 'Model and endpoint details were not recorded for this result.';
+  if (llm.model && llm.endpoint) text = `Model: ${llm.model} · Endpoint: ${llm.endpoint}`;
+  else if (llm.model) text = `Model: ${llm.model}`;
+  else if (llm.endpoint) text = `Endpoint: ${llm.endpoint}`;
+  else text = 'Model and endpoint not recorded.';
   return el('p', { class: 'llm-source', text });
 }
 

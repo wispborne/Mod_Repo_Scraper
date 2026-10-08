@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 /// The forum and Discord between them name 26 shelves, several of which mean
 /// the same thing: "Utility mods", "Standalone Utilities" and "Quality of Life"
 /// sat side by side, as did "Other/Misc.", "Miscellaneous Mods" and "Misc.
-/// Campaign Mods". A reader browsing by kind had a dropdown of overlapping
+/// Campaign Mods". A reader browsing by category had a dropdown of overlapping
 /// names. These thirteen are what the site offers instead.
 void main() {
   test('every raw name the sources use has a public category', () {
@@ -45,7 +45,7 @@ void main() {
     expect(publicCategoryFor('Libraries'), 'Libraries');
   });
 
-  test('"Discord Only" is a source, not a kind of mod, so it has none', () {
+  test('"Discord Only" is a source, not a category, so it has none', () {
     expect(publicCategoryFor('Discord Only'), isNull);
   });
 

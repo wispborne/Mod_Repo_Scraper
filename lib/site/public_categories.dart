@@ -2,7 +2,7 @@
 /// of the sources' own names maps onto.
 ///
 /// The forum's mod index and Discord's tags between them use 26 names, and
-/// several of them mean the same thing. As published, a reader browsing by kind
+/// several of them mean the same thing. As published, a reader browsing by category
 /// got a dropdown holding "Utility mods", "Standalone Utilities" and "Quality
 /// of Life" side by side, and "Other/Misc.", "Miscellaneous Mods" and "Misc.
 /// Campaign Mods" as three separate choices. Nobody can use that.
@@ -17,7 +17,7 @@
 ///   category rather than a guessed one. A wrong shelf is worse than none, and
 ///   a new tag turning up is something to notice, not to paper over.
 /// - "Discord Only" is not in the table on purpose. It says where a mod was
-///   found, not what kind of mod it is, so it is published as a source instead
+///   found, not what category it belongs in, so it is published as a source instead
 ///   (see `PublicMod.sources`).
 
 /// Names a source uses that say where a mod was found rather than what kind of

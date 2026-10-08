@@ -50,8 +50,7 @@ const NAV_SECTIONS = [
   },
 ];
 
-// Map a view id to the module that renders it. Detail routes (e.g. a single
-// topic) reuse a dedicated module but stay under the same nav id.
+// Detail routes share their parent view's navigation entry.
 const ROUTES = {
   home: (root, parts) => home.render(root, parts),
   // A topic id is always a number, so `#/topics/12345` opens that topic. Plain
@@ -117,7 +116,7 @@ async function route() {
 
   const handler = ROUTES[viewId];
   if (!handler) {
-    clear(root).append(errorPanel(new Error(`Unknown view: ${viewId}`)));
+    clear(root).append(errorPanel(new Error(`Page not found: ${viewId}`)));
     return;
   }
   try {

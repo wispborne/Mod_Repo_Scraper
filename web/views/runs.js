@@ -1,5 +1,4 @@
-// #/runs — what is running now, what is waiting, what has already run, and the
-// form for starting a whole-store job.
+// #/runs — active job, queue, history, and job forms.
 
 import {
   api, el, clear, pager, pageSizePreference, go, errorPanel,
@@ -19,17 +18,13 @@ export async function render(root) {
   const history = el('div', { class: 'run-section' });
   root.append(live, starter, history);
 
-  // One subscription for this view; dropped as soon as the hash changes, so
-  // leaving the page stops the fast polling. The history list reloads on the
-  // first answer and whenever the running job changes — which is when a run has
-  // just joined the history.
+  // Unsubscribe on navigation. Reload history when the active run changes.
   let lastCurrentId = null;
   let firstDraw = true;
   let starterDrawnFor = null;
   const unsubscribe = manager.subscribe((s) => {
     drawLive(live, s);
-    // The form is only redrawn when the manager goes on or off. Rebuilding it
-    // on every beat would throw away whatever the user had just chosen.
+    // Redraw forms only when manager availability changes to preserve inputs.
     if (starterDrawnFor !== s.on) {
       starterDrawnFor = s.on;
       drawStarter(starter, s);
@@ -50,7 +45,7 @@ export async function render(root) {
   await manager.refresh();
 }
 
-// --- What is running now, and what is waiting ---
+// --- Active job and queue ---
 
 function drawLive(node, s) {
   clear(node);
@@ -87,7 +82,7 @@ function drawLive(node, s) {
     panel.append(
       el('ul', { class: 'field-list' }, [
         field('Phase', current.phase || '—'),
-        field('Doing now', current.item || '—'),
+        field('Current item', current.item || '—'),
         field('Done', total > 0 ? `${done} of ${total}` : String(done)),
         field('Errors', String((record.counters && record.counters.errors) || 0)),
         field('LLM calls', String((record.counters && record.counters.llmCalls) || 0)),
@@ -119,24 +114,23 @@ function drawLive(node, s) {
 export function stopRunButton(runId) {
   return el('button', {
     class: 'btn btn-danger',
-    text: 'Stop this run',
+    text: 'Stop run',
     onclick: async (ev) => {
       const button = ev.currentTarget;
       const yes = await askDialog({
-        title: 'Stop this run?',
-        message: 'It stops between topics and keeps everything it has '
-          + 'already saved.',
-        confirmLabel: 'Stop it',
+        title: 'Stop run?',
+        message: 'The run stops between topics. Data already saved is kept.',
+        confirmLabel: 'Stop run',
         danger: true,
       });
       if (!yes) return;
       button.disabled = true;
       try {
         const answer = await manager.cancelCurrent(runId);
-        noticeDialog('Stopping', answer.message || 'Asked the run to stop.');
+        noticeDialog('Stopping run', answer.message || 'Stop requested.');
       } catch (err) {
         button.disabled = false;
-        noticeDialog('That didn\'t work', err.message);
+        noticeDialog('Could not stop run', err.message);
       }
     },
   });
@@ -182,11 +176,11 @@ export function managerOffPanel(s) {
   ]);
 }
 
-// --- Starting a whole-store job ---
+// --- Job forms ---
 
 const SCOPES = [
-  ['newData', 'New data only — topics that changed since last time'],
-  ['all', 'Everything — every topic on the chosen boards'],
+  ['newData', 'New or changed topics'],
+  ['all', 'All topics on selected boards'],
   ['librariesOnly', 'Libraries board only'],
 ];
 
@@ -204,8 +198,7 @@ function drawStarter(node, s) {
   panel.append(el('h2', { text: 'Start a job' }));
   panel.append(el('p', {
     class: 'run-when',
-    text: 'Review the job details before it starts. Scrape jobs fetch fresh '
-      + 'pages; cached replay is available from the command line.',
+    text: 'Scrape jobs fetch current pages. Use the command line to replay cached pages.',
   }));
 
   panel.append(el('div', { class: 'job-columns' }, [
@@ -214,7 +207,6 @@ function drawStarter(node, s) {
   node.append(panel);
 }
 
-/// The whole-store scrape and extract jobs, in one card.
 function scrapeCard() {
   const scopeSelect = el('select', { class: 'field-input' });
   for (const [value, label] of SCOPES) {
@@ -243,7 +235,7 @@ function scrapeCard() {
   card.append(boardRow);
   card.append(el('div', { class: 'job-field' }, [
     el('span', { class: 'field-label', text: 'LLM' }),
-    el('label', { class: 'job-check' }, [llmBox, ' Ask the LLM about each topic']),
+    el('label', { class: 'job-check' }, [llmBox, ' Run LLM extraction']),
   ]));
   card.append(el('button', {
     class: 'btn btn-primary',
@@ -257,19 +249,19 @@ function scrapeCard() {
     }),
   }));
 
-  // The two whole-store jobs that need no choices and touch no network.
+  // These jobs use saved posts rather than scraping the forum.
   card.append(el('div', { class: 'job-subhead', text: 'Without scraping' }));
   card.append(el('div', { class: 'job-buttons' }, [
     el('button', {
       class: 'btn',
       text: 'LLM coverage pass',
-      title: 'Ask the LLM about every stored topic that has no answers yet.',
+      title: 'Extract missing or outdated LLM results from saved posts.',
       onclick: () => start({ kind: 'llmCoveragePass', runLlm: true }),
     }),
     el('button', {
       class: 'btn',
       text: 'Rebuild bundle',
-      title: 'Build forum-data-bundle.json again from what is already saved.',
+      title: 'Rebuild forum-data-bundle.json from saved data.',
       onclick: () => start({ kind: 'rebuildBundle' }),
     }),
   ]));
@@ -282,9 +274,6 @@ const MOD_SOURCES = [
   ['nexus', 'Nexus', true],
 ];
 
-/// The merge into ModRepo.json, in one card. Merging from saved files costs
-/// nothing, so it gets the plain button; scraping first is spelt out and
-/// confirmed.
 function mergeCard() {
   const sourceBoxes = MOD_SOURCES.map(([value, label, on]) => {
     const box = el('input', { type: 'checkbox', value });
@@ -297,8 +286,7 @@ function mergeCard() {
   card.append(el('h3', { text: 'Merge into ModRepo.json' }));
   card.append(el('p', {
     class: 'run-when',
-    text: 'Each merge saves a snapshot you can compare with older merges '
-      + 'in the ModRepo explorer.',
+    text: 'Each merge saves a snapshot for comparison in ModRepo diff.',
   }));
 
   const sourceRow = el('div', { class: 'job-field' }, [
@@ -312,7 +300,7 @@ function mergeCard() {
     el('span', { class: 'field-label', text: 'Versions' }),
     el('label', { class: 'job-check' }, [
       keepVersionsBox,
-      ' Keep every game version one source lists',
+      ' Keep all game versions listed by a source',
     ]),
   ]));
 
@@ -320,7 +308,7 @@ function mergeCard() {
     el('button', {
       class: 'btn btn-primary',
       text: 'Merge from saved files',
-      title: 'Merge what is already on disk. No network requests.',
+      title: 'Merge saved sources. No network requests.',
       onclick: () => start({
         kind: 'mergeModRepo',
         keepAllGameVersions: keepVersionsBox.checked,
@@ -330,7 +318,7 @@ function mergeCard() {
     el('button', {
       class: 'btn',
       text: 'Scrape then merge',
-      title: 'Fetch the ticked sources fresh, then merge. Takes a few minutes.',
+      title: 'Fetch selected sources, then merge into ModRepo.json.',
       onclick: () => start({
         kind: 'scrapeAndMerge',
         modSources: sourceBoxes.filter((s) => s.box.checked).map((s) => s.value),
@@ -349,15 +337,14 @@ function publishCard() {
   card.append(el('h3', { text: 'Publish to GitHub' }));
   card.append(el('p', {
     class: 'run-when',
-    text: 'Push the current ModRepo.json and forum-data-bundle.json to the '
-      + 'GitHub repo TriOS reads. If nothing changed since last time, nothing '
-      + 'is pushed.',
+    text: 'Publish current outputs and the website to the GitHub repo TriOS reads. '
+      + 'If nothing changed, nothing is pushed.',
   }));
   card.append(el('div', { class: 'job-buttons' }, [
     el('button', {
       class: 'btn btn-primary',
       text: 'Publish to GitHub',
-      title: 'Push the current outputs to the GitHub repo TriOS reads.',
+      title: 'Publish current outputs and the website to GitHub.',
       onclick: () => start({ kind: 'publishOutputs' }),
     }),
   ]));
@@ -369,7 +356,7 @@ async function start(request) {
     const record = await manager.confirmAndSubmit(request);
     if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
   } catch (err) {
-    noticeDialog('The job was not started', err.message);
+    noticeDialog('Could not start job', err.message);
   }
 }
 
@@ -381,8 +368,7 @@ let historyTicket = 0;
 
 async function loadHistory(node) {
   const ticket = ++historyTicket;
-  // Only say "Loading…" when there is nothing to look at yet. A reload over an
-  // existing list swaps it in place, with no blink.
+  // Keep existing results visible until their replacement arrives.
   if (!node.firstChild) {
     node.append(historyPanel([el('div', { class: 'loading', text: 'Loading…' })]));
   }
@@ -396,11 +382,8 @@ async function loadHistory(node) {
   }
   if (ticket !== historyTicket) return;
 
-  // A run that hasn't finished is shown in full at the top of the page, and its
-  // record on disk lags behind (counters are saved every tenth report), so a row
-  // for it here would only ever be a staler copy of what is already on screen.
-  // They are always the newest, so they are only ever on the first page — which
-  // is why taking them off the count stays exact.
+  // Active runs appear above with live counters; stored counters can lag.
+  // They occupy the first page, so subtract the omitted rows from the total.
   const all = data.items || [];
   const items = all.filter((r) => r.state !== 'running' && r.state !== 'queued');
   const total = data.total - (all.length - items.length);
@@ -433,10 +416,9 @@ function runTable(items) {
   const wrap = el('div', { class: 'table-wrapper' });
   const table = el('table');
   const head = el('tr');
-  // The counts are right-aligned in their cells, so their headings have to be
-  // too — otherwise every number reads as sitting under the next heading along.
+  // Align count headings with their numeric cells.
   const columns = [
-    ['Kind', ''], ['Started', ''], ['Took', ''], ['State', ''],
+    ['Job', ''], ['Started', ''], ['Duration', ''], ['State', ''],
     ['Done', 'num'], ['Errors', 'num'], ['LLM calls', 'num'], ['Notes', ''],
   ];
   for (const [label, cls] of columns) {
@@ -480,7 +462,7 @@ function notes(r) {
   if (r.guardrailStop) {
     out.push(el('span', {
       class: 'badge badge-warning',
-      text: 'stopped at a cap',
+      text: 'limit reached',
       title: r.guardrailStop,
     }), ' ');
   }

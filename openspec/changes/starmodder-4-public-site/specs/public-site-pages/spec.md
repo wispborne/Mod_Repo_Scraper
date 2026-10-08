@@ -202,7 +202,7 @@ how many mods are on it, biggest first. On Browse a chip SHALL filter the list,
 and pressing the chip that is already on SHALL clear it. There SHALL be no
 category dropdown.
 
-#### Scenario: Browsing by kind
+#### Scenario: Browsing by category
 - **WHEN** a reader opens Home
 - **THEN** every category is on screen at once with its count, and each one opens Browse filtered to it
 
@@ -297,7 +297,7 @@ person's page — it SHALL take the accent only under the pointer.
 
 ### Requirement: Home says what the site is before anything else
 Home SHALL open with what the site is in one line, then the search box, then
-the kinds of mod, then the releases. Anything else SHALL come after those.
+the categories, then the releases. Anything else SHALL come after those.
 
 #### Scenario: Somebody arriving for the first time
 - **WHEN** a reader opens Home

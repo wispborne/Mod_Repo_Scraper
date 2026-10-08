@@ -24,8 +24,7 @@ export async function render(root, topicId, { parent } = {}) {
 
   root.append(loading());
 
-  // The working data gives the title and lets us say whether what is on disk
-  // has been published yet. A topic with no working data still has a history.
+  // Working data supplies the title and publication status; history can exist without it.
   const [history, working] = await Promise.all([
     api(`topics/${encodeURIComponent(topicId)}/history`),
     api(`topics/${encodeURIComponent(topicId)}`).catch(() => null),
@@ -47,7 +46,7 @@ export async function render(root, topicId, { parent } = {}) {
   const page = el('div', { class: 'stack' });
   page.append(el('h1', { text: title }));
   const controls = el('div', { class: 'thread-controls' }, [
-    el('a', { class: 'btn', href: threadHref, text: '‹ Back to the thread' }),
+    el('a', { class: 'btn', href: threadHref, text: '‹ Back to thread' }),
   ]);
   page.append(controls);
 
@@ -77,8 +76,7 @@ export async function render(root, topicId, { parent } = {}) {
   log.append(historyEndsHere(history));
   page.append(log);
 
-  // Built after the log, so the button knows straight away how many entries
-  // there are to open.
+  // Build the button after the entries so its initial state reflects the folds.
   if (entries.length) {
     controls.append(expandAllButton(log, 'details.change-card'));
   }
@@ -87,29 +85,26 @@ export async function render(root, topicId, { parent } = {}) {
   root.append(page);
 }
 
-/// The line under the title: how many runs changed this topic, out of how many
-/// saved bundles there were to look at.
+/// Counts changes across the readable saved bundles.
 function summaryLine(topicId, changed, history) {
   const checked = history.snapshotsRead || 0;
   const bundles = `${checked} saved bundle${checked === 1 ? '' : 's'}`;
   if (!history.everInBundle) {
-    return `Topic ${topicId} — in none of the ${bundles}.`;
+    return `Topic ${topicId} · Not found in ${bundles}.`;
   }
-  if (!changed) return `Topic ${topicId} — the same in all ${bundles}.`;
-  return `Topic ${topicId} — changed in ${changed} of ${bundles}.`;
+  if (!changed) return `Topic ${topicId} · Unchanged across ${bundles}.`;
+  return `Topic ${topicId} · ${changed} changes across ${bundles}.`;
 }
 
 /// Distinguishes never-published topics from published but unchanged topics.
 function nothingChangedLine(history) {
   const from = when(history.oldestSavedAt);
   if (!history.everInBundle) {
-    return 'This thread is not in any saved bundle. Scrape it and rebuild '
-      + 'the bundle to start recording its history.';
+    return 'This thread is not in any saved bundle. History starts when it is included in a bundle.';
   }
   return from
-    ? 'Nothing has changed about this thread in any of the saved bundles, '
-      + `going back to ${from}.`
-    : 'Nothing has changed about this thread in any of the saved bundles.';
+    ? `No changes in saved bundles since ${from}.`
+    : 'No changes in saved bundles.';
 }
 
 /// Marks the oldest retained snapshot as the history boundary.
@@ -146,23 +141,20 @@ async function unpublishedEntry(topicId, working) {
 
   const said = {
     stale: [
-      'On disk now, not published',
-      'This thread was scraped after the Forum Data Bundle was last built, so '
-        + 'what changed is not in a saved bundle yet.',
+      'Unpublished changes',
+      'This thread was scraped after the last bundle build. These changes are not in a saved bundle yet.',
     ],
     absent: [
-      'On disk now, not published',
-      'This thread is saved on disk but is not in the published bundle at all.',
+      'Unpublished thread',
+      'This thread is saved locally but is not in the published bundle.',
     ],
     noBundle: [
-      'Nothing published yet',
-      'No Forum Data Bundle has been published, so there is nothing saved to '
-        + 'compare against.',
+      'No published bundle',
+      'No Forum Data Bundle has been published yet. There is no saved bundle to compare.',
     ],
   }[staleness.state];
 
-  // On a cold load the shared poller may not have answered yet, and a null
-  // status would quietly hide the button on a manager that is switched on.
+  // Wait for initial status so enabled managers show the rebuild button.
   const status = manager.status() || await manager.refresh();
   const body = el('div', { class: 'log-body' }, [
     el('div', { class: 'log-head' }, [
@@ -185,8 +177,7 @@ async function unpublishedEntry(topicId, working) {
   ]);
 }
 
-/// One run in the log: a summary line that says which fields moved, opening on
-/// click to what they moved from and to.
+/// Each entry summarizes changed fields and expands to show their values.
 function logEntry(entry, threadHref) {
   const changes = entry.changes || [];
   const card = el('details', { class: 'change-card' });
@@ -196,9 +187,8 @@ function logEntry(entry, threadHref) {
     el('span', { class: 'change-name', text: when(entry.savedAt) || entry.runId }),
     el('span', { class: 'change-author', text: jobWord(entry.runId) }),
     el('span', { class: 'chev', text: '▸' }),
-    // After the chevron so the chevron stays up on the first line; the CSS
-    // drops the field names onto a second one, under the date. Left out when
-    // there is nothing to say — a first-seen or dropped entry lists no fields.
+    // Place field names after the chevron so they wrap below the date.
+    // First-seen and removed entries have no changed fields.
     changes.length ? el('span', {
       class: 'change-hint',
       text: changedFieldsLine(changes),
@@ -211,25 +201,24 @@ function logEntry(entry, threadHref) {
   if (isImported(entry.runId)) {
     body.append(el('p', {
       class: 'change-note',
-      text: 'Imported from the published repo’s git history — there '
-        + 'is no run record for it.',
+      text: 'Imported from the published repo’s Git history. No local run record.',
     }));
   } else {
     body.append(el('a', {
       href: `#/runs/${encodeURIComponent(entry.runId)}`,
-      text: 'Open this run',
+      text: 'View run',
     }));
   }
   if (entry.kind === 'first') {
     body.append(el('p', {
       class: 'change-note',
-      text: 'This run is the first saved bundle that holds this thread.',
+      text: 'First saved bundle containing this thread.',
     }));
   }
   if (entry.kind === 'gone') {
     body.append(el('p', {
       class: 'change-note',
-      text: 'This run published a bundle without this thread in it.',
+      text: 'This thread was removed from the bundle.',
     }));
   }
   if (changes.length) body.append(diffTable(changes));
@@ -245,7 +234,7 @@ function kindWord(kind) {
   return {
     changed: 'changed',
     first: 'first seen',
-    gone: 'dropped',
+    gone: 'removed',
   }[kind] || kind;
 }
 

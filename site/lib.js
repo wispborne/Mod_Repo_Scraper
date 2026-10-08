@@ -1309,7 +1309,7 @@ export function countedAcross(mods, pick) {
 /// each line, in as many columns as the page has room for. Each line is a link
 /// to that category on the browse page, or, on Browse, a button that picks it.
 ///
-/// This is the only way to browse by kind that a reader can actually use. The
+/// This is the only way to browse by category that a reader can actually use. The
 /// dropdown it replaces held 26 overlapping names; the site publishes thirteen
 /// and shows them all at once.
 export function categoryChips(mods, opts = {}) {
@@ -1346,7 +1346,7 @@ const SOURCE_NAMES = {
 
 /// True when Discord is the only place this mod was found. Those used to be
 /// published under a category called "Discord Only", which said where a mod
-/// came from rather than what kind of mod it is.
+/// came from rather than what category it belongs in.
 ///
 /// A mod with a forum thread never counts, even where Discord is the only
 /// place we read it from. A lot of Discord posts link the mod's own forum

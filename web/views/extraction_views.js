@@ -1,18 +1,11 @@
-// Pieces shared by the topic inspector (#/topics/<id>) and the bundle detail
-// page (#/bundle/<id>): the post frame, the rule-based download table, and the
-// LLM's mods with their downloads and extras.
-//
-// The two pages hold the same facts under different field names — the topic
-// endpoint serves the resolver's own `DownloadCandidate`, the bundle serves the
-// published `AssumedDownloadCandidate`. So each page hands its rows to
-// `downloadRow*` first, and everything below works on one plain shape:
+// Shared thread, download, and LLM views. Download converters accept resolver
+// candidates or published bundle entries and produce the same display shape:
 //   { url, directUrl, host, fileName, confidence, requiresManualStep, linkText }
 
 import { api, el, esc, go, MissingFile, noticeDialog } from '../lib.js';
 import * as manager from '../manager.js';
 
-// Small forum-ish stylesheet for the sandboxed post frame. Styles the scraped
-// bbc_* classes so the post reads like the forum, dark background.
+// Style scraped bbc_* classes inside the sandboxed post frame.
 const FRAME_CSS = `
   * { scrollbar-width: thin; scrollbar-color: rgba(73, 252, 255, 0.3) rgb(24, 26, 30); }
   ::-webkit-scrollbar { width: 12px; height: 12px; }
@@ -45,17 +38,17 @@ export function topicActionBar(topicId) {
       });
       if (record) go('#/runs');
     } catch (err) {
-      noticeDialog('The job was not started', err.message);
+      noticeDialog('Could not start job', err.message);
     }
   };
   return el('div', { class: 'topic-actions' }, [
     el('button', { class: 'btn', text: 'Re-scrape', onclick: () => run('rescrapeTopics') }),
-    el('button', { class: 'btn', text: 'Re-resolve downloads', onclick: () => run('resolveDownloads') }),
+    el('button', { class: 'btn', text: 'Recheck downloads', onclick: () => run('resolveDownloads') }),
     el('button', { class: 'btn', text: 'Re-run LLM', onclick: () => run('extractLlm') }),
   ]);
 }
 
-/// The post's own HTML, in a sandboxed frame so nothing in it can run.
+/// The sandbox prevents scripts in scraped HTML from running.
 export function postFrame(html) {
   const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${FRAME_CSS}</style></head><body>${html}</body></html>`;
   const frame = el('iframe', { class: 'post-frame' });
@@ -102,7 +95,7 @@ function shortUrl(u, max = 52) {
   return `${s.slice(0, max - 16)}…${s.slice(-14)}`;
 }
 
-/// A link that shows a shortened URL but opens and hovers the full one.
+/// Displays a shortened URL; the link and tooltip retain the full address.
 function urlLink(display, href) {
   return el('a', {
     class: 'url-cell',
@@ -121,7 +114,6 @@ function clampCell(text, max = 40) {
   return el('span', { title: s, text: `${s.slice(0, max - 1)}…` });
 }
 
-/// A closed-by-default section for a long list, so the page stays short.
 export function fold(label, content) {
   return el('details', { class: 'fold' }, [
     el('summary', { text: label }),
@@ -172,8 +164,8 @@ export function linkList(links) {
   for (const link of links) {
     list.append(el('li', {}, [
       link.isDownloadable
-        ? el('span', { class: 'badge badge-success', text: 'dl' })
-        : el('span', { class: 'badge badge-dim', text: link.isExternal ? 'ext' : 'int' }),
+        ? el('span', { class: 'badge badge-success', text: 'download' })
+        : el('span', { class: 'badge badge-dim', text: link.isExternal ? 'external' : 'internal' }),
       el('a', { class: 'field-value', href: link.url, target: '_blank', text: link.text || link.url }),
     ]));
   }
@@ -193,7 +185,7 @@ export function kindBadge(kind) {
 /// The rule-based downloads, in the plain shape above.
 export function assumedTable(rows) {
   if (!rows.length) {
-    return el('p', { class: 'loading', text: 'No rule-based downloads.' });
+    return el('p', { class: 'loading', text: 'No downloads found by rules.' });
   }
   const wrap = el('div', { class: 'table-wrapper' });
   const table = el('table', { class: 'dl-table' });
@@ -201,7 +193,7 @@ export function assumedTable(rows) {
     el('th', { text: 'Confidence' }),
     el('th', { text: 'Host' }),
     el('th', { text: 'File name' }),
-    el('th', { text: 'Manual?' }),
+    el('th', { text: 'Manual step' }),
     el('th', { text: 'Link text' }),
     el('th', { text: 'Source URL' }),
   ])));
@@ -222,16 +214,13 @@ export function assumedTable(rows) {
   return wrap;
 }
 
-/// Everything the LLM found for this thread: one card per mod. `assumedUrls` is
-/// the set of rule-based source URLs, used to mark the downloads the rules
-/// missed; pass an empty set to skip that marking.
+/// Marks downloads absent from assumedUrls as found only by the LLM.
 export function llmModsBlock(mods, assumedUrls) {
   const box = el('div', {});
   for (const mod of mods) box.append(modCard(mod, assumedUrls));
   return box;
 }
 
-/// One mod: its name, role, any requires, its image, downloads and extras.
 export function modCard(mod, assumedUrls) {
   const card = el('div', { class: 'llm-mod' });
   const head = el('div', { class: 'llm-mod-head' }, [
@@ -256,8 +245,8 @@ export function modCard(mod, assumedUrls) {
   const anchors = mod.descriptionAnchors;
   if (anchors && anchors.startsWith && anchors.endsWith) {
     card.append(fieldList([
-      ['Described from', `"${anchors.startsWith}"`],
-      ['…up to', `"${anchors.endsWith}"`],
+      ['Description starts with', `"${anchors.startsWith}"`],
+      ['Description ends with', `"${anchors.endsWith}"`],
     ]));
   }
   return card;
@@ -275,7 +264,7 @@ export function llmDownloadsTable(downloads, assumedUrls) {
     el('th', { text: 'Confidence' }),
     el('th', { text: 'Host' }),
     el('th', { text: 'File name' }),
-    el('th', { text: 'Manual?' }),
+    el('th', { text: 'Manual step' }),
     el('th', { text: 'URL' }),
   ])));
   const tbody = el('tbody');
@@ -284,8 +273,8 @@ export function llmDownloadsTable(downloads, assumedUrls) {
     const tr = el('tr', { class: 'dl-row' + (rulesMissed ? ' llm' : '') });
     tr.append(el('td', {}, kindBadge(d.kind)));
     tr.append(el('td', {}, rulesMissed
-      ? el('span', { class: 'badge badge-llm', text: 'llm' })
-      : el('span', { class: 'badge badge-secondary', text: 'rules' })));
+      ? el('span', { class: 'badge badge-llm', text: 'LLM' })
+      : el('span', { class: 'badge badge-secondary', text: 'Rules' })));
     tr.append(el('td', { class: 'conf-' + (d.confidence || ''), text: d.confidence || '—' }));
     tr.append(el('td', { text: d.sourceHost || '—' }));
     tr.append(el('td', {}, clampCell(d.fileName)));
@@ -306,7 +295,7 @@ export function extrasBlock(extras) {
   const summary = extras.summary;
   const hasSummary = !!(summary && (summary.sentence || summary.paragraph));
   if (hasSummary) {
-    box.append(el('h3', { text: 'Summary' }));
+    box.append(el('h3', { text: 'LLM summary' }));
     if (summary.sentence) {
       box.append(el('p', { class: 'llm-summary-sentence', text: summary.sentence }));
     }
@@ -408,8 +397,7 @@ export function bundleStaleness({ index, detail, builtAt, inBundle, hasBundle })
   return { state: 'current' };
 }
 
-/// The same answer, having read the published bundle to work it out. Best effort:
-/// a viewer with nothing published yet still gets a state back.
+/// Compare saved thread data with the published bundle, if available.
 export async function topicStaleness(topicId, index, detail) {
   const [meta, presence] = await Promise.all([
     api('bundle/meta').catch(() => null),
@@ -441,7 +429,7 @@ export function rebuildBundleButton() {
         const record = await manager.confirmAndSubmit({ kind: 'rebuildBundle' });
         if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
       } catch (err) {
-        noticeDialog('The job was not started', err.message);
+        noticeDialog('Could not start job', err.message);
       }
     },
   });

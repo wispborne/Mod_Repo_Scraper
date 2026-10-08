@@ -31,7 +31,7 @@ export async function changesPage(body) {
   // One saved bundle is enough once the data on disk can be the other side.
   if (!runs.length || (runs.length < 2 && !working)) {
     return body.append(el('div', { class: 'missing' }, [
-      el('h3', { text: 'There is nothing to compare yet' }),
+      el('h3', { text: 'Nothing to compare yet' }),
       el('p', {
         text: runs.length === 1
           ? 'Only one saved bundle is available, with no scraped data on disk '
@@ -55,8 +55,7 @@ export async function changesPage(body) {
 
   body.append(el('p', {
     class: 'run-when',
-    text: 'Compare two saved bundles, or compare a saved bundle with current '
-      + 'data on disk to follow a run.',
+    text: 'Compare saved bundles, or compare a bundle with current saved data to follow a run.',
   }));
 
   const selects = {};
@@ -86,7 +85,7 @@ export async function changesPage(body) {
   const swap = el('button', {
     class: 'btn',
     text: 'Swap',
-    title: 'Switch which bundle counts as older and which as newer.',
+    title: 'Swap older and newer bundles.',
     onclick: () => {
       if (state.b === WORKING) return;
       [state.a, state.b] = [state.b, state.a];
@@ -99,14 +98,13 @@ export async function changesPage(body) {
     },
   });
 
-  /// Swapping is off while the newer side is the data on disk, since it can
-  /// only ever be the newer one.
+  // Working data is allowed only on the newer side.
   function syncSwap() {
     const off = state.b === WORKING;
     swap.disabled = off;
     swap.title = off
-      ? 'The data on disk is always the newer of the two.'
-      : 'Switch which bundle counts as older and which as newer.';
+      ? 'Current saved data can only be the newer side.'
+      : 'Swap older and newer bundles.';
   }
   /// Prevents self-comparison by swapping saved sides. When leaving working
   /// data, choose another older snapshot: working data cannot become older.
@@ -123,8 +121,7 @@ export async function changesPage(body) {
       selects.a.value = next.id;
       return;
     }
-    // Only one bundle has ever been saved, so there is nothing to hold it
-    // against but the data on disk. Put the newer side back where it was.
+    // With one snapshot, keep working data as the newer side.
     state.b = WORKING;
     selects.b.value = WORKING;
   }
@@ -133,8 +130,7 @@ export async function changesPage(body) {
   const refresh = el('button', {
     class: 'btn',
     text: 'Refresh',
-    title: 'Read the data on disk again and work out what has changed since '
-      + 'the last bundle was published.',
+    title: 'Reload current data and update the comparison.',
     onclick: () => load({ keepPlace: true }),
   });
 
@@ -155,7 +151,7 @@ export async function changesPage(body) {
 
   const search = el('input', {
     type: 'search',
-    placeholder: 'Search mod title or author…',
+    placeholder: 'Search topic title or author…',
     value: state.q,
   });
   let typing;
@@ -172,8 +168,7 @@ export async function changesPage(body) {
   const results = el('div', {});
   const foldAll = expandAllButton(results, 'details.change-card');
   body.append(el('div', { class: 'toolbar' }, [search, foldAll]));
-  // Says what the data-on-disk side means and, while a run is going, when it
-  // was last read. It sits above the counts because it changes what they mean.
+  // Explain working data above the counts, including its latest write time.
   const liveNote = el('p', { class: 'run-when' });
   body.append(liveNote, counts, results);
 
@@ -213,8 +208,7 @@ export async function changesPage(body) {
     if (state.kind) {
       results.append(el('p', {
         class: 'run-when',
-        text: `Showing only the ${kindWord(state.kind)} topics — click the `
-          + 'highlighted card again to show everything.',
+        text: `Showing ${kindWord(state.kind)} topics. Click the selected count to clear the filter.`,
       }));
     }
     for (const row of answer.items || []) {
@@ -227,8 +221,7 @@ export async function changesPage(body) {
         class: 'loading',
         text: state.q || state.kind
           ? 'Nothing matches this search or filter.'
-          : 'These two bundles are the same — nothing was added, removed '
-            + 'or changed.',
+          : 'No changes between these bundles.',
       }));
     }
     foldAll.refresh();
@@ -241,8 +234,7 @@ export async function changesPage(body) {
       load();
     }));
 
-    // After the list is back, not before: an emptied page has nowhere to
-    // scroll to, and the browser would clamp this to the top.
+    // Restore scroll after inserting results; an empty page clamps it to zero.
     if (wasAt != null) window.scrollTo({ top: wasAt });
   }
 
@@ -266,7 +258,7 @@ export async function changesPage(body) {
           + (value ? ` ${cls}` : '')
           + (filtering ? ' stat-card-filter' : '')
           + (filtering && state.kind === kind ? ' on' : ''),
-        title: filtering ? `Show only the ${kindWord(kind)} topics.` : null,
+        title: filtering ? `Show ${kindWord(kind)} topics.` : null,
         onclick: filtering ? () => {
           state.kind = state.kind === kind ? '' : kind;
           state.page = 0;
@@ -289,9 +281,9 @@ function drawLiveNote(node, answer) {
     ? new Date(answer.workingUpdatedAt).toLocaleString()
     : null;
   node.append(el('span', {
-    text: 'Compares current data on disk with the selected saved bundle. '
-      + (asOf ? `Data last written at ${asOf}. ` : '')
-      + 'Press Refresh to see new changes. This page does not refresh automatically.',
+    text: 'Comparing current saved data with the selected bundle. '
+      + (asOf ? `Last written ${asOf}. ` : '')
+      + 'Use Refresh to see new changes; updates are manual.',
   }));
 }
 
@@ -301,12 +293,11 @@ function workingLabel(working) {
     ? new Date(working.updatedAt).toLocaleString()
     : null;
   const size = working.indexCount != null ? `${working.indexCount} topics` : '';
-  return ['On disk now — not published yet', when, size]
+  return ['Current saved data (unpublished)', when, size]
     .filter(Boolean).join(' — ');
 }
 
-/// How a saved bundle reads in a picker: when it was, what kind of run made
-/// it, and how big it was. The dates alone all look alike.
+/// Include job kind and topic count to distinguish snapshots with similar dates.
 function runLabel(run) {
   const when = run.savedAt ? new Date(run.savedAt).toLocaleString() : run.id;
   const size = run.indexCount != null ? `${run.indexCount} topics` : '';
@@ -330,18 +321,15 @@ function jobWord(id) {
 function changeCard(row) {
   const topic = row.topic || {};
   const changes = row.changes || [];
-  // The key rides on the card so a redraw can open again whatever was open.
+  // Retain the key to restore open cards after Refresh.
   const card = el('details', { class: 'change-card', 'data-key': row.key || '' });
   card.append(el('summary', {}, [
     el('span', { class: 'badge ' + kindBadge(row.kind), text: kindWord(row.kind) }),
     el('span', { class: 'change-name', text: row.name || '(no title)' }),
     el('span', { class: 'change-author', text: row.authors || '' }),
     el('span', { class: 'chev', text: '▸' }),
-    // Which fields moved, not just how many — the whole point of the shut row
-    // is to be read without opening it. It comes after the chevron so that the
-    // chevron stays up on the first line; the CSS drops this onto a second.
-    // Left out when there is nothing to say, so an added or removed topic
-    // doesn't carry an empty second line.
+    // Place changed fields after the chevron so they wrap below the name.
+    // Added and removed topics have no field summary.
     changes.length ? el('span', {
       class: 'change-hint',
       text: changedFieldsLine(changes),

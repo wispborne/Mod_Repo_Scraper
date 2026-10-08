@@ -6,7 +6,7 @@ import * as manager from '../manager.js';
 export async function render(root) {
   clear(root);
   root.append(breadcrumbs([{ label: 'LLM test report' }]));
-  root.append(el('h1', { text: 'LLM Test Report' }));
+  root.append(el('h1', { text: 'LLM test report' }));
 
   // This page is the only UI entry point for the non-persisting LLM test job.
   const status = manager.status() || await manager.refresh();
@@ -15,19 +15,19 @@ export async function render(root) {
       el('button', {
         class: 'btn btn-primary',
         text: 'Run LLM test',
-        title: 'Try the LLM prompt on a few topics and write a fresh report.',
+        title: 'Test the LLM prompt on a few topics and save a report.',
         onclick: async () => {
           try {
             const record = await manager.confirmAndSubmit({ kind: 'llmTest' });
             if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
           } catch (err) {
-            noticeDialog('The job was not started', err.message);
+            noticeDialog('Could not start job', err.message);
           }
         },
       }),
       el('span', {
         class: 'selection-hint',
-        text: 'Reload this page after the job finishes to see the new report.',
+        text: 'Reload after the test finishes to see the report.',
       }),
     ]));
   }

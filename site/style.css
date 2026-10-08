@@ -710,10 +710,17 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 .pager-info { color: var(--text-dim); font-size: var(--type-small); }
 .pager-size-label { display: flex; align-items: center; gap: 6px; font-size: var(--type-small); color: var(--text-dim); margin-left: auto; }
 
-/* A heading that names a section without shouting over the page's own title. */
-.quiet-heading {
-  font-size: var(--type-big); color: var(--text-dim);
-  font-weight: 600; letter-spacing: 0.02em;
+/* The heading that starts each section of the front page. Full-strength and
+   ruled off underneath, so it is plain where one section stops and the next
+   begins. The line sits under the whole row where the heading shares it with
+   a control, such as the rows picker. */
+.section-title {
+  font-size: var(--type-heading); color: var(--text);
+  font-weight: 700; letter-spacing: 0.01em;
+}
+.stack > .section-title,
+.section-head:has(> .section-title) {
+  padding-bottom: 6px; border-bottom: 1px solid var(--primary-bar);
 }
 
 /* --- Home page --- */

@@ -264,7 +264,7 @@ function drawControls(into, mods, state, onChange) {
     '.',
   ]));
 
-  // The categories come before the dropdowns: picking a kind of mod is what most
+  // The categories come before the dropdowns: picking a category is what most
   // readers want first, and a row you can see beats a list you have to open.
   drawChips();
   into.append(chips);

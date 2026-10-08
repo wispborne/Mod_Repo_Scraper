@@ -12,7 +12,7 @@ export async function render(root, parts) {
   if (parts.length) return viewer(root, parts[0]);
 
   root.append(breadcrumbs([{ label: 'Files' }]));
-  root.append(el('h1', { text: 'Output Files' }));
+  root.append(el('h1', { text: 'Files' }));
   const data = await api('files');
   if (data instanceof MissingFile) return root.append(missingPanel(data));
 
@@ -63,18 +63,18 @@ async function viewer(root, id) {
     // Whole small file fetched in one slice → pretty-print JSON when possible.
     if (data.offset === 0 && data.eof && data.totalSize < PRETTY_LIMIT) {
       clear(nav);
-      status.textContent = `${fmtBytes(data.totalSize)} · whole file`;
+      status.textContent = `${fmtBytes(data.totalSize)} · complete file`;
       pre.textContent = tryPretty(data.content);
       return;
     }
 
     // Large file → plain-text slices with prev/next.
-    status.textContent = `${fmtBytes(data.totalSize)} · bytes ${data.offset}–${data.offset + data.length} (plain text, not pretty-printed)`;
+    status.textContent = `${fmtBytes(data.totalSize)} · ${data.length} bytes from offset ${data.offset} · plain text`;
     pre.textContent = data.content;
     clear(nav);
     nav.append(
-      el('button', { text: '‹ Prev', disabled: data.offset <= 0 ? 'true' : null, onclick: () => loadSlice(Math.max(0, data.offset - SLICE)) }),
-      el('span', { class: 'pager-info', text: `offset ${data.offset}` }),
+      el('button', { text: '‹ Previous', disabled: data.offset <= 0 ? 'true' : null, onclick: () => loadSlice(Math.max(0, data.offset - SLICE)) }),
+      el('span', { class: 'pager-info', text: `Byte offset ${data.offset}` }),
       el('button', { text: 'Next ›', disabled: data.eof ? 'true' : null, onclick: () => loadSlice(data.offset + data.length) }),
     );
   }

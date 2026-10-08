@@ -11,29 +11,29 @@ let canAct = false;
 
 // Shared flag definitions for filter chips, column badges and help text.
 const FLAGS = [
-  { key: 'noDownload', cls: 'badge-error', badge: 'no dl', label: 'No download',
-    desc: 'Nothing found, by rules or LLM.' },
-  { key: 'lowConfidenceOnly', cls: 'badge-warning', badge: 'low conf', label: 'Low-confidence only',
-    desc: 'Every link found is a guess.' },
-  { key: 'llmOnlyDownloads', cls: 'badge-llm', badge: 'llm found', label: 'LLM found (rules missed)',
-    desc: 'The LLM caught a link the rules missed.' },
+  { key: 'noDownload', cls: 'badge-error', badge: 'no download', label: 'No download',
+    desc: 'No downloads found by rules or LLM.' },
+  { key: 'lowConfidenceOnly', cls: 'badge-warning', badge: 'low', label: 'Low confidence only',
+    desc: 'All download candidates have low confidence.' },
+  { key: 'llmOnlyDownloads', cls: 'badge-llm', badge: 'LLM only', label: 'Downloads missed by rules',
+    desc: 'The LLM found downloads missing from the rule-based results.' },
   { key: 'multiMod', cls: 'badge-llm', badge: 'multi-mod', label: 'More than one mod',
     desc: 'One thread, several mods.' },
-  { key: 'placeholderDetail', cls: 'badge-dim', badge: 'placeholder', label: 'Placeholder detail',
-    desc: 'A stub only — never fully scraped.' },
-  { key: 'missingGameVersion', cls: 'badge-warning', badge: 'no ver', label: 'Missing game version',
+  { key: 'placeholderDetail', cls: 'badge-dim', badge: 'placeholder', label: 'Placeholder post',
+    desc: 'Only a placeholder is saved; the full post is missing.' },
+  { key: 'missingGameVersion', cls: 'badge-warning', badge: 'no version', label: 'Missing game version',
     desc: 'No game version found.' },
   { key: 'wip', cls: 'badge-secondary', badge: 'wip', label: 'WIP',
     desc: 'Marked work-in-progress.' },
-  { key: 'noLlmExtraction', cls: 'badge-dim', badge: 'no llm', label: 'No LLM extraction',
-    desc: 'The LLM has not seen it yet.' },
+  { key: 'noLlmExtraction', cls: 'badge-dim', badge: 'no LLM', label: 'No LLM results',
+    desc: 'No LLM results are saved for this topic.' },
 ];
 
 const COLUMNS = [
   ['topicId', 'ID', 'num'],
   ['title', 'Title', ''],
   ['author', 'Author', ''],
-  ['gameVersion', 'Game ver', ''],
+  ['gameVersion', 'Game version', ''],
   ['replies', 'Replies', 'num'],
   ['views', 'Views', 'num'],
   ['lastPostDate', 'Last post', ''],
@@ -148,20 +148,18 @@ export async function render(root) {
   load();
 }
 
-// The bar above the table: how many are ticked, and what can be done with
-// them. The ticked set lives in manager.js, so it survives paging, searching
-// and moving between views.
+// Selection lives in manager.js and survives list redraws and navigation.
 function selectionBar() {
   const bar = el('div', { class: 'selection-bar' });
   const count = el('span', { class: 'selection-count' });
   const hint = el('span', {
     class: 'selection-hint',
-    text: 'Tick topics to act on them. The tick marks stay as you page and search.',
+    text: 'Select topics to run a job. Selection is kept across searches and pages.',
   });
 
   const buttons = [
     ['Re-scrape', 'rescrapeTopics'],
-    ['Re-resolve downloads', 'resolveDownloads'],
+    ['Recheck downloads', 'resolveDownloads'],
     ['Re-run LLM', 'extractLlm'],
   ].map(([label, kind]) =>
     el('button', {
@@ -172,7 +170,7 @@ function selectionBar() {
   );
   const clearBtn = el('button', {
     class: 'btn',
-    text: 'Clear',
+    text: 'Clear selection',
     onclick: () => manager.selection.clear(),
   });
 
@@ -189,7 +187,7 @@ function selectionBar() {
 
   const unsubscribe = manager.selection.subscribe((n) => {
     draw(n);
-    // Keep the ticks on screen in step with the set (e.g. after Clear).
+    // Sync visible checkboxes after selection changes elsewhere.
     for (const box of document.querySelectorAll('input[data-topic-id]')) {
       box.checked = manager.selection.has(box.dataset.topicId);
     }
@@ -213,11 +211,11 @@ async function act(kind) {
       runLlm: true,
     });
     if (!record) return;
-    // The job owns these topics now, so the ticks have done their work.
+    // Clear selection only after successful submission.
     manager.selection.clear();
     go('#/runs');
   } catch (err) {
-    noticeDialog('The job was not started', err.message);
+    noticeDialog('Could not start job', err.message);
   }
 }
 
@@ -267,9 +265,9 @@ function buildTable(data, reload) {
     }
     const dc = row.downloadCounts || {};
     const dlCell = [
-      el('span', { class: 'badge badge-secondary', text: `rules ${dc.rules ?? 0}` }),
+      el('span', { class: 'badge badge-secondary', text: `Rules ${dc.rules ?? 0}` }),
       ' ',
-      el('span', { class: 'badge badge-llm', text: `llm ${dc.llm ?? 0}` }),
+      el('span', { class: 'badge badge-llm', text: `LLM ${dc.llm ?? 0}` }),
     ];
     if ((dc.mods ?? 0) > 1) {
       dlCell.push(' ', el('span', { class: 'badge badge-llm', text: `${dc.mods} mods` }));

@@ -61,17 +61,16 @@ export async function api(path, params = {}) {
   return body;
 }
 
-/// Renders the friendly "no such file yet" panel.
 export function missingPanel(missing) {
   return el('div', { class: 'missing' }, [
-    el('h3', { text: `${missing.file} is not on disk yet` }),
+    el('h3', { text: `${missing.file} is unavailable` }),
     el('p', { text: missing.hint || 'Run the scraper to produce it.' }),
   ]);
 }
 
 export function errorPanel(err) {
   return el('div', { class: 'missing error' }, [
-    el('h3', { text: 'Something went wrong' }),
+    el('h3', { text: 'Could not load this view' }),
     el('p', { text: String(err && err.message ? err.message : err) }),
   ]);
 }
@@ -95,7 +94,7 @@ export function breadcrumbs(trail = []) {
 }
 
 /// Closed-by-default fold containing formatted JSON for a detail page.
-export function rawJson(obj, label = 'Show the raw data (JSON)') {
+export function rawJson(obj, label = 'Raw data (JSON)') {
   return el('details', { class: 'raw-fold' }, [
     el('summary', { text: label }),
     el('pre', { class: 'raw', text: JSON.stringify(obj, null, 2) }),
@@ -135,7 +134,7 @@ export function expandAllButton(container, selector = 'details') {
   return button;
 }
 
-// --- Saying what changed, in one line ---
+// --- Change summaries ---
 
 /// Short field list, e.g. "name, downloads and 3 more". Empty without fields.
 export function changedFieldsLine(changes, limit = 3) {
@@ -155,9 +154,9 @@ function allChangedFields(changes) {
   return (changes || []).map((change) => change.field).filter(Boolean);
 }
 
-// --- How many rows to a page ---
+// --- Pagination ---
 
-/// The choices in the "rows" box. 0 means all of them on one page.
+// A page size of 0 shows all rows.
 export const PAGE_SIZES = [25, 50, 100, 250, 500, 0];
 
 const PAGE_SIZE_KEY = 'viewerPageSize';
@@ -194,7 +193,7 @@ export function pager(page, pageSize, total, onPage, onPageSize) {
   if (!showingAll) {
     row.append(
       btn('« First', 0, page <= 0),
-      btn('‹ Prev', page - 1, page <= 0)
+      btn('‹ Previous', page - 1, page <= 0)
     );
   }
   row.append(el('span', {
@@ -231,7 +230,7 @@ function pageSizePicker(pageSize, onPageSize) {
   ]);
 }
 
-// --- Asking before doing, without the browser's own popups ---
+// --- In-page dialogs ---
 
 /// Resolves true on confirmation, false on Cancel or Escape. Blank lines split
 /// message paragraphs. Focuses the confirm button so Enter confirms.
@@ -268,7 +267,6 @@ export function askDialog({ title, message, confirmLabel = 'Yes', cancelLabel = 
   });
 }
 
-/// Tells the user one thing, with just an OK button.
 export function noticeDialog(title, message) {
   return askDialog({ title, message, confirmLabel: 'OK', cancelLabel: null });
 }

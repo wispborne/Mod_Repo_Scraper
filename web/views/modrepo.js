@@ -14,15 +14,15 @@ export async function render(root, parts) {
   clear(root);
   if (parts.length) return detail(root, parts[0]);
 
-  // Search and page ride in the URL, so a reload or the back button brings the
-  // same list back.
+  // Restore list state from the URL on reload or back navigation.
   const query = hashQuery();
   state.q = (query.get('q') || '').trim();
   state.page = Math.max(0, parseInt(query.get('page'), 10) || 0);
   state.pageSize = pageSizePreference();
 
   root.append(breadcrumbs([{ label: 'ModRepo' }]));
-  root.append(el('h1', { text: 'ModRepo (merged output)' }));
+  root.append(el('h1', { text: 'ModRepo' }));
+  root.append(el('p', { class: 'run-when', text: 'Merged mods from the forum, Discord, and Nexus.' }));
   const toolbar = el('div', { class: 'toolbar' });
   const search = el('input', { type: 'search', placeholder: 'Search name or author…', value: state.q });
   let d;
@@ -50,7 +50,7 @@ export async function render(root, parts) {
     const table = el('table');
     table.append(el('thead', {}, el('tr', {}, [
       el('th', { text: 'Name' }), el('th', { text: 'Authors' }),
-      el('th', { text: 'Game ver' }), el('th', { text: 'Sources' }),
+      el('th', { text: 'Game version' }), el('th', { text: 'Sources' }),
     ])));
     const tb = el('tbody');
     for (const m of data.items) {
@@ -86,16 +86,14 @@ async function detail(root, index) {
   root.append(breadcrumbs([{ label: 'ModRepo', href: '#/modrepo' }, { label: mod.name || '(empty)' }]));
   root.append(el('h1', { text: mod.name || '(empty)' }));
 
-  // This page's data comes from the merge, so the button here is the merge —
-  // from the source files already saved, no network. The full form with source
-  // choices lives on the Runs view. Only when there is a manager to send it to.
+  // Refresh merged output from saved sources; source fetching is configured on Runs.
   const status = manager.status() || await manager.refresh();
   if (status && status.on) {
     root.append(el('div', { class: 'topic-actions' }, [
       el('button', {
         class: 'btn',
-        text: 'Re-run the merge',
-        title: 'Merge the sources already saved on disk into ModRepo.json. No network requests.',
+        text: 'Re-run merge',
+        title: 'Merge saved sources into ModRepo.json. No network requests.',
         onclick: async () => {
           try {
             const record = await manager.confirmAndSubmit({
@@ -104,7 +102,7 @@ async function detail(root, index) {
             });
             if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
           } catch (err) {
-            noticeDialog('The job was not started', err.message);
+            noticeDialog('Could not start job', err.message);
           }
         },
       }),
@@ -144,10 +142,10 @@ async function detail(root, index) {
     root.append(el('p', { style: 'margin-top:16px;' },
       el('a', {
         href: '#/merge/groups',
-        text: '→ Find this mod\'s merge group (per-source field values)',
+        text: 'View merge group and source values →',
         onclick: () => sessionStorage.setItem('mergeGroupSearch', mod.name || ''),
       })));
   }
 
-  root.append(rawJson(mod, 'Show this mod’s raw data (JSON)'));
+  root.append(rawJson(mod, 'Raw mod data (JSON)'));
 }

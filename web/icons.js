@@ -78,9 +78,7 @@ const PATHS = {
   ],
 };
 
-/// Builds an inline SVG icon by name. It draws in the current text colour and
-/// takes its size from the surrounding font unless a size is given. Decorative,
-/// so it is hidden from screen readers — the label beside it says what it is.
+/// Decorative icons inherit text colour and size; adjacent labels name the action.
 export function icon(name, { size } = {}) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');

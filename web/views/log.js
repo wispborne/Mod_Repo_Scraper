@@ -7,7 +7,7 @@ const state = { q: '', tail: 500 };
 export async function render(root) {
   clear(root);
   root.append(breadcrumbs([{ label: 'Log' }]));
-  root.append(el('h1', { text: 'Run Log (ModRepo.log)' }));
+  root.append(el('h1', { text: 'Log (ModRepo.log)' }));
 
   const toolbar = el('div', { class: 'toolbar' });
   const search = el('input', { type: 'search', placeholder: 'Filter lines…', value: state.q });
@@ -16,10 +16,10 @@ export async function render(root) {
     clearTimeout(d);
     d = setTimeout(() => { state.q = search.value.trim(); load(); }, 250);
   });
-  const tail = el('input', { type: 'text', value: String(state.tail), style: 'min-width:80px;', title: 'Show last N lines (0 = all)' });
+  const tail = el('input', { type: 'text', value: String(state.tail), style: 'min-width:80px;', title: 'Number of recent lines to show. Use 0 for all lines.' });
   tail.addEventListener('change', () => { state.tail = parseInt(tail.value, 10) || 0; load(); });
   const jump = el('button', { class: 'chip', text: 'Jump to end ↓', onclick: () => window.scrollTo(0, document.body.scrollHeight) });
-  toolbar.append(search, el('span', { class: 'field-label', text: 'tail' }), tail, jump);
+  toolbar.append(search, el('span', { class: 'field-label', text: 'Last lines' }), tail, jump);
   root.append(toolbar);
 
   const info = el('p', { class: 'field-value' });

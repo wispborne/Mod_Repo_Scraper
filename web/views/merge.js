@@ -6,22 +6,18 @@
 //   #/merge/removals/<kind>       preDedup | sameSource | validation
 //   #/merge/changes               what changed between two merges
 //
-// Every page reads one merge: the one picked at the top, or the newest when
-// nothing is picked. The pick survives moving between the pages.
+// Single-merge pages share the selected run, defaulting to the newest.
 
 import { api, el, clear, esc, missingPanel, MissingFile, pager, pageSizePreference, go, rawJson, breadcrumbs, expandAllButton } from '../lib.js';
 import { withRun, drawPicker, forgetRuns } from './merge_shared.js';
 import { groupFields, changesPage } from './merge_compare.js';
 
 export async function render(root, parts, { keepRuns = false } = {}) {
-  // Ask again which merges are saved, so one that finished while this tab sat
-  // open turns up. Redrawing after a pick keeps the list we already have.
+  // Reload saved runs on navigation; picker redraws reuse the list.
   if (!keepRuns) forgetRuns();
   clear(root);
 
-  // The diff page compares two merges with pickers of its own, so it gets its
-  // own title and none of the single-merge chrome. It lives in the sidebar as
-  // "Merge diff".
+  // ModRepo diff has its own pair of pickers rather than single-merge controls.
   const section = parts[0] || 'summary';
   if (section === 'changes') {
     root.append(breadcrumbs([{ label: 'ModRepo diff' }]));
@@ -71,8 +67,8 @@ async function summary(body) {
     ['Pre-dedup removals', data.preDedupCount, data.preDedupCount ? 'warning' : ''],
     ['After pre-dedup', data.afterPreDedupCount, ''],
     ['Groups', data.groupCount, ''],
-    ['Multi-member', data.multiMemberGroupCount, ''],
-    ['Singletons', data.singletonGroupCount, ''],
+    ['Groups with multiple entries', data.multiMemberGroupCount, ''],
+    ['Groups with one entry', data.singletonGroupCount, ''],
     ['Same-source dedup', data.sameSourceDedupCount, data.sameSourceDedupCount ? 'warning' : ''],
     ['Validation removals', data.validationRemovalCount, data.validationRemovalCount ? 'error' : ''],
     ['Final output', data.finalOutputCount, ''],
@@ -122,7 +118,7 @@ async function groupsList(body) {
   });
   const multi = el('span', {
     class: 'chip' + (groupsState.multiOnly ? ' on' : ''),
-    text: 'Multi-member only',
+    text: 'Multiple entries only',
     onclick: () => { groupsState.multiOnly = !groupsState.multiOnly; multi.classList.toggle('on'); groupsState.page = 0; load(); },
   });
   const results = el('div', {});
@@ -208,7 +204,7 @@ async function groupDetail(body, id) {
     el('a', {
       class: 'chip',
       href: `#/merge/groups/${encodeURIComponent(id)}/fields`,
-      text: 'Before and after, field by field →',
+      text: 'Compare fields →',
     }),
   ]));
 
@@ -221,7 +217,7 @@ async function groupDetail(body, id) {
   }
 
   if (decision && (decision.steps || []).length) {
-    body.append(el('h3', { text: 'Merge decisions (which source won)' }));
+    body.append(el('h3', { text: 'Merge decisions' }));
     let i = 1;
     for (const step of decision.steps) {
       const box = el('div', { class: 'panel', style: 'margin-bottom:6px;' });
@@ -236,14 +232,14 @@ async function groupDetail(body, id) {
       body.append(box);
     }
   } else {
-    body.append(el('p', { class: 'loading', text: 'No merge steps (singleton group).' }));
+    body.append(el('p', { class: 'loading', text: 'No merge steps recorded.' }));
   }
 
-  body.append(rawJson(data, 'Show this group’s raw data (JSON)'));
+  body.append(rawJson(data, 'Raw group data (JSON)'));
 }
 
 function reasonLabel(reason) {
-  return { indexSource: 'Index Source', higherGameVersion: 'Higher Version', fallback: 'Fallback' }[reason] || reason || '?';
+  return { indexSource: 'Mod index source', higherGameVersion: 'Higher game version', fallback: 'Fallback' }[reason] || reason || '?';
 }
 
 function modLine(m) {

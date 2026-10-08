@@ -31,7 +31,7 @@ function searchBlock() {
   const input = el('input', {
     type: 'search',
     class: 'home-search-input',
-    placeholder: 'Find a mod or topic — searches Topics, the Forum Data Bundle and ModRepo',
+    placeholder: 'Search topics, the bundle, and ModRepo…',
   });
   const results = el('div', { class: 'home-search-results' });
   let debounce;
@@ -115,7 +115,7 @@ function modrepoGroup(data) {
   return group('ModRepo', data.total, rows);
 }
 
-// --- The common jobs, one click away ---
+// --- Quick actions ---
 
 function drawActions(node, status) {
   clear(node);
@@ -134,21 +134,20 @@ function drawActions(node, status) {
 
   const row = el('div', { class: 'job-buttons' });
   row.append(
-    actionBtn('Start full run', 'Go through anything new on the main and libraries '
-      + 'boards, save it, and ask the LLM about each one.',
+    actionBtn('Start full run', 'Scrape new or changed topics on the main and libraries '
+      + 'boards and run LLM extraction.',
       { kind: 'fullRun', scope: 'newData', boards: ['main', 'libraries'], runLlm: true, replayAllowed: false }, true),
-    actionBtn('Merge saved sources', 'Merge what is already on disk into ModRepo.json. No network.',
+    actionBtn('Merge saved sources', 'Merge saved sources into ModRepo.json. No network requests.',
       { kind: 'mergeModRepo', collectMergeDebug: true }),
-    actionBtn('Rebuild bundle', 'Build forum-data-bundle.json again from what is saved.',
+    actionBtn('Rebuild bundle', 'Rebuild forum-data-bundle.json from saved data.',
       { kind: 'rebuildBundle' }),
-    actionBtn('LLM coverage pass', 'Ask the LLM about every stored topic with no answers yet.',
+    actionBtn('LLM coverage pass', 'Extract missing or outdated LLM results from saved posts.',
       { kind: 'llmCoveragePass', runLlm: true }),
   );
   panel.append(row);
   panel.append(el('p', {
     class: 'run-when',
-    text: 'Each action shows a confirmation first. Set scope, boards and '
-      + 'sources in Runs and queue.',
+    text: 'For scope, board, and source options, open Runs and queue.',
   }));
   node.append(panel);
 }
@@ -163,13 +162,13 @@ function actionBtn(label, title, request, primary) {
         const record = await manager.confirmAndSubmit(request);
         if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
       } catch (err) {
-        noticeDialog('The job was not started', err.message);
+        noticeDialog('Could not start job', err.message);
       }
     },
   });
 }
 
-// --- The last run, at a glance ---
+// --- Latest finished run ---
 
 async function loadLastRun(node) {
   clear(node).append(el('div', { class: 'loading', text: 'Loading the last run…' }));
@@ -218,14 +217,13 @@ async function loadLastRun(node) {
   if (c.llmCalls) facts.push(`${c.llmCalls} LLM calls`);
   panel.append(el('p', { class: 'run-when', text: facts.join(' · ') }));
 
-  // The same conditional link the run's own page shows: only when this run
-  // published a bundle and there is an older one to compare against.
+  // Only runs with a bundle snapshot and a predecessor have a diff.
   addWhatChangedLink(row, r.id);
 
   node.append(panel);
 }
 
-// --- A few numbers worth watching, each a way into the filtered topics list ---
+// --- Topic health ---
 
 async function loadHealth(node) {
   clear(node).append(el('div', { class: 'loading', text: 'Counting…' }));
@@ -245,12 +243,12 @@ async function loadHealth(node) {
   node.append(el('div', { class: 'stat-grid' }, [
     statCard('Topics saved', all, '#/topics'),
     statCard('No download found', noDl, '#/topics?filters=noDownload', 'warning'),
-    statCard('No LLM answers', noLlm, '#/topics?filters=noLlmExtraction'),
+    statCard('No LLM results', noLlm, '#/topics?filters=noLlmExtraction'),
     statCard('Placeholders', placeholders, '#/topics?filters=placeholderDetail', 'error'),
   ]));
   node.append(el('p', {
     class: 'run-when',
-    text: 'Each number opens the topics list already filtered to those rows.',
+    text: 'Select a count to view matching topics.',
   }));
 }
 
