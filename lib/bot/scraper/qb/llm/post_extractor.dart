@@ -677,6 +677,16 @@ class PostExtractor {
     );
   }
 
+  /// A version written the one way every stored version is written: without a
+  /// leading "v". The model writes "v3.0.2" on one run and "3.0.2" on the next
+  /// for the same post, and every flip shows up as a change. Only a "v" (or
+  /// "v.") straight before a digit goes; the rest is kept as the post wrote it,
+  /// so "0.12.2c" and "1.0-rc1" are untouched.
+  static String plainVersion(String version) =>
+      version.trim().replaceFirst(_leadingV, '');
+
+  static final RegExp _leadingV = RegExp(r'^[vV]\.?\s*(?=\d)');
+
   /// Reads the model's yes / no / depends. Anything else is no answer.
   static SaveAnswer? _saveAnswer(String? value) =>
       switch (value?.trim().toLowerCase()) {
@@ -825,7 +835,7 @@ class PostExtractor {
             'Answer truncated (topic $topicId); dropping changelog entries');
       } else {
         for (final e in mod.changelogEntries.entries) {
-          changelogEntries[e.key] = e.value;
+          changelogEntries[plainVersion(e.key)] = e.value;
           if (!_textInPost(e.value, corpus)) {
             _log.warning(
                 'Changelog entry "${e.key}" not found verbatim in post (topic $topicId); keeping anyway');
@@ -837,7 +847,7 @@ class PostExtractor {
     String? version;
     if (mod.version != null) {
       if (_textInPost(mod.version!, corpus)) {
-        version = mod.version;
+        version = plainVersion(mod.version!);
       } else {
         _log.warning(
             'Dropped version not found in post (topic $topicId): ${mod.version}');
@@ -898,7 +908,13 @@ class PostExtractor {
             '(topic $topicId): $version — ${note.quote}');
         continue;
       }
-      updateNotes.add(note);
+      updateNotes.add(version == null
+          ? note
+          : LlmUpdateNote(
+              version: plainVersion(version),
+              quote: note.quote,
+              answer: note.answer,
+            ));
     }
 
     // Image: the model must have copied a real post image URL. Keep the exact

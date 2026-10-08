@@ -7,7 +7,7 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 17;
+  static const int promptVersion = 18;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -82,6 +82,10 @@ Hard rules:
   URL. Never "fix up" a URL.
 - The mod's own version is NOT the game version it targets. If the post says it
   targets a game version, do not report that as the mod's version.
+- Write every version without a leading "v": "3.0.2", not "v3.0.2". This
+  applies to "version", the changelog's version keys and each update note's
+  "version". Keep the rest exactly as the post writes it, so "0.12.2c" and
+  "1.0-rc1" stay as they are.
 - List ONLY mods that can actually be downloaded from THIS thread. Do NOT add a
   mod that is merely mentioned, recommended, linked as a successor, or that has
   to be downloaded somewhere else. Example: a post for one mod that also links a
@@ -117,7 +121,7 @@ Return this JSON object:
           "<next version>": "<its notes>"
         }
       },
-      "version": "<the mod's own current version string, or null>",
+      "version": "<the mod's own current version, without a leading v, or null>",
       "supportLinks": ["<Patreon/Ko-fi/donate URL from the post>", "..."],
       "license": "<the license exactly as stated in the post, or null>",
       "sourceCode": "<the URL of the page where this mod's code is kept, copied from the post, or null>",
@@ -127,7 +131,7 @@ Return this JSON object:
       "canRemove": "<yes | no | depends: the short answer to removalCompatibility, or null>",
       "updateNotes": [
         {
-          "version": "<the release this note is about, as the post writes it, or null>",
+          "version": "<the release this note is about, without a leading v, or null>",
           "quote": "<the post's own words on whether a save made with an older version survives UPDATING, copied exactly>",
           "answer": "<yes | no | depends>"
         }
@@ -248,10 +252,11 @@ Guidance:
     a thread can carry several, one for each release that mentions saves.
     - "quote" is the note, copied word-for-word.
     - "version" is the release the note was written for, copied as the post
-      writes it. Give it when the note names that release, or sits in that
-      release's announcement or changelog entry: "Minor patch v1.0.1 is out. It
-      is save-compatible." gives "version": "v1.0.1", and "NOT save compatible"
-      inside the changelog entry for 0.8.0 gives "version": "0.8.0".
+      writes it, without a leading "v". Give it when the note names that
+      release, or sits in that release's announcement or changelog entry:
+      "Minor patch v1.0.1 is out. It is save-compatible." gives "version":
+      "1.0.1", and "NOT save compatible" inside the changelog entry for 0.8.0
+      gives "version": "0.8.0".
     - "version" is null when the note is not tied to one release: a rule about
       every update ("All updates are save-compatible"), or a statement about the
       mod as it is now ("Not save compatible with versions prior to 2.0.0" says

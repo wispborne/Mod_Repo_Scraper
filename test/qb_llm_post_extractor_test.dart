@@ -635,6 +635,17 @@ void main() {
     });
   });
 
+  test('a leading v is taken off a version and nothing else is', () {
+    expect(PostExtractor.plainVersion('v3.0.2'), '3.0.2');
+    expect(PostExtractor.plainVersion('V3.0.2'), '3.0.2');
+    expect(PostExtractor.plainVersion('v.0.95'), '0.95');
+    expect(PostExtractor.plainVersion('v 1.2'), '1.2');
+    expect(PostExtractor.plainVersion('0.12.2c'), '0.12.2c');
+    expect(PostExtractor.plainVersion('1.0-rc1'), '1.0-rc1');
+    // Not a "v" in front of a number: left alone.
+    expect(PostExtractor.plainVersion('vanilla'), 'vanilla');
+  });
+
   group('save compatibility', () {
     test('text found in the post is kept word-for-word', () async {
       final client = _FakeLlmClient([
@@ -772,7 +783,26 @@ void main() {
         [],
       );
       final notes = extrasOf(127)!.updateNotes!;
-      expect(notes.map((n) => n.version), ['v1.0.1']);
+      expect(notes.map((n) => n.version), ['1.0.1']);
+    });
+
+    test('every stored version is written without a leading v', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","version":"v3.0.2",'
+            '"changelog":{"link":null,"entries":{"V3.0.2":"Fixed a crash."}},'
+            '"updateNotes":[{"version":"v.1.0.1",'
+            '"quote":"It is save-compatible","answer":"yes"}]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(128, 'Version v3.0.2. V3.0.2: Fixed a crash. '
+            'Minor patch v.1.0.1 is out. It is save-compatible.'),
+        [],
+      );
+      final extras = extrasOf(128)!;
+      expect(extras.version, '3.0.2');
+      expect(extras.changelog!.entries!.keys, ['3.0.2']);
+      expect(extras.updateNotes!.single.version, '1.0.1');
     });
   });
 
