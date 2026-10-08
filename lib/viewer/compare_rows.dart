@@ -1,51 +1,36 @@
 import 'dart:convert';
 
-/// Comparing two saved things that hold a list of records — two merges' mods,
-/// two bundles' topics — and saying what is new, what is gone, and what changed.
-///
-/// The two callers differ in only three ways: how a record is keyed, which of
-/// its fields are worth looking at, and what to call it on screen. Everything
-/// else — lining the two sides up, spotting a changed field, sorting, counting
-/// the ones that stayed the same — is the same job, so it lives here once.
-
-/// How two records are told apart as the same thing. Returning the same key for
-/// two records in one snapshot is allowed; they are then compared as a set.
+/// Identifies a record across snapshots. Records sharing a key within one
+/// snapshot are compared as a set.
 typedef KeyOf = String Function(Map<dynamic, dynamic> record);
 
 /// What to show for a record in a list of differences.
 typedef LabelOf = String Function(Map<dynamic, dynamic> record);
 
-/// Says what changed inside a field item by item, for a field holding a list or
-/// a map. Returning an empty list means nothing that counts moved — only the
-/// order of the entries, say — and the field is then not reported as changed.
+/// Compares entries within a list or map. An empty result suppresses the field
+/// change, including differences caused only by entry order.
 typedef ItemsOf = List<Map<String, dynamic>> Function(
     Object? before, Object? after);
 
-/// One field worth comparing, and what to call it in plain English.
+/// A compared field and its display options.
 class ComparedField {
   final String name;
 
   /// What the page calls it. Null uses [name].
   final String? label;
 
-  /// Says what changed in words, for a field where showing both values would
-  /// be no use — a fingerprint of a post, say. Null shows the two values.
+  /// Describes changes whose values are not useful to display, such as post
+  /// fingerprints. Null displays the before and after values.
   final String Function(Object? before, Object? after)? describe;
 
-  /// Picks a list or a map apart entry by entry, so a field where one link of
-  /// twelve moved says that rather than printing all twelve twice. Null shows
-  /// the two values whole.
+  /// Compares list or map entries. Null displays the complete values.
   final ItemsOf? itemsOf;
 
   const ComparedField(this.name, {this.label, this.describe, this.itemsOf});
 }
 
-/// Compares two lists of records.
-///
-/// Every difference comes back as a row that can be searched by label or
-/// author. Records that did not change are counted and not listed — there are
-/// usually a thousand of them, and a list nobody can read is worse than a
-/// number.
+/// Returns searchable rows for added, removed and changed records, plus counts.
+/// Unchanged records are counted but omitted from the rows.
 Map<String, dynamic> compareRows({
   required List<dynamic> older,
   required List<dynamic> newer,
@@ -53,11 +38,12 @@ Map<String, dynamic> compareRows({
   required List<ComparedField> fields,
   required LabelOf labelOf,
   required LabelOf authorOf,
-  /// What the record itself is called in a row. Each caller keeps the name its
-  /// own pages already use.
+
+  /// The response key for the record's data.
   String recordKey = 'record',
-  /// What to say when several records share one key and the set of them
-  /// changed. There is no sensible field-by-field answer in that case.
+
+  /// Explains a changed set of records sharing a key; individual records cannot
+  /// be matched for a field-by-field comparison.
   String setChangedNote =
       'More than one record shares this key, and the set of them changed.',
 }) {
@@ -107,7 +93,7 @@ Map<String, dynamic> compareRows({
       continue;
     }
 
-    // More than one record under one key. Compare them as a set, and say so.
+    // Duplicate keys cannot be matched individually; ignore their order.
     final wasJson = (was.map(sameness).toList()..sort()).join('|');
     final nowJson = (now.map(sameness).toList()..sort()).join('|');
     if (wasJson == nowJson) {
@@ -124,8 +110,8 @@ Map<String, dynamic> compareRows({
   }
 
   rows.sort((a, b) {
-    final byKind =
-        _kindOrder(a['kind'] as String).compareTo(_kindOrder(b['kind'] as String));
+    final byKind = _kindOrder(a['kind'] as String)
+        .compareTo(_kindOrder(b['kind'] as String));
     if (byKind != 0) return byKind;
     return (a['name'] as String)
         .toLowerCase()
@@ -155,9 +141,7 @@ List<Map<String, dynamic>> changedFields(
 
     if (field.itemsOf != null) {
       final items = field.itemsOf!(was, now);
-      // Nothing that counts moved — the entries were only written in a
-      // different order. Saying "this changed" and then showing nothing is
-      // worse than not mentioning it.
+      // Entry order alone is not a reported change.
       if (items.isEmpty) continue;
       changes.add({'field': field.label ?? field.name, 'items': items});
       continue;
@@ -175,9 +159,7 @@ List<Map<String, dynamic>> changedFields(
 
 // --- Picking a list or a map apart, entry by entry ---
 
-/// The added, removed and changed entries of a map — a mod's links, say. A
-/// changed entry carries the old and new value; an entry that stayed the same
-/// is left out, which is the whole point.
+/// Returns added, removed and changed map entries, omitting unchanged entries.
 List<Map<String, dynamic>> mapItems(Object? before, Object? after) {
   final was = before is Map ? before : const {};
   final now = after is Map ? after : const {};
@@ -206,9 +188,7 @@ List<Map<String, dynamic>> mapItems(Object? before, Object? after) {
   return items;
 }
 
-/// The added and removed entries of a plain list — a mod's authors, its
-/// categories, the sources it was found in. Order is not a change: the same
-/// names written in a different order is not something to report.
+/// Returns added and removed list entries, ignoring order.
 List<Map<String, dynamic>> listItems(Object? before, Object? after) {
   Set<String> setOf(Object? value) => {
         for (final entry in value is List ? value : const []) sameness(entry),
@@ -230,8 +210,7 @@ List<Map<String, dynamic>> listItems(Object? before, Object? after) {
   return items;
 }
 
-/// Two values count as the same when they write out the same. Good enough for
-/// telling "this changed" from "this did not", which is all that is asked here.
+/// Equality for stored JSON values; map key and list entry order are preserved.
 String sameness(Object? value) => jsonEncode(value);
 
 int _kindOrder(String kind) => switch (kind) {

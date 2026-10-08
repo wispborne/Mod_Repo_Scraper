@@ -1,13 +1,5 @@
-// The one place the frontend talks to the management API.
-//
-// Three jobs, all shared by every view:
-//   1. Ask the server what is happening, on a sensible beat, and tell whoever
-//      is listening.
-//   2. Send jobs, and turn the server's answer into words a person can read.
-//   3. Remember which topics are ticked, so the selection survives paging,
-//      searching, and moving between views.
-//
-// Nothing here knows about any particular view, and no view polls on its own.
+// Shared management API client: status polling, job actions and topic selection.
+// Views subscribe to this poller rather than starting their own.
 
 import { el, clear, askDialog } from './lib.js';
 
@@ -36,7 +28,7 @@ export function kindLabel(kind) {
   return KIND_LABELS[kind] || kind || 'Job';
 }
 
-/// What each run state is called, and which badge colour suits it.
+/// Badge classes for run states.
 export const STATE_BADGES = {
   queued: 'badge-dim',
   running: 'badge-primary',
@@ -48,14 +40,11 @@ export const STATE_BADGES = {
 
 // --- Status, and who is listening ---
 
-// The last answer we got, so a view that starts up mid-beat has something to
-// draw straight away. `null` means "we have not asked yet".
+// New subscribers receive the cached status immediately. Null before first poll.
 let lastStatus = null;
 const listeners = new Set();
 let timer = null;
-// The ask that is on its way, if there is one. Anyone asking for a refresh
-// while it is in flight waits for that same answer rather than sending a second
-// request or, worse, getting back "we don't know yet".
+// Concurrent refreshes share the same request and wait for its result.
 let inFlight = null;
 
 /// The last thing the server said. Shape:
@@ -177,9 +166,7 @@ document.addEventListener('visibilitychange', () => {
 
 // --- Sending jobs ---
 
-/// POSTs to a management route and returns the answer. On a refusal, throws an
-/// Error carrying the server's own message — those are already written for
-/// people to read, so we never invent our own wording on top.
+/// Posts to a manager route, preserving the server's error message on failure.
 async function post(path, body) {
   const res = await fetch(BASE + path, {
     method: 'POST',
@@ -230,7 +217,7 @@ export function describeJob(request) {
       const boards = listBoards(request.boards);
       const llm = request.runLlm ? ', and ask the LLM about each one' : '';
       return `Go through ${describeScope(request.scope)} on ${boards}, save what `
-        + `it finds${llm}. This one takes a while: it makes a lot of network `
+        + `it finds${llm}. This makes many network `
         + `requests${request.runLlm ? ' and may spend LLM budget' : ''}.`;
     }
     case 'llmCoveragePass':
@@ -245,10 +232,10 @@ export function describeJob(request) {
         + 'else is saved. This spends a little LLM budget.';
     case 'mergeModRepo':
       return 'Merge the mod sources already saved on disk into ModRepo.json. '
-        + 'No network requests, no LLM spending. Safe to run again and again.';
+        + 'No network requests, no LLM spending.';
     case 'scrapeAndMerge':
       return `Fetch ${listSources(request.modSources)} fresh, then merge them `
-        + 'into ModRepo.json. This one goes out to the mod sites and can take a '
+        + 'into ModRepo.json. This makes network requests and may take a '
         + 'few minutes. No LLM spending.';
     case 'publishOutputs':
       return 'Push the current ModRepo.json and forum-data-bundle.json to the '
@@ -259,7 +246,7 @@ export function describeJob(request) {
   }
 }
 
-/// The boards as you would say them: "the main and libraries boards".
+/// Formats selected boards for job confirmations.
 function listBoards(boards) {
   const names = { main: 'main', lesser: 'lesser mods', libraries: 'libraries' };
   const picked = (boards || []).map((b) => names[b] || b);
@@ -269,7 +256,7 @@ function listBoards(boards) {
   return `the ${picked.join(', ')} and ${last} boards`;
 }
 
-/// The mod sources as you would say them: "the forum and Nexus".
+/// Formats selected sources for job confirmations.
 function listSources(sources) {
   const names = { forum: 'the forum', discord: 'Discord', nexus: 'Nexus' };
   const picked = (sources || []).map((s) => names[s] || s);
@@ -279,7 +266,7 @@ function listSources(sources) {
   return `${picked.join(', ')} and ${last}`;
 }
 
-/// What a scope means, in words rather than in its config-file spelling.
+/// Formats a scope for job confirmations.
 function describeScope(scope) {
   switch (scope) {
     case 'all':
@@ -309,9 +296,7 @@ export async function confirmAndSubmit(request) {
 
 // --- The ticked topics ---
 
-// The ticked topics survive a reload by riding in sessionStorage — a half-built
-// selection shouldn't vanish just because the page was refreshed. It is cleared
-// when a job is started with it, or by the Clear button.
+// Persist selection across reloads; clear after submission or via Clear.
 const SELECTION_KEY = 'viewerSelectedTopics';
 
 function loadSelection() {
@@ -319,7 +304,7 @@ function loadSelection() {
     const raw = sessionStorage.getItem(SELECTION_KEY);
     if (raw) return new Set(JSON.parse(raw).map(Number));
   } catch (_) {
-    // A bad or blocked store just means we start with nothing ticked.
+    // Invalid or blocked storage starts with an empty selection.
   }
   return new Set();
 }
@@ -328,7 +313,7 @@ function saveSelection() {
   try {
     sessionStorage.setItem(SELECTION_KEY, JSON.stringify([...selected]));
   } catch (_) {
-    // Not being able to save is not worth bothering the user about.
+    // Selection still works in memory when storage is unavailable.
   }
 }
 
@@ -374,11 +359,9 @@ function announceSelection() {
   }
 }
 
-// --- The header chip ---
+// --- Sidebar status chip ---
 
-/// Draws the little "what's happening" chip in the top bar and keeps it up to
-/// date. It is on every page, so you never have to wonder whether something is
-/// running. Clicking it opens the Runs view.
+/// Draws the sidebar status chip; clicking it opens Runs.
 export function mountHeaderChip(node) {
   if (!node) return;
   node.setAttribute('href', '#/runs');
@@ -386,9 +369,7 @@ export function mountHeaderChip(node) {
   drawChip(node, status());
 }
 
-/// The chip is a status dot, a short word or two, and — while a job runs — a
-/// progress bar. The dot colour carries the state at a glance: grey when off,
-/// green when ready, amber when jobs wait, cyan and pulsing while one runs.
+/// Shows a status dot and label, with progress while a job runs.
 function drawChip(node, s) {
   clear(node);
 

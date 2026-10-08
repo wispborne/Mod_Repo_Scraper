@@ -1,17 +1,7 @@
 import 'compare_rows.dart';
 
-/// Works out what changed between two saved bundles.
-///
-/// A bundle keeps its three parts apart — the index list, the details map and
-/// the assumed downloads map, all keyed by topic id — so the first job is
-/// putting one topic's pieces back together. After that it is the same
-/// comparing the merge side does.
-
-/// The fields worth waking somebody up over.
-///
-/// Left out on purpose: `scrapedAt`, `replies`, `views` and anything else that
-/// moves whether or not the mod did. A list full of "scraped at a different
-/// time" is a list nobody reads.
+/// Fields included in bundle diffs and topic history. Scrape timestamps and
+/// activity counts are excluded because they change independently of mod data.
 final List<ComparedField> bundleFields = [
   const ComparedField('title'),
   const ComparedField('author'),
@@ -21,34 +11,26 @@ final List<ComparedField> bundleFields = [
   const ComparedField('inModIndex', label: 'in the mod index'),
   const ComparedField('sourceBoard', label: 'board'),
   const ComparedField('thumbnailPath', label: 'thumbnail'),
-  ComparedField('contentFingerprint',
+  const ComparedField('contentFingerprint',
       label: 'post text', describe: _describePostChange),
   const ComparedField('imageCount', label: 'images'),
-  // The three below hold lists. They are picked apart entry by entry, so a
-  // topic with twelve downloads where one moved says which one, rather than
-  // printing all twelve twice.
-  ComparedField('links', itemsOf: _linkItems),
-  ComparedField('downloads', itemsOf: _downloadItems),
-  ComparedField('llm', label: 'LLM facts', itemsOf: _llmItems),
-  ComparedField('extraPosts',
+  const ComparedField('links', itemsOf: _linkItems),
+  const ComparedField('downloads', itemsOf: _downloadItems),
+  const ComparedField('llm', label: 'LLM facts', itemsOf: _llmItems),
+  const ComparedField('extraPosts',
       label: 'the author\'s other posts', itemsOf: _extraPostItems),
 ];
 
-/// The post text is not kept in a snapshot, only a fingerprint of it, so there
-/// is no before and after to show — just the fact that it moved.
+/// Snapshots retain a fingerprint, so text changes have no before/after values.
 String _describePostChange(Object? before, Object? after) {
   if (before == null) return 'The post text was read for the first time.';
   if (after == null) return 'The post text is no longer saved.';
-  return 'The post text changed. The words themselves are not kept in a '
-      'snapshot, so open the topic to see what it says now.';
+  return 'The post text changed. Snapshots do not keep the text; '
+      'open the topic to read the current post.';
 }
 
-/// What moved among the author's own later posts.
-///
-/// They carry no name to be told apart by, so they are lined up by where they
-/// sit in the thread: the author's second post is compared against the author's
-/// second post. Their text is not kept — a snapshot holds a fingerprint of it,
-/// the same as the first post — so a changed post is said in words.
+/// Compares the author's follow-up posts by position. Text changes are
+/// described from fingerprints, as for the first post.
 List<Map<String, dynamic>> _extraPostItems(Object? before, Object? after) {
   final was = _asList(before);
   final now = _asList(after);
@@ -72,9 +54,9 @@ List<Map<String, dynamic>> _extraPostItems(Object? before, Object? after) {
     if (a is! Map || b is! Map) continue;
 
     final parts = <Map<String, dynamic>>[
-      // The fingerprints are two pieces of gibberish; that they differ is the
-      // whole of what can be said, so it is said rather than shown.
-      if (sameness(a['contentFingerprint']) != sameness(b['contentFingerprint']))
+      // Display a text-change note rather than the fingerprint values.
+      if (sameness(a['contentFingerprint']) !=
+          sameness(b['contentFingerprint']))
         {
           'name': 'post text',
           'note': _describePostChange(
@@ -83,7 +65,9 @@ List<Map<String, dynamic>> _extraPostItems(Object? before, Object? after) {
       ..._partsThatMoved(a, b, const {
         'postDate': 'posted',
         'lastEditDate': 'last edited',
-      }, skip: const {'contentFingerprint'}),
+      }, skip: const {
+        'contentFingerprint'
+      }),
     ];
     if (parts.isEmpty) continue;
     items.add({'change': 'changed', 'label': label, 'parts': parts});
@@ -130,10 +114,8 @@ Map<String, dynamic> _topicRow(
 ) {
   final id = '${row['topicId']}';
   final detail = details[id];
-  // A bundle keeps one topic's rule-based downloads as a plain list. The
-  // resolver's own cache file on disk wraps the same list in a `candidates`
-  // field, and reading for that shape here is why the downloads column was
-  // empty for every topic on real data — the two files look alike and are not.
+  // Bundle downloads are a plain list; the resolver cache wraps its list in
+  // `candidates`. This reads the bundle shape.
   final download = downloads[id];
 
   return {
@@ -187,13 +169,10 @@ class HistorySnapshot {
   const HistorySnapshot(this.runId, this.savedAt, this.read);
 }
 
-/// Walks the saved bundles oldest to newest and reports every run that changed
-/// this topic. Runs that left it alone report nothing, which is what makes the
-/// answer readable: on real data most topics change in one run out of twenty.
+/// Walks snapshots oldest to newest, reporting only changes to this topic.
 ///
-/// The oldest snapshot still kept is where history *starts*, not something that
-/// happened in it — a topic already in it was not added then, we simply have
-/// nothing older to compare it against.
+/// The oldest retained snapshot is the baseline. A topic already present in it
+/// is not reported as added because no earlier snapshot is available.
 Map<String, dynamic> topicHistory({
   required int topicId,
   required List<HistorySnapshot> snapshots,
@@ -251,10 +230,8 @@ Map<String, dynamic> topicHistory({
     'topicId': topicId,
     'title': title,
     'author': author,
-    // Newest first, the way a log reads.
     'entries': entries.reversed.toList(),
-    // A topic in none of them has no history at all, which is a different thing
-    // from one that has sat unchanged through every run.
+    // Distinguish never-published topics from published but unchanged topics.
     'everInBundle': everInBundle,
     'snapshotsRead': read,
     'snapshotsTotal': snapshots.length,
@@ -263,11 +240,7 @@ Map<String, dynamic> topicHistory({
   };
 }
 
-/// What changed about one topic between two saved bundles.
-///
-/// Exactly what the bundle comparison page works out for the same topic — the
-/// same fields, the same labels, the same item-by-item picking apart — so the
-/// two pages can never disagree about what changed or what to call it.
+/// Uses the bundle diff's fields and labels so topic history stays consistent.
 List<Map<String, dynamic>> topicChanges(
   Map<dynamic, dynamic> before,
   Map<dynamic, dynamic> after,
@@ -276,8 +249,7 @@ List<Map<String, dynamic>> topicChanges(
 
 List<dynamic> _asList(Object? value) => value is List ? value : const [];
 
-/// Lines two lists of maps up by a key and says what was added, removed, and —
-/// for something in both — which of its parts moved.
+/// Matches entries by key and reports additions, removals and changed parts.
 List<Map<String, dynamic>> _lineUp(
   List<dynamic> before,
   List<dynamic> after, {
@@ -326,14 +298,8 @@ List<Map<String, dynamic>> _lineUp(
   return rows;
 }
 
-/// Which parts of an entry differ, in plain words.
-///
-/// Every key both sides hold is looked at, not only the ones in [named] —
-/// [named] just says what to call the ones worth naming. A key nobody named
-/// still gets reported under its own name, because a field that says "this
-/// changed" and then lists nothing sends somebody hunting for a change the
-/// page decided not to mention. [skip] is for keys handled somewhere else: the
-/// key the entries are lined up by, and anything with its own list of items.
+/// Compares all keys from either entry. [named] supplies display labels, not a
+/// filter; [skip] excludes keys used for matching or handled separately.
 List<Map<String, dynamic>> _partsThatMoved(
   Map<dynamic, dynamic> was,
   Map<dynamic, dynamic> now,
@@ -344,8 +310,9 @@ List<Map<String, dynamic>> _partsThatMoved(
   // Named first, in the order they are named, then anything left over.
   final keys = <String>[
     ...named.keys,
-    ...{...was.keys, ...now.keys}.map((k) => '$k').where(
-        (k) => !named.containsKey(k)),
+    ...{...was.keys, ...now.keys}
+        .map((k) => '$k')
+        .where((k) => !named.containsKey(k)),
   ];
   for (final key in keys) {
     if (skip.contains(key)) continue;
@@ -382,8 +349,7 @@ String _downloadLabel(Map<dynamic, dynamic> d) {
 }
 
 /// The links found in the post, lined up by URL.
-List<Map<String, dynamic>> _linkItems(Object? before, Object? after) =>
-    _lineUp(
+List<Map<String, dynamic>> _linkItems(Object? before, Object? after) => _lineUp(
       _asList(before),
       _asList(after),
       keyOf: (l) => '${l['url'] ?? ''}',
@@ -397,10 +363,7 @@ List<Map<String, dynamic>> _linkItems(Object? before, Object? after) =>
       }),
     );
 
-/// What the LLM found, mod by mod. Within a mod, the extras it pulled out are
-/// compared one at a time and its downloads are lined up like the rules' ones,
-/// so "the version went 0.7 to 0.8" reads as that and not as two blocks of
-/// JSON.
+/// Compares LLM mods by name, with separate changes for extras and downloads.
 List<Map<String, dynamic>> _llmItems(Object? was, Object? now) {
   List<dynamic> modsOf(Object? value) =>
       value is Map ? _asList(value['mods']) : const [];
@@ -411,15 +374,17 @@ List<Map<String, dynamic>> _llmItems(Object? was, Object? now) {
     keyOf: (m) => '${m['name'] ?? ''}'.toLowerCase(),
     labelOf: (m) => '${m['name'] ?? '(no name)'}',
     partsOf: (a, b) => [
-      // `name` lines the mods up, `extras` is flattened just below, and
-      // `downloads` gets its own list of items — so none of the three belongs
-      // here as well.
+      // Name is the matching key; extras and downloads are compared separately.
       ..._partsThatMoved(a, b, const {
         'role': 'role',
         'requires': 'requires',
         'image': 'image',
         'descriptionAnchors': 'where it is described',
-      }, skip: const {'name', 'extras', 'downloads'}),
+      }, skip: const {
+        'name',
+        'extras',
+        'downloads'
+      }),
       ..._partsThatMoved(
         _flattenExtras(a['extras']),
         _flattenExtras(b['extras']),
@@ -431,13 +396,16 @@ List<Map<String, dynamic>> _llmItems(Object? was, Object? now) {
   );
 }
 
-/// The extras the LLM pulls out, in plain words. A nested one is flattened a
-/// level so "the summary sentence changed" can be said on its own.
+/// Display labels for LLM extras, including flattened nested fields.
 const Map<String, String> _extraNames = {
   'version': 'version',
   'license': 'license',
   'sourceCode': 'source code',
-  'saveCompatibility': 'save compatibility',
+  'saveCompatibility': 'adding to a save',
+  'updateNotes': 'update notes',
+  'removalCompatibility': 'removing from a save',
+  'canAdd': 'can add to a save',
+  'canRemove': 'can remove from a save',
   'needs': 'what it needs',
   'summary.sentence': 'summary — one line',
   'summary.paragraph': 'summary — paragraph',

@@ -39,8 +39,6 @@ export function cellText(value) {
     return value.length ? value.map(cellText).join(', ') : '—';
   }
   if (typeof value === 'object') {
-    // Nested values are run through here too, so a list or object inside a
-    // field reads out instead of showing as "[object Object]".
     const parts = Object.entries(value).map(([k, v]) => `${k}: ${cellText(v)}`);
     return parts.length ? parts.join('\n') : '—';
   }

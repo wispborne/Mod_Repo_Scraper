@@ -671,6 +671,109 @@ void main() {
       );
       expect(extrasOf(122)?.saveCompatibility, isNull);
     });
+
+    test('adding, updating and removing are kept apart', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"saveCompatibility":"Safe to add to ongoing saves",'
+            '"updateNotes":[{"version":"0.8.0",'
+            '"quote":"version 0.8.0 will break existing saves","answer":"no"}],'
+            '"removalCompatibility":"cannot be removed"}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(123, 'Safe to add to ongoing saves, but version 0.8.0 will '
+            'break existing saves. Once added it cannot be removed.'),
+        [],
+      );
+      final extras = extrasOf(123)!;
+      expect(extras.saveCompatibility, 'Safe to add to ongoing saves');
+      final note = extras.updateNotes!.single;
+      expect(note.version, '0.8.0');
+      expect(note.quote, 'version 0.8.0 will break existing saves');
+      expect(note.answer, SaveAnswer.no);
+      expect(extras.removalCompatibility, 'cannot be removed');
+    });
+
+    test('each save question keeps its yes, no or depends', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"saveCompatibility":"Save compatible","canAdd":"yes",'
+            '"updateNotes":[{"version":null,'
+            '"quote":"Save compatible with versions 1.6.0 and higher",'
+            '"answer":"depends"}],'
+            '"removalCompatibility":"cannot be removed","canRemove":"No"}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(125, 'Save compatible. Save compatible with versions 1.6.0 '
+            'and higher. Once added it cannot be removed.'),
+        [],
+      );
+      final extras = extrasOf(125)!;
+      expect(extras.canAdd, SaveAnswer.yes);
+      expect(extras.updateNotes!.single.version, isNull);
+      expect(extras.updateNotes!.single.answer, SaveAnswer.depends);
+      expect(extras.canRemove, SaveAnswer.no);
+    });
+
+    test('a short answer with no words behind it is dropped', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"saveCompatibility":"Save compatible","canAdd":"maybe",'
+            '"removalCompatibility":null,"canRemove":"no"}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(126, 'A cool mod. Save compatible.'),
+        [],
+      );
+      final extras = extrasOf(126)!;
+      // Not one of the three words.
+      expect(extras.canAdd, isNull);
+      // No words at all.
+      expect(extras.canRemove, isNull);
+    });
+
+    test('update and removal text not in the post is dropped', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"saveCompatibility":"Save compatible",'
+            '"updateNotes":[{"version":null,'
+            '"quote":"Updates are save compatible","answer":"yes"}],'
+            '"removalCompatibility":"Safe to remove"}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(124, 'A cool mod. Save compatible.'),
+        [],
+      );
+      final extras = extrasOf(124)!;
+      expect(extras.saveCompatibility, 'Save compatible');
+      expect(extras.updateNotes, isNull);
+      expect(extras.removalCompatibility, isNull);
+    });
+
+    test('an update note naming a version the post never writes is dropped',
+        () async {
+      // Keeping the words without the version would turn a note about one
+      // release into a note about the mod as it is now.
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","version":"2.0",'
+            '"updateNotes":['
+            '{"version":"1.9","quote":"It is save-compatible","answer":"yes"},'
+            '{"version":"v1.0.1","quote":"It is save-compatible","answer":"yes"}'
+            ']}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(127, 'Version 2.0. Minor patch v1.0.1 is out. '
+            'It is save-compatible.'),
+        [],
+      );
+      final notes = extrasOf(127)!.updateNotes!;
+      expect(notes.map((n) => n.version), ['v1.0.1']);
+    });
   });
 
   group('source code', () {

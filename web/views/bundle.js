@@ -1,6 +1,6 @@
-// #/bundle — forum-data-bundle.json browser (4.4) + TriOS-style card preview (4.5).
+// #/bundle — forum-data-bundle.json browser and TriOS card preview.
 //   #/bundle              bundle meta + searchable, paged entries
-//   #/bundle/<index>      one bundle entry, with a labeled card approximation
+//   #/bundle/<topicId>    working thread data and a card preview
 //   #/bundle/changes      what changed between two saved bundles
 
 import {
@@ -92,7 +92,7 @@ export async function render(root, parts) {
       const idx = row.index || {};
       const dl = (row.assumedDownloads || []).length;
       tb.append(el('tr', { class: 'clickable', onclick: () => go(`#/bundle/${idx.topicId}`) }, [
-        el('td', { text: idx.title || '(empty)' }),
+        el('td', { text: idx.title || '(untitled)' }),
         el('td', { text: idx.author || '' }),
         el('td', { text: idx.gameVersion || '—' }),
         el('td', { text: row.detail ? 'yes' : 'no' }),
@@ -116,9 +116,8 @@ async function entry(root, topicId) {
   });
 }
 
-// The one thread page, reached from both Topics and the Forum Data Bundle. It
-// shows the working (on-disk) data for the thread — the latest truth — and, when
-// the published bundle is behind that, says so and offers to rebuild it.
+// Shared Topics/Bundle thread page using on-disk data, with a rebuild action
+// when the published bundle is behind.
 export async function renderThreadPage(root, topicId, { parent } = {}) {
   clear(root);
   const up = parent || { label: 'Topics', href: '#/topics' };
@@ -203,10 +202,7 @@ function primaryExtras(llm) {
   return main.extras || null;
 }
 
-// Everything the bundle holds for one mod, in two rows: the plain fields
-// beside the card preview, then the post beside what was pulled out of it —
-// the same post/extraction split the topic inspector uses. Nothing in the
-// entry is left out — this page is how you check what TriOS actually receives.
+// Shared thread layout: fields, posts, extracted data and a TriOS card preview.
 function renderEntry(root, entry) {
   const {
     index: idx, detail, downloads, llm, raw, topicId, managerOn, staleness,
@@ -214,13 +210,10 @@ function renderEntry(root, entry) {
   } = entry;
   const mods = (llm && llm.mods) || [];
 
-  // Everything below sits in one column with even spacing between blocks, so
-  // the page doesn't need each piece to carry its own margins.
   const page = el('div', { class: 'thread' });
 
   page.append(el('h1', { text: idx.title || `Topic ${topicId}` }));
 
-  // The forum link and the per-topic job buttons share one row.
   const controls = el('div', { class: 'thread-controls' });
   if (idx.topicUrl) {
     controls.append(el('a', {
@@ -233,16 +226,12 @@ function renderEntry(root, entry) {
     text: 'History',
     title: 'Every run that changed this thread.',
   }));
-  // A finished job republishes the bundle, so this page shows the new answer
-  // after a reload.
   if (managerOn) controls.append(topicActionBar(topicId));
   if (controls.children.length) page.append(controls);
 
-  // When the published bundle is behind this thread, say so and offer to fix it.
   const banner = stalenessBanner(staleness, managerOn);
   if (banner) page.append(banner);
 
-  // The thread and post fields, full width — this is what the page is for.
   const fields = el('div', { class: 'panel' });
   fields.append(el('h2', { text: 'Thread and post fields' }));
   const cols = el('div', { class: 'field-cols' });
@@ -363,15 +352,12 @@ function renderEntry(root, entry) {
   bottom.append(post, found);
   page.append(bottom);
 
-  // The TriOS card preview goes last — a rough look at how TriOS would show this
-  // mod, not the working data this page is really about.
   const cardPanel = el('div', { class: 'panel' });
   cardPanel.append(el('h2', { text: 'TriOS card' }));
-  cardPanel.append(el('div', { class: 'approx-label', text: 'An approximation — TriOS is the source of truth for how mods display.' }));
+  cardPanel.append(el('div', { class: 'approx-label', text: 'Preview only. The card may look different in TriOS.' }));
   cardPanel.append(card(idx, detail, downloads, primaryExtras(llm)));
   page.append(cardPanel);
 
-  // Everything the tidy layout leaves out, one click away.
   if (raw) page.append(rawJson(raw, 'Show this thread’s raw data (JSON)'));
 
   root.append(page);
@@ -384,7 +370,7 @@ function llmSourceLine(llm) {
   if (llm.model && llm.endpoint) text = `Read by ${llm.model} at ${llm.endpoint}`;
   else if (llm.model) text = `Read by ${llm.model}`;
   else if (llm.endpoint) text = `Read at ${llm.endpoint}`;
-  else text = 'Which model read this was not recorded (saved before that was kept).';
+  else text = 'Model and endpoint details were not recorded for this result.';
   return el('p', { class: 'llm-source', text });
 }
 
@@ -394,10 +380,8 @@ function stamp(value) {
   return String(value).replace('T', ' ').replace(/(\.\d+)?Z$/, ' UTC');
 }
 
-// D9: thumbnail (strip ext:, Imgur→i.imgur), title, author, game-version chip, views/replies,
-// the LLM summary (what TriOS shows), one download button per
-// high/medium-confidence download. Falls back to a ~200-char post excerpt only
-// when no summary was generated.
+// Approximate TriOS card, with high/medium-confidence downloads and an LLM
+// summary or a short post excerpt when no summary is available.
 function card(idx, detail, downloads, extras) {
   const wrap = el('div', { class: 'card-wrap' });
   const card = el('div', { class: 'mod-card' });
@@ -421,9 +405,7 @@ function card(idx, detail, downloads, extras) {
   chips.append(el('span', { class: 'badge badge-dim', text: `${idx.replies ?? 0} replies` }));
   body.append(chips);
 
-  // TriOS shows the generated summary, so the card does too. Prefer the fuller
-  // paragraph, then the one-sentence form; only if there is no summary do we
-  // fall back to a trimmed slice of the raw post.
+  // Match TriOS's summary order: paragraph, sentence, then a post excerpt.
   const summary = (extras && extras.summary) || {};
   const summaryText = summary.paragraph || summary.sentence;
   if (summaryText) {

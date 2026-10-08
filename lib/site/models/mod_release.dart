@@ -1,5 +1,7 @@
 import 'package:dart_mappable/dart_mappable.dart';
 
+import '../../bot/scraper/qb/models/post_extraction.dart';
+
 part 'mod_release.mapper.dart';
 
 /// `updates.json` — the mods that put out a new version, newest first.
@@ -44,6 +46,15 @@ class ModRelease with ModReleaseMappable {
   /// when the post gave none.
   final String? changelogNotes;
 
+  /// What the post says about updating to this version, in the author's own
+  /// words: whether a game using the older version survives the move. Only a
+  /// note written for this version, or — for the version the mod is on now — a
+  /// note tied to no release. Null when the post says nothing that fits.
+  final String? updateCompatibilityText;
+
+  /// Yes, no or depends, read off [updateCompatibilityText].
+  final SaveAnswer? canUpdate;
+
   ModRelease({
     required this.modId,
     required this.modName,
@@ -52,5 +63,7 @@ class ModRelease with ModReleaseMappable {
     required this.newVersion,
     this.gameVersion,
     this.changelogNotes,
+    this.updateCompatibilityText,
+    this.canUpdate,
   });
 }

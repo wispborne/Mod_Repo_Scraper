@@ -2,6 +2,37 @@ import 'package:dart_mappable/dart_mappable.dart';
 
 part 'post_extraction.mapper.dart';
 
+/// The short answer to one of the three save questions on [LlmExtras].
+/// [depends] means the post's words are not a plain yes or no — "save
+/// compatible with versions 1.6.0 and higher", "safe to add, but some
+/// derelicts won't spawn" — so the reader has to read the words themselves.
+@MappableEnum()
+enum SaveAnswer { yes, no, depends }
+
+/// One thing the post says about updating: whether a game that already uses an
+/// older version of the mod survives moving to a newer one.
+///
+/// Updating is the one save question whose answer belongs to a release —
+/// "Minor patch v1.0.1 is out. It is save-compatible." says nothing about
+/// v3.0.2 — so each note carries the release it was written for. [version] is
+/// null for a note that is not tied to one release: a standing rule ("All
+/// updates are save-compatible") or a statement about the mod as it is now
+/// ("Not save compatible with versions prior to 2.0.0").
+@MappableClass(ignoreNull: true)
+class LlmUpdateNote with LlmUpdateNoteMappable {
+  /// The release this note is about, as the post writes it. Null when the note
+  /// is not tied to one release.
+  final String? version;
+
+  /// The post's own words, copied word for word.
+  final String quote;
+
+  /// Yes, no or depends, read off [quote].
+  final SaveAnswer? answer;
+
+  LlmUpdateNote({this.version, required this.quote, this.answer});
+}
+
 /// A changelog the LLM found in a post. A post can have both: [link] is a URL
 /// to the mod's changelog when the post offers one, and [entries] holds the
 /// changelog copied word-for-word (never summarized), split by version — keyed
@@ -93,7 +124,7 @@ class LlmModSummary with LlmModSummaryMappable {
 
 /// The optional extras the LLM produces from a single post read: the mod's own
 /// version, a changelog, support links, the license, where the source code
-/// lives, whether it can be added to an existing save, and (only when the
+/// lives, what the post says about saves, and (only when the
 /// summaries option is on) a generated [summary]. Every copied field is filled
 /// only when the post actually states it; [summary] is written in the model's
 /// own words, so it is the one field not taken verbatim from the post.
@@ -104,7 +135,22 @@ class LlmModSummary with LlmModSummaryMappable {
 ///   post's spelling kept. Null when the post links none.
 /// - [saveCompatibility]: the post's own words on whether the mod can be added to
 ///   an ongoing game or needs a new one (e.g. "Save compatible", "Requires a new
-///   game"), copied word-for-word. Null when the post does not say.
+///   game"), copied word-for-word. Null when the post does not say. It is about
+///   **adding** the mod only. The name is older than the other two fields and is
+///   kept because TriOS reads it.
+/// - [updateNotes]: what the post says about updating — whether a game already
+///   using an older version of the mod survives moving to a newer one. A list,
+///   because the answer belongs to a release and a thread can carry notes about
+///   several (see [LlmUpdateNote]). A different question from adding: a mod can
+///   be safe to add and still break saves on update. Null when the post says
+///   nothing about it.
+/// - [removalCompatibility]: the post's own words on whether the mod can be
+///   taken out of a game in progress (e.g. "Cannot be removed from a save").
+///   Null when the post does not say.
+/// - [canAdd], [canRemove]: the short answer to adding and removing — yes, no,
+///   or depends — read off the words above. Each is set only when its words
+///   are; a short answer with nothing in the post behind it is dropped. Each
+///   update note carries its own.
 /// - [needs]: the other mods this one will not run without, by name, as the post
 ///   writes them. Nearly every Starsector mod needs LazyLib, MagicLib,
 ///   GraphicsLib or Nexerelin, and the post nearly always says so. Empty when
@@ -117,6 +163,10 @@ class LlmExtras with LlmExtrasMappable {
   final String? license;
   final String? sourceCode;
   final String? saveCompatibility;
+  final List<LlmUpdateNote>? updateNotes;
+  final String? removalCompatibility;
+  final SaveAnswer? canAdd;
+  final SaveAnswer? canRemove;
   final LlmModSummary? summary;
 
   /// The other mods this one will not run without, by name.
@@ -129,6 +179,10 @@ class LlmExtras with LlmExtrasMappable {
     this.license,
     this.sourceCode,
     this.saveCompatibility,
+    this.updateNotes,
+    this.removalCompatibility,
+    this.canAdd,
+    this.canRemove,
     this.summary,
     this.needs,
   });
@@ -141,6 +195,8 @@ class LlmExtras with LlmExtrasMappable {
       (license == null || license!.isEmpty) &&
       (sourceCode == null || sourceCode!.isEmpty) &&
       (saveCompatibility == null || saveCompatibility!.isEmpty) &&
+      (updateNotes == null || updateNotes!.isEmpty) &&
+      (removalCompatibility == null || removalCompatibility!.isEmpty) &&
       (summary == null || summary!.isEmpty) &&
       (needs == null || needs!.isEmpty);
 }

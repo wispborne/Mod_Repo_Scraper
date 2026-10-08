@@ -675,6 +675,19 @@ void main() {
               license: 'CC BY-NC-SA 4.0',
               sourceCode: 'https://github.com/Histidine91/Nexerelin',
               saveCompatibility: 'Requires a new game.',
+              updateNotes: [
+                // About an old release: stays off the page.
+                LlmUpdateNote(
+                    version: '0.11.0',
+                    quote: '0.11.0 is save compatible.',
+                    answer: SaveAnswer.yes),
+                // About the version the mod is on now.
+                LlmUpdateNote(
+                    version: 'v0.12.2',
+                    quote: 'Not save compatible with 0.11.',
+                    answer: SaveAnswer.no),
+              ],
+              removalCompatibility: 'Cannot be removed.',
               changelog: LlmChangelog(entries: {'0.12.2': 'Fixed a crash.'}),
             ),
           ),
@@ -694,6 +707,10 @@ void main() {
     expect(detail.license, 'CC BY-NC-SA 4.0');
     expect(detail.changelog, {'0.12.2': 'Fixed a crash.'});
     expect(detail.saveCompatibilityText, 'Requires a new game.');
+    // Only the note for the version the mod is on now; the one about 0.11.0
+    // stays off the page.
+    expect(detail.updateCompatibilityText, 'Not save compatible with 0.11.');
+    expect(detail.removalCompatibilityText, 'Cannot be removed.');
     expect(detail.downloads.single.fileName, 'z.zip');
   });
 
@@ -1569,6 +1586,58 @@ void main() {
     expect(data.feed.releases, hasLength(1));
   });
 
+  test('each release carries the update note written for its version', () {
+    ThreadRelease releaseOf(String from, String to, String day) =>
+        ThreadRelease(
+          topicId: 9175,
+          modName: 'Nexerelin',
+          seenOn: day,
+          oldVersion: from,
+          newVersion: to,
+        );
+
+    final data = builder.build(
+      mods: [forumMod()],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            extras: LlmExtras(version: '0.12.2', updateNotes: [
+              LlmUpdateNote(
+                  version: 'v0.12.1',
+                  quote: 'Minor patch v0.12.1 is out. It is save-compatible.',
+                  answer: SaveAnswer.yes),
+              LlmUpdateNote(
+                  quote: 'Not save compatible with versions before 0.12.',
+                  answer: SaveAnswer.depends),
+            ]),
+          ),
+        ]),
+      ]),
+      threadReleases: [
+        releaseOf('0.12.0', '0.12.1', '2026-08-01'),
+        releaseOf('0.12.1', '0.12.2', '2026-08-14'),
+        releaseOf('0.11.9', '0.12.0', '2026-07-01'),
+      ],
+    );
+
+    final byVersion = {
+      for (final r in data.details['nexerelin']!.releases) r.newVersion: r,
+    };
+    // A note written for this release.
+    expect(byVersion['0.12.1']!.updateCompatibilityText,
+        'Minor patch v0.12.1 is out. It is save-compatible.');
+    expect(byVersion['0.12.1']!.canUpdate, SaveAnswer.yes);
+    // The version the mod is on now takes the note tied to no release.
+    expect(byVersion['0.12.2']!.updateCompatibilityText,
+        'Not save compatible with versions before 0.12.');
+    expect(byVersion['0.12.2']!.canUpdate, SaveAnswer.depends);
+    // An older release with no note of its own gets nothing — the note tied to
+    // no release describes the mod as it is now, not as it was then.
+    expect(byVersion['0.12.0']!.updateCompatibilityText, isNull);
+    expect(byVersion['0.12.0']!.canUpdate, isNull);
+  });
+
   test('the feed reads newest first and drops releases with no mod behind them',
       () {
     final data = builder.build(
@@ -1632,6 +1701,60 @@ void main() {
         isTrue);
     expect(PublicDataBuilder.readSaveCompatibility('Have fun!'), isNull);
     expect(PublicDataBuilder.readSaveCompatibility(null), isNull);
+  });
+
+  test('the short answer about adding decides the badge', () {
+    PublicMod listingWith(LlmExtras extras) => builder
+        .build(
+          mods: [forumMod()],
+          bundle: bundleOf(index: [
+            thread(llmMods: [
+              LlmMod(name: 'Nexerelin', extras: extras),
+            ]),
+          ]),
+        )
+        .list
+        .mods
+        .single;
+
+    // The words alone would read as "needs a new game"; the short answer wins.
+    expect(
+        listingWith(LlmExtras(
+                saveCompatibility: 'Requires a new game to see the new '
+                    'systems, otherwise save compatible',
+                canAdd: SaveAnswer.depends))
+            .saveCompatible,
+        isNull);
+    expect(
+        listingWith(LlmExtras(
+                saveCompatibility: 'Safe to add', canAdd: SaveAnswer.yes))
+            .saveCompatible,
+        isTrue);
+    expect(
+        listingWith(LlmExtras(
+                saveCompatibility: 'Needs a fresh start', canAdd: SaveAnswer.no))
+            .saveCompatible,
+        isFalse);
+    // An answer read before the short answer existed still reads its words.
+    expect(
+        listingWith(LlmExtras(saveCompatibility: 'Requires a new game'))
+            .saveCompatible,
+        isFalse);
+  });
+
+  test('words about updating say nothing about adding a mod', () {
+    // These are about moving a save from an older version of the mod. None
+    // of them says whether the mod can be added to a running game.
+    for (final words in [
+      'This update is not save compatible.',
+      'Not save compatible with versions prior to 2.0.0.',
+      'Save compatible with versions 1.6.0 and higher',
+      'save-compatible with previous versions',
+      'THIS UPDATE WILL BREAK SAVES!!',
+    ]) {
+      expect(PublicDataBuilder.readSaveCompatibility(words), isNull,
+          reason: words);
+    }
   });
 
   test('writing puts the files where the site asks for them', () async {

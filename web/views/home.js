@@ -1,6 +1,4 @@
-// #/home — the front door. One search across everything, the common jobs a
-// click away, the last run at a glance, and a few numbers worth watching. Built
-// entirely on endpoints the other pages already use.
+// #/home — search across data sources, common jobs, latest run and data health.
 
 import { api, el, clear, go, MissingFile, noticeDialog, breadcrumbs } from '../lib.js';
 import * as manager from '../manager.js';
@@ -10,9 +8,6 @@ export async function render(root) {
   clear(root);
   root.append(breadcrumbs([]));
 
-  // One column with even spacing, so the panels below never touch. The last-run
-  // and health blocks empty themselves when there is nothing to show, and an
-  // empty block leaves no gap.
   const page = el('div', { class: 'stack' });
   page.append(el('h1', { text: 'Mod Repo Viewer' }));
   page.append(searchBlock());
@@ -49,8 +44,7 @@ function searchBlock() {
   return wrap;
 }
 
-// Only the newest search is allowed to draw. A slower earlier answer that lands
-// late is thrown away, so the results always match what is in the box.
+// Ignore late responses from earlier searches.
 let searchTicket = 0;
 
 async function runSearch(node, q) {
@@ -131,8 +125,8 @@ function drawActions(node, status) {
   if (!status || !status.on) {
     panel.append(el('p', {
       class: 'run-when',
-      text: 'Viewing only — this server can show results but not run jobs. Start '
-        + 'the viewer where config.properties lives to run jobs from here.',
+      text: 'Viewing only. Job controls are disabled on this server. '
+        + 'See Runs and queue for setup details.',
     }));
     node.append(panel);
     return;
@@ -153,8 +147,8 @@ function drawActions(node, status) {
   panel.append(row);
   panel.append(el('p', {
     class: 'run-when',
-    text: 'Each one asks before it runs and says exactly what it will do. For full '
-      + 'control over scope, boards and sources, use Runs and queue.',
+    text: 'Each action shows a confirmation first. Set scope, boards and '
+      + 'sources in Runs and queue.',
   }));
   node.append(panel);
 }

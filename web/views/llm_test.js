@@ -1,4 +1,4 @@
-// #/llm-test — renders llm-test-output.json as a readable report (2.6).
+// #/llm-test — renders llm-test-output.json as a readable report.
 
 import { api, el, clear, missingPanel, MissingFile, go, noticeDialog, breadcrumbs, expandAllButton } from '../lib.js';
 import * as manager from '../manager.js';
@@ -8,8 +8,7 @@ export async function render(root) {
   root.append(breadcrumbs([{ label: 'LLM test report' }]));
   root.append(el('h1', { text: 'LLM Test Report' }));
 
-  // The LLM test is the one job with no other way in — start it here. It tries
-  // the prompt on a few topics and writes a fresh report; nothing else is saved.
+  // This page is the only UI entry point for the non-persisting LLM test job.
   const status = manager.status() || await manager.refresh();
   if (status && status.on) {
     root.append(el('div', { class: 'topic-actions' }, [
@@ -28,7 +27,7 @@ export async function render(root) {
       }),
       el('span', {
         class: 'selection-hint',
-        text: 'The report below refreshes once the job finishes.',
+        text: 'Reload this page after the job finishes to see the new report.',
       }),
     ]));
   }
@@ -54,9 +53,7 @@ export async function render(root) {
     return;
   }
 
-  // The topics go in a box of their own so the button has something to point
-  // at. Only the topic blocks open and close together — the folds inside one
-  // (the input sent, the raw answer) are not what "all" means here.
+  // Expand topic blocks together, leaving nested input and answer folds alone.
   const list = el('div', {});
   for (const t of topics) {
     list.append(topicBlock(t));

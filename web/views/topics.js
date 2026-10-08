@@ -1,4 +1,4 @@
-// #/topics — searchable, sortable, filterable topic index (2.3).
+// #/topics — searchable, sortable, filterable topic index.
 
 import {
   api, el, clear, missingPanel, MissingFile, pager, pageSizePreference, go,
@@ -6,15 +6,10 @@ import {
 } from '../lib.js';
 import * as manager from '../manager.js';
 
-// True only when the server can actually run jobs. When it can't, none of the
-// picking-and-acting parts are drawn at all — the page reads exactly as the
-// read-only viewer always has.
+// Selection and job controls are shown only when the manager is enabled.
 let canAct = false;
 
-// One source of truth for the eight topic flags. Each entry drives three
-// things: the filter chip (label), the badge in the Flags column (cls + badge),
-// and the plain-English meaning (desc) shown in the legend and as a hover
-// tooltip on both the chip and the badge.
+// Shared flag definitions for filter chips, column badges and help text.
 const FLAGS = [
   { key: 'noDownload', cls: 'badge-error', badge: 'no dl', label: 'No download',
     desc: 'Nothing found, by rules or LLM.' },
@@ -302,10 +297,7 @@ function flagBadges(flags) {
   return out;
 }
 
-// The filters and the key to the badges are one thing, not two: each flag is a
-// button carrying the same badge you see in the Flags column, its name, and
-// what it means. Tight by default, so the eight fit on a line or two; "explain
-// these" opens them out into a row each with the meaning spelled out.
+// Filter chips use the same badge, label and description as the Flags column.
 function flagPicker(onChange) {
   const wrap = el('div', { class: 'flag-picker' });
 
@@ -329,10 +321,10 @@ function flagPicker(onChange) {
 
   const explain = el('button', {
     class: 'flag-explain',
-    text: 'Explain these',
+    text: 'Explain flags',
     onclick: () => {
       const open = wrap.classList.toggle('explained');
-      explain.textContent = open ? 'Hide the meanings' : 'Explain these';
+      explain.textContent = open ? 'Hide explanations' : 'Explain flags';
     },
   });
 

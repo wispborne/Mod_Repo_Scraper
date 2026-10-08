@@ -80,11 +80,7 @@ export function loading() {
   return el('div', { class: 'loading', text: 'Loading…' });
 }
 
-/// A breadcrumb trail for the top of a page. `trail` is the crumbs after Home
-/// (Home is prepended for you), each `{ label, href }`. The last crumb is the
-/// current page and is drawn as plain text; the rest are links, so the trail
-/// doubles as the page's way back. Example:
-///   breadcrumbs([{ label: 'Topics', href: '#/topics' }, { label: title }])
+/// Prepends Home to a trail of { label, href } crumbs; the last is plain text.
 export function breadcrumbs(trail = []) {
   const full = [{ label: 'Home', href: '#/home' }, ...trail];
   const nav = el('nav', { class: 'breadcrumbs', 'aria-label': 'Breadcrumb' });
@@ -98,8 +94,7 @@ export function breadcrumbs(trail = []) {
   return nav;
 }
 
-/// A closed-by-default "show the raw data" fold for detail pages, so anything
-/// the tidy layout leaves out is still one click away. Pretty-prints the object.
+/// Closed-by-default fold containing formatted JSON for a detail page.
 export function rawJson(obj, label = 'Show the raw data (JSON)') {
   return el('details', { class: 'raw-fold' }, [
     el('summary', { text: label }),
@@ -109,12 +104,9 @@ export function rawJson(obj, label = 'Show the raw data (JSON)') {
 
 // --- Folds that open and close together ---
 
-/// A button that opens or closes every fold in `container` at once.
-///
-/// `selector` picks out which folds count, because the folds *inside* a fold are
-/// not what anybody means by "all of them". The label says what a press would
-/// do, and keeps up with folds opened one at a time. Call `refresh()` after
-/// redrawing the list — new folds arrive without a toggle to notice them.
+/// Opens or closes matching folds, keeping its label in sync with manual toggles.
+/// Use `selector` to exclude nested folds. Call `refresh()` after redrawing:
+/// newly added folds do not emit toggle events.
 export function expandAllButton(container, selector = 'details') {
   const button = el('button', { class: 'btn fold-all' });
   const folds = () => Array.from(container.querySelectorAll(selector));
@@ -124,8 +116,8 @@ export function expandAllButton(container, selector = 'details') {
     const anyShut = all.some((fold) => !fold.open);
     button.textContent = anyShut ? 'Expand all' : 'Collapse all';
     button.title = anyShut
-      ? 'Open all of these at once.'
-      : 'Close all of these at once.';
+      ? 'Expand all sections.'
+      : 'Collapse all sections.';
     if (all.length) button.removeAttribute('disabled');
     else button.setAttribute('disabled', 'true');
   };
@@ -136,7 +128,7 @@ export function expandAllButton(container, selector = 'details') {
     button.refresh();
   });
 
-  // A fold's own toggle event does not bubble, so it is caught on the way down.
+  // Toggle does not bubble; listen during capture.
   container.addEventListener('toggle', () => button.refresh(), true);
 
   button.refresh();
@@ -145,9 +137,7 @@ export function expandAllButton(container, selector = 'details') {
 
 // --- Saying what changed, in one line ---
 
-/// The names of the fields that changed, short enough to sit on a shut row:
-/// "name, downloads and 3 more". Empty when nothing changed, so a row that only
-/// carries a note says nothing rather than "0 fields".
+/// Short field list, e.g. "name, downloads and 3 more". Empty without fields.
 export function changedFieldsLine(changes, limit = 3) {
   const names = allChangedFields(changes);
   if (!names.length) return '';
@@ -155,8 +145,7 @@ export function changedFieldsLine(changes, limit = 3) {
   return `${names.slice(0, limit).join(', ')} and ${names.length - limit} more`;
 }
 
-/// Every changed field's name, for the hover that shows what the shortened
-/// line left out. Null when there is nothing to say.
+/// Full field list for hover text. Null without fields.
 export function changedFieldsTitle(changes) {
   const names = allChangedFields(changes);
   return names.length ? names.join(', ') : null;
@@ -174,8 +163,7 @@ export const PAGE_SIZES = [25, 50, 100, 250, 500, 0];
 const PAGE_SIZE_KEY = 'viewerPageSize';
 const DEFAULT_PAGE_SIZE = 50;
 
-/// The rows-per-page the user last picked. One setting for the whole site, kept
-/// in the browser, so a choice made on one list holds on the next one.
+/// Shared rows-per-page preference stored in the browser.
 export function pageSizePreference() {
   const saved = Number(localStorage.getItem(PAGE_SIZE_KEY));
   return PAGE_SIZES.includes(saved) ? saved : DEFAULT_PAGE_SIZE;
@@ -189,12 +177,8 @@ function pageSizeLabel(size) {
   return size === 0 ? 'All on one page' : `${size} rows`;
 }
 
-/// A reusable pager row.
-///
-/// `onPage(newPage)` is called when a page button is pressed. When
-/// `onPageSize(newSize)` is given, the row also carries a box for choosing how
-/// many rows a page holds — including all of them at once. A page size of 0
-/// means everything is already on the page, so the buttons go away.
+/// Pager with `onPage(newPage)` and an optional `onPageSize(newSize)` picker.
+/// A page size of 0 shows every row and hides navigation buttons.
 export function pager(page, pageSize, total, onPage, onPageSize) {
   const showingAll = !pageSize;
   const pages = showingAll ? 1 : Math.max(1, Math.ceil(total / pageSize));
@@ -249,10 +233,8 @@ function pageSizePicker(pageSize, onPageSize) {
 
 // --- Asking before doing, without the browser's own popups ---
 
-/// Asks a yes-or-no question in a proper in-page box. Resolves true on yes,
-/// false on no or Escape. Blank lines in the message become paragraph breaks.
-/// The yes button starts focused, so Enter still says yes as fast as the old
-/// browser popup did.
+/// Resolves true on confirmation, false on Cancel or Escape. Blank lines split
+/// message paragraphs. Focuses the confirm button so Enter confirms.
 export function askDialog({ title, message, confirmLabel = 'Yes', cancelLabel = 'Cancel', danger = false }) {
   return new Promise((resolve) => {
     const box = el('dialog', { class: 'ask-dialog' });
@@ -322,11 +304,7 @@ export function go(hash) {
   location.hash = hash;
 }
 
-/// Updates the address bar to `hash` without adding a history entry or setting
-/// off a re-route. A view calls this as its own state (search, filters, page)
-/// changes, so a reload or a bookmark brings the same view back, and the back
-/// button returns to the list as it was left — without every keystroke piling
-/// up in the history.
+/// Saves list state in the hash without adding a history entry or rerouting.
 export function replaceHash(hash) {
   history.replaceState(null, '', hash);
 }

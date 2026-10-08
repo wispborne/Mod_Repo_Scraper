@@ -168,17 +168,16 @@ function field(label, value) {
   ]);
 }
 
-/// The manager is off: say so calmly and say how to turn it on. No buttons —
-/// there is nothing here to press.
+/// Explains why job controls are unavailable and how to enable them.
 export function managerOffPanel(s) {
   return el('div', { class: 'missing' }, [
     el('h3', { text: 'Viewing only' }),
     el('p', {
       text: s && s.offline
-        ? 'The server could not be reached, so there is nothing to manage right now.'
-        : 'This server was started without a config file, so it can show results '
-          + 'but not run jobs. Start the viewer where config.properties lives '
-          + '(or point it there with --config) to run jobs from here.',
+        ? 'The server could not be reached. Job controls are unavailable.'
+        : (s && s.reason ? s.reason : 'Job management is disabled on this server.')
+          + ' Start the viewer with a readable config.properties file '
+          + '(or specify it with --config) and omit --no-manager to enable jobs.',
     }),
   ]);
 }
@@ -199,15 +198,14 @@ const BOARDS = [
 
 function drawStarter(node, s) {
   clear(node);
-  if (!s.on) return; // Nothing to start.
+  if (!s.on) return;
 
   const panel = el('div', { class: 'panel' });
   panel.append(el('h2', { text: 'Start a job' }));
   panel.append(el('p', {
     class: 'run-when',
-    text: 'What a job will do is written out in full before it runs — nothing is '
-      + 'taken from the config file behind your back. Jobs started here always '
-      + 'fetch fresh pages; replaying saved pages stays a command-line option.',
+    text: 'Review the job details before it starts. Scrape jobs fetch fresh '
+      + 'pages; cached replay is available from the command line.',
   }));
 
   panel.append(el('div', { class: 'job-columns' }, [
@@ -299,8 +297,8 @@ function mergeCard() {
   card.append(el('h3', { text: 'Merge into ModRepo.json' }));
   card.append(el('p', {
     class: 'run-when',
-    text: 'Merging saves its own copy of the workings, so you can look at this '
-      + 'merge next to an older one in the ModRepo explorer.',
+    text: 'Each merge saves a snapshot you can compare with older merges '
+      + 'in the ModRepo explorer.',
   }));
 
   const sourceRow = el('div', { class: 'job-field' }, [
@@ -345,9 +343,7 @@ function mergeCard() {
   return card;
 }
 
-/// Publishing the current outputs to GitHub, in one card. It needs no choices —
-/// it pushes whatever is in outputs/ right now — so it is just the one button,
-/// with the confirm dialog spelling out what will happen.
+/// Publishes current outputs without additional job settings.
 function publishCard() {
   const card = el('div', { class: 'job-card' });
   card.append(el('h3', { text: 'Publish to GitHub' }));
@@ -379,11 +375,8 @@ async function start(request) {
 
 // --- History ---
 
-// Two asks can be in the air at once — the first draw and the "a run just
-// started" one land within a second of each other. Each ask takes a ticket, and
-// only the newest one is allowed to put anything on the page; an older answer
-// arriving late is thrown away. Without this, the slower ask cleared the box
-// while the quicker one was still fetching, and the list was drawn twice.
+// Initial loads and run-start refreshes can overlap. Tickets prevent an older
+// response from replacing newer history results.
 let historyTicket = 0;
 
 async function loadHistory(node) {

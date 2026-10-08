@@ -96,8 +96,7 @@ export async function groupFields(body, id) {
   body.append(wrap);
 }
 
-/// Lists and maps are answered entry by entry: a merged one usually takes a bit
-/// from each side, so one badge for the whole field would be a lie.
+/// Lists and maps can combine sources, so provenance is shown per entry.
 function fromCell(row, members) {
   if (row.kind === 'scalar') return el('td', {}, fromBadge(row, members));
 
@@ -142,7 +141,7 @@ export async function changesPage(body) {
     ]));
   }
 
-  // Newest against the one before it — the comparison people want most.
+  // Default to comparing the two newest merges.
   if (!runs.some((r) => r.id === state.b)) state.b = runs[0].id;
   if (!runs.some((r) => r.id === state.a) || state.a === state.b) {
     state.a = runs.find((r) => r.id !== state.b).id;
@@ -150,8 +149,7 @@ export async function changesPage(body) {
 
   body.append(el('p', {
     class: 'run-when',
-    text: 'Every merge keeps a snapshot of what came out of it. '
-      + 'Pick two and see what changed between them.',
+    text: 'Choose two saved merges to compare their output.',
   }));
 
   const selects = {};

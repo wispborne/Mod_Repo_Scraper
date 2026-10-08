@@ -1,26 +1,7 @@
-// #/bundle/changes — what changed between two bundles.
-//
-// A bundle snapshot is saved by every run that publishes one, so this answers
-// "what did that run actually change?". The posts' text is not kept in a
-// snapshot, so a changed post is reported as changed and no more — the page
-// says so, rather than leaving somebody hunting for a before and after that was
-// never saved.
-//
-// The newer of the two can also be **the data on disk right now**, which is how
-// a run is watched while it is still going. A run publishes its bundle at the
-// end, but writes what it scrapes and what it pays the LLM for as it goes — so
-// the difference between the last published bundle and what is on disk is what
-// the run has done up to this second. That side is always the newer one; it can
-// never be the older.
-//
-// It is refreshed by pressing Refresh and in no other way. Redrawing the page
-// on a timer throws away where the reader had scrolled to and every card they
-// had opened, which on a page whose whole purpose is reading what changed is
-// worse than being a minute out of date.
-//
-// Which two bundles are compared, the search, the filter and the page all ride
-// in the hash query (#/bundle/changes?a=…&b=…), so a comparison can be
-// bookmarked and the run page can link straight to "what this run changed".
+// Compares saved bundle snapshots, or a snapshot against newer on-disk data.
+// Snapshots keep text fingerprints rather than old posts. Working comparisons
+// update only on Refresh, preserving scroll position and open cards.
+// The selected sides, search, filter and page are stored in the hash query.
 
 import {
   api, el, clear, missingPanel, MissingFile, pager, pageSizePreference,
@@ -29,8 +10,7 @@ import {
 } from '../lib.js';
 import { diffTable } from './diff_table.js';
 
-/// What the data on disk goes by in the address and in the picker. Not a run
-/// id — no run saved it, and there is only ever one of it.
+/// Current on-disk comparison side, distinct from saved run ids.
 const WORKING = 'working';
 
 const state = { a: '', b: '', q: '', kind: '', page: 0, pageSize: 50 };
@@ -54,23 +34,20 @@ export async function changesPage(body) {
       el('h3', { text: 'There is nothing to compare yet' }),
       el('p', {
         text: runs.length === 1
-          ? 'Only one bundle has been saved so far, and there is no scraped '
-            + 'data on disk to hold it against. Run the scraper again and this '
-            + 'page will show what changed.'
-          : 'No bundles have been saved yet. Run the scraper and one will be '
-            + 'saved for you.',
+          ? 'Only one saved bundle is available, with no scraped data on disk '
+            + 'to compare. Run the scraper to create another.'
+          : 'No bundles have been saved yet. Run the scraper to save a snapshot.',
       }),
     ]));
   }
 
   if (state.b === WORKING && !working) state.b = '';
-  // Newest against the one before it — the comparison people want most.
+  // Default to the two newest snapshots, or one snapshot and working data.
   if (state.b !== WORKING && !runs.some((r) => r.id === state.b)) {
     state.b = runs.length > 1 || !working ? runs[0].id : WORKING;
   }
   if (state.b === WORKING) {
-    // The data on disk is held against everything published so far, which is
-    // the newest saved bundle.
+    // Default working comparisons to the newest saved bundle.
     if (!runs.some((r) => r.id === state.a)) state.a = runs[0].id;
   } else if (!runs.some((r) => r.id === state.a) || state.a === state.b) {
     state.a = runs.find((r) => r.id !== state.b).id;
@@ -78,16 +55,14 @@ export async function changesPage(body) {
 
   body.append(el('p', {
     class: 'run-when',
-    text: 'Every run that publishes a bundle keeps a snapshot of it. '
-      + 'Pick two and see what changed between them — or hold the newest one '
-      + 'against the data on disk to watch a run as it goes.',
+    text: 'Compare two saved bundles, or compare a saved bundle with current '
+      + 'data on disk to follow a run.',
   }));
 
   const selects = {};
   const pickerFor = (which) => {
     const select = el('select', { class: 'field-input' });
-    // Only the newer side may be the data on disk: it comes after everything
-    // that has ever been published.
+    // Working data is allowed only on the newer side.
     if (which === 'b' && working) {
       select.append(el('option', { value: WORKING, text: workingLabel(working) }));
     }
@@ -133,12 +108,8 @@ export async function changesPage(body) {
       ? 'The data on disk is always the newer of the two.'
       : 'Switch which bundle counts as older and which as newer.';
   }
-  /// Both sides ended up on the same bundle. Normally the two swap, which is
-  /// what a reader picking "the one the other side is on" means. But the data
-  /// on disk can never become the older side, so a newer side moving off it
-  /// onto the bundle already selected as older has nothing to swap with — the
-  /// older side moves along to the next saved bundle instead. Without this the
-  /// page compared a bundle with itself and said nothing had changed.
+  /// Prevents self-comparison by swapping saved sides. When leaving working
+  /// data, choose another older snapshot: working data cannot become older.
   function settleSameSide(which, leaving) {
     const other = which === 'a' ? 'b' : 'a';
     if (leaving !== WORKING) {
@@ -158,9 +129,7 @@ export async function changesPage(body) {
     selects.b.value = WORKING;
   }
 
-  // Only worth offering while the newer side is the data on disk. Two saved
-  // bundles never change, so a Refresh button over them would be a button that
-  // does nothing.
+  // Saved snapshots are immutable; only working comparisons need Refresh.
   const refresh = el('button', {
     class: 'btn',
     text: 'Refresh',
@@ -218,14 +187,8 @@ export async function changesPage(body) {
     }));
   }
 
-  /// Redraws the list.
-  ///
-  /// With [keepPlace], the cards that were open are opened again and the page
-  /// is left at the same scroll — pressing Refresh is meant to bring in what a
-  /// run has done since, not to send the reader back to the top of a list they
-  /// were halfway through. Every other caller is a change of what is being
-  /// shown (a different bundle, a search, a filter, a page), where starting at
-  /// the top is right.
+  /// Refresh preserves open cards and scroll with `keepPlace`. Changes to the
+  /// selected bundles, search, filter or page reset the list position.
   async function load({ keepPlace = false } = {}) {
     const wasOpen = keepPlace ? openCards() : null;
     const wasAt = keepPlace ? window.scrollY : null;
@@ -283,9 +246,7 @@ export async function changesPage(body) {
     if (wasAt != null) window.scrollTo({ top: wasAt });
   }
 
-  /// Which topics the reader has open, by the key the row came with. Read off
-  /// the page each time rather than remembered, since cards are opened and shut
-  /// one at a time as well as all at once.
+  /// Reads open card keys from the DOM to include manual and bulk toggles.
   function openCards() {
     return new Set([...results.querySelectorAll('details.change-card[open]')]
       .map((card) => card.dataset.key)
@@ -321,21 +282,16 @@ export async function changesPage(body) {
   load();
 }
 
-/// What the counts mean when the newer side is the data on disk, rather than
-/// two saved bundles. Nothing at all when both sides are saved bundles — the
-/// line above the pickers already says what those are.
+/// Explains working-data counts and the manual refresh requirement.
 function drawLiveNote(node, answer) {
   if (answer.b !== WORKING) return;
   const asOf = answer.workingUpdatedAt
     ? new Date(answer.workingUpdatedAt).toLocaleString()
     : null;
   node.append(el('span', {
-    text: 'This is what is on disk now against the last bundle that was '
-      + 'published — what has been scraped, resolved and read by the LLM since, '
-      + 'and not published yet. '
-      + (asOf ? `Read as it stood at ${asOf}. ` : '')
-      + 'Press Refresh to bring it up to date; the page will not move on its '
-      + 'own.',
+    text: 'Compares current data on disk with the selected saved bundle. '
+      + (asOf ? `Data last written at ${asOf}. ` : '')
+      + 'Press Refresh to see new changes. This page does not refresh automatically.',
   }));
 }
 

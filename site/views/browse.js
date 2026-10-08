@@ -13,13 +13,14 @@ import {
   imageUrlOf, isDiscordOnly, joinNames, modHref, modList, modName,
   MOD_VERSION_NOTE,
   NO_DESCRIPTION, pager, pageSizePreference, picture, replaceHash,
-  searchHelpField, summaryTitle,
+  fullAiSummaryOnHover, searchHelpField, summaryTitle,
   summaryToShow, thumbnail,
-  versionStanding, versionStandingNote,
+  versionStanding, versionStandingNote, viewToggle,
 } from '../lib.js';
 import { matchesSearch, scoreOfSearch } from '../search.js';
 
 const VIEW_KEY = 'starmodderView';
+const NO_REQUIREMENTS = '__none__';
 
 /// The switches, each a plain yes-or-no question about one field.
 const SWITCHES = [
@@ -171,7 +172,7 @@ function fillResultLine(line, all, matches, state, onShowOlder) {
   line.append(el('span', {
     text: matches.length === all.length
       ? `Showing all ${all.length} mods.`
-      : `${matches.length} of ${all.length} mods match.`,
+      : `${matches.length} of ${all.length} mods shown.`,
   }));
 
   // Nothing is being left out when older mods are already in, when there is no
@@ -194,9 +195,9 @@ function fillResultLine(line, all, matches, state, onShowOlder) {
 // --- The controls ---
 
 function drawControls(into, mods, state, onChange) {
-  // The chips are redrawn whenever anything else changes, because their counts
-  // are of what picking that chip would really show. Counting the whole list
-  // would have a chip read 182 and then hand back 104, since older game
+  // The category table is redrawn whenever anything else changes, because its counts
+  // are of what picking that category would really show. Counting the whole list
+  // would have a category read 182 and then hand back 104, since older game
   // versions are left out to begin with.
   const chips = el('div', {});
   const drawChips = () => {
@@ -207,7 +208,7 @@ function drawControls(into, mods, state, onChange) {
       onPick: (picked) => { state.category = picked; changed(); },
     });
     clear(chips);
-    // Nothing matching means no chips to draw. `append` turns a null into the
+    // Nothing matching means no table to draw. `append` turns a null into the
     // word "null" on the page, so the row has to be checked rather than handed
     // straight over.
     if (row) chips.append(row);
@@ -248,34 +249,22 @@ function drawControls(into, mods, state, onChange) {
     changed();
   });
 
-  const viewToggle = el('div', { class: 'view-toggle', role: 'group' });
-  const gridBtn = el('button', { class: 'btn', text: 'Cards' });
-  const rowsBtn = el('button', { class: 'btn', text: 'Rows' });
-  const litView = () => {
-    gridBtn.classList.toggle('on', state.view === 'grid');
-    rowsBtn.classList.toggle('on', state.view === 'rows');
-    gridBtn.setAttribute('aria-pressed', String(state.view === 'grid'));
-    rowsBtn.setAttribute('aria-pressed', String(state.view === 'rows'));
-  };
-  const pickView = (which) => {
+  const views = viewToggle(() => state.view, (which) => {
     state.view = which;
     localStorage.setItem(VIEW_KEY, which);
-    litView();
     changed();
-  };
-  gridBtn.addEventListener('click', () => pickView('grid'));
-  rowsBtn.addEventListener('click', () => pickView('rows'));
-  litView();
-  viewToggle.append(gridBtn, rowsBtn);
+  });
 
-  into.append(el('div', { class: 'search-row' }, [searchHelpField(search), viewToggle]));
-  into.append(el('p', {
-    class: 'search-hint',
-    text: 'Commas mean any of these: "faction, portrait" shows both kinds. Put '
-      + 'a minus in front of one to leave those out, like "faction, -portrait".',
-  }));
+  into.append(el('div', { class: 'search-row' }, [searchHelpField(search), views]));
+  into.append(el('p', { class: 'search-hint' }, [
+    'Use commas to match either term: ',
+    el('code', { text: 'faction, portrait' }),
+    '. Add a minus to exclude a term: ',
+    el('code', { text: 'faction, -portrait' }),
+    '.',
+  ]));
 
-  // The chips come before the dropdowns: picking a kind of mod is what most
+  // The categories come before the dropdowns: picking a kind of mod is what most
   // readers want first, and a row you can see beats a list you have to open.
   drawChips();
   into.append(chips);
@@ -291,13 +280,12 @@ function drawControls(into, mods, state, onChange) {
           versions.map((v) => [v.family, `${v.label} (${v.count})`])),
       }),
 
-    // Left out entirely until some mod says what it needs, so the page never
-    // offers a filter that would find nothing.
-    ...(needed.length
-      ? [dropdown('Needs', needed, state.needs,
-          (v) => { state.needs = v; changed(); },
-          { anyLabel: 'Needs anything' })]
-      : []),
+    dropdown('Requires', [NO_REQUIREMENTS, ...needed], state.needs,
+      (v) => { state.needs = v; changed(); },
+      {
+        anyLabel: 'Unspecified',
+        labels: { [NO_REQUIREMENTS]: 'Standalone (no requirements)' },
+      }),
   );
 
   // "Best match" is only in the list while something is typed, so the dropdown
@@ -374,8 +362,7 @@ function dropdown(label, values, chosen, onPick, opts = {}) {
   ]);
 }
 
-/// Every mod that some other mod needs, most-needed first. It is a short list —
-/// a handful of libraries and Nexerelin cover nearly all of it.
+/// Required mods, ordered by how many mods require them.
 function neededMods(mods) {
   return countedAcross(mods, (mod) => (mod.needs || []).map((n) => n.name))
     .map(([name]) => name);
@@ -420,7 +407,9 @@ function matchesEverythingElse(mod, state) {
   if (!matchesSearch(mod, state.search)) return false;
   if (state.game && gameVersionFamily(mod.gameVersion) !== state.game) return false;
   if (state.category && !(mod.categories || []).includes(state.category)) return false;
-  if (state.needs
+  if (state.needs === NO_REQUIREMENTS) {
+    if ((mod.needs || []).length) return false;
+  } else if (state.needs
       && !(mod.needs || []).some((n) => n.name === state.needs)) return false;
   if (state.author && !(mod.authors || []).includes(state.author)) return false;
   for (const option of SWITCHES) {
@@ -483,13 +472,9 @@ export function modGrid(mods, currentVersion) {
   return grid;
 }
 
-/// One mod's card.
-///
-/// The card is a box holding a link that fills it, rather than being a link
-/// itself, so the favorite button can sit on top without being a button
-/// inside a link — which is not allowed and which browsers handle differently.
-/// One mod as a card. [when] replaces the card's usual "Updated …" line — the
-/// Recently added strip is about when a mod turned up, not when it last moved.
+/// Keeps the favorite and download controls outside the card's link to avoid
+/// nesting interactive elements. `when` overrides the update date for the
+/// Recently added strip.
 export function modCard(mod, currentVersion, { when = null } = {}) {
   const summary = summaryToShow(mod);
   const updated = mod.lastReleaseDate
@@ -498,7 +483,11 @@ export function modCard(mod, currentVersion, { when = null } = {}) {
   const whenLine = when || updated;
   return el('div', { class: 'mod-card' }, [
     el('a', { class: 'card-inner', href: modHref(mod.id) }, [
-      cardImage(mod),
+      // Overlay badges to leave more room for the card text.
+      el('div', { class: 'card-picture' }, [
+        cardImage(mod),
+        el('div', { class: 'card-foot' }, badges(mod, currentVersion)),
+      ]),
       el('div', { class: 'card-body' }, [
         el('div', { class: 'card-title', text: modName(mod) }),
         (mod.authors || []).length
@@ -512,7 +501,6 @@ export function modCard(mod, currentVersion, { when = null } = {}) {
               title: whenLine.on ? formatDay(whenLine.on) : null,
             })
           : null,
-        el('div', { class: 'card-foot' }, badges(mod, currentVersion)),
       ]),
     ]),
     favoriteToggle(mod),
@@ -533,7 +521,7 @@ export function modRows(mods, currentVersion) {
         thumbnail(imageUrlOf(mod), 'row-thumb'),
         el('div', { class: 'row-main' }, [
           el('div', { class: 'row-title', text: modName(mod) }),
-          el('div', {
+          fullAiSummaryOnHover(el('div', {
             class: 'row-sub',
             title: summaryTitle(summary),
           }, [
@@ -541,7 +529,7 @@ export function modRows(mods, currentVersion) {
             generated ? aiSparkle(summary.text) : null,
             generated ? ' ' : null,
             summary?.text || NO_DESCRIPTION,
-          ]),
+          ]), summary),
         ]),
         el('div', { class: 'row-side' }, badges(mod, currentVersion)),
       ]),
@@ -607,8 +595,7 @@ function summaryLine(summary) {
     class: summary ? 'card-summary' : 'card-summary none',
     // The same words the sparkle carries, on the whole sentence: a reader is
     // far more likely to point at the words than at the star in front of them.
-    // On an author's own summary it is the AI's sentence instead, for the
-    // reader who wants a second opinion on a summary that says nothing.
+    // An author's own summary has no hover text.
     title: summaryTitle(summary),
   }, [
     generated ? aiSparkle(summary.text) : null,
@@ -616,5 +603,6 @@ function summaryLine(summary) {
     summary?.text || NO_DESCRIPTION,
   ]);
   if (!generated) return words;
+  fullAiSummaryOnHover(words, summary);
   return el('div', { class: 'summary-block' }, [words, aiSummaryNote()]);
 }

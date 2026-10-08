@@ -1,4 +1,4 @@
-// #/log — ModRepo.log viewer with text filter and jump-to-end (4.7).
+// #/log — ModRepo.log viewer with text filter and jump-to-end.
 
 import { api, el, clear, missingPanel, MissingFile, breadcrumbs } from '../lib.js';
 

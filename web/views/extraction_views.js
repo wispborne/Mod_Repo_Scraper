@@ -33,10 +33,8 @@ const FRAME_CSS = `
   h1,h2,h3 { color: rgb(120, 210, 255); }
 `;
 
-/// The three per-topic jobs, as buttons — re-scrape, re-resolve downloads,
-/// re-run LLM — for one topic. Callers only render this when the manager is
-/// on. Acts on the topic being looked at; the ticked-topics set on the Topics
-/// list is left alone. After a job is accepted, goes to the Runs view.
+/// Jobs for the current topic, independent of the Topics selection. Render only
+/// when the manager is on; accepted jobs open Runs.
 export function topicActionBar(topicId) {
   const run = async (kind) => {
     try {
@@ -97,10 +95,7 @@ export function normUrl(u) {
     .replace(/^https?:\/\//, '').replace(/\/+$/, '');
 }
 
-/// A URL short enough to sit in a table cell without stacking one character to a
-/// line. Keeps the start and the tail — the filename at the end is usually the
-/// part worth seeing — and drops the middle. The full URL still rides along as
-/// the link and its hover text.
+/// Shortens a URL in the middle, keeping the host and filename visible.
 function shortUrl(u, max = 52) {
   const s = String(u || '');
   if (s.length <= max) return s;
@@ -118,8 +113,7 @@ function urlLink(display, href) {
   });
 }
 
-/// Any long cell text (link text is often a bare URL), shortened for the cell
-/// with the full text kept as hover. Returns a node so the title can ride along.
+/// Shortens cell text and keeps the full value in its title.
 function clampCell(text, max = 40) {
   const s = String(text || '');
   if (!s) return '—';
@@ -257,9 +251,8 @@ export function modCard(mod, assumedUrls) {
   }
   card.append(llmDownloadsTable(mod.downloads || [], assumedUrls));
   if (mod.extras) card.append(extrasBlock(mod.extras));
-  // Where the author describes this mod, on a thread that carries several. The
-  // LLM only points; the words themselves are cut out of the post when the site
-  // is built, so what is worth showing here is what it pointed at.
+  // Show the LLM's description anchors; the site builder uses these to slice
+  // the author's text from a shared thread.
   const anchors = mod.descriptionAnchors;
   if (anchors && anchors.startsWith && anchors.endsWith) {
     card.append(fieldList([
@@ -338,9 +331,19 @@ export function extrasBlock(extras) {
       ]),
     ]));
   }
-  if (extras.saveCompatibility) {
-    list.append(field('Save compatibility', extras.saveCompatibility));
+  // Each save question: the short answer, then the post's own words.
+  const saveRow = (label, answer, words) => {
+    if (!words) return;
+    const short = { yes: 'Yes', no: 'No', depends: 'Depends' }[answer];
+    list.append(field(label, short ? `${short} — ${words}` : words));
+  };
+  saveRow('Adding to a save', extras.canAdd, extras.saveCompatibility);
+  // One row per update note, each naming the release it was written for.
+  for (const note of extras.updateNotes || []) {
+    saveRow(note.version ? `Updating to ${note.version}` : 'Updating',
+      note.answer, note.quote);
   }
+  saveRow('Removing from a save', extras.canRemove, extras.removalCompatibility);
   if (extras.needs && extras.needs.length) {
     list.append(field('Needs', extras.needs.join(', ')));
   }
@@ -383,11 +386,7 @@ export function extrasBlock(extras) {
   return box;
 }
 
-// --- Is the published bundle behind this thread? ---
-//
-// Both the thread page and the history page need this answer, and both offer the
-// same way out of it, so the check and the button live here with the other
-// shared pieces.
+// --- Bundle staleness and rebuild action, shared with topic history ---
 
 /// Whether the published bundle reflects this thread's saved data.
 ///   noBundle — nothing published yet

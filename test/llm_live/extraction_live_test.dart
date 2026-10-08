@@ -82,6 +82,46 @@ void main() {
     });
   });
 
+  group('what a post says about saves', () {
+    // The post says it in one sentence: "Safe to add to existing saves, and
+    // safe to remove from existing saves (though already-generated systems
+    // will remain in place)". The model once copied the whole sentence into
+    // both the adding and the removing field, so the page said it twice.
+    test('Customizable Star Systems (27785) splits adding from removing',
+        () async {
+      final answer = await read(27785);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.mods, hasLength(1), reason: why);
+      final extras = answer.mods.single.extras;
+      final adding = extras?.saveCompatibility;
+      final removing = extras?.removalCompatibility;
+
+      expect(adding, isNotNull, reason: why);
+      expect(removing, isNotNull, reason: why);
+      expect(flatten(adding!), contains('safetoadd'), reason: why);
+      expect(flatten(adding), isNot(contains('remove')),
+          reason: 'the adding field took in the words about removing.\n$why');
+      expect(flatten(removing!), contains('safetoremove'), reason: why);
+      expect(flatten(removing), isNot(contains('safetoadd')),
+          reason: 'the removing field took in the words about adding.\n$why');
+
+      expect(extras!.canAdd, SaveAnswer.yes, reason: why);
+
+      // The author's second post says "Minor patch v1.0.1 is out ... It is
+      // save-compatible." That is about updating to v1.0.1 and nothing else;
+      // the mod is on v3.0.2 now. Without its version it read as a note about
+      // the current release.
+      for (final note in extras.updateNotes ?? const <LlmUpdateNote>[]) {
+        if (!flatten(note.quote).contains('savecompatible')) continue;
+        expect(note.version, isNotNull,
+            reason: 'the patch note lost the version it was written for.\n$why');
+        expect(flatten(note.version!), contains('101'), reason: why);
+      }
+    });
+  });
+
   group('a thread that is several mods', () {
     // The thread this whole change was made for. Every download is a
     // shields.io badge inside a link with no words of its own, and they all

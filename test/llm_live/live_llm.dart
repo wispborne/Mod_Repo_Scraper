@@ -207,6 +207,19 @@ String describe(LlmStoreEntry? entry) {
     if (needs != null && needs.isNotEmpty) b.write('\n      needs: $needs');
     final version = mod.extras?.version;
     if (version != null) b.write('\n      version: $version');
+    final extras = mod.extras;
+    if (extras != null) {
+      for (final (label, answer, words) in [
+        ('adding', extras.canAdd, extras.saveCompatibility),
+        for (final note in extras.updateNotes ?? const <LlmUpdateNote>[])
+          ('updating to ${note.version ?? '(no version)'}', note.answer,
+              note.quote),
+        ('removing', extras.canRemove, extras.removalCompatibility),
+      ]) {
+        if (answer == null && words == null) continue;
+        b.write('\n      $label: ${answer?.name ?? '-'} "${words ?? ''}"');
+      }
+    }
   }
   return b.toString();
 }

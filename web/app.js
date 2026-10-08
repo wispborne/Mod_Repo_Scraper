@@ -1,5 +1,4 @@
-// Router: hash-based view switching (D3). Each view module exports
-// `render(root, parts)`, where `parts` are the hash segments after the view id.
+// Hash router. Views export render(root, parts); parts excludes the view id.
 
 import { el, clear, hashParts, errorPanel, loading, api } from './lib.js';
 import * as home from './views/home.js';
@@ -16,10 +15,8 @@ import * as run from './views/run.js';
 import { mountHeaderChip } from './manager.js';
 import { icon } from './icons.js';
 
-// The sidebar, in sections. Each entry names a whole route: the one whose
-// route matches the most of the current hash is the one lit up, which is how
-// "#/bundle/changes" lights Bundle diff while "#/bundle/123" lights the
-// bundle itself.
+// The longest matching route is active, so Bundle diff takes precedence over
+// the bundle list for #/bundle/changes.
 const NAV_SECTIONS = [
   {
     items: [
@@ -132,12 +129,7 @@ async function route() {
   }
 }
 
-// Which build this is, in small dim type at the foot of the sidebar: a number
-// that goes up by one with every commit, and the commit itself. It is the same
-// number the public website shows in its footer, read from the same file the
-// build writes. It is there so a bug report can say which build it came from,
-// so it stays quiet — where the server cannot work out either value it shows no
-// line at all rather than an error.
+// Show the build identifier for bug reports; omit it when unavailable.
 async function showVersion(element) {
   if (!element) return;
   try {
@@ -149,7 +141,7 @@ async function showVersion(element) {
       ? `Built from commit ${version.commit} on ${version.date}.`
       : `Built from commit ${version.commit}.`;
   } catch {
-    // Nothing to say about the version — leave the line empty.
+    // Version metadata is optional.
   }
 }
 

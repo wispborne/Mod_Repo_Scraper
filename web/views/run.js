@@ -19,15 +19,11 @@ export async function render(root, parts) {
   let live = false;
   let drawing = false;
 
-  // The log panel is made once and then only added to. A live run redraws every
-  // second, and rebuilding the log would throw away where the reader had
-  // scrolled to and anything they had selected — which makes a running log
-  // impossible to read. Everything else on the page is cheap to redraw.
+  // Keep the log panel mounted across live redraws to preserve scrolling and
+  // text selection. Update its lines in place.
   const logView = newLogView();
 
-  // The three blocks that are replaced on each draw. They are held by name so
-  // they can be swapped in place, leaving the log panel where it is: taking it
-  // out of the page, even for a moment, is what loses the scroll position.
+  // Replace other blocks individually; detaching the log would lose its scroll.
   let headEl = null;
   let recordEl = null;
   let rawEl = null;
@@ -142,18 +138,9 @@ function header(record, live) {
   return head;
 }
 
-/// A link to what this run changed.
-///
-/// A run that has finished is compared bundle to bundle, and the link is left
-/// out unless it saved one and there is an older one to compare it against — a
-/// link that leads to "nothing to compare" is worse than no link.
-///
-/// A run that is **still going** has published no bundle yet, so it is compared
-/// against the data on disk instead. Everything that costs money or network
-/// time is written as the run goes, so that difference is what the run has done
-/// up to this second, and it grows while you watch it. No ask of the server is
-/// needed to know the link is worth drawing, which matters because a live run's
-/// page redraws every second.
+/// Links to this run's bundle diff, or to working-data changes while it runs.
+/// Finished runs need their own snapshot and a saved predecessor. Live runs
+/// need no extra request during the page's one-second redraws.
 export async function addWhatChangedLink(row, runId, { live = false } = {}) {
   if (live) {
     row.append(el('a', {
@@ -237,12 +224,7 @@ function requestFields(request) {
   return list;
 }
 
-// --- The log panel ---
-//
-// The panel and its scrolling box are made once and kept for the life of the
-// page. Each draw only changes what has actually changed: the count line, the
-// Show more button, and the lines themselves. That is what lets a reader scroll
-// through a log while the run it belongs to is still writing to it.
+// --- Log panel, updated in place ---
 
 function newLogView() {
   const panel = el('div', { class: 'panel' });
@@ -279,8 +261,7 @@ function updateLog(view, log, onMore, live) {
   }
   if (view.message) { view.message.remove(); view.message = null; }
 
-  // Anything that belongs above the box has to be put there by hand: the box
-  // is made first and stays put, so a plain append would land under it.
+  // Insert controls before the existing log box without detaching it.
   const putAboveBox = (node) =>
     view.box ? view.panel.insertBefore(node, view.box) : view.panel.append(node);
 
@@ -304,10 +285,8 @@ function updateLog(view, log, onMore, live) {
     view.panel.append(view.box);
   }
 
-  // How far the reader is sitting from the bottom. New lines arrive at the
-  // bottom and old ones fall off the top, so keeping that distance keeps the
-  // same lines under their eyes — and someone sitting at the bottom is left
-  // there, so the log follows itself.
+  // Preserve distance from the bottom as the tail shifts. Readers at the
+  // bottom continue following new lines.
   const box = view.box;
   const fromBottom = Math.max(0, box.scrollHeight - box.scrollTop - box.clientHeight);
 
@@ -332,12 +311,8 @@ function logLine(text) {
   return el('div', { class: 'log-line', text });
 }
 
-/// How many of the lines now on the page have fallen off the top of the log
-/// window since the last look. The window holds the last N lines, so as a run
-/// writes, new lines arrive at the bottom and the oldest drop off the top;
-/// lining the two windows up is what lets the lines they share stay in the page
-/// untouched. When they share nothing — the tail was made longer, or the file
-/// was written over — the answer is "all of them", which rebuilds the box.
+/// Aligns the old tail's suffix with the new tail's prefix so shared lines
+/// remain mounted. Returns the old length when no overlap is found.
 function linesDroppedFromTop(shown, next) {
   for (let dropped = 0; dropped < shown.length; dropped++) {
     const kept = shown.length - dropped;

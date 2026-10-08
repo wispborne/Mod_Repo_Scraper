@@ -381,10 +381,7 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
   margin-left: auto; color: var(--text-dim); font-size: 0.8rem;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
-/* On a shut card, the names of the fields that changed get a second line of
-   their own, under the mod name and lined up with it. Off on the right, past
-   the author, nobody reads them. Still one line, cut off with an ellipsis when
-   there are too many to fit — the full list is on hover. */
+/* Keep changed-field hints under the name; hover reveals truncated fields. */
 .change-card > summary .change-hint { flex-basis: 100%; margin-left: 0; }
 .change-card .chev { margin-left: auto; color: var(--text-dim); transition: transform 0.15s; }
 .change-card[open] > summary .chev { transform: rotate(90deg); }
@@ -401,13 +398,10 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 .diff-before { background: rgba(255, 100, 100, 0.06); }
 .diff-after { background: rgba(100, 255, 150, 0.05); }
 
-/* One topic's history: a log down a rail, a dot per run that changed it. A
-   topic has no branches, so the "graph" is a straight line — the rail's job is
-   to tie the entries together and to show where history stops. */
+/* Topic history timeline. */
 .log { margin-top: 4px; }
 .log-entry { display: grid; grid-template-columns: 20px 1fr; column-gap: 14px; }
-/* No row gap: the rail's line is drawn per entry, so a gap would break it. The
-   space between entries comes from the body's padding instead. */
+/* Body padding separates entries without breaking the rail between them. */
 .log-body { padding-bottom: 14px; min-width: 0; }
 .log-rail { position: relative; }
 .log-rail::before {
@@ -426,15 +420,15 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
   width: 11px; height: 11px; border-radius: 50%;
   background: var(--secondary); border: 2px solid var(--surface);
 }
-/* Not published yet — hollow, the way a git viewer marks uncommitted work. */
+/* Hollow dots mark unpublished changes. */
 .log-dot.hollow { background: var(--surface); border-color: var(--warning); }
 .log-dot.dim { background: var(--text-dim); }
-/* The cap at the foot: the trail stops here because older runs are not kept. */
+/* Oldest retained history boundary. */
 .log-cap { width: 10px; height: 2px; background: var(--text-dim); }
 .log-tail .log-rail::before { bottom: 50%; }
 .log-tail .log-body { padding-bottom: 0; }
 
-/* The unpublished entry has no fold — it is one short block, not a diff. */
+/* Unpublished changes are shown without a fold. */
 .log-unpublished .log-body {
   border-left: 2px solid var(--warning); border-radius: 0 8px 8px 0;
   background: rgba(255, 183, 77, 0.06);
@@ -443,8 +437,7 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 .log-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .log-unpublished .thread-controls { margin-top: 10px; }
 
-/* A list field's differences: one line per item that was added, removed or
-   changed, instead of two blocks of JSON nobody can read. */
+/* One line per added, removed or changed list entry. */
 .item-diff { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; }
 .item-diff .item-diff { margin: 4px 0 0 22px; }
 .item-diff > li { padding: 3px 0; }
@@ -478,7 +471,6 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 }
 .home-search-input:focus { outline: none; border-color: var(--primary); }
 .home-search-results { margin-top: 10px; display: flex; flex-direction: column; gap: 14px; }
-.home-result-group { }
 .home-result-head {
   color: var(--secondary); font-size: 0.8rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;
@@ -584,7 +576,7 @@ dialog.ask-dialog p { margin: 0 0 10px; font-size: 0.9rem; line-height: 1.5; }
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   background: var(--surface-container); border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 14px; margin-bottom: 12px;
-  position: sticky; top: 8px; z-index: 5; /* Nothing above it any more. */
+  position: sticky; top: 8px; z-index: 5;
 }
 .selection-count { color: var(--primary); font-weight: 600; font-size: 0.9rem; }
 .selection-hint { color: var(--text-dim); font-size: 0.8rem; }

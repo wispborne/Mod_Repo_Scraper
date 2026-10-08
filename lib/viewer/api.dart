@@ -10,9 +10,7 @@ import 'data_access.dart';
 import 'merge_views.dart';
 import 'site_version.dart';
 
-/// The name the data on disk goes by when it is one side of a comparison. It is
-/// not a run id and never will be — no run saved it, and there is only ever one
-/// of it.
+/// Comparison side for current on-disk data; this is not a saved run id.
 const String workingSideId = 'working';
 
 /// The JSON API for the results viewer. Every handler reads through [DataAccess]
@@ -56,7 +54,7 @@ class ViewerApi {
     return r.call;
   }
 
-  // --- Shared response helpers (1.5) ---
+  // --- Shared response helpers ---
 
   static const int _maxPageSize = 500;
   static const int _defaultPageSize = 50;
@@ -87,9 +85,7 @@ class ViewerApi {
     return v < 0 ? 0 : v;
   }
 
-  /// How many rows one page holds. `pageSize=0` means "all of them on one
-  /// page", which somebody has to ask for on purpose — the built-in answer is
-  /// still a page at a time.
+  /// Defaults to 50 rows. An explicit `pageSize=0` requests every row.
   int _pageSize(Request req) {
     final asked = req.url.queryParameters['pageSize'];
     if (asked == null || asked.trim().isEmpty) return _defaultPageSize;
@@ -103,9 +99,7 @@ class ViewerApi {
   String _q(Request req) =>
       (req.url.queryParameters['q'] ?? '').trim().toLowerCase();
 
-  /// A light URL normalizer for comparing an LLM download's post URL against a
-  /// rule candidate's source URL: lowercase, drop the scheme, drop trailing
-  /// slashes. Good enough for the "rules missed" filter.
+  /// Matches LLM and rule download URLs ignoring case, scheme and trailing slashes.
   static String _normUrl(String u) {
     var s = u.trim().toLowerCase();
     s = s.replaceFirst(RegExp(r'^https?://'), '');
@@ -126,7 +120,7 @@ class ViewerApi {
     return _listEnvelope(slice, total, page, pageSize);
   }
 
-  // --- Topics (2.1) ---
+  // --- Topics ---
 
   Response _topics(Request req) {
     final index = data.index;
@@ -148,8 +142,6 @@ class ViewerApi {
     for (final idx in index) {
       final id = idx.topicId;
 
-      // Searching a number finds the thread with that id, as well as any title
-      // or author the number happens to appear in.
       if (q.isNotEmpty &&
           !idx.title.toLowerCase().contains(q) &&
           !idx.author.toLowerCase().contains(q) &&
@@ -170,8 +162,9 @@ class ViewerApi {
       // this topic's rule-based assumedDownloads.
       final assumedUrls =
           assumedCandidates.map((c) => _normUrl(c.sourceUrl)).toSet();
-      final llmMissedCount =
-          llmDownloads.where((d) => !assumedUrls.contains(_normUrl(d.url))).length;
+      final llmMissedCount = llmDownloads
+          .where((d) => !assumedUrls.contains(_normUrl(d.url)))
+          .length;
 
       final flags = <String, bool>{
         'noDownload': assumedCandidates.isEmpty && llmDownloads.isEmpty,
@@ -186,8 +179,7 @@ class ViewerApi {
         'noLlmExtraction': llmEntry == null,
       };
 
-      if (requested.isNotEmpty &&
-          !requested.every((f) => flags[f] == true)) {
+      if (requested.isNotEmpty && !requested.every((f) => flags[f] == true)) {
         continue;
       }
 
@@ -245,7 +237,7 @@ class ViewerApi {
     rows.sort((a, b) => desc ? cmp(b, a) : cmp(a, b));
   }
 
-  // --- Topic detail (2.2) ---
+  // --- Topic detail ---
 
   Response _topicDetail(Request req, String id) {
     final topicId = int.tryParse(id);
@@ -265,12 +257,8 @@ class ViewerApi {
       'index': idx?.toMap(),
       'detail': detail?.toMap(),
       'assumedDownloads': assumed?.map((c) => c.toJson()).toList(),
-      // The LLM output as its mods list — the same shape it has on the bundle's
-      // index item, so the inspector renders both the same way. `isMod` is not
-      // published on the bundle, but the viewer still shows it to explain why a
-      // non-mod thread was kept, so it is grafted on from the cache entry here.
-      // The model and endpoint that wrote the answer are grafted on the same
-      // way; neither is ever published.
+      // Use the bundle's LLM shape, with viewer-only classification and model
+      // metadata from the cache. These extra fields are not published.
       'llm': llm == null
           ? null
           : {
@@ -284,9 +272,7 @@ class ViewerApi {
 
   // --- One topic's history across the saved bundles ---
 
-  /// Histories worked out already, kept until the set of saved bundles changes.
-  /// Each answer is a few kilobytes at most, so holding one per topic looked at
-  /// costs little; a run saving a new snapshot empties the lot.
+  /// Cached per-topic histories, invalidated when the snapshot ids change.
   final Map<int, Map<String, dynamic>> _topicHistoryCache = {};
   String _topicHistoryFor = '';
 
@@ -297,10 +283,8 @@ class ViewerApi {
     // Newest first, as the list comes; the walk wants them the other way round.
     final saved = data.bundleRuns();
     if (saved.isEmpty) {
-      return _missing(
-          'bundle-runs',
-          'No bundles have been saved yet, so there is nothing to compare. '
-          'Run the scraper and one will be saved for you.');
+      return _missing('bundle-runs',
+          'No bundles have been saved yet. Run the scraper to save a snapshot.');
     }
 
     final stamp = saved.map((s) => s.id).join('|');
@@ -324,18 +308,18 @@ class ViewerApi {
     return _json(worked);
   }
 
-  // --- LLM test report (2.6) ---
+  // --- LLM test report ---
 
   Response _llmTest(Request req) {
     final test = data.llmTest;
     if (test == null) {
-      return _missing('llm-test-output',
-          'Run the scraper with LLM test mode enabled.');
+      return _missing(
+          'llm-test-output', 'Run the scraper with LLM test mode enabled.');
     }
     return _json(test);
   }
 
-  // --- Merge explorer (3.4) ---
+  // --- Merge explorer ---
 
   static const String _noMergeHint =
       'Run a merge, or a scrape with modrepo_merge_debug enabled.';
@@ -379,7 +363,8 @@ class ViewerApi {
     }
     final groups = (md['groups'] as List?) ?? const [];
     final multi = groups
-        .where((g) => ((g as Map)['members'] as List?)?.length != null &&
+        .where((g) =>
+            ((g as Map)['members'] as List?)?.length != null &&
             ((g)['members'] as List).length > 1)
         .length;
     return _json({
@@ -406,8 +391,7 @@ class ViewerApi {
       ((mod as Map?)?['name'] as String?)?.toLowerCase() ?? '';
 
   static String _modAuthors(Object? mod) =>
-      (((mod as Map?)?['authorsList'] as List?)?.join(' ') ?? '')
-          .toLowerCase();
+      (((mod as Map?)?['authorsList'] as List?)?.join(' ') ?? '').toLowerCase();
 
   Response _mergeGroups(Request req) {
     final md = _mergeOrNull(req);
@@ -424,8 +408,8 @@ class ViewerApi {
       final members = (g['members'] as List?) ?? const [];
       if (multiOnly && members.length <= 1) continue;
       if (q.isNotEmpty &&
-          !members.any((m) =>
-              _modName(m).contains(q) || _modAuthors(m).contains(q))) {
+          !members.any(
+              (m) => _modName(m).contains(q) || _modAuthors(m).contains(q))) {
         continue;
       }
       rows.add({
@@ -469,7 +453,9 @@ class ViewerApi {
       return _missing('merge-debug', _noMergeHint);
     }
     final groupIndex = int.tryParse(id);
-    if (groupIndex == null) return _notFound('Group id must be a whole number.');
+    if (groupIndex == null) {
+      return _notFound('Group id must be a whole number.');
+    }
 
     final group = ((md['groups'] as List?) ?? const [])
         .cast<Map>()
@@ -509,8 +495,7 @@ class ViewerApi {
             olderOutput: (older['finalOutput'] as List?) ?? const [],
             newerOutput: (newer['finalOutput'] as List?) ?? const [],
           );
-          // Two is plenty: this only saves the work of comparing the same pair
-          // twice while somebody pages through it.
+          // Retain up to two comparisons for paging without recomputation.
           if (_compareCache.length >= 2) _compareCache.clear();
           _compareCache['$a|$b'] = worked;
           return worked;
@@ -559,8 +544,7 @@ class ViewerApi {
       _ => null,
     };
     if (key == null) {
-      return _notFound(
-          'kind must be preDedup, sameSource, or validation.');
+      return _notFound('kind must be preDedup, sameSource, or validation.');
     }
     final q = _q(req);
     final all = ((md[key] as List?) ?? const []).cast<Map>();
@@ -589,9 +573,7 @@ class ViewerApi {
     return _json({
       'items': runs,
       'total': runs.length,
-      // The working data on disk, offered as a side to compare against so a
-      // run can be watched while it is still going. Null when there is no mods
-      // index yet, so the page knows not to offer it.
+      // Null without a mods index; the picker then omits the working side.
       'working': _workingSide(),
     });
   }
@@ -611,10 +593,8 @@ class ViewerApi {
   /// saved bundle never changes.
   final Map<String, Map<String, dynamic>> _bundleCompareCache = {};
 
-  /// The same, for a comparison whose newer side is the working data. That side
-  /// moves while a run is going, so it is held against the very map it was
-  /// worked out from: [DataAccess.workingBundle] hands back the same one until
-  /// something on disk changes, and a new one the moment it does.
+  /// Cache for a working-data comparison. [DataAccess.workingBundle] returns
+  /// the same map until a file changes, so map identity detects invalidation.
   String? _workingCompareOlder;
   Map<String, dynamic>? _workingCompareFrom;
   Map<String, dynamic>? _workingCompareResult;
@@ -629,9 +609,8 @@ class ViewerApi {
       return _notFound('The data on disk is always the newer of the two. '
           'Ask for it as b=$workingSideId.');
     }
-    // "What did this run change?" names only the newer side and lets us work
-    // out the one before it. For the data on disk that is the newest bundle
-    // saved so far — everything published before this run started.
+    // An omitted older side uses the preceding snapshot, or the newest saved
+    // snapshot when comparing working data.
     if (a.isEmpty) {
       final before = b == workingSideId
           ? data.bundleSnapshots.newestId
@@ -640,9 +619,8 @@ class ViewerApi {
         return _missing(
             'bundle-runs',
             b == workingSideId
-                ? 'No bundle has been saved yet, so there is nothing to compare '
-                    'the data on disk against. Publish one and this page will '
-                    'show what each run since has changed.'
+                ? 'No bundle has been saved yet. Publish one to compare '
+                    'it with the data on disk.'
                 : 'That is the oldest bundle still kept, so there is nothing to '
                     'compare it against.');
       }
@@ -696,8 +674,7 @@ class ViewerApi {
     final newer = data.bundleRun(b);
     if (older == null || newer == null) return null;
     final worked = compareBundles(older: older, newer: newer);
-    // Two is plenty: this only saves comparing the same pair twice while
-    // somebody pages through it.
+    // Retain up to two comparisons for paging without recomputation.
     if (_bundleCompareCache.length >= 2) _bundleCompareCache.clear();
     _bundleCompareCache['$a|$b'] = worked;
     return worked;
@@ -723,7 +700,7 @@ class ViewerApi {
     return worked;
   }
 
-  // --- ModRepo browser (4.1) ---
+  // --- ModRepo browser ---
 
   Response _modRepo(Request req) {
     final repo = data.modRepo;
@@ -767,13 +744,13 @@ class ViewerApi {
     return _json(items[i]);
   }
 
-  // --- Bundle browser (4.3) ---
+  // --- Bundle browser ---
 
   Response _bundleMeta(Request req) {
     final bundle = data.bundle;
     if (bundle == null) {
-      return _missing('forum-data-bundle',
-          'Run the QB scraper to publish the bundle.');
+      return _missing(
+          'forum-data-bundle', 'Run the QB scraper to publish the bundle.');
     }
     return _json({
       'updatedAt': bundle['updatedAt'],
@@ -784,8 +761,8 @@ class ViewerApi {
   Response _bundleMods(Request req) {
     final bundle = data.bundle;
     if (bundle == null) {
-      return _missing('forum-data-bundle',
-          'Run the QB scraper to publish the bundle.');
+      return _missing(
+          'forum-data-bundle', 'Run the QB scraper to publish the bundle.');
     }
     final index = ((bundle['index'] as List?) ?? const []).cast<Map>();
     final details = (bundle['details'] as Map?) ?? const {};
@@ -807,15 +784,13 @@ class ViewerApi {
         'index': row,
         'detail': details[idStr],
         'assumedDownloads': assumed[idStr],
-        // The LLM output now lives on the index item as its `llm` field (a mods
-        // list), not a separate top-level map.
         'llm': row['llm'],
       });
     }
     return _json(_paged(rows, _page(req), _pageSize(req)));
   }
 
-  // --- Raw files and log (4.6, 4.7) ---
+  // --- Raw files and log ---
 
   Response _files(Request req) {
     final items = <Map<String, dynamic>>[];
@@ -883,8 +858,7 @@ class ViewerApi {
     final lines = entry.file.readAsLinesSync();
     var selected = lines;
     if (q.isNotEmpty) {
-      selected =
-          lines.where((l) => l.toLowerCase().contains(q)).toList();
+      selected = lines.where((l) => l.toLowerCase().contains(q)).toList();
     }
     final total = selected.length;
     if (tail > 0 && selected.length > tail) {
@@ -900,14 +874,11 @@ class ViewerApi {
 
   // --- Which version is running ---
 
-  /// Which build is running — the build number, the commit and the day it was
-  /// made — so the foot of the sidebar can say which version you are looking
-  /// at. An answer of `{}` means there is nothing to report; the site then
-  /// shows nothing, which is the right amount of fuss to make about it.
-  Response _version(Request req) => _json(SiteVersion(data.rootDir).read() ?? const {});
+  /// An empty response omits the sidebar version when no build data is available.
+  Response _version(Request req) =>
+      _json(SiteVersion(data.rootDir).read() ?? const {});
 }
 
-/// A small extension so handlers can read the first match or null cleanly.
 extension _FirstOrNull<E> on Iterable<E> {
   E? get firstOrNull {
     final it = iterator;

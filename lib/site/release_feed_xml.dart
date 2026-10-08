@@ -54,7 +54,12 @@ void _writeEntry(StringBuffer out, ModRelease release) {
       ? '${release.modName} is now at ${release.newVersion}.'
       : '${release.modName} went from ${release.oldVersion} to '
           '${release.newVersion}.';
-  final notes = release.changelogNotes?.trim();
+  final saves = release.updateCompatibilityText?.trim();
+  final changelog = release.changelogNotes?.trim();
+  final notes = [
+    if (saves != null && saves.isNotEmpty) 'Saves: $saves',
+    if (changelog != null && changelog.isNotEmpty) changelog,
+  ].join('\n\n');
 
   out
     ..writeln('  <entry>')
@@ -65,7 +70,7 @@ void _writeEntry(StringBuffer out, ModRelease release) {
     ..writeln('    <link rel="alternate" type="text/html" '
         'href="${_escapeAttribute(page)}"/>')
     ..writeln('    <content type="text">'
-        '${_escape(notes == null || notes.isEmpty ? story : '$story\n\n$notes')}'
+        '${_escape(notes.isEmpty ? story : '$story\n\n$notes')}'
         '</content>')
     ..writeln('  </entry>');
 }

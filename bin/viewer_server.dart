@@ -19,14 +19,10 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
 
-/// Local viewer and manager for the scraper. Serves the static frontend in
-/// `web/`, a read-only JSON API over the files on disk, and — when a config file
-/// is there to read — the management API that runs jobs.
+/// Serves `web/`, the read-only viewer API and optional job management API.
 ///
-/// Binds to `127.0.0.1` only. The config file is read for where the data lives
-/// and which services may be called; none of its values are ever sent over HTTP.
-/// Viewer endpoints never write; the only writes are jobs asked for on the
-/// management API.
+/// Binds to `127.0.0.1`. Config supplies manager settings; only the data path
+/// may be exposed over HTTP. Viewer endpoints never write; manager jobs may.
 Future<void> main(List<String> args) async {
   final parser = ArgParser()
     ..addOption('port', defaultsTo: '8085', help: 'Port to listen on.')
@@ -34,19 +30,18 @@ Future<void> main(List<String> args) async {
         defaultsTo: 'qb_data',
         help: 'QB data dir: mods-index.json, mods/, the caches.')
     ..addOption('outputs-dir',
-        defaultsTo: 'outputs',
-        help: 'ModRepo.json and forum-data-bundle.json.')
+        defaultsTo: 'outputs', help: 'ModRepo.json and forum-data-bundle.json.')
     ..addOption('root-dir',
         defaultsTo: '.', help: 'merge-debug.json and ModRepo.log.')
     ..addOption('web-dir',
         defaultsTo: 'web', help: 'Static frontend directory.')
     ..addOption('config',
         defaultsTo: 'config.properties',
-        help: 'Config file. Read only to set up the manager; if it is not '
-            'there, the viewer still runs and the manager is off.')
+        help:
+            'Manager config file. Without it, the viewer runs with jobs disabled.')
     ..addFlag('no-manager',
         negatable: false,
-        help: 'Run as the read-only viewer, even if a config file is there.')
+        help: 'Disable jobs even when a config file is available.')
     ..addFlag('help',
         abbr: 'h', negatable: false, help: 'Show usage and exit.');
 
@@ -109,8 +104,7 @@ Future<void> main(List<String> args) async {
   stdout.writeln('Press Ctrl+C to stop.');
 }
 
-/// What the server ended up with: either a live management API or the answer
-/// that says the manager is off.
+/// Management handler and startup status, including the disabled mode.
 class _ManagerSetup {
   final Handler handler;
   final String description;
@@ -143,9 +137,7 @@ Future<_ManagerSetup> _buildManager({
     return _ManagerSetup(ManagerApi.offHandler(reason), reason);
   }
 
-  // The manager works on the folder the config names. If the viewer was pointed
-  // somewhere else, the pages would show one folder while jobs wrote another,
-  // so say so plainly rather than letting it confuse someone later.
+  // Warn if the viewer reads a different data folder from the one jobs write.
   final managerDataPath = p.normalize(p.absolute(config.qbDataPath));
   final viewerDataPath = p.normalize(p.absolute(viewerDataDir));
   if (managerDataPath != viewerDataPath) {
@@ -155,8 +147,7 @@ Future<_ManagerSetup> _buildManager({
         'folder the manager is working on.');
   }
 
-  // Logging goes to the console here — the server has no log file of its own —
-  // and, while a job runs, into that run's own log file.
+  // Console logging also feeds per-run log capture while a job runs.
   Common.initTimberForConsole(config);
   Common.bridgeLoggingToTimber();
 
@@ -167,13 +158,10 @@ Future<_ManagerSetup> _buildManager({
   await service.load();
 
   final jobManager = JobManager(
-    // One queue, two pipelines: QB jobs go to the scraper service, merge jobs
-    // to the ModRepo one.
     service: JobRouter(
       qb: service,
       modRepo: ModRepoService(
-        // A merge started here writes where this server reads, so the pages
-        // show what the job just did.
+        // Merge output must go to the folders the viewer reads.
         environment: ModRepoEnvironment.fromConfig(
           config,
           workingPath: viewerRootDir,
@@ -181,8 +169,7 @@ Future<_ManagerSetup> _buildManager({
         ),
         guardrails: ModRepoGuardrails.fromConfig(config),
       ),
-      // Publishing pushes the same output files this server reads, so what goes
-      // out is what the pages show.
+      // Publish the output files this viewer reads.
       publish: PublishService(
         environment: PublishEnvironment.fromConfig(
           config,
@@ -190,11 +177,10 @@ Future<_ManagerSetup> _buildManager({
         ),
       ),
     ),
-    history: RunHistoryStore(config.qbDataPath,
-        runsToKeep: config.qbRunsToKeep),
+    history:
+        RunHistoryStore(config.qbDataPath, runsToKeep: config.qbRunsToKeep),
     lock: DataLock(dataPath: config.qbDataPath, label: 'server'),
-    // Nobody is watching a console here, but a job's own words still have to
-    // reach its log file — that is all anyone browsing the run will have.
+    // The reporter must log so server-started runs have browsable logs.
     makeReporter: (_) => const LogRunReporter(),
   );
   await jobManager.load();

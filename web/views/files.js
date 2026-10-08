@@ -1,4 +1,4 @@
-// #/files — raw file list and chunked viewer (4.6).
+// #/files — raw file list and chunked viewer.
 //   #/files          allowlist with size / mtime / exists
 //   #/files/<id>     whole file pretty-printed (< 5 MB), else plain-text slices
 

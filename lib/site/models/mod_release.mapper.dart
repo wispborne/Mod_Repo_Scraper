@@ -162,6 +162,7 @@ class ModReleaseMapper extends ClassMapperBase<ModRelease> {
   static ModReleaseMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = ModReleaseMapper._());
+      SaveAnswerMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -201,6 +202,19 @@ class ModReleaseMapper extends ClassMapperBase<ModRelease> {
     _$changelogNotes,
     opt: true,
   );
+  static String? _$updateCompatibilityText(ModRelease v) =>
+      v.updateCompatibilityText;
+  static const Field<ModRelease, String> _f$updateCompatibilityText = Field(
+    'updateCompatibilityText',
+    _$updateCompatibilityText,
+    opt: true,
+  );
+  static SaveAnswer? _$canUpdate(ModRelease v) => v.canUpdate;
+  static const Field<ModRelease, SaveAnswer> _f$canUpdate = Field(
+    'canUpdate',
+    _$canUpdate,
+    opt: true,
+  );
 
   @override
   final MappableFields<ModRelease> fields = const {
@@ -211,6 +225,8 @@ class ModReleaseMapper extends ClassMapperBase<ModRelease> {
     #newVersion: _f$newVersion,
     #gameVersion: _f$gameVersion,
     #changelogNotes: _f$changelogNotes,
+    #updateCompatibilityText: _f$updateCompatibilityText,
+    #canUpdate: _f$canUpdate,
   };
   @override
   final bool ignoreNull = true;
@@ -224,6 +240,8 @@ class ModReleaseMapper extends ClassMapperBase<ModRelease> {
       newVersion: data.dec(_f$newVersion),
       gameVersion: data.dec(_f$gameVersion),
       changelogNotes: data.dec(_f$changelogNotes),
+      updateCompatibilityText: data.dec(_f$updateCompatibilityText),
+      canUpdate: data.dec(_f$canUpdate),
     );
   }
 
@@ -295,6 +313,8 @@ abstract class ModReleaseCopyWith<$R, $In extends ModRelease, $Out>
     String? newVersion,
     String? gameVersion,
     String? changelogNotes,
+    String? updateCompatibilityText,
+    SaveAnswer? canUpdate,
   });
   ModReleaseCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -316,6 +336,8 @@ class _ModReleaseCopyWithImpl<$R, $Out>
     String? newVersion,
     Object? gameVersion = $none,
     Object? changelogNotes = $none,
+    Object? updateCompatibilityText = $none,
+    Object? canUpdate = $none,
   }) => $apply(
     FieldCopyWithData({
       if (modId != null) #modId: modId,
@@ -325,6 +347,9 @@ class _ModReleaseCopyWithImpl<$R, $Out>
       if (newVersion != null) #newVersion: newVersion,
       if (gameVersion != $none) #gameVersion: gameVersion,
       if (changelogNotes != $none) #changelogNotes: changelogNotes,
+      if (updateCompatibilityText != $none)
+        #updateCompatibilityText: updateCompatibilityText,
+      if (canUpdate != $none) #canUpdate: canUpdate,
     }),
   );
   @override
@@ -336,6 +361,11 @@ class _ModReleaseCopyWithImpl<$R, $Out>
     newVersion: data.get(#newVersion, or: $value.newVersion),
     gameVersion: data.get(#gameVersion, or: $value.gameVersion),
     changelogNotes: data.get(#changelogNotes, or: $value.changelogNotes),
+    updateCompatibilityText: data.get(
+      #updateCompatibilityText,
+      or: $value.updateCompatibilityText,
+    ),
+    canUpdate: data.get(#canUpdate, or: $value.canUpdate),
   );
 
   @override

@@ -53,6 +53,8 @@
   --over-picture: rgba(14, 22, 43, 0.82);
   --lifted: 0 8px 24px rgba(0, 0, 0, 0.45);
   --badge-back: rgba(255, 255, 255, 0.02);
+  /* Shading behind badges on card pictures. */
+  --over-picture-fade: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
 
   /* What separates a raised surface — a card, a panel, the releases list —
      from the page behind it. In the dark version the two colours do that on
@@ -139,6 +141,7 @@
     --over-picture: rgba(255, 255, 255, 0.88);
     --lifted: 0 8px 24px rgba(22, 30, 45, 0.16);
     --badge-back: rgba(22, 30, 45, 0.03);
+    --over-picture-fade: linear-gradient(to top, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
     --raised: 0 0 0 1px rgba(22, 30, 45, 0.06), 0 1px 3px rgba(22, 30, 45, 0.05);
   }
 }
@@ -421,8 +424,7 @@ main {
 
 /* On a row it sits inline at the end, in a column of its own width so every
    button in the list starts and ends in the same place. */
-.mod-row > .download-btn, .mod-row > .download-actions,
-.fav-links > .download-btn, .fav-links > .download-actions { width: 148px; }
+.mod-row > .download-btn, .mod-row > .download-actions { width: 148px; }
 .mod-row > .download-btn, .mod-row > .download-actions { margin-right: 10px; }
 
 /* On a release row it follows "Read changelog", so both of the row's actions
@@ -503,7 +505,7 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 .search-help strong { color: var(--text); font-weight: 600; }
 /* The example is something to type, not something to press, so it is not
    cyan. The line round it is what says "these are the exact letters". */
-.search-help code {
+.search-help code, .search-hint code {
   font-family: inherit; font-size: var(--type-tiny); color: var(--text);
   padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px;
   background: var(--surface-2); white-space: nowrap;
@@ -518,29 +520,63 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
    one already looks like a control. */
 .filters { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
 .filter-label { display: flex; align-items: center; gap: 6px; font-size: var(--type-small); color: var(--text-dim); }
+/* Shorter than the site's other boxes, so the filters take less room. */
+/* A set height, so the browser centres the words itself. This font's letters
+   sit a little low in their line, so the box is moved down 1 pixel and the
+   padding at its foot lifts the words back to where they were. Without that
+   the box looks high around its words and its label. */
+.filters select {
+  height: 28px; padding: 0 8px 2px; line-height: normal;
+  position: relative; top: 1px;
+}
 .switches { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* The categories, as a row you can see all of at once. */
-.chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.chip {
-  display: flex; gap: 7px; align-items: center;
-  padding: 5px 12px; border: 1px solid var(--border);
-  background: var(--surface-2); border-radius: 999px;
-  color: var(--text); font-size: var(--type-small); font-family: inherit;
+/* The categories, as a small table you can see all of at once: a name and a
+   count on each line, in as many columns as fit. Each line is its own small
+   box, so it reads as something to press, and the counts line up on the
+   right. */
+.category-table {
+  display: grid; gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+.category-cell {
+  display: flex; gap: 10px; align-items: baseline; justify-content: space-between;
+  width: 100%; padding: 5px 10px; margin: 0;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface-2); text-align: left;
+  color: var(--primary); font-size: var(--type-small); font-family: inherit;
   cursor: pointer;
 }
-.chip:hover { border-color: var(--primary); color: var(--primary); text-decoration: none; }
-.chip.on {
-  background: var(--primary-soft);
-  border-color: var(--primary); color: var(--primary);
+/* Cyan names say "you can press this", the same as every other link here. */
+.category-cell:hover {
+  background: var(--primary-soft); border-color: var(--primary-ghost);
+  text-decoration: none;
 }
-.chip-count { color: var(--text-dim); font-size: var(--type-tiny); }
-.chip.on .chip-count { color: var(--primary); }
+.category-cell.on {
+  background: var(--primary-soft); border-color: var(--primary);
+  font-weight: 600;
+}
+.category-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.category-count {
+  flex: none; color: var(--text-dim); font-size: var(--type-tiny);
+  font-variant-numeric: tabular-nums;
+}
+.category-cell.on .category-count, .category-cell:hover .category-count { color: var(--primary); }
 .result-line { color: var(--text-dim); font-size: var(--type-small); }
 
 /* --- The mod list --- */
 
-.view-toggle { display: flex; gap: 4px; }
+/* Cards and Rows are joined into one control, so it reads as a choice of one.
+   Each button's border overlaps its neighbour's, and the one in use is drawn
+   on top so its cyan border shows on every side. */
+.view-toggle { display: flex; }
+.view-toggle > .btn { position: relative; border-radius: 0; gap: 6px; }
+.view-toggle > .btn + .btn { margin-left: -1px; }
+.view-toggle > .btn:first-child { border-radius: 6px 0 0 6px; }
+.view-toggle > .btn:last-child { border-radius: 0 6px 6px 0; }
+.view-toggle > .btn.on,
+.view-toggle > .btn:hover { z-index: 1; }
+.view-icon, .view-icon svg { display: block; width: 1em; height: 1em; flex-shrink: 0; }
 
 .mod-grid {
   display: grid; gap: var(--gap-cells);
@@ -616,7 +652,20 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 .ai-spark {
   display: inline-block; vertical-align: -0.1em; flex-shrink: 0;
 }
-.card-foot { margin-top: auto; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+/* Match the favorite button's backing and shade the image behind the badges
+   to keep them readable in both themes. */
+.card-picture { position: relative; }
+.card-foot {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 18px 5px 5px; display: flex;
+  background: var(--over-picture-fade); gap: 4px; flex-wrap: wrap; align-items: center;
+  pointer-events: none;
+}
+.card-foot .badge {
+  padding: 1px 6px; font-size: var(--type-note);
+  background: var(--over-picture);
+  pointer-events: auto;
+}
 
 .mod-rows { display: flex; flex-direction: column; }
 .mod-row {
@@ -1017,13 +1066,17 @@ body.picture-open { overflow: hidden; }
 
 /* --- Favorites --- */
 
-.fav-row {
-  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-  padding: var(--pad-cell); border: 1px solid var(--border);
-  background: var(--surface-2); border-radius: 8px; box-shadow: var(--raised);
+/* The heading and its count on the left, the buttons on the right, lined up
+   on the heading's foot. On a narrow screen the buttons wrap underneath. */
+.fav-head {
+  display: flex; gap: var(--gap); flex-wrap: wrap;
+  align-items: flex-end; justify-content: space-between;
 }
-.fav-links { display: flex; gap: 8px; flex-wrap: wrap; }
-.fav-row .row-main { flex: 1 1 200px; }
+.fav-head > .page-head { margin-bottom: 0; }
+.fav-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* The view switch sits apart from the list's own buttons. */
+.fav-actions > .view-toggle { margin-left: 8px; }
+.fav-undo { font-size: var(--type-small); color: var(--text-dim); }
 
 /* --- The line at the foot --- */
 
@@ -1060,7 +1113,6 @@ body.picture-open { overflow: hidden; }
   /* A narrow screen has no room for a column of its own. In a browse row it
      also has no room beside the words: standing the button next to them left
      the mod's name one letter wide, so it drops to a line of its own. */
-  .fav-links > .download-btn, .fav-links > .download-actions,
   .release > summary > .download-btn,
   .release > summary > .download-actions { width: auto; }
   .mod-row { flex-wrap: wrap; }

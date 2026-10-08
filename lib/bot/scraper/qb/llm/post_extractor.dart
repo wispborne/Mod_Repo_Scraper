@@ -50,6 +50,10 @@ class _RawMod {
   /// post's links.
   final String? sourceCode;
   final String? saveCompatibility;
+  final List<LlmUpdateNote> updateNotes;
+  final String? removalCompatibility;
+  final SaveAnswer? canAdd;
+  final SaveAnswer? canRemove;
 
   /// The generated summary, when summaries are on and the model returned one.
   /// Not checked against the post (it is written, not copied).
@@ -76,6 +80,10 @@ class _RawMod {
     this.license,
     this.sourceCode,
     this.saveCompatibility,
+    this.updateNotes = const [],
+    this.removalCompatibility,
+    this.canAdd,
+    this.canRemove,
     this.summary,
     this.needs = const [],
     this.descriptionAnchors,
@@ -165,6 +173,10 @@ class PostExtractor {
     'license',
     'sourceCode',
     'saveCompatibility',
+    'removalCompatibility',
+    'canAdd',
+    'canRemove',
+    'updateNotes',
     'needs',
     'descriptionAnchors',
   ];
@@ -645,11 +657,34 @@ class PostExtractor {
       license: asString(m['license']),
       sourceCode: asString(m['sourceCode']),
       saveCompatibility: asString(m['saveCompatibility']),
+      updateNotes: [
+        for (final note in (m['updateNotes'] is List
+            ? m['updateNotes'] as List
+            : const []))
+          if (note is Map && asString(note['quote']) != null)
+            LlmUpdateNote(
+              version: asString(note['version']),
+              quote: asString(note['quote'])!,
+              answer: _saveAnswer(asString(note['answer'])),
+            ),
+      ],
+      removalCompatibility: asString(m['removalCompatibility']),
+      canAdd: _saveAnswer(asString(m['canAdd'])),
+      canRemove: _saveAnswer(asString(m['canRemove'])),
       summary: summary,
       needs: needs,
       descriptionAnchors: anchors,
     );
   }
+
+  /// Reads the model's yes / no / depends. Anything else is no answer.
+  static SaveAnswer? _saveAnswer(String? value) =>
+      switch (value?.trim().toLowerCase()) {
+        'yes' => SaveAnswer.yes,
+        'no' => SaveAnswer.no,
+        'depends' => SaveAnswer.depends,
+        _ => null,
+      };
 
   static String _stripCodeFences(String content) {
     var s = content.trim();
@@ -829,15 +864,41 @@ class PostExtractor {
         ? null
         : _groundSourceCode(topicId, mod.sourceCode!, postUrls, postRepoUrls);
 
-    // Save compatibility: copied word-for-word, so it must be found in the post.
-    String? saveCompatibility;
-    if (mod.saveCompatibility != null) {
-      if (_textInPost(mod.saveCompatibility!, corpus)) {
-        saveCompatibility = mod.saveCompatibility;
-      } else {
-        _log.warning(
-            'Dropped save-compatibility text not found in post (topic $topicId): ${mod.saveCompatibility}');
+    // What the post says about saves: adding the mod, updating it, removing
+    // it. Each is copied word-for-word, so it must be found in the post.
+    String? copiedSaveText(String? text, String what) {
+      if (text == null) return null;
+      if (_textInPost(text, corpus)) return text;
+      _log.warning(
+          'Dropped $what text not found in post (topic $topicId): $text');
+      return null;
+    }
+
+    final saveCompatibility =
+        copiedSaveText(mod.saveCompatibility, 'save-compatibility');
+    final removalCompatibility =
+        copiedSaveText(mod.removalCompatibility, 'removal-compatibility');
+
+    // A short answer stands on the words it was read from. With no words in
+    // the post behind it, the model decided it, so it goes.
+    final canAdd = saveCompatibility == null ? null : mod.canAdd;
+    final canRemove = removalCompatibility == null ? null : mod.canRemove;
+
+    // An update note's words must be in the post, and so must the version it
+    // names. A version the post never writes goes with its whole note: keeping
+    // the words without it would turn a note about one old release into a note
+    // about the mod as it is now, which is the mistake the version is there to
+    // stop.
+    final updateNotes = <LlmUpdateNote>[];
+    for (final note in mod.updateNotes) {
+      if (copiedSaveText(note.quote, 'update-note') == null) continue;
+      final version = note.version;
+      if (version != null && !_textInPost(version, corpus)) {
+        _log.warning('Dropped update note whose version is not in the post '
+            '(topic $topicId): $version — ${note.quote}');
+        continue;
       }
+      updateNotes.add(note);
     }
 
     // Image: the model must have copied a real post image URL. Keep the exact
@@ -868,6 +929,10 @@ class PostExtractor {
       license: license,
       sourceCode: sourceCode,
       saveCompatibility: saveCompatibility,
+      updateNotes: updateNotes,
+      removalCompatibility: removalCompatibility,
+      canAdd: canAdd,
+      canRemove: canRemove,
       // Passed through as-is: the summary is written, not copied, so there is
       // nothing to find in the post.
       summary: mod.summary,
@@ -1282,6 +1347,10 @@ class PostExtractor {
       license: g.license,
       sourceCode: g.sourceCode,
       saveCompatibility: g.saveCompatibility,
+      updateNotes: g.updateNotes.isEmpty ? null : g.updateNotes,
+      removalCompatibility: g.removalCompatibility,
+      canAdd: g.canAdd,
+      canRemove: g.canRemove,
       summary: summary,
       needs: g.needs.isEmpty ? null : g.needs,
     );
@@ -1448,6 +1517,10 @@ class _CheckedMod {
   /// The link to where the mod's code is kept, once checked against the post.
   final String? sourceCode;
   final String? saveCompatibility;
+  final List<LlmUpdateNote> updateNotes;
+  final String? removalCompatibility;
+  final SaveAnswer? canAdd;
+  final SaveAnswer? canRemove;
   final LlmModSummary? summary;
 
   /// The other mods this one needs, once checked against the post.
@@ -1469,6 +1542,10 @@ class _CheckedMod {
     this.license,
     this.sourceCode,
     this.saveCompatibility,
+    this.updateNotes = const [],
+    this.removalCompatibility,
+    this.canAdd,
+    this.canRemove,
     this.summary,
     this.needs = const [],
     this.descriptionAnchors,
@@ -1487,6 +1564,8 @@ class _CheckedMod {
       license == null &&
       sourceCode == null &&
       saveCompatibility == null &&
+      updateNotes.isEmpty &&
+      removalCompatibility == null &&
       needs.isEmpty &&
       (summary == null || summary!.isEmpty);
 }

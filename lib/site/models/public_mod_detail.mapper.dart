@@ -72,6 +72,14 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     _$saveCompatibilityText,
     opt: true,
   );
+  static String? _$updateCompatibilityText(PublicModDetail v) =>
+      v.updateCompatibilityText;
+  static const Field<PublicModDetail, String> _f$updateCompatibilityText =
+      Field('updateCompatibilityText', _$updateCompatibilityText, opt: true);
+  static String? _$removalCompatibilityText(PublicModDetail v) =>
+      v.removalCompatibilityText;
+  static const Field<PublicModDetail, String> _f$removalCompatibilityText =
+      Field('removalCompatibilityText', _$removalCompatibilityText, opt: true);
   static List<String> _$rawCategories(PublicModDetail v) => v.rawCategories;
   static const Field<PublicModDetail, List<String>> _f$rawCategories = Field(
     'rawCategories',
@@ -176,6 +184,8 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     #descriptionIsGenerated: _f$descriptionIsGenerated,
     #aiDescription: _f$aiDescription,
     #saveCompatibilityText: _f$saveCompatibilityText,
+    #updateCompatibilityText: _f$updateCompatibilityText,
+    #removalCompatibilityText: _f$removalCompatibilityText,
     #rawCategories: _f$rawCategories,
     #gallery: _f$gallery,
     #downloads: _f$downloads,
@@ -205,6 +215,8 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       descriptionIsGenerated: data.dec(_f$descriptionIsGenerated),
       aiDescription: data.dec(_f$aiDescription),
       saveCompatibilityText: data.dec(_f$saveCompatibilityText),
+      updateCompatibilityText: data.dec(_f$updateCompatibilityText),
+      removalCompatibilityText: data.dec(_f$removalCompatibilityText),
       rawCategories: data.dec(_f$rawCategories),
       gallery: data.dec(_f$gallery),
       downloads: data.dec(_f$downloads),
@@ -331,6 +343,8 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     bool? descriptionIsGenerated,
     String? aiDescription,
     String? saveCompatibilityText,
+    String? updateCompatibilityText,
+    String? removalCompatibilityText,
     List<String>? rawCategories,
     List<PublicImage>? gallery,
     List<PublicDownload>? downloads,
@@ -449,6 +463,8 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     bool? descriptionIsGenerated,
     Object? aiDescription = $none,
     Object? saveCompatibilityText = $none,
+    Object? updateCompatibilityText = $none,
+    Object? removalCompatibilityText = $none,
     List<String>? rawCategories,
     List<PublicImage>? gallery,
     List<PublicDownload>? downloads,
@@ -476,6 +492,10 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       if (aiDescription != $none) #aiDescription: aiDescription,
       if (saveCompatibilityText != $none)
         #saveCompatibilityText: saveCompatibilityText,
+      if (updateCompatibilityText != $none)
+        #updateCompatibilityText: updateCompatibilityText,
+      if (removalCompatibilityText != $none)
+        #removalCompatibilityText: removalCompatibilityText,
       if (rawCategories != null) #rawCategories: rawCategories,
       if (gallery != null) #gallery: gallery,
       if (downloads != null) #downloads: downloads,
@@ -508,6 +528,14 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     saveCompatibilityText: data.get(
       #saveCompatibilityText,
       or: $value.saveCompatibilityText,
+    ),
+    updateCompatibilityText: data.get(
+      #updateCompatibilityText,
+      or: $value.updateCompatibilityText,
+    ),
+    removalCompatibilityText: data.get(
+      #removalCompatibilityText,
+      or: $value.removalCompatibilityText,
     ),
     rawCategories: data.get(#rawCategories, or: $value.rawCategories),
     gallery: data.get(#gallery, or: $value.gallery),

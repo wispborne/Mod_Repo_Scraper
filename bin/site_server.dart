@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -21,6 +22,9 @@ import 'package:shelf_static/shelf_static.dart';
 /// Read-only, and bound to `127.0.0.1`. There is no manager behind it and no
 /// way to change anything — in production the public site has no server at all,
 /// and neither does this.
+///
+/// It reloads an open page whenever a file in the website's folder changes
+/// (`--no-reload` turns that off). See [_LiveReload].
 Future<void> main(List<String> args) async {
   final parser = ArgParser()
     ..addOption('port', defaultsTo: '8099', help: 'Port to listen on.')
@@ -29,6 +33,9 @@ Future<void> main(List<String> args) async {
     ..addOption('data-dir',
         defaultsTo: p.join('outputs', 'site'),
         help: 'mods.json, updates.json and mods/, as a run built them.')
+    ..addFlag('reload',
+        defaultsTo: true,
+        help: "Reload open pages when a file in the website's folder changes.")
     ..addFlag('help',
         abbr: 'h', negatable: false, help: 'Show usage and exit.');
 
@@ -73,15 +80,22 @@ Future<void> main(List<String> args) async {
         defaultDocument: 'index.html', listDirectories: false));
   }
 
+  final liveReload =
+      opts['reload'] as bool ? _LiveReload.watch(Directory(siteDir)) : null;
+
   var cascade = Cascade();
+  if (liveReload != null) cascade = cascade.add(liveReload.handler);
   for (final handler in handlers) {
     cascade = cascade.add(handler);
   }
 
+  var pipeline = const Pipeline().addMiddleware(logRequests());
+  if (liveReload != null) pipeline = pipeline.addMiddleware(liveReload.inject);
+
   final HttpServer server;
   try {
     server = await shelf_io.serve(
-      const Pipeline().addMiddleware(logRequests()).addHandler(cascade.handler),
+      pipeline.addHandler(cascade.handler),
       InternetAddress.loopbackIPv4,
       port,
     );
@@ -100,6 +114,9 @@ Future<void> main(List<String> args) async {
   stdout.writeln('Public website running at http://127.0.0.1:${server.port}/');
   stdout.writeln('  site-dir  $siteDir');
   stdout.writeln('  data-dir  $dataDir');
+  if (liveReload != null) {
+    stdout.writeln('Open pages reload when a file in $siteDir changes.');
+  }
   if (!hasData) {
     // Not a failure. The site opens against the hand-written examples without
     // any data at all, which is how it is worked on before a run has built
@@ -111,4 +128,95 @@ Future<void> main(List<String> args) async {
     stdout.writeln('to look at the site against the hand-written examples.');
   }
   stdout.writeln('Press Ctrl+C to stop.');
+}
+
+/// Reloads open pages when the website's own files change.
+///
+/// Every HTML page this server sends gets a few lines of script added before
+/// `</body>`. That script asks [_path] whether anything has changed, and the
+/// server holds the question open until something does or [_wait] runs out.
+/// When the answer is a new number, the page reloads itself. Only this local
+/// server adds the script — the files on disk are never touched, so it can
+/// never be published.
+///
+/// Every answer also tells the browser not to keep a copy. The site is plain
+/// ES modules, and a browser holding on to an old `lib.js` while loading a new
+/// view that imports something from it fails to draw the page at all.
+///
+/// Only the website's folder is watched, not the data folder: a run rewrites a
+/// thousand mod files, and reloading for each one helps nobody.
+class _LiveReload {
+  _LiveReload._();
+
+  static const _path = '__reload';
+  static const _wait = Duration(seconds: 25);
+
+  /// Saving one file in an editor can fire several changes in a row. They
+  /// are counted as one once this long has passed with nothing new.
+  static const _settle = Duration(milliseconds: 150);
+
+  var _version = 0;
+  final _changed = StreamController<int>.broadcast();
+  Timer? _pending;
+
+  static _LiveReload watch(Directory dir) {
+    final reload = _LiveReload._();
+    dir.watch(recursive: true).listen((_) {
+      reload._pending?.cancel();
+      reload._pending = Timer(_settle, () {
+        reload._version++;
+        reload._changed.add(reload._version);
+      });
+    });
+    return reload;
+  }
+
+  /// Answers `/__reload?since=N` with the current number: at once when it is
+  /// not N, otherwise when a file changes or [_wait] runs out.
+  Future<Response> handler(Request request) async {
+    if (request.url.path != _path) return Response.notFound('');
+    final since = int.tryParse(request.url.queryParameters['since'] ?? '');
+    if (since == _version) {
+      await _changed.stream.first
+          .timeout(_wait, onTimeout: () => _version);
+    }
+    return Response.ok('$_version', headers: _noStore);
+  }
+
+  Handler inject(Handler inner) => (request) async {
+        final response = await inner(request);
+        final type = response.headers['content-type'] ?? '';
+        if (response.statusCode != 200 || !type.startsWith('text/html')) {
+          return response.change(headers: _noStore);
+        }
+        final html = await response.readAsString();
+        final at = html.lastIndexOf('</body>');
+        final withScript = at < 0
+            ? '$html$_script'
+            : '${html.substring(0, at)}$_script${html.substring(at)}';
+        return Response.ok(withScript,
+            headers: {'content-type': type, ..._noStore});
+      };
+
+  static const _noStore = {'cache-control': 'no-store'};
+
+  /// Waits on the server, reloads when the number moves, and tries again a
+  /// few seconds later when the server is not there (stopped or restarting).
+  static const _script = '''
+<script>
+(async () => {
+  let seen = null;
+  for (;;) {
+    try {
+      const res = await fetch('/$_path?since=' + (seen ?? ''), { cache: 'no-store' });
+      const now = await res.text();
+      if (seen !== null && now !== seen) { location.reload(); return; }
+      seen = now;
+    } catch (_) {
+      await new Promise((done) => setTimeout(done, 2000));
+    }
+  }
+})();
+</script>
+''';
 }

@@ -1,4 +1,4 @@
-// #/modrepo — ModRepo.json browser (4.2).
+// #/modrepo — ModRepo.json browser.
 //   #/modrepo            searchable, paged mod table
 //   #/modrepo/<index>    one merged mod, with source provenance
 
@@ -138,8 +138,7 @@ async function detail(root, index) {
     root.append(ul);
   }
 
-  // Link into the merge explorer for per-source field values, only when the
-  // merge debug file is present (per updated spec).
+  // Show the group link only when merge debug data is available.
   const summary = await api('merge/summary');
   if (!(summary instanceof MissingFile)) {
     root.append(el('p', { style: 'margin-top:16px;' },

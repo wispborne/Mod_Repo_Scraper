@@ -7,7 +7,7 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 16;
+  static const int promptVersion = 17;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -121,7 +121,17 @@ Return this JSON object:
       "supportLinks": ["<Patreon/Ko-fi/donate URL from the post>", "..."],
       "license": "<the license exactly as stated in the post, or null>",
       "sourceCode": "<the URL of the page where this mod's code is kept, copied from the post, or null>",
-      "saveCompatibility": "<the post's own words on whether it can be added to an existing save or needs a new game, copied exactly, or null>",
+      "saveCompatibility": "<the post's own words on whether the mod can be ADDED to a game already in progress or needs a new game, copied exactly, or null>",
+      "removalCompatibility": "<the post's own words on whether the mod can be REMOVED from a game in progress, copied exactly, or null>",
+      "canAdd": "<yes | no | depends: the short answer to saveCompatibility, or null>",
+      "canRemove": "<yes | no | depends: the short answer to removalCompatibility, or null>",
+      "updateNotes": [
+        {
+          "version": "<the release this note is about, as the post writes it, or null>",
+          "quote": "<the post's own words on whether a save made with an older version survives UPDATING, copied exactly>",
+          "answer": "<yes | no | depends>"
+        }
+      ],
       "needs": ["<the name of another mod this one will not run without>", "..."],
       "descriptionAnchors": {
         "startsWith": "<the first few words of the run of text that describes THIS mod, copied exactly>",
@@ -218,14 +228,67 @@ Guidance:
   - Never take a repository from anywhere but a link in the post, and never
     change how the post spells it. Leave it null when the post links nothing on
     a code site.
-- "saveCompatibility" is the post's own words on adding the mod to a game in
-  progress:
-  - Copy the exact phrase or sentence that says whether you can add the mod to an
-    existing/ongoing save, or whether it needs a new game — for example "Save
-    compatible", "Can be added to an existing save", "Safe to add mid-game",
-    "Requires a new game", or "Not save-game compatible".
-  - Copy it word-for-word. Do not summarize, judge, or decide it yourself. Leave
-    it null when the post does not say either way.
+- Saves: posts answer up to three DIFFERENT questions about saves. Keep them
+  apart. A mod can be safe to add to a running game and still break that game
+  when you update it, so one answer never stands in for another. Most posts
+  answer one of these questions or none of them, so it is normal for
+  "saveCompatibility" and "removalCompatibility" to be null and "updateNotes"
+  to be empty. NEVER put the same words in two of these places: each one holds
+  only the words about its own question.
+  - "saveCompatibility" is about ADDING the mod to a game that does not have it
+    yet. For example "Save compatible", "Can be added to an existing save",
+    "Safe to add mid-game", "Requires a new game", or "Not save-game
+    compatible".
+  - "updateNotes" is about UPDATING: a game that already uses an older version
+    of this mod, moving to a newer one. For example "This update is not save
+    compatible", "Not save compatible with versions prior to 2.0.0",
+    "Save-compatible with previous versions", or "Safe to update midsave".
+    Words that name an update, an older or previous version, or a version
+    number belong here, NOT in "saveCompatibility". Give one entry per note;
+    a thread can carry several, one for each release that mentions saves.
+    - "quote" is the note, copied word-for-word.
+    - "version" is the release the note was written for, copied as the post
+      writes it. Give it when the note names that release, or sits in that
+      release's announcement or changelog entry: "Minor patch v1.0.1 is out. It
+      is save-compatible." gives "version": "v1.0.1", and "NOT save compatible"
+      inside the changelog entry for 0.8.0 gives "version": "0.8.0".
+    - "version" is null when the note is not tied to one release: a rule about
+      every update ("All updates are save-compatible"), or a statement about the
+      mod as it is now ("Not save compatible with versions prior to 2.0.0" says
+      which old saves still work, not which release it was written for).
+    - Never guess a version. Copy one only when the post ties the note to it.
+  - "removalCompatibility" is about REMOVING the mod from a game in progress.
+    For example "Cannot be removed from a save" or "Safe to remove at any
+    time".
+  - When one sentence answers two of these, split it: copy only the part about
+    each question into that question's field, and leave the rest out. Never
+    copy the whole sentence into both. Examples:
+    - "Can be added to a running game, and can be taken out again at any time
+      (ships you already own will stay)" gives "saveCompatibility": "Can be
+      added to a running game" and "removalCompatibility": "can be taken out
+      again at any time (ships you already own will stay)".
+    - "Safe to add to ongoing saves, but version 0.8.0 will break existing
+      saves" gives "saveCompatibility": "Safe to add to ongoing saves" and one
+      update note: "version": "0.8.0", "quote": "version 0.8.0 will break
+      existing saves".
+  - A plain "Save compatible" with nothing about updates or versions answers
+    ADDING only. Leave "updateNotes" empty.
+  - Copy word-for-word. Do not summarize, judge, or decide it yourself. Leave
+    each one null, or the list empty, when the post does not answer that
+    question.
+  - "canAdd", "canRemove" and each update note's "answer" are the short answers,
+    read off the words you copied:
+    - "yes": the words say plainly that you can. "Save compatible" gives
+      "canAdd": "yes".
+    - "no": the words say plainly that you cannot. "Requires a new game" gives
+      "canAdd": "no". "This update is not save compatible" gives an update note
+      with "answer": "no".
+    - "depends": the answer has a condition or an exception, so a reader has to
+      read the words to know. "Save compatible with versions 1.6.0 and higher"
+      gives an update note with "answer": "depends". "Safe to add, but some
+      derelicts won't spawn" gives "canAdd": "depends".
+    - "canAdd" and "canRemove" are null whenever their words are null. Never
+      give a short answer without the words it came from.
 - "needs" is the other mods this one will not run without:
   - Nearly every Starsector mod needs a library — LazyLib, MagicLib,
     GraphicsLib, LunaLib, ShaderLib — and many need Nexerelin. The post nearly
@@ -271,6 +334,10 @@ Guidance:
   static Map<String, dynamic> buildResponseSchema({bool includeSummary = false}) {
     Map<String, dynamic> nullableString() => {
           'type': ['string', 'null']
+        };
+    Map<String, dynamic> saveAnswer() => {
+          'type': ['string', 'null'],
+          'enum': ['yes', 'no', 'depends', null],
         };
 
     final modProps = <String, dynamic>{
@@ -319,6 +386,22 @@ Guidance:
       'license': nullableString(),
       'sourceCode': nullableString(),
       'saveCompatibility': nullableString(),
+      'removalCompatibility': nullableString(),
+      'canAdd': saveAnswer(),
+      'canRemove': saveAnswer(),
+      'updateNotes': {
+        'type': 'array',
+        'items': {
+          'type': 'object',
+          'properties': {
+            'version': nullableString(),
+            'quote': {'type': 'string'},
+            'answer': saveAnswer(),
+          },
+          'required': ['version', 'quote', 'answer'],
+          'additionalProperties': false,
+        },
+      },
       'needs': {
         'type': 'array',
         'items': {'type': 'string'},
@@ -346,6 +429,10 @@ Guidance:
       'license',
       'sourceCode',
       'saveCompatibility',
+      'removalCompatibility',
+      'canAdd',
+      'canRemove',
+      'updateNotes',
       'needs',
       'descriptionAnchors',
     ];

@@ -41,6 +41,18 @@ class PublicModDetail with PublicModDetailMappable {
   /// in progress. Null when the post does not say.
   final String? saveCompatibilityText;
 
+  /// The author's own words on whether a game using an older version of the
+  /// mod survives updating to this one. Kept apart from
+  /// [saveCompatibilityText] because a mod can be safe to add and still break
+  /// saves on update. Only a note written for the version the mod is on now,
+  /// or one tied to no release; a note about an older release is left off.
+  /// Null when the post says nothing that fits.
+  final String? updateCompatibilityText;
+
+  /// The author's own words on whether the mod can be taken out of a game in
+  /// progress. Null when the post does not say.
+  final String? removalCompatibilityText;
+
   /// The shelves the forum's index and Discord's tags file this mod under. The
   /// list page shows the site's own short set instead; these are here so the
   /// mod's own page can still say how the sources file it.
@@ -119,6 +131,8 @@ class PublicModDetail with PublicModDetailMappable {
     this.descriptionIsGenerated = false,
     this.aiDescription,
     this.saveCompatibilityText,
+    this.updateCompatibilityText,
+    this.removalCompatibilityText,
     this.rawCategories = const [],
     this.gallery = const [],
     this.downloads = const [],

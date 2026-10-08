@@ -11,6 +11,17 @@
       "port": 8099
     },
     {
+      "name": "starmodder-alt",
+      "runtimeExecutable": "dart",
+      "runtimeArgs": [
+        "run",
+        "bin/site_server.dart",
+        "--port",
+        "8098"
+      ],
+      "port": 8098
+    },
+    {
       "name": "viewer",
       "runtimeExecutable": "dart",
       "runtimeArgs": [

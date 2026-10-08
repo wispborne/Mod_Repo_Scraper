@@ -2,18 +2,9 @@ import 'dart:convert';
 
 import 'compare_rows.dart';
 
-/// Works out the two "before and after" pictures the Merge Explorer shows,
-/// from merge debug data that is already saved.
-///
-/// Nothing here changes how merging works, or asks the merger to record
-/// anything new. Both answers are read back out of what the merge already
-/// wrote down.
-
 // --- Which source supplied each field ---
 
-/// The fields worth showing side by side. `urls` is a map and the three list
-/// fields are lists, so they get picked apart entry by entry — that is where
-/// the interesting answers are.
+/// Scalar fields shown side by side. Lists and URLs are compared by entry.
 const List<String> _scalarFields = [
   'name',
   'summary',
@@ -28,14 +19,10 @@ const List<String> _listFields = ['authorsList', 'sources', 'categories'];
 
 String _same(Object? value) => jsonEncode(value);
 
-/// One row per field, saying what each member had, what came out, and which
-/// member it came from.
+/// Shows each member's values, the merged values and their source members.
 ///
-/// A value that matches exactly one member came from that member. A value
-/// several members agree on is marked as agreed, since there is nothing to
-/// choose between them. A value matching none of them — a merged-together map,
-/// say — is marked as not known, because a guess here would defeat the point of
-/// the page.
+/// Exact matches identify one source or agreement between sources. Values
+/// matching no member have unknown provenance.
 Map<String, dynamic> fieldsForGroup({
   required Map<dynamic, dynamic> group,
   Map<dynamic, dynamic>? decision,
@@ -161,13 +148,9 @@ String _verdict(List<int> from) => switch (from.length) {
 
 // --- What changed between two merges ---
 
-/// The fields a comparison looks at. Anything not here is not worth waking
-/// somebody up over.
+/// Fields included in the merge diff.
 const List<ComparedField> _comparedFields = [
   ComparedField('name'),
-  // The four fields below hold a list or a map. They are picked apart entry by
-  // entry, because a mod with four links where one moved used to print all
-  // four twice and leave the reader to spot which.
   ComparedField('authorsList', itemsOf: listItems),
   ComparedField('summary'),
   ComparedField('description'),
@@ -180,10 +163,8 @@ const List<ComparedField> _comparedFields = [
 
 final RegExp _forumTopic = RegExp(r'topic=(\d+)');
 
-/// How two merges' mods are lined up: by forum topic when there is one, and
-/// otherwise by name and authors with everything but letters stripped out —
-/// the same flattening the merger itself matches on, so a version suffix in the
-/// name does not read as a different mod.
+/// Matches mods by forum topic, or by name and sorted authors with only
+/// lowercase letters retained.
 String modKey(Map<dynamic, dynamic> mod) {
   final forumUrl = ((mod['urls'] as Map?) ?? const {})['Forum'] as String?;
   final topic = forumUrl == null ? null : _forumTopic.firstMatch(forumUrl);
@@ -206,10 +187,7 @@ String _label(Map<dynamic, dynamic> mod) => (mod['name'] as String?) ?? '';
 String _authorLabel(Map<dynamic, dynamic> mod) =>
     ((mod['authorsList'] as List?) ?? const []).join(', ');
 
-/// Compares the mods two merges ended up with.
-///
-/// The comparing itself is shared with the bundle side; all this adds is how a
-/// mod is keyed, which fields matter, and what to call it on screen.
+/// Compares merge outputs using mod keys and the merge diff's field list.
 Map<String, dynamic> compareMerges({
   required List<dynamic> olderOutput,
   required List<dynamic> newerOutput,

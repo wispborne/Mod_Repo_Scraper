@@ -1,21 +1,13 @@
-// The table of what changed about one thing, shared by the three pages that
-// show one: the ModRepo diff, the Bundle diff, and one topic's history.
-//
-// The rule the whole thing is built on: show what moved and nothing else. Only
-// changed fields get a row, and a field holding a list or a map is picked apart
-// so only its changed entries are listed. Printing a mod's four links twice
-// because one of them gained an "s" is not a diff, it is homework.
+// Shared diff renderer for ModRepo changes, bundle changes and topic history.
+// Shows changed fields and, for lists and maps, only entries that changed.
 
 import { el } from '../lib.js';
 import { cellText } from './merge_shared.js';
 
-/// One row per changed field. A field whose entries were picked apart gets a
-/// small list of what was added, removed and changed instead of two blocks of
-/// JSON.
+/// One row per changed field, with entry-level changes for lists and maps.
 export function diffTable(changes) {
   const table = el('table', { class: 'diff-table' });
-  // "Older" and "Newer" would be two empty promises on an entry where every
-  // field is a list or a note, so the header says what the rows actually hold.
+  // Before/after headers apply only when a row displays both values.
   const sided = (changes || []).some((c) => !c.items && !c.note);
   table.append(el('thead', {}, el('tr', {}, sided
     ? [
@@ -101,9 +93,7 @@ function mark(change) {
   return { added: '+', removed: '−', changed: '~' }[change] || '·';
 }
 
-/// Like cellText, but tells "not there" apart from "there but empty" — a row
-/// where both sides read "—" would look like nothing changed — and reads
-/// booleans out as words.
+/// Formats booleans and distinguishes absent values from empty ones.
 export function diffText(value) {
   if (value == null) return '(not set)';
   if (Array.isArray(value) && !value.length) return '(empty list)';

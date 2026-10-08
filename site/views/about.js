@@ -24,10 +24,6 @@ export async function render(root) {
     root.append(el('div', {class: 'stack'}, [
         el('div', {class: 'page-head'}, [
             el('h1', {text: 'About Starmodder'}),
-            el('span', {
-                class: 'sub',
-                text: 'Answers to common questions about the site.',
-            }),
         ]),
 
     section('What this is', [
@@ -92,13 +88,13 @@ export async function render(root) {
             + 'details from the post instead of writing new ones.',
         ]),
 
-        section('How releases are worked out', [
+        section('How updates are detected', [
             'A new release means that a mod\'s version has increased. A reply to its '
             + 'forum thread does not count as a release.',
             'Version numbers can be hard to read reliably from a post, so the site '
-            + 'checks them before adding a release to the feed. It must see the '
-            + 'same new version in two updates. A confirmed version cannot move '
-            + 'backward. The site ignores a number that matches the Starsector '
+            + 'checks them before adding a release to the feed. The same new '
+            + 'version must appear in two consecutive checks. A confirmed version '
+            + 'cannot move backward. The site ignores a number that matches the Starsector '
             + 'version, since that is probably the game version rather than the '
             + 'mod version. If the thread title includes a version, the detected '
             + 'version must agree with it.',
@@ -110,7 +106,7 @@ export async function render(root) {
             el('a', {
                 class: 'btn',
                 href: 'updates.xml',
-                text: 'The release feed',
+                text: 'Feed',
             }),
             el('span', {text: ' '}),
             el('a', {

@@ -8,6 +8,199 @@
 
 part of 'post_extraction.dart';
 
+class SaveAnswerMapper extends EnumMapper<SaveAnswer> {
+  SaveAnswerMapper._();
+
+  static SaveAnswerMapper? _instance;
+  static SaveAnswerMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = SaveAnswerMapper._());
+    }
+    return _instance!;
+  }
+
+  static SaveAnswer fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  SaveAnswer decode(dynamic value) {
+    switch (value) {
+      case r'yes':
+        return SaveAnswer.yes;
+      case r'no':
+        return SaveAnswer.no;
+      case r'depends':
+        return SaveAnswer.depends;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(SaveAnswer self) {
+    switch (self) {
+      case SaveAnswer.yes:
+        return r'yes';
+      case SaveAnswer.no:
+        return r'no';
+      case SaveAnswer.depends:
+        return r'depends';
+    }
+  }
+}
+
+extension SaveAnswerMapperExtension on SaveAnswer {
+  String toValue() {
+    SaveAnswerMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<SaveAnswer>(this) as String;
+  }
+}
+
+class LlmUpdateNoteMapper extends ClassMapperBase<LlmUpdateNote> {
+  LlmUpdateNoteMapper._();
+
+  static LlmUpdateNoteMapper? _instance;
+  static LlmUpdateNoteMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = LlmUpdateNoteMapper._());
+      SaveAnswerMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'LlmUpdateNote';
+
+  static String? _$version(LlmUpdateNote v) => v.version;
+  static const Field<LlmUpdateNote, String> _f$version = Field(
+    'version',
+    _$version,
+    opt: true,
+  );
+  static String _$quote(LlmUpdateNote v) => v.quote;
+  static const Field<LlmUpdateNote, String> _f$quote = Field('quote', _$quote);
+  static SaveAnswer? _$answer(LlmUpdateNote v) => v.answer;
+  static const Field<LlmUpdateNote, SaveAnswer> _f$answer = Field(
+    'answer',
+    _$answer,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<LlmUpdateNote> fields = const {
+    #version: _f$version,
+    #quote: _f$quote,
+    #answer: _f$answer,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static LlmUpdateNote _instantiate(DecodingData data) {
+    return LlmUpdateNote(
+      version: data.dec(_f$version),
+      quote: data.dec(_f$quote),
+      answer: data.dec(_f$answer),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static LlmUpdateNote fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<LlmUpdateNote>(map);
+  }
+
+  static LlmUpdateNote fromJson(String json) {
+    return ensureInitialized().decodeJson<LlmUpdateNote>(json);
+  }
+}
+
+mixin LlmUpdateNoteMappable {
+  String toJson() {
+    return LlmUpdateNoteMapper.ensureInitialized().encodeJson<LlmUpdateNote>(
+      this as LlmUpdateNote,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return LlmUpdateNoteMapper.ensureInitialized().encodeMap<LlmUpdateNote>(
+      this as LlmUpdateNote,
+    );
+  }
+
+  LlmUpdateNoteCopyWith<LlmUpdateNote, LlmUpdateNote, LlmUpdateNote>
+  get copyWith => _LlmUpdateNoteCopyWithImpl<LlmUpdateNote, LlmUpdateNote>(
+    this as LlmUpdateNote,
+    $identity,
+    $identity,
+  );
+  @override
+  String toString() {
+    return LlmUpdateNoteMapper.ensureInitialized().stringifyValue(
+      this as LlmUpdateNote,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return LlmUpdateNoteMapper.ensureInitialized().equalsValue(
+      this as LlmUpdateNote,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return LlmUpdateNoteMapper.ensureInitialized().hashValue(
+      this as LlmUpdateNote,
+    );
+  }
+}
+
+extension LlmUpdateNoteValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, LlmUpdateNote, $Out> {
+  LlmUpdateNoteCopyWith<$R, LlmUpdateNote, $Out> get $asLlmUpdateNote =>
+      $base.as((v, t, t2) => _LlmUpdateNoteCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class LlmUpdateNoteCopyWith<$R, $In extends LlmUpdateNote, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? version, String? quote, SaveAnswer? answer});
+  LlmUpdateNoteCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _LlmUpdateNoteCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, LlmUpdateNote, $Out>
+    implements LlmUpdateNoteCopyWith<$R, LlmUpdateNote, $Out> {
+  _LlmUpdateNoteCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<LlmUpdateNote> $mapper =
+      LlmUpdateNoteMapper.ensureInitialized();
+  @override
+  $R call({Object? version = $none, String? quote, Object? answer = $none}) =>
+      $apply(
+        FieldCopyWithData({
+          if (version != $none) #version: version,
+          if (quote != null) #quote: quote,
+          if (answer != $none) #answer: answer,
+        }),
+      );
+  @override
+  LlmUpdateNote $make(CopyWithData data) => LlmUpdateNote(
+    version: data.get(#version, or: $value.version),
+    quote: data.get(#quote, or: $value.quote),
+    answer: data.get(#answer, or: $value.answer),
+  );
+
+  @override
+  LlmUpdateNoteCopyWith<$R2, LlmUpdateNote, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _LlmUpdateNoteCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class LlmChangelogMapper extends ClassMapperBase<LlmChangelog> {
   LlmChangelogMapper._();
 
@@ -419,6 +612,8 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
       MapperContainer.globals.use(_instance = LlmExtrasMapper._());
       LlmChangelogMapper.ensureInitialized();
       LlmSupportLinkMapper.ensureInitialized();
+      LlmUpdateNoteMapper.ensureInitialized();
+      SaveAnswerMapper.ensureInitialized();
       LlmModSummaryMapper.ensureInitialized();
     }
     return _instance!;
@@ -463,6 +658,30 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     _$saveCompatibility,
     opt: true,
   );
+  static List<LlmUpdateNote>? _$updateNotes(LlmExtras v) => v.updateNotes;
+  static const Field<LlmExtras, List<LlmUpdateNote>> _f$updateNotes = Field(
+    'updateNotes',
+    _$updateNotes,
+    opt: true,
+  );
+  static String? _$removalCompatibility(LlmExtras v) => v.removalCompatibility;
+  static const Field<LlmExtras, String> _f$removalCompatibility = Field(
+    'removalCompatibility',
+    _$removalCompatibility,
+    opt: true,
+  );
+  static SaveAnswer? _$canAdd(LlmExtras v) => v.canAdd;
+  static const Field<LlmExtras, SaveAnswer> _f$canAdd = Field(
+    'canAdd',
+    _$canAdd,
+    opt: true,
+  );
+  static SaveAnswer? _$canRemove(LlmExtras v) => v.canRemove;
+  static const Field<LlmExtras, SaveAnswer> _f$canRemove = Field(
+    'canRemove',
+    _$canRemove,
+    opt: true,
+  );
   static LlmModSummary? _$summary(LlmExtras v) => v.summary;
   static const Field<LlmExtras, LlmModSummary> _f$summary = Field(
     'summary',
@@ -484,6 +703,10 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     #license: _f$license,
     #sourceCode: _f$sourceCode,
     #saveCompatibility: _f$saveCompatibility,
+    #updateNotes: _f$updateNotes,
+    #removalCompatibility: _f$removalCompatibility,
+    #canAdd: _f$canAdd,
+    #canRemove: _f$canRemove,
     #summary: _f$summary,
     #needs: _f$needs,
   };
@@ -498,6 +721,10 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
       license: data.dec(_f$license),
       sourceCode: data.dec(_f$sourceCode),
       saveCompatibility: data.dec(_f$saveCompatibility),
+      updateNotes: data.dec(_f$updateNotes),
+      removalCompatibility: data.dec(_f$removalCompatibility),
+      canAdd: data.dec(_f$canAdd),
+      canRemove: data.dec(_f$canRemove),
       summary: data.dec(_f$summary),
       needs: data.dec(_f$needs),
     );
@@ -569,6 +796,12 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
     LlmSupportLinkCopyWith<$R, LlmSupportLink, LlmSupportLink>
   >?
   get supportLinks;
+  ListCopyWith<
+    $R,
+    LlmUpdateNote,
+    LlmUpdateNoteCopyWith<$R, LlmUpdateNote, LlmUpdateNote>
+  >?
+  get updateNotes;
   LlmModSummaryCopyWith<$R, LlmModSummary, LlmModSummary>? get summary;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get needs;
   $R call({
@@ -578,6 +811,10 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
     String? license,
     String? sourceCode,
     String? saveCompatibility,
+    List<LlmUpdateNote>? updateNotes,
+    String? removalCompatibility,
+    SaveAnswer? canAdd,
+    SaveAnswer? canRemove,
     LlmModSummary? summary,
     List<String>? needs,
   });
@@ -609,6 +846,19 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
         )
       : null;
   @override
+  ListCopyWith<
+    $R,
+    LlmUpdateNote,
+    LlmUpdateNoteCopyWith<$R, LlmUpdateNote, LlmUpdateNote>
+  >?
+  get updateNotes => $value.updateNotes != null
+      ? ListCopyWith(
+          $value.updateNotes!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(updateNotes: v),
+        )
+      : null;
+  @override
   LlmModSummaryCopyWith<$R, LlmModSummary, LlmModSummary>? get summary =>
       $value.summary?.copyWith.$chain((v) => call(summary: v));
   @override
@@ -628,6 +878,10 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     Object? license = $none,
     Object? sourceCode = $none,
     Object? saveCompatibility = $none,
+    Object? updateNotes = $none,
+    Object? removalCompatibility = $none,
+    Object? canAdd = $none,
+    Object? canRemove = $none,
     Object? summary = $none,
     Object? needs = $none,
   }) => $apply(
@@ -638,6 +892,11 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
       if (license != $none) #license: license,
       if (sourceCode != $none) #sourceCode: sourceCode,
       if (saveCompatibility != $none) #saveCompatibility: saveCompatibility,
+      if (updateNotes != $none) #updateNotes: updateNotes,
+      if (removalCompatibility != $none)
+        #removalCompatibility: removalCompatibility,
+      if (canAdd != $none) #canAdd: canAdd,
+      if (canRemove != $none) #canRemove: canRemove,
       if (summary != $none) #summary: summary,
       if (needs != $none) #needs: needs,
     }),
@@ -653,6 +912,13 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
       #saveCompatibility,
       or: $value.saveCompatibility,
     ),
+    updateNotes: data.get(#updateNotes, or: $value.updateNotes),
+    removalCompatibility: data.get(
+      #removalCompatibility,
+      or: $value.removalCompatibility,
+    ),
+    canAdd: data.get(#canAdd, or: $value.canAdd),
+    canRemove: data.get(#canRemove, or: $value.canRemove),
     summary: data.get(#summary, or: $value.summary),
     needs: data.get(#needs, or: $value.needs),
   );

@@ -157,7 +157,13 @@ each `index` item: `llm`.
       "version": "...", "changelog": {...}, "supportLinks": [...],
       "license": "...",
       "sourceCode": "https://github.com/someone/theirmod",  // where the code is kept, or absent
-      "saveCompatibility": "Save compatible",  // the post's own words, or absent
+      "saveCompatibility": "Save compatible",  // adding it to a running game: the post's own words, or absent
+      "removalCompatibility": "Cannot be removed from a save",  // taking it out of a running game, or absent
+      "canAdd": "yes", "canRemove": "no",  // yes | no | depends, each only beside its words
+      "updateNotes": [  // updating from an older version: one note per release the post mentions, or absent
+        { "version": "v1.0.1", "quote": "It is save-compatible.", "answer": "yes" },
+        { "quote": "Not save compatible with versions prior to 2.0.0", "answer": "depends" }  // no version: about the mod as it is now
+      ],
       "summary": {...}
     } ] }
   } ]
@@ -165,7 +171,9 @@ each `index` item: `llm`.
 
   Each mod carries its own `downloads` and its own extras (mod version, changelog,
   support links like Patreon/Ko-fi, license, a link to where the code is kept,
-  whether it can be added to an existing save, and a short written summary). Each
+  what the post says about adding it to a save, updating it and removing it
+  (three separate answers, since a mod can be safe to add and still break saves
+  when updated), and a short written summary). Each
   download is filled out the same way the rules do it, so it has a
   direct URL, file name, and manual-step flag and can be used on its own.
   A single-mod thread is just a one-item `mods` list.

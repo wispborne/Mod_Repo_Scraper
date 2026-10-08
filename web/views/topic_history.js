@@ -1,14 +1,6 @@
-// One topic's history: every run whose saved bundle changed it, newest first.
-// Reached from the thread page, at #/topics/<id>/history and #/bundle/<id>/history.
-//
-// It reads like a log of commits, because that is what it is: a run that
-// published a bundle either changed this topic or left it alone, and only the
-// ones that changed it are here. Runs that left it alone are not listed — on
-// real data that is most of them.
-//
-// History only goes back as far as the saved bundles the server still keeps, so
-// the foot of the log says where it starts. A topic that never changed says so,
-// naming how many bundles were checked, rather than showing an empty page.
+// Saved bundle changes for one topic, newest first, under topics/ or bundle/.
+// History is limited by retained snapshots; empty histories explain whether
+// the topic was never published or simply has no recorded changes.
 
 import {
   api, el, clear, missingPanel, MissingFile, breadcrumbs, rawJson, loading,
@@ -67,8 +59,7 @@ export async function render(root, topicId, { parent } = {}) {
 
   const log = el('div', { class: 'log' });
 
-  // What is on disk but not published yet leads the log, the way a git viewer
-  // puts uncommitted changes above the commits.
+  // Unpublished working data appears before saved history.
   const lead = await unpublishedEntry(topicId, working);
   if (lead) log.append(lead);
 
@@ -108,15 +99,12 @@ function summaryLine(topicId, changed, history) {
   return `Topic ${topicId} — changed in ${changed} of ${bundles}.`;
 }
 
-/// What to say when the log has nothing in it. "Nothing changed" and "this
-/// thread was never in a bundle" are different answers, and reading the second
-/// as the first would send somebody hunting for a change that never happened.
+/// Distinguishes never-published topics from published but unchanged topics.
 function nothingChangedLine(history) {
   const from = when(history.oldestSavedAt);
   if (!history.everInBundle) {
-    return 'This thread is not in any of the saved bundles, so there is nothing '
-      + 'to compare. Scrape it and rebuild the bundle, and its history starts '
-      + 'from there.';
+    return 'This thread is not in any saved bundle. Scrape it and rebuild '
+      + 'the bundle to start recording its history.';
   }
   return from
     ? 'Nothing has changed about this thread in any of the saved bundles, '
@@ -124,9 +112,7 @@ function nothingChangedLine(history) {
     : 'Nothing has changed about this thread in any of the saved bundles.';
 }
 
-/// The cap at the foot of the rail. Only the newest runs keep a bundle
-/// snapshot, so this is where the trail genuinely stops — saying so is better
-/// than letting it look as though nothing happened before then.
+/// Marks the oldest retained snapshot as the history boundary.
 function historyEndsHere(history) {
   const total = history.snapshotsTotal || 0;
   const read = history.snapshotsRead || 0;
@@ -134,8 +120,8 @@ function historyEndsHere(history) {
 
   const lines = [
     from
-      ? `Older runs are not kept. History starts ${from}.`
-      : 'Older runs are not kept.',
+      ? `History starts ${from}. Earlier bundle snapshots are unavailable.`
+      : 'Earlier bundle snapshots are unavailable.',
   ];
   if (read < total) {
     lines.push(`${total - read} of the ${total} saved bundles could not be read `
@@ -221,8 +207,7 @@ function logEntry(entry, threadHref) {
   ]));
 
   const body = el('div', { class: 'change-body' });
-  // Imported snapshots have no run behind them, so there is nothing to open —
-  // they came from the published repo's git history, not from a run here.
+  // Imported git snapshots have no local run record to link to.
   if (isImported(entry.runId)) {
     body.append(el('p', {
       class: 'change-note',

@@ -25,6 +25,7 @@ import 'models/mod_release.dart';
 import 'models/public_mod.dart';
 import 'mod_page_html.dart';
 import 'models/public_mod_detail.dart';
+import 'update_note.dart';
 import 'post_html.dart';
 import 'public_categories.dart';
 import 'release_feed_xml.dart';
@@ -268,7 +269,7 @@ class PublicDataBuilder {
       modsByName.putIfAbsent(ModIdStore.cleanName(entry.mod.name), () => entry);
     }
 
-    final releasesByMod = _releasesByMod(threadReleases, joined);
+    final releasesByMod = _releasesByMod(threadReleases, joined, threads);
     final feed = _feedOrder(releasesByMod);
 
     final listRecords = <PublicMod>[];
@@ -565,9 +566,14 @@ class PublicDataBuilder {
   /// Each mod's releases, newest first, joined from the detector's list on the
   /// forum topic id. A release for a thread with no merged mod behind it is left
   /// out — there is no page for it to point at.
+  ///
+  /// Each release also carries what the post says about updating to it, where
+  /// the post has a note for that version — or, for the version the mod is on
+  /// now, a note tied to no release. See [updateNoteFor].
   Map<String, List<ModRelease>> _releasesByMod(
     List<ThreadRelease> threadReleases,
     List<_JoinedMod> joined,
+    Map<String, QbModSummary> threads,
   ) {
     // A thread's releases belong to the one mod that thread is about. Where it
     // is about several, they belong to none of them: the detector believes one
@@ -596,6 +602,14 @@ class PublicDataBuilder {
     for (final release in threadReleases) {
       final owner = modsByTopic['${release.topicId}'];
       if (owner == null) continue;
+      final extras =
+          _mainLlmMod(owner.mod, threads['${release.topicId}'])?.extras;
+      final currentVersion = _firstNonEmpty([extras?.version, owner.mod.modVersion]);
+      final note = updateNoteFor(
+        extras?.updateNotes,
+        version: release.newVersion,
+        isCurrent: sameVersion(release.newVersion, currentVersion),
+      );
       byMod.putIfAbsent(owner.id, () => []).add(ModRelease(
             modId: owner.id,
             modName: displayName(owner.mod.name),
@@ -604,6 +618,8 @@ class PublicDataBuilder {
             newVersion: release.newVersion,
             gameVersion: release.gameVersion,
             changelogNotes: release.changelogNotes,
+            updateCompatibilityText: note?.quote,
+            canUpdate: note?.answer,
           ));
     }
 
@@ -737,7 +753,7 @@ class PublicDataBuilder {
       summary: copiedSummary ?? generatedSummary,
       summaryIsGenerated: copiedSummary == null && generatedSummary != null,
       aiSummary: generatedSummary,
-      saveCompatible: readSaveCompatibility(extras?.saveCompatibility),
+      saveCompatible: _canAddToSave(extras),
       hasDirectDownload: downloads.any((d) => d.directUrl != null),
       bestDownload: _bestDownloadFor(downloads),
       downloadCount: downloads.length,
@@ -889,6 +905,14 @@ class PublicDataBuilder {
       descriptionIsGenerated: isGenerated,
       aiDescription: generatedDescription,
       saveCompatibilityText: _firstNonEmpty([extras?.saveCompatibility]),
+      // Only the note that speaks for the version this page is about. A note
+      // about an older release stays in the bundle and off the page.
+      updateCompatibilityText: updateNoteFor(
+        extras?.updateNotes,
+        version: listing.modVersion,
+        isCurrent: true,
+      )?.quote,
+      removalCompatibilityText: _firstNonEmpty([extras?.removalCompatibility]),
       rawCategories: _shelvesFor(mod),
       gallery: _galleryFor(mod, detail, post.pictureSizes),
       downloads: _downloadsFor(mod, chosen, threadDownloads),
@@ -1258,12 +1282,40 @@ class PublicDataBuilder {
     return url;
   }
 
-  /// Reads the author's own words about save compatibility into a yes, a no, or
-  /// a "nobody said". The words are kept as well, on the mod's own page — this
-  /// is only so the browse page can filter on it.
+  /// Whether the mod can be added to a running game, for the badge and the
+  /// browse filter. The LLM's short answer decides it where there is one; a
+  /// "depends" gives no badge, since the badge cannot carry the condition and
+  /// the words are on the mod's page. Answers read before the short answer
+  /// existed fall back to reading the words.
+  static bool? _canAddToSave(LlmExtras? extras) => switch (extras?.canAdd) {
+        SaveAnswer.yes => true,
+        SaveAnswer.no => false,
+        SaveAnswer.depends => null,
+        null => readSaveCompatibility(extras?.saveCompatibility),
+      };
+
+  /// Reads the author's own words about adding the mod to a running game into
+  /// a yes, a no, or a "nobody said". The words are kept as well, on the mod's
+  /// own page — this is only so the browse page can filter on it.
+  ///
+  /// Words that talk about updating or about older versions give "nobody
+  /// said". The LLM is asked to keep those in `updateNotes`, but
+  /// answers read before that split, and the odd slip since, still carry them
+  /// here. "This update is not save compatible" says nothing about adding the
+  /// mod, and reading it as "needs a new game" would be wrong.
   static bool? readSaveCompatibility(String? text) {
     final words = text?.toLowerCase().trim();
     if (words == null || words.isEmpty) return null;
+
+    const aboutUpdating = [
+      'update',
+      'upgrad',
+      'version',
+      'previous',
+      'older',
+      'prior to',
+    ];
+    if (aboutUpdating.any(words.contains)) return null;
 
     const saysNo = [
       'not save',

@@ -12,7 +12,7 @@ import '../manager/merge_snapshot_store.dart';
 import 'working_bundle.dart';
 
 /// One file the raw-file/log endpoints are allowed to serve, addressed by a
-/// short [id] and never by a path the client supplies (D7). [hint] tells the
+/// short [id] and never by a path the client supplies. [hint] tells the
 /// user what run produces the file when it is missing on disk.
 class AllowlistEntry {
   final String id;
@@ -23,7 +23,7 @@ class AllowlistEntry {
 }
 
 /// Caches a single parsed file in memory, re-reading only when the file's
-/// last-modified time changes (D4). Returns null when the file is absent.
+/// last-modified time changes. Returns null when the file is absent.
 class _MtimeCache<T> {
   final File file;
   final T Function(String contents) parse;
@@ -48,9 +48,8 @@ class _MtimeCache<T> {
   }
 }
 
-/// Reads the scraper's output files fresh (mtime-cached per D4) and exposes them
-/// as typed values the API handlers join and filter. Never writes anything, and
-/// never opens `config.properties`.
+/// Read-only access to scraper outputs, cached by file modification time.
+/// Does not open `config.properties`.
 class DataAccess {
   final String dataDir;
   final String outputsDir;
@@ -109,16 +108,16 @@ class DataAccess {
     },
   );
 
-  late final _MtimeCache<Map<String, dynamic>> _modRepoCache = _MtimeCache(
-      _modRepoFile, (s) => jsonDecode(s) as Map<String, dynamic>);
-  late final _MtimeCache<Map<String, dynamic>> _bundleCache = _MtimeCache(
-      _bundleFile, (s) => jsonDecode(s) as Map<String, dynamic>);
+  late final _MtimeCache<Map<String, dynamic>> _modRepoCache =
+      _MtimeCache(_modRepoFile, (s) => jsonDecode(s) as Map<String, dynamic>);
+  late final _MtimeCache<Map<String, dynamic>> _bundleCache =
+      _MtimeCache(_bundleFile, (s) => jsonDecode(s) as Map<String, dynamic>);
   late final _MtimeCache<Map<String, dynamic>> _mergeDebugCache = _MtimeCache(
       _mergeDebugFile, (s) => jsonDecode(s) as Map<String, dynamic>);
-  late final _MtimeCache<Map<String, dynamic>> _llmTestCache = _MtimeCache(
-      _llmTestFile, (s) => jsonDecode(s) as Map<String, dynamic>);
+  late final _MtimeCache<Map<String, dynamic>> _llmTestCache =
+      _MtimeCache(_llmTestFile, (s) => jsonDecode(s) as Map<String, dynamic>);
 
-  // Placeholder-detail scan (D4), rebuilt when mods/ or the index changes.
+  // Invalidate the placeholder scan when mods/ or the index changes.
   DateTime? _placeholderModsMtime;
   DateTime? _placeholderIndexMtime;
   Set<int>? _placeholderIds;
@@ -129,7 +128,7 @@ class DataAccess {
     required this.rootDir,
   });
 
-  /// The fixed allowlist of files the raw-file and log endpoints may serve (D7).
+  /// The fixed allowlist for raw-file and log endpoints.
   late final List<AllowlistEntry> allowlist = [
     AllowlistEntry('mods-index', _indexFile, 'Run the QB scraper.'),
     AllowlistEntry('llm-extraction-cache', _llmCacheFile,
@@ -159,7 +158,8 @@ class DataAccess {
 
   Map<int, LlmStoreEntry>? get llmCache => _llmCache.get();
 
-  Map<int, List<DownloadCandidate>>? get assumedDownloads => _assumedCache.get();
+  Map<int, List<DownloadCandidate>>? get assumedDownloads =>
+      _assumedCache.get();
 
   Map<String, dynamic>? get modRepo => _modRepoCache.get();
 
@@ -175,16 +175,12 @@ class DataAccess {
 
   late final MergeSnapshotStore mergeSnapshots = MergeSnapshotStore(dataDir);
 
-  /// The last couple of snapshots read — merges and bundles alike — so paging
-  /// through one or comparing two doesn't unzip megabytes again on every
-  /// request. Snapshots never change once written, so there is nothing to
-  /// invalidate.
+  /// Retains two immutable snapshots to avoid repeated decompression while
+  /// paging or comparing. Merges and bundles share this cache.
   final Map<String, Map<String, dynamic>> _snapshotCache = {};
   final List<String> _snapshotOrder = [];
 
-  /// Which snapshots are being held, oldest use first. Read only, and only so a
-  /// test can check that walking every snapshot for a topic's history does not
-  /// push out the pair a comparison is working with.
+  /// Cached snapshot keys, oldest insertion first. Exposed for cache tests.
   List<String> get heldSnapshots => List.unmodifiable(_snapshotOrder);
 
   /// Every saved merge, newest first.
@@ -208,28 +204,20 @@ class DataAccess {
   Map<String, dynamic>? bundleRun(String id) =>
       _held('bundle:$id', () => bundleSnapshots.readRaw(id));
 
-  /// The bundle as it would be published right now, from the working data on
-  /// disk. Null when there is no mods index to build one from.
-  ///
-  /// This is the newer side of "what has this run changed so far", and the only
-  /// thing here that is not read back from a file — see [WorkingBundle].
+  /// Builds a snapshot-shaped comparison of working data. Null without a mods
+  /// index. See [WorkingBundle] for publication restrictions.
   Map<String, dynamic>? workingBundle() => _workingBundle.bundle;
 
-  /// When any of the working data was last written to disk. Only meaningful
-  /// once [workingBundle] has been asked for, which is what looks.
+  /// Newest working file write time, populated by [workingBundle].
   DateTime? get workingLastWrittenAt => _workingBundle.lastWrittenAt;
 
   late final WorkingBundle _workingBundle = WorkingBundle(this);
 
-  /// One saved bundle, read straight from disk and not held.
-  ///
-  /// Working out a topic's history reads every snapshot in turn. Putting them
-  /// all through the small holding pen below would push out the pair the
-  /// compare page is working with and gain nothing, since each is wanted once.
+  /// Bypasses the two-snapshot cache so a history scan does not evict the pair
+  /// used by the comparison page.
   Map<String, dynamic>? bundleRunUncached(String id) =>
       bundleSnapshots.readRaw(id);
 
-  /// Reads a snapshot through the small holding pen above.
   Map<String, dynamic>? _held(
       String key, Map<String, dynamic>? Function() read) {
     final already = _snapshotCache[key];
@@ -246,7 +234,7 @@ class DataAccess {
     return fresh;
   }
 
-  /// Reads one topic's detail on demand, uncached (D4).
+  /// Reads one topic's detail without caching.
   QbModDetail? loadDetail(int topicId) {
     final file =
         File(p.join(dataDir, 'mods', topicId.toString(), 'detail.json'));
@@ -255,7 +243,7 @@ class DataAccess {
         jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
   }
 
-  /// Set of topic ids whose detail.json is a placeholder (D4). Rebuilt only when
+  /// Topic ids whose detail.json is a placeholder. Rebuilt only when
   /// the mods/ directory mtime or the index mtime changes.
   Set<int> placeholderDetailIds() {
     final modsMtime =

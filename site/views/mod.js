@@ -120,8 +120,8 @@ function modHeader(mod, detail, shownName, currentVersion) {
     }));
   } else if (mod.saveCompatible === false) {
     meta.append(el('span', {
-      class: 'badge save-no', text: 'Needs a new game',
-      title: 'The author says this needs a new game.',
+      class: 'badge save-no', text: 'New game required',
+      title: 'The author says this requires a new game.',
     }));
   }
 
@@ -273,7 +273,7 @@ function supportLinks(detail) {
 /// Nexerelin, and finding that out after the download — from a crash on
 /// startup — is the oldest annoyance in Starsector modding.
 function needsLine(mod) {
-  return neededModsLine('Needs', mod.needs);
+  return neededModsLine('Requires', mod.needs);
 }
 
 function downloads(detail) {
@@ -539,7 +539,7 @@ function addonBox(list, heading, note) {
     box.append(el('div', {}, [
       el('h3', { text: addon.name }),
       addon.requires
-        ? el('div', { class: 'card-authors', text: `Needs ${addon.requires}` })
+        ? el('div', { class: 'card-authors', text: `Requires ${addon.requires}` })
         : null,
       el('div', { class: 'download-list' }, (addon.downloads || []).map(downloadRow)),
     ]));
@@ -566,9 +566,26 @@ function facts(detail) {
   link('Discord', detail.discordUrl, 'On Discord');
   link('Source code', detail.sourceCodeUrl);
   if (detail.license) rows.push(['License', el('span', { text: detail.license })]);
-  if (detail.saveCompatibilityText) {
-    rows.push(['Save compatibility',
-      el('span', { text: detail.saveCompatibilityText })]);
+  // Three different questions, each in the author's own words. A mod can be
+  // safe to add and still break a save when it is updated. The model is asked
+  // to split a sentence that answers two of them, but where it copied the same
+  // words into two fields anyway, they are shown once under both names rather
+  // than twice.
+  const saveAnswers = [
+    ['Adding', 'Adding to a save', detail.saveCompatibilityText],
+    ['Updating', 'Updating', detail.updateCompatibilityText],
+    ['Removing', 'Removing from a save', detail.removalCompatibilityText],
+  ].filter(([, , words]) => words);
+  const byWords = new Map();
+  for (const [short, long, words] of saveAnswers) {
+    if (!byWords.has(words)) byWords.set(words, []);
+    byWords.get(words).push({ short, long });
+  }
+  for (const [words, names] of byWords) {
+    const label = names.length === 1
+      ? names[0].long
+      : joinNames(names.map((n, i) => (i ? n.short.toLowerCase() : n.short)));
+    rows.push([label, el('span', { text: words })]);
   }
   const listing = detail.listing || {};
   if ((listing.categories || []).length) {
