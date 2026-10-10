@@ -688,6 +688,7 @@ void main() {
                     answer: SaveAnswer.no),
               ],
               removalCompatibility: 'Cannot be removed.',
+              canRemove: SaveAnswer.no,
               changelog: LlmChangelog(entries: {'0.12.2': 'Fixed a crash.'}),
             ),
           ),
@@ -711,6 +712,10 @@ void main() {
     // stays off the page.
     expect(detail.updateCompatibilityText, 'Not save compatible with 0.11.');
     expect(detail.removalCompatibilityText, 'Cannot be removed.');
+    // No short answer on adding was read, so it comes from the words.
+    expect(detail.canAdd, SaveAnswer.no);
+    expect(detail.canUpdate, SaveAnswer.no);
+    expect(detail.canRemove, SaveAnswer.no);
     expect(detail.downloads.single.fileName, 'z.zip');
   });
 

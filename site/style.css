@@ -701,6 +701,7 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 .badge.wip { color: var(--warning); border-color: var(--edge-warning); }
 .badge.save-ok { color: var(--success); border-color: var(--edge-success); }
 .badge.save-no { color: var(--warning); border-color: var(--edge-warning); }
+.badge.save-unknown { opacity: 0.75; }
 .badge.discord { color: var(--secondary); border-color: var(--edge-secondary); }
 
 .pager {
@@ -906,6 +907,26 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   letter-spacing: 0.05em; text-transform: uppercase;
 }
 .needs-list { min-width: 0; overflow-wrap: anywhere; }
+/* Whether a mod can be added to or removed from a game in progress, under
+   the Requires line: a question, a short answer and the author's words per
+   row, lined up in columns. */
+.save-box {
+  display: grid; gap: 6px; font-size: var(--type-small);
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+}
+.save-box > .needs-label { color: var(--text-dim); }
+.save-lines {
+  display: grid; grid-template-columns: max-content max-content minmax(0, 1fr);
+  gap: 4px 8px; align-items: baseline;
+}
+.save-question { font-weight: 600; }
+.save-words { min-width: 0; overflow-wrap: anywhere; font-style: italic; }
+.save-words::before { content: '\201C'; }
+.save-words::after { content: '\201D'; }
+@media (max-width: 640px) {
+  .save-lines { grid-template-columns: max-content minmax(0, 1fr); }
+  .save-words { grid-column: 1 / -1; }
+}
 .needed.unknown { color: var(--text-dim); }
 .checked-on { color: var(--text-dim); font-size: var(--type-tiny); margin: 4px 0 0; }
 .feed-note { color: var(--text-dim); font-size: var(--type-small); margin: 0; }

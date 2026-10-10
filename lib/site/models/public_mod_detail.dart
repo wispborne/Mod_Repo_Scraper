@@ -1,5 +1,6 @@
 import 'package:dart_mappable/dart_mappable.dart';
 
+import '../../bot/scraper/qb/models/post_extraction.dart';
 import 'mod_release.dart';
 import 'public_mod.dart';
 
@@ -52,6 +53,17 @@ class PublicModDetail with PublicModDetailMappable {
   /// The author's own words on whether the mod can be taken out of a game in
   /// progress. Null when the post does not say.
   final String? removalCompatibilityText;
+
+  /// Yes, no or depends on adding the mod to a game in progress, read off
+  /// [saveCompatibilityText]. Null when there are no words, or when the words
+  /// give no plain answer.
+  final SaveAnswer? canAdd;
+
+  /// Yes, no or depends on updating, read off [updateCompatibilityText].
+  final SaveAnswer? canUpdate;
+
+  /// Yes, no or depends on removing, read off [removalCompatibilityText].
+  final SaveAnswer? canRemove;
 
   /// The shelves the forum's index and Discord's tags file this mod under. The
   /// list page shows the site's own short set instead; these are here so the
@@ -133,6 +145,9 @@ class PublicModDetail with PublicModDetailMappable {
     this.saveCompatibilityText,
     this.updateCompatibilityText,
     this.removalCompatibilityText,
+    this.canAdd,
+    this.canUpdate,
+    this.canRemove,
     this.rawCategories = const [],
     this.gallery = const [],
     this.downloads = const [],

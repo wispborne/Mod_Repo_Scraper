@@ -79,6 +79,7 @@ export async function render(root, parts) {
   root.append(el('div', { class: 'stack' }, [
     modHeader(mod, detail, shownName, currentVersion),
     needsLine(mod),
+    saves(detail),
     sameNameMods(detail),
     description(detail),
     aiSummary(detail),
@@ -104,6 +105,18 @@ function modHeader(mod, detail, shownName, currentVersion) {
     meta.append(el('span', {
       class: 'badge version', text: mod.modVersion, title: MOD_VERSION_NOTE,
     }));
+    // Beside the version, because an update note is about one release.
+    const updating = {
+      yes: ['save-ok', 'Keeps saves from earlier versions'],
+      no: ['save-no', 'Breaks saves from earlier versions'],
+      depends: ['', 'Earlier saves: it depends'],
+    }[detail.canUpdate];
+    if (updating && detail.updateCompatibilityText) {
+      meta.append(el('span', {
+        class: `badge ${updating[0]}`, text: updating[1],
+        title: `The author says: ${detail.updateCompatibilityText}`,
+      }));
+    }
   }
   if (mod.gameVersion) {
     meta.append(el('span', {
@@ -122,6 +135,13 @@ function modHeader(mod, detail, shownName, currentVersion) {
     meta.append(el('span', {
       class: 'badge save-no', text: 'New game required',
       title: 'The author says this requires a new game.',
+    }));
+  }
+  // Only a "no" on removing earns a badge: it is the one that costs a save.
+  if (detail.canRemove === 'no' && detail.removalCompatibilityText) {
+    meta.append(el('span', {
+      class: 'badge save-no', text: "Can't be removed later",
+      title: `The author says: ${detail.removalCompatibilityText}`,
     }));
   }
 
@@ -551,6 +571,65 @@ function addonBox(list, heading, note) {
   ]);
 }
 
+/// The chip for each short answer on saves. "Depends" and "Unknown" get no
+/// colour.
+const SAVE_ANSWERS = {
+  yes: ['save-ok', 'Yes'],
+  no: ['save-no', 'No'],
+  depends: ['', 'Depends'],
+  unknown: ['save-unknown', 'Unknown'],
+};
+
+/// Whether the mod can go into a game in progress, and come out of one: a
+/// question, a short answer and the author's words, one row each. Both rows
+/// are shown once the author has said anything, so a question they never
+/// answered reads as "Unknown" rather than vanishing. Updating is left to the
+/// badge beside the version, because an update note belongs to one release.
+function saves(detail) {
+  const questions = [
+    ['Add mid-game?', detail.saveCompatibilityText, detail.canAdd],
+    ['Remove from game?', detail.removalCompatibilityText, detail.canRemove],
+  ];
+  if (!questions.some(([, words]) => words)) return null;
+
+  const authors = joinNames((detail.listing || {}).authors || []);
+  const quoted = new Set();
+  const rows = el('div', { class: 'save-lines' });
+  for (const [question, words, answer] of questions) {
+    const shown = words ? answer : 'unknown';
+    const chip = SAVE_ANSWERS[shown];
+    // Where the model copied the same words into both fields, they are quoted
+    // on the first row only.
+    const quote = words && !quoted.has(words)
+      ? el('q', {
+          class: 'save-words',
+          text: chip ? withoutLeadingAnswer(words, shown) : words,
+          title: authors ? `${authors}, in the mod's forum thread` : null,
+        })
+      : el('span');
+    if (words) quoted.add(words);
+    rows.append(
+      el('span', { class: 'save-question', text: question }),
+      chip ? el('span', { class: `badge ${chip[0]}`.trim(), text: chip[1] }) : el('span'),
+      quote,
+    );
+  }
+
+  return el('div', { class: 'save-box' }, [
+    el('span', { class: 'needs-label', text: 'Save compatibility' }),
+    rows,
+  ]);
+}
+
+/// The author's words with a leading "Yes." or "No." taken off when the chip
+/// beside them already says it, so the answer is not read twice.
+function withoutLeadingAnswer(words, answer) {
+  if (answer !== 'yes' && answer !== 'no') return words;
+  const rest = words.replace(new RegExp(`^${answer}\\b[\\s.,!:;\u2014-]*`, 'i'), '');
+  if (!rest || rest === words) return words;
+  return rest[0].toUpperCase() + rest.slice(1);
+}
+
 /// The links out and the license. The whole box is left out when the mod has
 /// none of them. Support links sit near the main actions instead.
 function facts(detail) {
@@ -566,27 +645,6 @@ function facts(detail) {
   link('Discord', detail.discordUrl, 'On Discord');
   link('Source code', detail.sourceCodeUrl);
   if (detail.license) rows.push(['License', el('span', { text: detail.license })]);
-  // Three different questions, each in the author's own words. A mod can be
-  // safe to add and still break a save when it is updated. The model is asked
-  // to split a sentence that answers two of them, but where it copied the same
-  // words into two fields anyway, they are shown once under both names rather
-  // than twice.
-  const saveAnswers = [
-    ['Adding', 'Adding to a save', detail.saveCompatibilityText],
-    ['Updating', 'Updating', detail.updateCompatibilityText],
-    ['Removing', 'Removing from a save', detail.removalCompatibilityText],
-  ].filter(([, , words]) => words);
-  const byWords = new Map();
-  for (const [short, long, words] of saveAnswers) {
-    if (!byWords.has(words)) byWords.set(words, []);
-    byWords.get(words).push({ short, long });
-  }
-  for (const [words, names] of byWords) {
-    const label = names.length === 1
-      ? names[0].long
-      : joinNames(names.map((n, i) => (i ? n.short.toLowerCase() : n.short)));
-    rows.push([label, el('span', { text: words })]);
-  }
   const listing = detail.listing || {};
   if ((listing.categories || []).length) {
     rows.push(['Category', el('span', { text: joinNames(listing.categories) })]);

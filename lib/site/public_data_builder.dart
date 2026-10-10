@@ -895,6 +895,14 @@ class PublicDataBuilder {
     final isGenerated =
         copiedDescription == null && generatedDescription != null;
 
+    final addingWords = _firstNonEmpty([extras?.saveCompatibility]);
+    final removingWords = _firstNonEmpty([extras?.removalCompatibility]);
+    final updateNote = updateNoteFor(
+      extras?.updateNotes,
+      version: listing.modVersion,
+      isCurrent: true,
+    );
+
     return PublicModDetail(
       generatedAt: builtAt,
       listing: listing,
@@ -904,15 +912,16 @@ class PublicDataBuilder {
           plainTextAsHtml(copiedDescription ?? generatedDescription),
       descriptionIsGenerated: isGenerated,
       aiDescription: generatedDescription,
-      saveCompatibilityText: _firstNonEmpty([extras?.saveCompatibility]),
+      saveCompatibilityText: addingWords,
       // Only the note that speaks for the version this page is about. A note
       // about an older release stays in the bundle and off the page.
-      updateCompatibilityText: updateNoteFor(
-        extras?.updateNotes,
-        version: listing.modVersion,
-        isCurrent: true,
-      )?.quote,
-      removalCompatibilityText: _firstNonEmpty([extras?.removalCompatibility]),
+      updateCompatibilityText: updateNote?.quote,
+      removalCompatibilityText: removingWords,
+      // Each short answer only rides with its words, so the page never shows a
+      // yes or no it cannot back up with what the author said.
+      canAdd: addingWords == null ? null : _addAnswer(extras),
+      canUpdate: updateNote?.answer,
+      canRemove: removingWords == null ? null : extras?.canRemove,
       rawCategories: _shelvesFor(mod),
       gallery: _galleryFor(mod, detail, post.pictureSizes),
       downloads: _downloadsFor(mod, chosen, threadDownloads),
@@ -1292,6 +1301,16 @@ class PublicDataBuilder {
         SaveAnswer.no => false,
         SaveAnswer.depends => null,
         null => readSaveCompatibility(extras?.saveCompatibility),
+      };
+
+  /// The short answer on adding, for the mod's own page. Unlike the badge, a
+  /// "depends" is kept, since the page shows the words beside it.
+  static SaveAnswer? _addAnswer(LlmExtras? extras) =>
+      extras?.canAdd ??
+      switch (readSaveCompatibility(extras?.saveCompatibility)) {
+        true => SaveAnswer.yes,
+        false => SaveAnswer.no,
+        null => null,
       };
 
   /// Reads the author's own words about adding the mod to a running game into
