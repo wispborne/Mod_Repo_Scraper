@@ -113,7 +113,8 @@
 }
 
 /* The same colours for a reader whose computer asks for light pages. Only the
-   names change; nothing else in this file knows the difference.
+   names change; nothing else in this file knows the difference. The "Light"
+   theme further down repeats these values, so change both together.
 
    The cyan is darker here than the dark version's. Light cyan on white is
    unreadable, and an action nobody can read is not an action. */
@@ -162,7 +163,7 @@
    page is in. These blocks come after the light block on purpose: they are no
    more specific than it, so being later is what lets them win.
 
-   Every theme is a dark one. This first block puts back the dark version of
+   Every theme but Light is a dark one. This first block puts back the dark version of
    everything that is not the theme's own colours, for a reader whose computer
    asks for light pages, and works out the see-through strengths of the
    theme's colours from the colours themselves. */
@@ -193,6 +194,46 @@
   --on: var(--secondary);
   --on-soft: color-mix(in srgb, var(--secondary) 16%, transparent);
   --over-picture: color-mix(in srgb, var(--surface) 82%, transparent);
+}
+/* Light, for a reader who wants light pages whatever their computer is set
+   to. The same colours as the light block above, written out a second time:
+   a media query cannot share a block with a plain selector. Keep the two in
+   step. It comes after the shared `[data-theme]` block so it wins over that
+   block's dark text, and it puts "switched on" back to the main colour, as the
+   default does. */
+[data-theme="light"] {
+  --primary: rgb(0, 104, 119);
+  --secondary: rgb(0, 108, 127);
+  --surface: rgb(240, 244, 250);
+  --surface-container: rgb(232, 238, 245);
+  --surface-2: rgb(255, 255, 255);
+  --text: rgb(22, 30, 45);
+  --text-dim: rgb(92, 104, 124);
+  --warning: rgb(158, 96, 0);
+  --error: rgb(184, 38, 38);
+  --success: rgb(19, 116, 58);
+  --llm: rgb(107, 60, 176);
+  --border: rgba(0, 104, 119, 0.22);
+
+  --primary-soft: rgba(0, 104, 119, 0.1);
+  --primary-faint: rgba(0, 104, 119, 0.05);
+  --primary-bar: rgba(0, 104, 119, 0.3);
+  --primary-ghost: rgba(0, 104, 119, 0.4);
+  --primary-bar-lit: rgba(0, 104, 119, 0.55);
+  --on: var(--primary);
+  --on-soft: var(--primary-soft);
+
+  --edge-warning: rgba(158, 96, 0, 0.35);
+  --edge-success: rgba(19, 116, 58, 0.35);
+  --edge-llm: rgba(107, 60, 176, 0.35);
+  --edge-secondary: rgba(0, 108, 127, 0.35);
+  --warning-wash: rgba(158, 96, 0, 0.07);
+
+  --over-picture: rgba(255, 255, 255, 0.88);
+  --lifted: 0 8px 24px rgba(22, 30, 45, 0.16);
+  --badge-back: rgba(22, 30, 45, 0.03);
+  --over-picture-fade: linear-gradient(to top, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+  --raised: 0 0 0 1px rgba(22, 30, 45, 0.06), 0 1px 3px rgba(22, 30, 45, 0.05);
 }
 /* The default's dark colours, for its preview button only. On the page the
    default sets no `data-theme`, so this never applies there. */

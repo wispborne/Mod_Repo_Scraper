@@ -277,9 +277,11 @@ export function applySpacing() {
 /// The themes a reader can pick, copied from TriOS. Each id names a
 /// `[data-theme]` block in style.css, which holds its colours; this list only
 /// says which exist and what to call them. "default" sets no `data-theme` at
-/// all, so it keeps following the computer's light or dark setting.
+/// all, so it keeps following the computer's light or dark setting. "light"
+/// is the site's own light colours, not one of TriOS's themes.
 export const THEMES = [
   { id: 'default', name: 'Default' },
+  { id: 'light', name: 'Light' },
   { id: 'sigma', name: 'Sigma' },
   { id: 'redacted', name: '[REDACTED]' },
   { id: 'player', name: 'Player' },
