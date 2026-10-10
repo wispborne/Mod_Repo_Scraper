@@ -29,8 +29,16 @@ One real mod, formed by merging every listing that describes it. It has a perman
 _Avoid_: Canonical mod, merged mod, catalog entry
 
 **Collection**:
-A source post that holds two or more mods. It is not itself a mod.
+A source post that holds two or more mods. It is not itself a mod, but if its name already had a permanent id, it keeps that id and gets a page that lists the mods it holds.
 _Avoid_: Collection mod, mod pack (a mod pack is a mod)
+
+**Add-on**:
+Something on a source post that needs another mod from the same source post to work. It is not a mod of its own. It is listed on that other mod's page.
+_Avoid_: Submod, plugin
+
+**Variant**:
+Another build of a mod on the same source post, such as a lite version. It is not a mod of its own. It is listed on that mod's page.
+_Avoid_: Fork (a fork is a separate mod by someone else)
 
 **Permanent id**:
 The name a mod's web address is built from. Once given, it never changes.
