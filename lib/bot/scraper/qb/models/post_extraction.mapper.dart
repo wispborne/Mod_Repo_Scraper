@@ -1337,6 +1337,12 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
     _$isTool,
     opt: true,
   );
+  static List<String>? _$nicknames(LlmMod v) => v.nicknames;
+  static const Field<LlmMod, List<String>> _f$nicknames = Field(
+    'nicknames',
+    _$nicknames,
+    opt: true,
+  );
   static String? _$requires(LlmMod v) => v.requires;
   static const Field<LlmMod, String> _f$requires = Field(
     'requires',
@@ -1372,6 +1378,7 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
     #name: _f$name,
     #role: _f$role,
     #isTool: _f$isTool,
+    #nicknames: _f$nicknames,
     #requires: _f$requires,
     #downloads: _f$downloads,
     #image: _f$image,
@@ -1386,6 +1393,7 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
       name: data.dec(_f$name),
       role: data.dec(_f$role),
       isTool: data.dec(_f$isTool),
+      nicknames: data.dec(_f$nicknames),
       requires: data.dec(_f$requires),
       downloads: data.dec(_f$downloads),
       image: data.dec(_f$image),
@@ -1440,6 +1448,7 @@ extension LlmModValueCopy<$R, $Out> on ObjectCopyWith<$R, LlmMod, $Out> {
 
 abstract class LlmModCopyWith<$R, $In extends LlmMod, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get nicknames;
   ListCopyWith<
     $R,
     LlmDownload,
@@ -1457,6 +1466,7 @@ abstract class LlmModCopyWith<$R, $In extends LlmMod, $Out>
     String? name,
     String? role,
     bool? isTool,
+    List<String>? nicknames,
     String? requires,
     List<LlmDownload>? downloads,
     String? image,
@@ -1472,6 +1482,15 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
 
   @override
   late final ClassMapperBase<LlmMod> $mapper = LlmModMapper.ensureInitialized();
+  @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get nicknames =>
+      $value.nicknames != null
+      ? ListCopyWith(
+          $value.nicknames!,
+          (v, t) => ObjectCopyWith(v, $identity, t),
+          (v) => call(nicknames: v),
+        )
+      : null;
   @override
   ListCopyWith<
     $R,
@@ -1500,6 +1519,7 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
     String? name,
     String? role,
     Object? isTool = $none,
+    Object? nicknames = $none,
     Object? requires = $none,
     List<LlmDownload>? downloads,
     Object? image = $none,
@@ -1510,6 +1530,7 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
       if (name != null) #name: name,
       if (role != null) #role: role,
       if (isTool != $none) #isTool: isTool,
+      if (nicknames != $none) #nicknames: nicknames,
       if (requires != $none) #requires: requires,
       if (downloads != null) #downloads: downloads,
       if (image != $none) #image: image,
@@ -1522,6 +1543,7 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
     name: data.get(#name, or: $value.name),
     role: data.get(#role, or: $value.role),
     isTool: data.get(#isTool, or: $value.isTool),
+    nicknames: data.get(#nicknames, or: $value.nicknames),
     requires: data.get(#requires, or: $value.requires),
     downloads: data.get(#downloads, or: $value.downloads),
     image: data.get(#image, or: $value.image),

@@ -232,6 +232,10 @@ export function modCard(mod, assumedUrls) {
     head.append(' ', el('span', { class: 'field-value', text: `requires ${mod.requires}` }));
   }
   card.append(head);
+  // Other names the post uses for the mod; the public site's search matches on them.
+  if ((mod.nicknames || []).length) {
+    card.append(fieldList([['Also called', mod.nicknames.join(', ')]]));
+  }
   if (mod.image) {
     // Stored as `ext:<url>` (same as the thread thumbnail); strip that marker
     // to get a plain URL the browser can load.

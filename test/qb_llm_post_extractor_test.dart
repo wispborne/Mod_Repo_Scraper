@@ -393,6 +393,62 @@ void main() {
       expect(mods.single.downloads.single.url, 'https://example.com/solo.zip');
     });
 
+    test('a nickname is kept only when the author writes it', () async {
+      final client = _FakeLlmClient([
+        _json('''
+{"mods":[{"name":"Industrial Evolution","role":"main","downloads":[{"url":"https://example.com/IndEvo-4.1.zip","label":"Download","kind":"direct"}],
+  "nicknames":["IndEvo","indevo","Industrial.Evolution","IE","4.1","ED","IndEvo-4","Hartley's Colonies"]}]}'''),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(
+            103,
+            '<p>Industrial Evolution (IndEvo) added a lot of buildings. '
+            'Version 4.1.</p>'
+            '<a href="https://example.com/IndEvo-4.1.zip">Download</a>',
+            title: '[0.98a] Industrial Evolution 4.1'),
+        [],
+      );
+      final mod = modsOf(103).single;
+      expect(mod.nicknames, ['IndEvo'],
+          reason: 'IndEvo is in the post. A repeat in other capitals, the '
+              'mod\'s own name, initials the post never writes (IE), a version '
+              '(4.1), letters found only inside another word ("ED" in '
+              '"added"), a name found only in a file name (IndEvo-4) and a '
+              'name the post never uses are all left out');
+    });
+
+    test('a mod the post gives no other name carries no field at all',
+        () async {
+      final client = _FakeLlmClient([
+        _json('''
+{"mods":[{"name":"Solo","role":"main","nicknames":[],"downloads":[{"url":"https://example.com/solo.zip","label":"Solo","kind":"direct"}]}]}'''),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(104, '<a href="https://example.com/solo.zip">Solo</a>'),
+        [],
+      );
+      final mod = modsOf(104).single;
+      expect(mod.nicknames, isNull);
+      expect(mod.toMap().containsKey('nicknames'), isFalse,
+          reason: 'most posts use no other name, so the bundle entry reads as '
+              'it always did');
+    });
+
+    test('a nickname in a link\'s own words counts', () async {
+      final client = _FakeLlmClient([
+        _json('''
+{"mods":[{"name":"Ship/Weapon Pack","role":"main","nicknames":["SWP"],"downloads":[{"url":"https://example.com/swp.zip","label":"Download SWP","kind":"direct"}]}]}'''),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(105, '<a href="https://example.com/swp.zip">Download SWP</a>'),
+        [],
+      );
+      expect(modsOf(105).single.nicknames, ['SWP']);
+    });
+
     test('a program run beside the game is kept as a tool, and nothing else is',
         () async {
       final client = _FakeLlmClient([

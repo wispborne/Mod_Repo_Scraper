@@ -35,6 +35,10 @@ class _RawMod {
   /// True when this is a program run beside the game (a mod manager, a
   /// launcher, an editor) rather than something loaded into it.
   final bool isTool;
+
+  /// Other names the post uses for this mod, before they are checked against
+  /// the author's words.
+  final List<String> nicknames;
   final String? requires;
   final List<_RawDownload> downloads;
 
@@ -75,6 +79,7 @@ class _RawMod {
     required this.name,
     required this.role,
     this.isTool = false,
+    this.nicknames = const [],
     this.requires,
     required this.downloads,
     this.image,
@@ -184,6 +189,7 @@ class PostExtractor {
     'updateNotes',
     'needs',
     'descriptionAnchors',
+    'nicknames',
   ];
 
   final LlmClient _client;
@@ -628,6 +634,15 @@ class PostExtractor {
       }
     }
 
+    final nicknames = <String>[];
+    final rawNicknames = m['nicknames'];
+    if (rawNicknames is List) {
+      for (final n in rawNicknames) {
+        final name = asString(n);
+        if (name != null) nicknames.add(name);
+      }
+    }
+
     LlmModSummary? summary;
     final rawSummary = generateSummaries ? m['summary'] : null;
     if (rawSummary is Map<String, dynamic>) {
@@ -653,6 +668,7 @@ class PostExtractor {
       name: asString(m['name']) ?? '',
       role: LlmModRole.orMain(asString(m['role'])),
       isTool: m['isTool'] == true,
+      nicknames: nicknames,
       requires: asString(m['requires']),
       downloads: downloads,
       image: asString(m['image']),
@@ -777,11 +793,12 @@ class PostExtractor {
     // thread title (e.g. "My Mod v1.2.3").
     final corpus = _fullPostText(read.combined, postTitle);
     final postTexts = [for (final post in read.posts) post.text];
+    final authorWords = _authorWords(read.combined, postTitle);
 
     final checked = <_CheckedMod>[];
     for (final mod in answer.mods) {
       final c = _checkMod(topicId, mod, postUrls, postImages, postRepoUrls,
-          corpus, postTexts,
+          corpus, postTexts, authorWords,
           truncated: truncated);
       if (!c.isEmpty) checked.add(c);
     }
@@ -795,7 +812,8 @@ class PostExtractor {
     Map<String, String> postImages,
     List<Uri> postRepoUrls,
     String corpus,
-    List<String> postTexts, {
+    List<String> postTexts,
+    String authorWords, {
     required bool truncated,
   }) {
     // Downloads: every URL must appear in the post.
@@ -942,6 +960,8 @@ class PostExtractor {
       name: mod.name,
       role: mod.role,
       isTool: mod.isTool,
+      nicknames:
+          _groundNicknames(topicId, mod.nicknames, authorWords, mod.name),
       requires: mod.requires,
       downloads: downloads,
       image: image,
@@ -1020,6 +1040,60 @@ class PostExtractor {
       }
     }
     return kept;
+  }
+
+  /// The nicknames the author really writes for this mod.
+  ///
+  /// A model asked for a mod's short name will offer its initials whether the
+  /// post writes them or not, and a nickname is something readers search by,
+  /// so a made-up one sends them to the wrong mod. So each one has to stand as
+  /// a whole word in [authorWords] — the title, the post's own text and the
+  /// words of its links, but not the link addresses. A name found only in an
+  /// address or a file name ("Ships_v2.zip") is not something the author calls
+  /// the mod. The mod's own name, a name with no letters in it (a version),
+  /// and repeats are left out too, and only the first [_maxNicknames] are kept.
+  List<String> _groundNicknames(
+    int topicId,
+    List<String> names,
+    String authorWords,
+    String ownName,
+  ) {
+    final kept = <String>[];
+    final seen = <String>{_lettersAndDigits(ownName)};
+    final words = _norm(authorWords);
+    for (final raw in names) {
+      final name = raw.trim();
+      if (name.length < 2 || name.length > _maxNicknameLength) continue;
+      if (!_hasLetter.hasMatch(name)) continue;
+      final key = _lettersAndDigits(name);
+      if (key.isEmpty || !seen.add(key)) continue;
+      if (_wholeWordIn(_norm(name), words)) {
+        kept.add(name);
+        if (kept.length == _maxNicknames) break;
+      } else {
+        _log.warning('Dropped a nickname the post does not write '
+            '(topic $topicId): $name');
+      }
+    }
+    return kept;
+  }
+
+  static const int _maxNicknames = 5;
+  static const int _maxNicknameLength = 40;
+  static final RegExp _hasLetter = RegExp(r'\p{L}', unicode: true);
+  static final RegExp _notLetterOrDigit = RegExp(r'[^\p{L}\p{N}]', unicode: true);
+
+  static String _lettersAndDigits(String s) =>
+      s.toLowerCase().replaceAll(_notLetterOrDigit, '');
+
+  /// True when [needle] sits in [haystack] with no letter or digit straight
+  /// before or after it, so "ED" is not found inside "added".
+  static bool _wholeWordIn(String needle, String haystack) {
+    if (needle.isEmpty) return false;
+    final pattern = RegExp(
+        '(?<![\\p{L}\\p{N}])${RegExp.escape(needle)}(?![\\p{L}\\p{N}])',
+        unicode: true);
+    return pattern.hasMatch(haystack);
   }
 
   /// The source-code link to keep, or null when the post does not back it up.
@@ -1229,6 +1303,24 @@ class PostExtractor {
     return b.toString();
   }
 
+  /// The author's own words: the thread title, the post text with our
+  /// `[link: <url>]` notes taken back out, and each link's own text. Unlike
+  /// [_fullPostText] it leaves out every link address, so nothing found here
+  /// came from a URL or a file name.
+  String _authorWords(ReducedPost reduced, String postTitle) {
+    final b = StringBuffer(postTitle);
+    b.write('\n');
+    b.write(reduced.text.replaceAll(_linkMarker, ' '));
+    for (final l in reduced.links) {
+      if (l.text.isEmpty) continue;
+      b.write('\n');
+      b.write(l.text);
+    }
+    return b.toString();
+  }
+
+  static final RegExp _linkMarker = RegExp(r'\[link: [^\]]*\]');
+
   static final RegExp _licenseUrlHint =
       RegExp(r'licen[sc]e|creativecommons', caseSensitive: false);
 
@@ -1297,6 +1389,8 @@ class PostExtractor {
         role: mod.role,
         // Absent unless true, so a mod's entry reads as it always did.
         isTool: mod.isTool ? true : null,
+        // Absent when the post uses no other name, which is most posts.
+        nicknames: mod.nicknames.isEmpty ? null : mod.nicknames,
         requires: mod.requires,
         downloads: downloads,
         image: mod.image,
@@ -1486,6 +1580,7 @@ class PostExtractor {
                   'name': m.name,
                   'role': m.role,
                   if (m.isTool) 'isTool': true,
+                  if (m.nicknames.isNotEmpty) 'nicknames': m.nicknames,
                   if (m.requires != null) 'requires': m.requires,
                   'downloads': m.downloads
                       .map((d) =>
@@ -1533,6 +1628,9 @@ class _CheckedMod {
   /// True when this is a program run beside the game (a mod manager, a
   /// launcher, an editor) rather than something loaded into it.
   final bool isTool;
+
+  /// Other names the author writes for this mod, once found in their words.
+  final List<String> nicknames;
   final String? requires;
   final List<_RawDownload> downloads;
 
@@ -1563,6 +1661,7 @@ class _CheckedMod {
     required this.name,
     required this.role,
     this.isTool = false,
+    this.nicknames = const [],
     this.requires,
     required this.downloads,
     this.image,

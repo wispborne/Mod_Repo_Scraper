@@ -117,6 +117,49 @@ void main() {
             'old spelling finds the mod');
   });
 
+  group('other names the post uses', () {
+    test('are published for the search', () {
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(index: [
+          thread(llmMods: [
+            LlmMod(name: 'Nexerelin', nicknames: ['Nex', 'Exerelin']),
+          ]),
+        ]),
+      );
+
+      expect(data.list.mods.single.nicknames, ['Nex', 'Exerelin']);
+    });
+
+    test('leave out one that is only a name the mod already has', () {
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(index: [
+          thread(llmMods: [
+            LlmMod(name: 'Nexerelin', nicknames: ['NEXERELIN', 'Nex']),
+          ]),
+        ]),
+      );
+
+      expect(data.list.mods.single.nicknames, ['Nex']);
+    });
+
+    test('are left out entirely when there are none', () {
+      final data = builder.build(
+        mods: [forumMod()],
+        bundle: bundleOf(index: [
+          thread(llmMods: [LlmMod(name: 'Nexerelin')]),
+        ]),
+      );
+
+      final mod = data.list.mods.single;
+      expect(mod.nicknames, isNull);
+      expect(mod.toMap().containsKey('nicknames'), isFalse,
+          reason: 'mods.json is fetched whole, so a field most mods would '
+              'carry empty is not written');
+    });
+  });
+
   group('a program run beside the game', () {
     test('is marked as a tool and shelved under Utilities', () {
       final data = builder.build(

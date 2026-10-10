@@ -377,6 +377,7 @@ List<Map<String, dynamic>> _llmItems(Object? was, Object? now) {
       // Name is the matching key; extras and downloads are compared separately.
       ..._partsThatMoved(a, b, const {
         'role': 'role',
+        'nicknames': 'other names',
         'requires': 'requires',
         'image': 'image',
         'descriptionAnchors': 'where it is described',

@@ -61,10 +61,10 @@ posts written to be easy.
 | Topic | Why it is here |
 | --- | --- |
 | 9175 | Nexerelin. One mod, plainly written. The control: if this one goes wrong, something big is broken. Also checks the mod's own version is not the game version, and that `needs` is read off the requirements line. |
-| 25868 | MagicLib. One mod, and the post names exactly one requirement — a model asked what a mod needs will happily add the rest of the usual libraries. |
+| 25868 | MagicLib. One mod, and the post names exactly one requirement — a model asked what a mod needs will happily add the rest of the usual libraries. The post also writes `MagicRender … (aka "SpriteRenderManager")`, another name for one *part* of the library, which must not become a nickname for MagicLib. |
 | 34161 | Hartley's Miscellaneous Mods. Four mods, each with a name, a paragraph and a download, all in one post. |
 | 35651 | Computica's Faction Forks. Seven mods, and every download is a badge image inside a link with no words of its own, in the author's *second* post. The first post also lists forks that are not out yet, which must not become mods. |
-| 21968 | Yunru Mods. A library plus five add-ons that each name it, and a paragraph per add-on for `descriptionAnchors` to point at. |
+| 21968 | Yunru Mods. A library plus five add-ons that each name it, and a paragraph per add-on for `descriptionAnchors` to point at. One pack is "Formerly known as the Pirate Collection", so that old name must land in that pack's `nicknames` and no other mod's. |
 | 27785 | Customizable Star Systems. One sentence answers two save questions — safe to add, and safe to remove — and the model once copied the whole sentence into both fields. |
 | 35155 | QBMBAMM, a mod manager. A program made for Starsector but run beside it, not loaded into it: `isMod` must be true, so the thread is kept, and its one entry must be `isTool`, so TriOS never tries to install it as a mod. The prompt used to call tools non-mods. |
 | 34645 | A question thread. Not a mod release at all — `isMod` must be false. |

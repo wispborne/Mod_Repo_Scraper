@@ -300,6 +300,10 @@ class LlmDownload with LlmDownloadMappable {
 ///   Absent otherwise, which includes every entry read before the field
 ///   existed. A tool is still a `main` mod on its own thread; [role] is about
 ///   the other mods on the thread and nothing else.
+/// - [nicknames]: other names the post itself uses for this mod — a short form
+///   such as "IndEvo" for "Industrial Evolution", or a name it used to go by.
+///   Each one has been found in the author's own words, not only in a link
+///   address. Absent when the post uses none, which is most of them.
 /// - [requires]: the name of the mod an add-on needs, else null.
 /// - [downloads]: the mod's grouped downloads (see [LlmDownload]).
 /// - [image]: an image from the post that clearly belongs to THIS mod, stored as
@@ -315,6 +319,7 @@ class LlmMod with LlmModMappable {
   final String name;
   final String role;
   final bool? isTool;
+  final List<String>? nicknames;
   final String? requires;
   final List<LlmDownload> downloads;
   final String? image;
@@ -331,6 +336,7 @@ class LlmMod with LlmModMappable {
     this.name = '',
     this.role = LlmModRole.main,
     this.isTool,
+    this.nicknames,
     this.requires,
     this.downloads = const [],
     this.image,

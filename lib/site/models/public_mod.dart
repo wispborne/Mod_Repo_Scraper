@@ -152,6 +152,12 @@ class PublicMod with PublicModMappable {
   /// for the thousand-odd mods that are not tools.
   final bool? isTool;
 
+  /// Other names the author's own post uses for the mod — a short form such
+  /// as "IndEvo", or a name it used to go by — as the LLM read them and the
+  /// extractor found them in the post. The search matches on these. Left out
+  /// when there are none, which is most mods, so it costs `mods.json` little.
+  final List<String>? nicknames;
+
   /// The day the mod last put out a new version, as the release feed saw it.
   /// Null when no release has been recorded for it yet.
   final DateTime? lastReleaseDate;
@@ -218,6 +224,7 @@ class PublicMod with PublicModMappable {
     this.sourceIsPublic = false,
     this.isWorkInProgress = false,
     this.isTool,
+    this.nicknames,
     this.lastReleaseDate,
     this.addedOn,
     this.threadLastPostOn,

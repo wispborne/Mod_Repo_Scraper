@@ -7,7 +7,7 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 20;
+  static const int promptVersion = 21;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -106,6 +106,7 @@ Return this JSON object:
       "name": "<the mod's name as written in the post>",
       "role": "<main | addon | separate | variant>",
       "isTool": <true for a program you run beside the game, such as a mod manager, launcher or editor; false for anything loaded into the game>,
+      "nicknames": ["<another name the post itself uses for THIS mod, such as a short form, copied exactly>", "..."],
       "requires": "<for an addon, the exact name of the mod it needs; else null>",
       "downloads": [
         {
@@ -189,6 +190,21 @@ Guidance:
   editor — rather than a mod loaded into the game. Almost every entry is false.
   A tool still gets its role like any other entry: on its own thread it is
   "main". List a tool's downloads exactly as you would a mod's.
+
+- "nicknames" is the other names the post itself uses for THIS mod. Players
+  search for mods by these, so they matter, but most posts use none and the
+  list is then empty.
+  - A short form or abbreviation the author writes: "Industrial Evolution
+    (IndEvo)" gives "nicknames": ["IndEvo"]. "Ship/Weapon Pack, or SWP for
+    short" gives ["SWP"].
+  - A name the post says the mod used to have: "formerly known as Exerelin"
+    gives ["Exerelin"].
+  - Copy each one exactly as the post writes it. NEVER make one up, not even an
+    obvious set of initials, when the post does not write it. A name that only
+    appears inside a link address or a file name does not count.
+  - Do NOT include the mod's own name again, a version, the author's name, the
+    name of a different mod, or a word that is just a description ("faction
+    mod", "ship pack").
 
 - Add-on vs mirror — do not confuse these:
   - A DIFFERENT file that adds to or extends the mod is its OWN mod entry, with
@@ -361,6 +377,10 @@ Guidance:
         'enum': ['main', 'addon', 'separate', 'variant'],
       },
       'isTool': {'type': 'boolean'},
+      'nicknames': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
       'requires': nullableString(),
       'downloads': {
         'type': 'array',
@@ -436,6 +456,7 @@ Guidance:
       'name',
       'role',
       'isTool',
+      'nicknames',
       'requires',
       'downloads',
       'image',

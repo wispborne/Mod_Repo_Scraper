@@ -311,6 +311,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     _$isTool,
     opt: true,
   );
+  static List<String>? _$nicknames(PublicMod v) => v.nicknames;
+  static const Field<PublicMod, List<String>> _f$nicknames = Field(
+    'nicknames',
+    _$nicknames,
+    opt: true,
+  );
   static DateTime? _$lastReleaseDate(PublicMod v) => v.lastReleaseDate;
   static const Field<PublicMod, DateTime> _f$lastReleaseDate = Field(
     'lastReleaseDate',
@@ -369,6 +375,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #sourceIsPublic: _f$sourceIsPublic,
     #isWorkInProgress: _f$isWorkInProgress,
     #isTool: _f$isTool,
+    #nicknames: _f$nicknames,
     #lastReleaseDate: _f$lastReleaseDate,
     #addedOn: _f$addedOn,
     #threadLastPostOn: _f$threadLastPostOn,
@@ -404,6 +411,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       sourceIsPublic: data.dec(_f$sourceIsPublic),
       isWorkInProgress: data.dec(_f$isWorkInProgress),
       isTool: data.dec(_f$isTool),
+      nicknames: data.dec(_f$nicknames),
       lastReleaseDate: data.dec(_f$lastReleaseDate),
       addedOn: data.dec(_f$addedOn),
       threadLastPostOn: data.dec(_f$threadLastPostOn),
@@ -483,6 +491,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get sources;
   PublicBestDownloadCopyWith<$R, PublicBestDownload, PublicBestDownload>?
   get bestDownload;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get nicknames;
   ListCopyWith<
     $R,
     PublicNeededMod,
@@ -514,6 +523,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     bool? sourceIsPublic,
     bool? isWorkInProgress,
     bool? isTool,
+    List<String>? nicknames,
     DateTime? lastReleaseDate,
     String? addedOn,
     String? threadLastPostOn,
@@ -569,6 +579,15 @@ class _PublicModCopyWithImpl<$R, $Out>
   get bestDownload =>
       $value.bestDownload?.copyWith.$chain((v) => call(bestDownload: v));
   @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get nicknames =>
+      $value.nicknames != null
+      ? ListCopyWith(
+          $value.nicknames!,
+          (v, t) => ObjectCopyWith(v, $identity, t),
+          (v) => call(nicknames: v),
+        )
+      : null;
+  @override
   ListCopyWith<
     $R,
     PublicNeededMod,
@@ -605,6 +624,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     bool? sourceIsPublic,
     bool? isWorkInProgress,
     Object? isTool = $none,
+    Object? nicknames = $none,
     Object? lastReleaseDate = $none,
     Object? addedOn = $none,
     Object? threadLastPostOn = $none,
@@ -637,6 +657,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (sourceIsPublic != null) #sourceIsPublic: sourceIsPublic,
       if (isWorkInProgress != null) #isWorkInProgress: isWorkInProgress,
       if (isTool != $none) #isTool: isTool,
+      if (nicknames != $none) #nicknames: nicknames,
       if (lastReleaseDate != $none) #lastReleaseDate: lastReleaseDate,
       if (addedOn != $none) #addedOn: addedOn,
       if (threadLastPostOn != $none) #threadLastPostOn: threadLastPostOn,
@@ -679,6 +700,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     sourceIsPublic: data.get(#sourceIsPublic, or: $value.sourceIsPublic),
     isWorkInProgress: data.get(#isWorkInProgress, or: $value.isWorkInProgress),
     isTool: data.get(#isTool, or: $value.isTool),
+    nicknames: data.get(#nicknames, or: $value.nicknames),
     lastReleaseDate: data.get(#lastReleaseDate, or: $value.lastReleaseDate),
     addedOn: data.get(#addedOn, or: $value.addedOn),
     threadLastPostOn: data.get(#threadLastPostOn, or: $value.threadLastPostOn),

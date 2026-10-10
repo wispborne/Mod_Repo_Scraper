@@ -773,6 +773,7 @@ class PublicDataBuilder {
       sourceIsPublic: _firstNonEmpty([extras?.sourceCode]) != null,
       isWorkInProgress: thread?.isWip ?? false,
       isTool: isTool ? true : null,
+      nicknames: _nicknamesFor(chosen, [mod.name, shownName]),
       lastReleaseDate: releases.isEmpty ? null : _lastReleaseDate(releases),
       addedOn: _addedOn(mod, thread, postDate, topicId),
       threadLastPostOn: lastPost == null ? null : writeDay(lastPost),
@@ -1244,6 +1245,22 @@ class PublicDataBuilder {
     final authors = mod.getAuthors();
     if (authors.isNotEmpty) return 'author:${authors.first.toLowerCase()}';
     return '';
+  }
+
+  /// The other names the author's post uses for a mod, for the search. The
+  /// extractor has already checked each one is in the post; this only leaves
+  /// out one that says the same as a name the mod is already published under,
+  /// since the LLM's name for a mod is not always the one the site shows. Null
+  /// when nothing is left, so most mods carry no field at all.
+  static List<String>? _nicknamesFor(LlmMod? chosen, List<String> names) {
+    String key(String s) =>
+        s.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
+    final taken = {for (final name in names) key(name)};
+    final kept = [
+      for (final nickname in chosen?.nicknames ?? const <String>[])
+        if (taken.add(key(nickname))) nickname,
+    ];
+    return kept.isEmpty ? null : kept;
   }
 
   /// The site's categories for a mod. A tool is always under Utilities, which

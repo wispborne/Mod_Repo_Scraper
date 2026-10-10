@@ -228,6 +228,52 @@ void main() {
     });
   });
 
+  group('other names the post uses for a mod', () {
+    // Readers search by these, so a made-up one sends them to the wrong mod.
+    // The extractor throws out any the post does not write; these check the
+    // model finds the real one and does not hand it to the wrong thing.
+    test('Yunru Mods (21968) gives a pack the name it used to have', () async {
+      final answer = await read(21968);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      // "Yunru's Pirates and Pathers — My first, and thus oldest mod. Formerly
+      // known as the Pirate Collection, this adds…"
+      final pack = modNamed(answer, 'Pirates and Pathers');
+      expect(pack, isNotNull, reason: why);
+      final nicknames = pack!.nicknames ?? const <String>[];
+      expect(nicknames.any((n) => nameHolds(n, 'Pirate Collection')), isTrue,
+          reason: why);
+
+      // The old name belongs to that one pack, not to the library or the
+      // other packs beside it.
+      for (final mod in answer.mods) {
+        if (identical(mod, pack)) continue;
+        expect(
+            (mod.nicknames ?? const <String>[])
+                .any((n) => nameHolds(n, 'Pirate Collection')),
+            isFalse,
+            reason: '"${mod.name}" was given another pack\'s old name.\n$why');
+      }
+    });
+
+    test('MagicLib (25868) is not given the name of one of its parts',
+        () async {
+      final answer = await read(25868);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      // The post writes `MagicRender … (aka "SpriteRenderManager")`. That is
+      // another name for one part of the library, not for MagicLib.
+      final nicknames = answer.mods.single.nicknames ?? const <String>[];
+      expect(nicknames.any((n) => nameHolds(n, 'SpriteRenderManager')),
+          isFalse,
+          reason: why);
+      expect(nicknames.any((n) => nameHolds(n, 'MagicRender')), isFalse,
+          reason: why);
+    });
+  });
+
   group('a program run beside the game', () {
     test('a mod manager (35155) is kept as a tool, not dropped as a non-mod',
         () async {
