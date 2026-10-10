@@ -95,8 +95,12 @@ export function el(tag, attrs = {}, children = []) {
 /// removed, or swapped for whatever [whenBroken] puts in its place.
 export function picture(url, opts = {}) {
   const { className = null, alt = '', title = null, whenBroken = null } = opts;
+  // The picture's address goes on last, so the browser already knows to wait
+  // until it is near the screen, and to send no referrer, when it starts the
+  // request. Some old image hosts refuse pictures asked for by another site.
   const img = el('img', {
-    class: className, src: url, alt, title, loading: 'lazy',
+    class: className, alt, title, loading: 'lazy', referrerpolicy: 'no-referrer',
+    src: url,
   });
   img.addEventListener('error', () => {
     if (whenBroken) whenBroken(img);
@@ -327,6 +331,30 @@ export function imageChoice() {
 
 export function setImageChoice(choice) {
   localStorage.setItem(IMAGE_KEY, choice);
+}
+
+/// Whether a mod's description shows the pictures from the author's post,
+/// where the post put them: "on" (the default) or "off". Off means none of them
+/// is even fetched — each becomes a small link instead, for a reader on a slow
+/// connection or one who would rather read.
+export const INLINE_PICTURE_CHOICES = ['on', 'off'];
+const INLINE_PICTURES_KEY = 'starmodderInlinePictures';
+
+export function inlinePictures() {
+  try {
+    const saved = localStorage.getItem(INLINE_PICTURES_KEY);
+    return INLINE_PICTURE_CHOICES.includes(saved) ? saved : 'on';
+  } catch {
+    return 'on';
+  }
+}
+
+export function setInlinePictures(choice) {
+  try {
+    localStorage.setItem(INLINE_PICTURES_KEY, choice);
+  } catch {
+    // Storage is blocked; the choice lasts until the page is reloaded.
+  }
 }
 
 /// The picture to show for a mod, or null when it has none.

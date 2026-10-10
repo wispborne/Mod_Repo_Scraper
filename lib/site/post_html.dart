@@ -1,6 +1,8 @@
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 
+import 'forum_formatting.dart';
+
 /// Turns a forum post into a small, safe piece of HTML the mod's page can show.
 ///
 /// The description used to be one line of plain text picked from whichever
@@ -11,28 +13,46 @@ import 'package:html/parser.dart' as html_parser;
 /// tags rather than published as it arrived.
 ///
 /// What survives: paragraphs, line breaks, lists, headings, quotes, code,
-/// emphasis and links. What does not: anything that can run (scripts, event
-/// handlers), anything that can style the page, and anything that loads from
-/// another host (pictures, frames, embeds). Pictures are not lost — they are
-/// published separately as the gallery.
+/// emphasis, links and pictures. What does not: anything that can run (scripts,
+/// event handlers), anything that can style the page, and anything else that
+/// loads from another host (frames, embeds, video).
+///
+/// Pictures stay where the author put them. With them gone, a post read like a
+/// different post, and a link whose only content was a picture — a badge used
+/// as a download button — was thrown away as empty. Each picture is written
+/// out fresh with its address, alt text and size and nothing else, the same
+/// way a link is, so nothing on the forum's own tag can get through.
+///
+/// The forum's own formatting is kept too, read from the classes and styles
+/// the forum puts on its `div`s and `span`s and written back out as the site's
+/// own: spoilers become folds, tables keep their cells, centring, sizes,
+/// underlines and colours are kept, a YouTube video becomes a link holding its
+/// thumbnail, and the "Quote" and "Code" header lines go. The readers for
+/// sizes, colours and videos are in `forum_formatting.dart`. The only classes
+/// that can come out are the site's own, and the only `style` is a checked
+/// colour written as `--c:#rrggbb`.
 
 /// How much of a post is published. A few threads run to tens of thousands of
 /// words of changelog; what is published stops at about this many characters
 /// and ends with a "…" paragraph so the reader can see it was cut short. The
 /// mod page's link to the thread is where the rest is.
+///
+/// Picture tags are not counted. A tag is about 150 characters, so a short post
+/// with forty screenshots would otherwise be cut short with little to read.
 const int maxDescriptionLength = 12000;
 
 /// Tags kept as they are.
 const Set<String> _keptTags = {
   'p', 'br', 'hr', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code',
   'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'sub', 'sup',
-  'h3', 'h4', 'h5', 'h6', 'a',
+  'h3', 'h4', 'h5', 'h6', 'a', 'img',
+  'table', 'thead', 'tbody', 'tr', 'td', 'th',
 };
 
 /// Tags that go, and take what is inside them with them.
 const Set<String> _droppedTags = {
   'script', 'style', 'noscript', 'iframe', 'frame', 'frameset', 'object',
-  'embed', 'applet', 'svg', 'math', 'img', 'picture', 'video', 'audio',
+  'embed', 'applet', 'svg', 'math', 'picture', 'video', 'audio',
   'source', 'canvas', 'form', 'input', 'select', 'textarea', 'button',
   'link', 'meta', 'base', 'head', 'title',
 };
@@ -40,8 +60,9 @@ const Set<String> _droppedTags = {
 /// Tags that stand for themselves — nothing goes inside them.
 const Set<String> _emptyTags = {'br', 'hr'};
 
-/// A heading bigger than the page's own headings is brought down to size.
-const Map<String, String> _headingSwaps = {'h1': 'h3', 'h2': 'h3'};
+/// Tags written as another tag: a heading bigger than the page's own headings
+/// is brought down to size, and the forum's typewriter text is code.
+const Map<String, String> _tagSwaps = {'h1': 'h3', 'h2': 'h3', 'tt': 'code'};
 
 /// A web address written out in the middle of a sentence.
 final RegExp _bareAddress = RegExp(r'https?://[^\s<>"\x27]+');
@@ -56,16 +77,16 @@ String? cleanPostHtml(String? postHtml) {
   if (source == null || source.isEmpty) return null;
 
   final fragment = html_parser.parseFragment(source);
-  final out = StringBuffer();
+  final out = _Writer();
 
   for (final node in fragment.nodes) {
-    if (out.length >= maxDescriptionLength) break;
+    if (out.full) break;
     _write(node, out, inLink: false);
   }
   // The cap is checked inside [_write] as well as here, because plenty of
   // posts are one enormous node — the whole thing as text with line breaks —
   // and a check between top-level nodes alone would never fire for those.
-  if (out.length >= maxDescriptionLength) out.write('<p>…</p>');
+  if (out.full) out.write('<p>…</p>');
 
   final result = _tidy(out.toString());
   return _hasWords(result) ? result : null;
@@ -92,9 +113,13 @@ String? plainWordsOf(String? cleanedHtml) {
 
 /// A tag with nothing inside it. Nearly always a link whose only content was a
 /// picture — a download banner, say — which was dropped on the way through.
-final RegExp _emptyTag =
-    RegExp(r'<(a|strong|b|em|i|u|s|p|h3|h4|h5|h6|li|blockquote|code|pre)'
-        r'(?:\s[^>]*)?></\1>');
+///
+/// A table cell is never one of these: taking an empty cell out would move
+/// every cell after it into the wrong column.
+final RegExp _emptyTag = RegExp(
+    r'<(a|strong|b|em|i|u|s|p|h3|h4|h5|h6|li|blockquote|code|pre|div|span'
+    r'|ul|ol|tr|tbody|thead|table|cite)'
+    r'(?:\s[^>]*)?></\1>');
 
 /// Three or more line breaks in a row. Forum posts are full of them, and they
 /// leave the page looking broken once the pictures between them are gone.
@@ -103,6 +128,12 @@ final RegExp _tooManyBreaks = RegExp(r'(?:<br>\s*){3,}');
 /// Line breaks at the very start or the very end, which only add a gap.
 final RegExp _breaksAtTheStart = RegExp(r'^(?:\s*<br>)+');
 final RegExp _breaksAtTheEnd = RegExp(r'(?:<br>\s*)+$');
+
+/// Line breaks just inside the start or the end of a block.
+final RegExp _breaksBeforeClose =
+    RegExp(r'(?:<br>\s*)+(</(?:details|div|td|th|li|blockquote)>)');
+final RegExp _breaksAfterOpen = RegExp(
+    r'(</summary>|<div class="[a-z-]+">|<td>|<th>|<li>|<blockquote>)(?:\s*<br>)+');
 
 /// Tidies what is left once the tags that were not kept have gone.
 String _tidy(String html) {
@@ -115,6 +146,10 @@ String _tidy(String html) {
     if (tidied == before) break;
   }
   tidied = tidied.replaceAll(_tooManyBreaks, '<br><br>');
+  // A fold, a centred block or a table cell that starts or ends on a line
+  // break only gains a gap from it.
+  tidied = tidied.replaceAllMapped(_breaksBeforeClose, (m) => m[1]!);
+  tidied = tidied.replaceAllMapped(_breaksAfterOpen, (m) => m[1]!);
   tidied = tidied.replaceFirst(_breaksAtTheStart, '');
   tidied = tidied.replaceFirst(_breaksAtTheEnd, '');
   return tidied.trim();
@@ -144,29 +179,58 @@ String? plainTextAsHtml(String? text) {
 
 // -----------------------------------------------------------------------------
 
-void _write(dom.Node node, StringBuffer out, {required bool inLink}) {
+/// What [cleanPostHtml] has written so far, and how much of it counts toward
+/// [maxDescriptionLength] — everything but picture tags.
+class _Writer {
+  final StringBuffer _out = StringBuffer();
+  int _counted = 0;
+
+  bool get full => _counted >= maxDescriptionLength;
+  int get room => maxDescriptionLength - _counted;
+
+  void write(String html) {
+    _out.write(html);
+    _counted += html.length;
+  }
+
+  /// Written, but not counted toward the cap.
+  void writeUncounted(String html) => _out.write(html);
+
+  @override
+  String toString() => _out.toString();
+}
+
+void _write(dom.Node node, _Writer out, {required bool inLink}) {
   // Stop taking anything more in once the cap is reached. Closing tags are
   // still written by whoever opened them, so what comes out is never left with
   // a tag hanging open.
-  if (out.length >= maxDescriptionLength) return;
+  if (out.full) return;
 
   if (node is dom.Text) {
-    final text = _cutToFit(node.text, maxDescriptionLength - out.length);
+    final text = _cutToFit(node.text, out.room);
     out.write(inLink ? _escape(text) : _linkify(text));
     return;
   }
   if (node is! dom.Element) return;
 
   final tag = node.localName?.toLowerCase() ?? '';
+
+  // An embedded video becomes a link to it, before frames are dropped.
+  if (tag == 'iframe') {
+    if (!inLink) _writeVideo(node, out);
+    return;
+  }
   if (_droppedTags.contains(tag)) return;
 
-  final kept = _headingSwaps[tag] ?? tag;
+  // The forum's own markup for a spoiler, a quote, a code block, centring, a
+  // size or a colour, written back out in the site's own tags.
+  if (_writeForumFormatting(node, tag, out, inLink: inLink)) return;
+
+  final kept = _tagSwaps[tag] ?? tag;
 
   if (!_keptTags.contains(kept)) {
     // A tag we have no opinion about: keep what it held, drop the tag itself.
-    for (final child in node.nodes) {
-      _write(child, out, inLink: inLink);
-    }
+    _writeChildren(node, out, inLink: inLink);
     return;
   }
 
@@ -175,28 +239,193 @@ void _write(dom.Node node, StringBuffer out, {required bool inLink}) {
     return;
   }
 
+  if (kept == 'img') {
+    final picture = _pictureTag(node);
+    if (picture != null) out.writeUncounted(picture);
+    return;
+  }
+
   if (kept == 'a') {
     final href = _webAddress(node.attributes['href']);
     if (href == null) {
-      for (final child in node.nodes) {
-        _write(child, out, inLink: inLink);
-      }
+      _writeChildren(node, out, inLink: inLink);
       return;
     }
     out.write('<a href="${_escapeAttribute(href)}" rel="nofollow noopener" '
         'target="_blank">');
-    for (final child in node.nodes) {
-      _write(child, out, inLink: true);
-    }
+    _writeChildren(node, out, inLink: true);
     out.write('</a>');
     return;
   }
 
-  out.write('<$kept>');
+  // A table sits in a box of its own that scrolls sideways, so a wide one never
+  // widens the page.
+  if (kept == 'table') {
+    out.write('<div class="table-scroll"><table>');
+    _writeChildren(node, out, inLink: inLink);
+    out.write('</table></div>');
+    return;
+  }
+
+  // The forum numbers a list with a style rather than with `<ol>`.
+  final written = kept == 'ul' &&
+          styleValue(node.attributes['style'], 'list-style-type') == 'decimal'
+      ? 'ol'
+      : kept;
+
+  out.write('<$written>');
+  if (written == 'blockquote') _writeQuoteHeader(node, out);
+  _writeChildren(node, out, inLink: inLink);
+  out.write('</$written>');
+}
+
+void _writeChildren(dom.Element node, _Writer out, {required bool inLink}) {
   for (final child in node.nodes) {
     _write(child, out, inLink: inLink);
   }
-  out.write('</$kept>');
+}
+
+/// The class names the forum puts on one tag.
+Set<String> _classesOf(dom.Element node) =>
+    (node.attributes['class'] ?? '').split(RegExp(r'\s+')).toSet();
+
+/// Writes [node] when it is one of the forum's own formatting tags, and says
+/// whether it did. Everything here is read from the forum's classes and styles
+/// and written as one of the site's own fixed classes; nothing of the forum's
+/// is passed through.
+bool _writeForumFormatting(
+  dom.Element node,
+  String tag,
+  _Writer out, {
+  required bool inLink,
+}) {
+  final classes = _classesOf(node);
+
+  if (tag == 'div') {
+    if (classes.contains('sp-wrap')) return _writeSpoiler(node, out, inLink: inLink);
+    // The spoiler's "[close]" line, and the lines the forum puts above and
+    // below a quote or a code block, are the forum's furniture. A quote's
+    // header is read again by the quote itself.
+    if (classes.contains('sp-foot') ||
+        classes.contains('quoteheader') ||
+        classes.contains('quotefooter') ||
+        classes.contains('codeheader')) {
+      return true;
+    }
+
+    final align = (node.attributes['align'] ??
+            styleValue(node.attributes['style'], 'text-align') ??
+            '')
+        .trim()
+        .toLowerCase();
+    if (align == 'center' || align == 'right') {
+      out.write('<div class="align-$align">');
+      _writeChildren(node, out, inLink: inLink);
+      out.write('</div>');
+      return true;
+    }
+    return false;
+  }
+
+  if (tag == 'span') {
+    final style = node.attributes['style'];
+    final opened = <String>[];
+    if (classes.contains('bbc_u')) opened.add('<u>');
+    final step = sizeStepOf(styleValue(style, 'font-size'));
+    if (step != null) opened.add('<span class="${step.className}">');
+    final colour = hexColourOf(styleValue(style, 'color'));
+    if (colour != null) {
+      opened.add('<span class="author-colour" style="--c:$colour">');
+    }
+    if (opened.isEmpty) return false;
+
+    opened.forEach(out.write);
+    _writeChildren(node, out, inLink: inLink);
+    for (final open in opened.reversed) {
+      out.write(open == '<u>' ? '</u>' : '</span>');
+    }
+    return true;
+  }
+  return false;
+}
+
+/// A spoiler as a fold, shut until the reader opens it, labelled with the
+/// spoiler's own title. False when it is not shaped like one, so its words are
+/// still kept the ordinary way.
+bool _writeSpoiler(dom.Element wrap, _Writer out, {required bool inLink}) {
+  dom.Element? head;
+  dom.Element? body;
+  for (final child in wrap.children) {
+    final classes = _classesOf(child);
+    if (classes.contains('sp-head')) head ??= child;
+    if (classes.contains('sp-body')) body ??= child;
+  }
+  if (body == null) return false;
+
+  final title = _oneLine(head?.text ?? '');
+  out.write('<details class="spoiler"><summary>'
+      '${_escape(title.isEmpty ? 'Spoiler' : title)}</summary>');
+  _writeChildren(body, out, inLink: inLink);
+  out.write('</details>');
+  return true;
+}
+
+/// The name a quote's header gives, as a `<cite>` at the top of the quote. A
+/// header that only says "Quote" says nothing, and is left out.
+void _writeQuoteHeader(dom.Element blockquote, _Writer out) {
+  final header = blockquote.previousElementSibling;
+  if (header == null || !_classesOf(header).contains('quoteheader')) return;
+  final words = _oneLine(header.text);
+  if (words.isEmpty || words.toLowerCase() == 'quote') return;
+  out.write('<cite>${_escape(words)}</cite>');
+}
+
+/// An embedded YouTube video as a link to it, holding its thumbnail; a Vimeo
+/// video as a plain link. Anything else embedded is left out.
+void _writeVideo(dom.Element frame, _Writer out) {
+  final src = frame.attributes['src'];
+  final youTube = youTubeIdOf(src);
+  if (youTube != null) {
+    out.write('<a class="video-link" '
+        'href="https://www.youtube.com/watch?v=$youTube" '
+        'rel="nofollow noopener" target="_blank">');
+    out.writeUncounted('<img src="https://i.ytimg.com/vi/$youTube/hqdefault.jpg" '
+        'alt="Video on YouTube" loading="lazy" decoding="async" '
+        'referrerpolicy="no-referrer">');
+    out.write('</a>');
+    return;
+  }
+  final vimeo = vimeoIdOf(src);
+  if (vimeo != null) {
+    out.write('<p><a href="https://vimeo.com/$vimeo" rel="nofollow noopener" '
+        'target="_blank">Video on Vimeo</a></p>');
+  }
+}
+
+/// Words with their runs of spaces, line breaks and non-breaking spaces made
+/// into single spaces.
+String _oneLine(String text) => text.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+/// A width or height the post gave a picture, when it is a plain whole number.
+final RegExp _wholeNumber = RegExp(r'^\d{1,5}$');
+
+/// The picture rebuilt from its address, alt text and size, or null when its
+/// address is not a web address. Nothing else on the forum's tag is kept: no
+/// class, no style, no event handler.
+String? _pictureTag(dom.Element img) {
+  final src = _webAddress(img.attributes['src']);
+  if (src == null) return null;
+
+  final tag = StringBuffer('<img src="${_escapeAttribute(src)}"');
+  tag.write(' alt="${_escapeAttribute(img.attributes['alt']?.trim() ?? '')}"');
+  for (final side in const ['width', 'height']) {
+    final value = img.attributes[side]?.trim();
+    if (value != null && _wholeNumber.hasMatch(value) && int.parse(value) > 0) {
+      tag.write(' $side="$value"');
+    }
+  }
+  tag.write(' loading="lazy" decoding="async" referrerpolicy="no-referrer">');
+  return tag.toString();
 }
 
 /// [text] cut to [room] characters, at the last space before the cut so a word
@@ -212,8 +441,14 @@ String _cutToFit(String text, int room) {
 String _plainWords(dom.Node node) {
   if (node is dom.Text) return node.text;
   if (node is! dom.Element) return '';
-  if (node.localName == 'br') return '\n';
-  return node.nodes.map(_plainWords).join();
+  final tag = node.localName;
+  if (tag == 'br') return '\n';
+  final words = node.nodes.map(_plainWords).join();
+  // Table cells, a fold's title and a quote's name each end where the next
+  // thing starts, so they are kept apart.
+  if (tag == 'td' || tag == 'th') return '$words ';
+  if (tag == 'summary' || tag == 'cite' || tag == 'tr') return '$words\n';
+  return words;
 }
 
 /// The address as a link, or null when it is not one this site should follow —

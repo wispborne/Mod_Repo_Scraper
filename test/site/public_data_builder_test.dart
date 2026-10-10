@@ -389,11 +389,12 @@ void main() {
     expect(listing.downloadCount, 1);
   });
 
-  test('the gallery leaves out buttons, badges and tiny pictures', () {
+  test('the gallery marks buttons, badges and tiny pictures as small', () {
     const post = '<p>Look</p>'
         '<img src="https://i.imgur.com/shot.png" width="900">'
         '<img src="https://ko-fi.com/img/donate.png">'
-        '<img src="https://i.imgur.com/tiny.png" width="88">';
+        '<img src="https://i.imgur.com/tiny.png" width="88">'
+        '<img src="https://fractalsoftworks.com/forum/Smileys/default/smiley.gif">';
 
     final data = builder.build(
       mods: [forumMod(name: 'Nexerelin')],
@@ -404,12 +405,25 @@ void main() {
           ImageRef(originalUrl: 'https://i.imgur.com/shot.png'),
           ImageRef(originalUrl: 'https://ko-fi.com/img/donate.png'),
           ImageRef(originalUrl: 'https://i.imgur.com/tiny.png'),
+          ImageRef(
+              originalUrl:
+                  'https://fractalsoftworks.com/forum/Smileys/default/smiley.gif'),
+          ImageRef(originalUrl: 'https://i.imgur.com/no-size.png'),
         ]),
       }),
     );
 
     final detail = data.details['nexerelin']!;
-    expect(detail.gallery.map((i) => i.url), ['https://i.imgur.com/shot.png']);
+    // The forum's own smiley is not the author's, so it is left out entirely.
+    expect(detail.gallery.map((i) => i.url), [
+      'https://i.imgur.com/shot.png',
+      'https://ko-fi.com/img/donate.png',
+      'https://i.imgur.com/tiny.png',
+      'https://i.imgur.com/no-size.png',
+    ]);
+    expect(detail.gallery.map((i) => i.small), [null, true, true, null]);
+    // A screenshot carries no `small` field at all.
+    expect(detail.gallery.first.toMap().containsKey('small'), isFalse);
   });
 
   test(

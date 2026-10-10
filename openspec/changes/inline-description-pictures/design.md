@@ -48,6 +48,8 @@ Considered: hiding pictures with CSS when the setting is off. Rejected, because 
 ### The setting sits with the other picture setting
 It goes in the existing "Mod pictures" section of the Settings dialog, as a second group of choices: "Pictures in descriptions", with Show and Don't show. It is stored in `localStorage` as `starmodderInlinePictures` (`on` / `off`, anything else reads as `on`), with `inlinePictures()` and `setInlinePictures()` in `lib.js` next to `imageChoice()`. Changing it redraws the page the same way the picture choice does. Nothing needs writing onto `<html>` before the first paint, because only the mod page reads it.
 
+The same choice is also offered beside the "About this mod" heading, as "Hide pictures" / "Show pictures", because a setting tucked away in a dialog is one most readers never find. It is only drawn when the description has pictures. It writes the same `localStorage` key and redraws only the description section, in place, so the reader is not sent back to the top of the page.
+
 ### The cut-off keeps measuring until the reader decides
 The `ResizeObserver` stays connected until the reader presses "Show more" or "Show less". Each time the content changes size, it decides again. It cuts the description off and shows the button when the content overruns, and removes both when it fits. The observer watches the content inside the clip, not the clip itself, because the clip's own height is fixed while it is cut off. Pictures with a width and height keep their space while loading, so the page jumps less. The others still change the size, and the observer catches that.
 

@@ -3,8 +3,8 @@ import 'package:test/test.dart';
 
 /// The mod page shows the author's own forum post. It arrives as whatever HTML
 /// the forum produced, so only a small, safe set of tags is published: enough
-/// to keep paragraphs, lists, emphasis and links, and nothing that can run,
-/// style the page or load anything from another host.
+/// to keep paragraphs, lists, emphasis, links and pictures, and nothing that
+/// can run or style the page.
 void main() {
   test('keeps paragraphs, lists and emphasis', () {
     expect(
@@ -13,13 +13,87 @@ void main() {
     );
   });
 
-  test('drops scripts, styles and anything that loads from elsewhere', () {
+  test('drops scripts, styles and frames', () {
     final cleaned = cleanPostHtml(
       '<p>Before</p><script>alert(1)</script><style>p{color:red}</style>'
-      '<iframe src="https://example.com"></iframe><img src="https://x/y.png">'
+      '<iframe src="https://example.com"></iframe>'
       '<p>After</p>',
     );
     expect(cleaned, '<p>Before</p><p>After</p>');
+  });
+
+  const pictureTail = 'loading="lazy" decoding="async" referrerpolicy="no-referrer">';
+
+  test('keeps a picture where the post put it', () {
+    expect(
+      cleanPostHtml('<p>Before</p><img src="https://i.imgur.com/a.png" '
+          'alt="" class="bbc_img"><p>After</p>'),
+      '<p>Before</p><img src="https://i.imgur.com/a.png" alt="" $pictureTail'
+      '<p>After</p>',
+    );
+  });
+
+  test('a picture keeps only its address, alt text and size', () {
+    expect(
+      cleanPostHtml('<img src="https://x/y.png" alt="A ship" width="640" '
+          'height="360" style="border:9px" class="c" onerror="go()">'),
+      isNull, // a picture alone is no description: nothing to read
+    );
+    expect(
+      cleanPostHtml('<p>Hi<img src="https://x/y.png" alt="A &quot;ship&quot;" '
+          'width="640" height="12px" style="border:9px" class="c" '
+          'onerror="go()"></p>'),
+      '<p>Hi<img src="https://x/y.png" alt="A &quot;ship&quot;" width="640" '
+      '$pictureTail</p>',
+    );
+  });
+
+  test('a picture with an address that is not a web address is dropped', () {
+    expect(cleanPostHtml('<p>Hi<img src="javascript:alert(1)"></p>'), '<p>Hi</p>');
+    expect(cleanPostHtml('<p>Hi<img src="data:image/png;base64,AAAA"></p>'),
+        '<p>Hi</p>');
+    expect(cleanPostHtml('<p>Hi<img></p>'), '<p>Hi</p>');
+  });
+
+  test('badges and donation buttons are kept too', () {
+    expect(
+      cleanPostHtml('<p>Hi</p><img src="https://storage.ko-fi.com/cdn/kofi.png">'),
+      '<p>Hi</p><img src="https://storage.ko-fi.com/cdn/kofi.png" alt="" '
+      '$pictureTail',
+    );
+  });
+
+  test('a download link whose only content is a badge is kept', () {
+    // Topic 35651's shape: every download is a shields.io badge in a link.
+    expect(
+      cleanPostHtml('<p>Get it</p><a href="https://github.com/x/y/releases">'
+          '<img src="https://img.shields.io/badge/KWIN-RELEASE-blue"></a>'),
+      '<p>Get it</p><a href="https://github.com/x/y/releases" '
+      'rel="nofollow noopener" target="_blank">'
+      '<img src="https://img.shields.io/badge/KWIN-RELEASE-blue" alt="" '
+      '$pictureTail</a>',
+    );
+  });
+
+  test('line breaks around a picture are left alone', () {
+    expect(
+      cleanPostHtml('A<br><br><img src="https://x/y.png"><br><br>B'),
+      'A<br><br><img src="https://x/y.png" alt="" $pictureTail<br><br>B',
+    );
+  });
+
+  test('picture tags do not count toward the length cap', () {
+    final pictures = List.generate(
+        200, (i) => '<img src="https://i.imgur.com/picture$i.png">').join();
+    final cleaned = cleanPostHtml('<p>Short words.</p>$pictures<p>The end.</p>')!;
+    expect(cleaned, contains('picture199.png'));
+    expect(cleaned, contains('The end.'));
+    expect(cleaned, isNot(endsWith('<p>…</p>')));
+  });
+
+  test('the plain words of a post leave its pictures out', () {
+    expect(postHtmlAsText('<p>Hello<img src="https://x/y.png"> world</p>'),
+        'Hello world');
   });
 
   test('drops every attribute except a link\'s address', () {
@@ -84,7 +158,7 @@ void main() {
   test('drops a link left empty because its picture went', () {
     expect(
       cleanPostHtml('<p>Get it</p><a href="https://x/y.zip">'
-          '<img src="https://x/banner.png"></a>'),
+          '<img src="javascript:x"></a>'),
       '<p>Get it</p>',
     );
   });

@@ -175,7 +175,12 @@ class PublicImage with PublicImageMappable {
   /// The picture's own caption or alt text. Null when it had none.
   final String? caption;
 
-  PublicImage({required this.url, this.caption});
+  /// True for a button, a badge, an icon or anything the post says is small —
+  /// whatever [looksLikeAScreenshot] turns down. The page hides these behind a
+  /// button. Only written when true.
+  final bool? small;
+
+  PublicImage({required this.url, this.caption, this.small});
 }
 
 /// One way to get the mod.

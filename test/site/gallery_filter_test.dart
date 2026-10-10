@@ -116,4 +116,25 @@ void main() {
     expect(isBadgeOrDonationImage(shot), isFalse);
     expect(looksLikeAScreenshot(shot), isTrue);
   });
+
+  // The gallery publishes every picture but these, so this is the one rule
+  // that still keeps a picture off the page.
+  test("the forum's own furniture is told apart from what authors post", () {
+    expect(
+        isForumFurniture(
+            'https://fractalsoftworks.com/forum/Smileys/default/smiley.gif'),
+        isTrue);
+    expect(
+        isForumFurniture(
+            'https://fractalsoftworks.com/forum/Themes/default/images/x.png'),
+        isTrue);
+    expect(
+        isForumFurniture(
+            'https://fractalsoftworks.com/forum/index.php?action=dlattach;topic=1.0;attach=4;image'),
+        isFalse);
+    // A mod's repository keeps its pictures in a graphics folder too.
+    expect(isForumFurniture('https://github.com/x/y/raw/main/graphics/ship.png'),
+        isFalse);
+    expect(isForumFurniture('https://ko-fi.com/img/donate.png'), isFalse);
+  });
 }

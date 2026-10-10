@@ -6,10 +6,11 @@
 
 import {
   aiSummaryMode, buildHash, clear, el, errorPanel, formatDay,
-  formatMoment, applySpacing, go, imageChoice, imageUrlOf, loading,
+  formatMoment, applySpacing, go, imageChoice, imageUrlOf, inlinePictures,
+  loading,
   favorites, modHref, modList, modName,
   preparePageScroll, restorePageScroll, searchHelpField, setAiSummaryMode,
-  setImageChoice,
+  setImageChoice, setInlinePictures,
   setSpacingPreference, spacingPreference,
   THEMES, applyTheme, setThemePreference, themePreference,
   thumbnail, watchFavorites,
@@ -174,8 +175,9 @@ async function showBuild() {
 
 /// The settings dialog, opened from the bar at the top. It holds the choices
 /// that are about the reader rather than about any one page: the colours, how
-/// much room there is between things, which of a mod's two pictures to show, and whether
-/// AI-written summaries are shown at all. Each choice takes effect the moment
+/// much room there is between things, which of a mod's two pictures to show,
+/// whether a description shows its post's pictures, and whether AI-written
+/// summaries are shown at all. Each choice takes effect the moment
 /// it is ticked — there is no Save button to find. Changing the pictures or
 /// the summaries choice redraws the page underneath, so everything on it
 /// changes at once rather than on the next click.
@@ -188,6 +190,8 @@ function mountSettings() {
   const aiRadios = [...dialog.querySelectorAll('input[name="ai-summaries"]')];
   const pictureRadios =
     [...dialog.querySelectorAll('input[name="mod-pictures"]')];
+  const inlineRadios =
+    [...dialog.querySelectorAll('input[name="inline-pictures"]')];
   const themeRadios = mountThemeList(dialog.querySelector('#theme-list'));
 
   applySpacing();
@@ -199,6 +203,8 @@ function mountSettings() {
     for (const radio of aiRadios) radio.checked = radio.value === ai;
     const picture = imageChoice();
     for (const radio of pictureRadios) radio.checked = radio.value === picture;
+    const inline = inlinePictures();
+    for (const radio of inlineRadios) radio.checked = radio.value === inline;
     const theme = themePreference();
     for (const radio of themeRadios) radio.checked = radio.value === theme;
     dialog.showModal();
@@ -231,6 +237,13 @@ function mountSettings() {
     radio.addEventListener('change', () => {
       if (!radio.checked) return;
       setImageChoice(radio.value);
+      route();
+    });
+  }
+  for (const radio of inlineRadios) {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      setInlinePictures(radio.value);
       route();
     });
   }

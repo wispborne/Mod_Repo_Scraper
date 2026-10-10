@@ -4,8 +4,10 @@ import 'package:html/parser.dart' as html_parser;
 ///
 /// A post's pictures are not all screenshots. Most threads carry a "Buy me a
 /// coffee" button, a build badge, the author's avatar, a title banner and a
-/// handful of the forum's own smileys, and publishing all of them as
-/// "Screenshots" made the gallery useless.
+/// handful of the forum's own smileys, and showing all of them as
+/// "Screenshots" made the gallery useless. The gallery still publishes them
+/// (all but the forum's own furniture), marked as small pictures, and the
+/// page hides those behind a button.
 ///
 /// Three rules, in order of how sure they are:
 ///
@@ -90,18 +92,29 @@ bool isBadgeOrDonationImage(String url) {
   for (final banned in _badgeHosts) {
     if (host == banned || host.endsWith('.$banned')) return true;
   }
-
   final path = address.path.toLowerCase();
-  if (host == 'fractalsoftworks.com' ||
-      host.endsWith('.fractalsoftworks.com')) {
-    for (final part in _forumFurniture) {
-      if (path.contains(part)) return true;
-    }
-  }
+
+  if (isForumFurniture(trimmed)) return true;
 
   // The query is where the forum puts its attachment ids, and an attachment is
   // a picture the author uploaded — so only the path is read for these words.
   return _neverAModPicture.hasMatch(path);
+}
+
+/// True when [url] is a piece of the forum's own furniture — a smiley, a theme
+/// graphic, an avatar — rather than anything an author posted. The gallery
+/// never publishes these, where it publishes every other picture and only
+/// marks the small ones.
+bool isForumFurniture(String url) {
+  final address = Uri.tryParse(url.trim());
+  if (address == null) return false;
+
+  final host = address.host.toLowerCase();
+  if (host != 'fractalsoftworks.com' && !host.endsWith('.fractalsoftworks.com')) {
+    return false;
+  }
+  final path = address.path.toLowerCase();
+  return _forumFurniture.any(path.contains);
 }
 
 /// A size written into a `style` attribute, e.g. "width: 64px".

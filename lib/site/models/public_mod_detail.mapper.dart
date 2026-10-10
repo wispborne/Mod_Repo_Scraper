@@ -623,17 +623,28 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
     _$caption,
     opt: true,
   );
+  static bool? _$small(PublicImage v) => v.small;
+  static const Field<PublicImage, bool> _f$small = Field(
+    'small',
+    _$small,
+    opt: true,
+  );
 
   @override
   final MappableFields<PublicImage> fields = const {
     #url: _f$url,
     #caption: _f$caption,
+    #small: _f$small,
   };
   @override
   final bool ignoreNull = true;
 
   static PublicImage _instantiate(DecodingData data) {
-    return PublicImage(url: data.dec(_f$url), caption: data.dec(_f$caption));
+    return PublicImage(
+      url: data.dec(_f$url),
+      caption: data.dec(_f$caption),
+      small: data.dec(_f$small),
+    );
   }
 
   @override
@@ -696,7 +707,7 @@ extension PublicImageValueCopy<$R, $Out>
 
 abstract class PublicImageCopyWith<$R, $In extends PublicImage, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? url, String? caption});
+  $R call({String? url, String? caption, bool? small});
   PublicImageCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
 
@@ -709,16 +720,19 @@ class _PublicImageCopyWithImpl<$R, $Out>
   late final ClassMapperBase<PublicImage> $mapper =
       PublicImageMapper.ensureInitialized();
   @override
-  $R call({String? url, Object? caption = $none}) => $apply(
-    FieldCopyWithData({
-      if (url != null) #url: url,
-      if (caption != $none) #caption: caption,
-    }),
-  );
+  $R call({String? url, Object? caption = $none, Object? small = $none}) =>
+      $apply(
+        FieldCopyWithData({
+          if (url != null) #url: url,
+          if (caption != $none) #caption: caption,
+          if (small != $none) #small: small,
+        }),
+      );
   @override
   PublicImage $make(CopyWithData data) => PublicImage(
     url: data.get(#url, or: $value.url),
     caption: data.get(#caption, or: $value.caption),
+    small: data.get(#small, or: $value.small),
   );
 
   @override

@@ -26,7 +26,19 @@ shown. The choice SHALL be kept in the reader's own browser and SHALL NOT be sen
 anywhere. Changing it SHALL redraw the page. When it is off, no picture in a
 description SHALL be loaded. Each SHALL be shown as a small "picture" link instead,
 which opens the picture over the page. A picture inside a link SHALL be shown as that
-link's address, so the link still works.
+link's address, so the link still works. Where a description has pictures, the same
+choice SHALL also be offered beside the "About this mod" heading, as "Hide pictures" or
+"Show pictures", so a reader finds it where the pictures are. Pressing it SHALL change
+the setting for every mod and redraw the description in place, leaving the reader
+where they were on the page.
+
+#### Scenario: Turning pictures off from the description
+- **WHEN** a reader presses "Hide pictures" beside the "About this mod" heading
+- **THEN** the description's pictures become "picture" links, the button reads "Show pictures", and Settings shows the choice as off
+
+#### Scenario: A description with no pictures
+- **WHEN** a mod's description has no pictures
+- **THEN** no "Hide pictures" button is drawn beside its heading
 
 #### Scenario: A reader on a slow connection
 - **WHEN** a reader turns pictures in descriptions off and opens a mod with twenty pictures in its post

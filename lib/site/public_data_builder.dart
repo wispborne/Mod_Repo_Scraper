@@ -1144,12 +1144,16 @@ class PublicDataBuilder {
     void add(String? url, String? caption) {
       final cleaned = stripExternalPrefix(url);
       if (cleaned == null || !seen.add(cleaned)) return;
-      // Every picture in a post used to be published as a screenshot, so a
-      // gallery was as likely to be a "Buy me a coffee" button and a build
-      // badge as anything from the game.
-      if (!looksLikeAScreenshot(cleaned, sizes: sizes)) return;
-      gallery
-          .add(PublicImage(url: cleaned, caption: _firstNonEmpty([caption])));
+      // The forum's own smileys and theme graphics are not the author's.
+      if (isForumFurniture(cleaned)) return;
+      // A "Buy me a coffee" button or a build badge is still published, but
+      // marked, so the page can keep it out of the way of the screenshots.
+      final small = !looksLikeAScreenshot(cleaned, sizes: sizes);
+      gallery.add(PublicImage(
+        url: cleaned,
+        caption: _firstNonEmpty([caption]),
+        small: small ? true : null,
+      ));
     }
 
     for (final image in mod.getImages().values) {
