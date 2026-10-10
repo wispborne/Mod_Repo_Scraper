@@ -8,11 +8,11 @@
 import {
   aiSparkle, aiSummaryNote, breadcrumbs, buildHash, categoryChips, clear,
   countedAcross,
-  currentGameVersion, downloadButton, downloadCountBadge, el, favoriteToggle,
+  currentGameVersion, downloadButton, el, favoriteToggle,
   formatDay, gameVersionFamily, gameVersions, hashQuery, howLongAgo,
   imageUrlOf, isDiscordOnly, joinNames, modHref, modList, modName,
   MOD_VERSION_NOTE,
-  NO_DESCRIPTION, pager, pageSizePreference, picture, replaceHash,
+  NO_DESCRIPTION, pager, quickTip, pageSizePreference, picture, replaceHash,
   fullAiSummaryOnHover, searchHelpField, summaryTitle,
   summaryToShow, thumbnail,
   versionStanding, versionStandingNote, viewToggle,
@@ -525,29 +525,30 @@ export function modGrid(mods, currentVersion) {
 export function modCard(mod, currentVersion, { when = null } = {}) {
   const summary = summaryToShow(mod);
   const updated = mod.lastReleaseDate
-    ? { text: `Updated ${howLongAgo(mod.lastReleaseDate)}`, on: mod.lastReleaseDate }
+    ? { kind: 'updated', on: mod.lastReleaseDate }
     : null;
-  const whenLine = when || updated;
   return el('div', { class: 'mod-card' }, [
     el('a', { class: 'card-inner', href: modHref(mod.id) }, [
       // Overlay badges to leave more room for the card text.
       el('div', { class: 'card-picture' }, [
         cardImage(mod),
-        el('div', { class: 'card-foot' }, badges(mod, currentVersion)),
+        el('div', { class: 'card-foot' }, [
+          ...badges(mod, currentVersion),
+          // How long ago the mod changed, at the right of the badges.
+          when || updated ? whenLine(when || updated) : null,
+        ]),
       ]),
       el('div', { class: 'card-body' }, [
-        el('div', { class: 'card-title', text: modName(mod) }),
-        (mod.authors || []).length
-          ? el('div', { class: 'card-authors', text: joinNames(mod.authors) })
-          : null,
+        // The name and who made it are one thing, held closer together than
+        // the card's other lines.
+        el('div', { class: 'card-heading' }, [
+          el('div', { class: 'card-title', text: modName(mod) }),
+          (mod.authors || []).length
+            ? el('div', { class: 'card-authors', text: joinNames(mod.authors) })
+            : null,
+        ]),
         summaryLine(summary),
-        whenLine
-          ? el('div', {
-              class: 'card-when',
-              text: whenLine.text,
-              title: whenLine.on ? formatDay(whenLine.on) : null,
-            })
-          : null,
+        categoryLine(mod.categories),
       ]),
     ]),
     favoriteToggle(mod),
@@ -622,8 +623,6 @@ function badges(mod, currentVersion) {
     }));
   }
   if (mod.isWorkInProgress) out.push(el('span', { class: 'badge wip', text: 'WIP' }));
-  const downloads = downloadCountBadge(mod);
-  if (downloads) out.push(downloads);
   if (isDiscordOnly(mod)) {
     out.push(el('span', {
       class: 'badge discord', text: 'Discord only',
@@ -631,6 +630,63 @@ function badges(mod, currentVersion) {
     }));
   }
   return out;
+}
+
+// The icon on the date: a clock with an arrow running back round it,
+// anticlockwise (Tabler's history shape, mirrored). The same icon whether the
+// date is when the mod was updated or when it was added; the hover text says
+// which.
+const WHEN_ICON = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" '
+  + 'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+  + 'stroke-linejoin="round" focusable="false" aria-hidden="true">'
+  + '<path d="M12 8v4l2 2"/><path d="M20.95 11a9 9 0 1 0-.5 4m.5 5v-5h-5"/></svg>';
+const WHEN_WORDS = { updated: 'Updated', added: 'Added' };
+
+/// "3 days ago", with an icon saying what happened then. The word "Updated" or
+/// "Added" is left to the icon and the hover text.
+function whenLine({ kind, on }) {
+  const ago = howLongAgo(on);
+  if (!ago) return null;
+  return el('span', {
+    class: 'card-when',
+    title: `${WHEN_WORDS[kind]} ${formatDay(on)}`,
+  }, [
+    el('span', { class: 'when-icon', html: WHEN_ICON }),
+    ago[0].toUpperCase() + ago.slice(1),
+  ]);
+}
+
+/// The mod's categories as one line of badges at the foot of a card. Those
+/// that do not fit are folded into a "+2" badge, which names them on hover.
+///
+/// How much fits is only known once the card is on the page and laid out, and
+/// changes with the page's width, so the line measures itself whenever its own
+/// width changes.
+function categoryLine(categories) {
+  const names = categories || [];
+  if (!names.length) return null;
+  const chips = names.map((name) => el('span', { class: 'badge', text: name }));
+  const more = el('span', { class: 'badge category-more', hidden: true });
+  const line = el('div', { class: 'card-categories' }, [...chips, more]);
+  quickTip(more, () => names.filter((_, i) => chips[i].hidden).join(', '));
+
+  const fit = () => {
+    for (const chip of chips) chip.hidden = false;
+    more.hidden = true;
+    const overflowing = () => line.scrollWidth > line.clientWidth;
+    if (!overflowing()) return;
+    more.hidden = false;
+    // Always keep the first one: a lone "+3" says nothing at a glance.
+    let shown = chips.length;
+    do {
+      chips[--shown].hidden = true;
+      const hidden = names.slice(shown);
+      more.textContent = `+${hidden.length}`;
+      more.setAttribute('aria-label', `Also: ${hidden.join(', ')}`);
+    } while (shown > 1 && overflowing());
+  };
+  new ResizeObserver(fit).observe(line);
+  return line;
 }
 
 /// The summary on a card. An AI-written one is marked with a sparkle just

@@ -265,7 +265,7 @@ function recentlyAdded(mods, currentVersion) {
   const strip = el('div', { class: 'strip' });
   for (const mod of newest) {
     strip.append(modCard(mod, currentVersion, {
-      when: { text: `Added ${howLongAgo(mod.addedOn)}`, on: mod.addedOn },
+      when: { kind: 'added', on: mod.addedOn },
     }));
   }
 

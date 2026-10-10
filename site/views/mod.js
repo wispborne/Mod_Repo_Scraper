@@ -156,7 +156,10 @@ function modHeader(mod, detail, shownName, currentVersion) {
     // The thread's own title, where it says more than the name does.
     shownName === mod.name
       ? null
-      : el('span', { class: 'sub thread-title', text: mod.name }),
+      : el('span', { class: 'sub thread-title' }, [
+        'Original title: ',
+        el('i', { text: mod.name }),
+      ]),
     partOfThreadLine(mod),
     (mod.authors || []).length ? authors : null,
     meta,

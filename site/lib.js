@@ -136,6 +136,45 @@ export function breadcrumbs(trail = []) {
   return nav;
 }
 
+/// A hover note that shows at once, for where the browser's own `title` is too
+/// slow: it waits about a second, and a reader pointing at "+3" to see what is
+/// hidden gives up before then. It floats on the page itself, so a card that
+/// clips its own contents cannot cut it off.
+///
+/// [text] is read each time the pointer arrives, so it can change after the
+/// note is set up. Only one note is ever on the page, and it goes when the
+/// pointer leaves, the page scrolls or the route changes.
+export function quickTip(node, text) {
+  node.addEventListener('pointerenter', () => {
+    const words = typeof text === 'function' ? text() : text;
+    if (!words) return;
+    hideQuickTip();
+    const tip = el('div', { class: 'quick-tip', role: 'tooltip', text: words });
+    document.body.append(tip);
+    const at = node.getBoundingClientRect();
+    const size = tip.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(4, at.left + at.width / 2 - size.width / 2),
+      window.innerWidth - size.width - 4,
+    );
+    const above = at.top - size.height - 6;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${above >= 4 ? above : at.bottom + 6}px`;
+    shownTip = tip;
+  });
+  node.addEventListener('pointerleave', hideQuickTip);
+  return node;
+}
+
+let shownTip = null;
+function hideQuickTip() {
+  shownTip?.remove();
+  shownTip = null;
+}
+for (const event of ['scroll', 'hashchange', 'popstate']) {
+  window.addEventListener(event, hideQuickTip, { passive: true });
+}
+
 // --- The address bar ---
 
 /// The query part of the current hash, as URLSearchParams. Only the pages that
@@ -1275,21 +1314,6 @@ export function downloadButton(mod, opts = {}) {
     button,
     originalPageButton(mod, originalPage),
   ]);
-}
-
-/// "3 downloads", for the row of small facts a card and a row already carry.
-///
-/// It is not a link: the card, the row and the mod's name are all already links
-/// to the mod's own page, which is where the downloads are listed. Null for a
-/// mod with one download or none, which is most of them.
-export function downloadCountBadge(mod) {
-  const count = mod.downloadCount || 0;
-  if (count < 2) return null;
-  return el('span', {
-    class: 'badge downloads',
-    text: `${count} downloads`,
-    title: "Mirrors and older versions. The mod's own page lists them all.",
-  });
 }
 
 /// The button that favorites a mod, or takes it out of the favorites.
