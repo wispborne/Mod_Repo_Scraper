@@ -123,6 +123,76 @@ void main() {
     expect(data.list.mods.single.displayName, isNull);
   });
 
+  group("the LLM's name for the mod", () {
+    const seaOfStars = 'Sea of Stars 0.5.1 - Go Beyond the Persean Sector';
+
+    PublicMod builtWith(String title, List<LlmMod> llmMods) => builder
+        .build(
+          mods: [forumMod(name: title, topicId: 36134)],
+          bundle: bundleOf(index: [
+            thread(topicId: 36134, title: title, llmMods: llmMods),
+          ]),
+        )
+        .list
+        .mods
+        .single;
+
+    test('is shown where it agrees with a title the rules cannot take apart',
+        () {
+      // A bare version in the middle, with a subtitle after it: the rules
+      // leave this title whole.
+      final mod = builtWith(seaOfStars, [LlmMod(name: 'Sea of Stars')]);
+      expect(mod.displayName, 'Sea of Stars');
+      expect(mod.name, seaOfStars);
+    });
+
+    test('loses any version the model left on it', () {
+      final mod = builtWith(seaOfStars, [LlmMod(name: 'Sea of Stars v0.5.1')]);
+      expect(mod.displayName, 'Sea of Stars');
+    });
+
+    test('is not shown where it is a different name from the title', () {
+      // The thread's one main mod, so its facts are this mod's, but "Red" is
+      // not a tidier spelling of "Red - the Oculian Armada".
+      final mod = builtWith('Red - the Oculian Armada (0.10.2-RC4) Mod', [
+        LlmMod(name: 'Red', role: LlmModRole.main),
+      ]);
+      expect(mod.displayName, isNot('Red'));
+    });
+
+    test('is not needed where the rules already give the name', () {
+      final mod = builtWith('[0.98a] Nexerelin v0.12.2', [
+        LlmMod(name: 'Nexerelin'),
+      ]);
+      expect(mod.displayName, 'Nexerelin');
+    });
+
+    test('is what the release feed and "Requires" links call the mod too',
+        () async {
+      final data = builder.build(
+        mods: [
+          forumMod(name: seaOfStars, topicId: 36134),
+          forumMod(name: 'Addon Mod', topicId: 2),
+        ],
+        bundle: bundleOf(index: [
+          thread(
+              topicId: 36134,
+              title: seaOfStars,
+              llmMods: [LlmMod(name: 'Sea of Stars')]),
+          thread(topicId: 2, title: 'Addon Mod', llmMods: [
+            LlmMod(
+              name: 'Addon Mod',
+              extras: LlmExtras(needs: ['Sea of Stars']),
+            ),
+          ]),
+        ]),
+      );
+      final addon = data.details.values
+          .firstWhere((d) => d.listing.name == 'Addon Mod');
+      expect(addon.listing.needs.map((n) => n.name), contains('Sea of Stars'));
+    });
+  });
+
   test('the list is in order of the name a reader sees, not the raw title', () {
     final data = builder.build(
       mods: [

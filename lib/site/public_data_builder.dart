@@ -44,9 +44,13 @@ class _JoinedMod {
   /// only this mod, and for a merged mod.
   final String? partOfThreadTitle;
 
+  /// The name a reader sees. See [PublicDataBuilder._shownNameFor].
+  final String shownName;
+
   const _JoinedMod({
     required this.mod,
     required this.id,
+    required this.shownName,
     this.topicId,
     this.partOfThreadTitle,
   });
@@ -257,6 +261,10 @@ class PublicDataBuilder {
       joined.add(_JoinedMod(
         mod: mod,
         id: id,
+        shownName: _shownNameFor(
+          mod,
+          _mainLlmMod(mod, topicId == null ? null : threads[topicId]),
+        ),
         topicId: topicId,
         partOfThreadTitle: partOfThreadTitle,
       ));
@@ -303,6 +311,7 @@ class PublicDataBuilder {
         releases: modReleases,
         modsByName: modsByName,
         partOfThreadTitle: entry.partOfThreadTitle,
+        shownName: entry.shownName,
       );
       listRecords.add(record);
       details[id] = _detailRecord(
@@ -612,7 +621,7 @@ class PublicDataBuilder {
       );
       byMod.putIfAbsent(owner.id, () => []).add(ModRelease(
             modId: owner.id,
-            modName: displayName(owner.mod.name),
+            modName: owner.shownName,
             seenOn: release.seenOn,
             oldVersion: release.oldVersion,
             newVersion: release.newVersion,
@@ -728,6 +737,7 @@ class PublicDataBuilder {
     required List<ModRelease> releases,
     required Map<String, _JoinedMod> modsByName,
     required String? partOfThreadTitle,
+    required String shownName,
   }) {
     final extras = chosen?.extras;
     final downloads = _downloadsFor(mod, chosen, threadDownloads);
@@ -735,7 +745,6 @@ class PublicDataBuilder {
     final lastPost = parseForumDate(thread?.lastPostDate);
     final copiedSummary = usableSummary(mod.summary);
     final generatedSummary = usableSummary(extras?.summary?.sentence);
-    final shownName = displayName(mod.name);
     final pictures = _picturesFor(mod, chosen, authorAvatarPath);
 
     return PublicMod(
@@ -848,7 +857,7 @@ class PublicDataBuilder {
       final known = modsByName[ModIdStore.cleanName(written)];
       if (known != null && known.id == ownId) continue;
 
-      final name = known == null ? written : displayName(known.mod.name);
+      final name = known == null ? written : known.shownName;
       if (!seen.add((known?.id ?? name).toLowerCase())) continue;
       needed.add(PublicNeededMod(name: name, id: known?.id));
     }
@@ -970,6 +979,30 @@ class PublicDataBuilder {
   /// every mod on "Hartley's Miscellaneous Mods" whose name carried a version
   /// took Useful.Tithes' facts. A page with no facts is honest; a page with
   /// somebody else's is not.
+  /// The name a reader sees for [mod].
+  ///
+  /// A thread title is not a name, and [displayName]'s rules cannot take every
+  /// shape of one apart: "Sea of Stars 0.5.1 - Go Beyond the Persean Sector"
+  /// has a bare version in the middle and a subtitle after it, and comes
+  /// through whole. The LLM reads the mod's own name off the post, so where it
+  /// has one for this mod ([chosen]) and that name agrees with the title by
+  /// [modNamesMatch], the LLM's name is the one shown.
+  ///
+  /// Agreeing is required, not just being the thread's one main mod. A name
+  /// that only matches by being the single mod on the thread ("Red" against
+  /// "Red - the Oculian Armada") is a different name, not a tidier spelling of
+  /// the same one, and the title is what the author called the thread. Anything
+  /// else, and any mod the LLM has not read, gets [displayName]'s rules.
+  ///
+  /// The LLM's name goes through [displayName] too, in case it kept a version.
+  String _shownNameFor(ScrapedMod mod, LlmMod? chosen) {
+    final fromRules = displayName(mod.name);
+    final written = chosen?.name.trim() ?? '';
+    if (written.isEmpty || !modNamesMatch(written, mod.name)) return fromRules;
+    final fromLlm = displayName(written);
+    return fromLlm.isEmpty ? fromRules : fromLlm;
+  }
+
   LlmMod? _mainLlmMod(ScrapedMod mod, QbModSummary? thread) {
     final llmMods = thread?.llm?.mods ?? const <LlmMod>[];
     if (llmMods.isEmpty) return null;
