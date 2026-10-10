@@ -228,6 +228,29 @@ void main() {
     });
   });
 
+  group('a program run beside the game', () {
+    test('a mod manager (35155) is kept as a tool, not dropped as a non-mod',
+        () async {
+      final answer = await read(35155);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.isMod, isTrue,
+          reason: 'QBMBAMM is a program made for Starsector with its own '
+              'download — a release worth keeping, even though it is not '
+              'loaded into the game.\n$why');
+      expect(answer.mods, hasLength(1), reason: why);
+      final tool = answer.mods.single;
+      expect(tool.isTool, isTrue,
+          reason: 'it is a mod manager you run beside the game, so TriOS must '
+              'not offer to install it as a mod.\n$why');
+      expect(tool.role, LlmModRole.main, reason: why);
+      expect(tool.downloads.map((d) => d.url),
+          contains(contains('QBMBAMM-Windows.zip')),
+          reason: why);
+    });
+  });
+
   group('a thread that is not a mod', () {
     test('a question thread (34645) is not a mod release', () async {
       final answer = await read(34645);

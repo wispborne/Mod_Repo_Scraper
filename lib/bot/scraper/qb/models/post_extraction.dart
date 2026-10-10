@@ -295,6 +295,11 @@ class LlmDownload with LlmDownloadMappable {
 /// add-ons. Each mod owns its own [downloads] and [extras].
 /// - [name]: the mod's name as stated in the post.
 /// - [role]: [LlmModRole] — main, addon, separate, or variant.
+/// - [isTool]: true when this is a program run beside the game — a mod
+///   manager, a launcher, an editor — rather than something loaded into it.
+///   Absent otherwise, which includes every entry read before the field
+///   existed. A tool is still a `main` mod on its own thread; [role] is about
+///   the other mods on the thread and nothing else.
 /// - [requires]: the name of the mod an add-on needs, else null.
 /// - [downloads]: the mod's grouped downloads (see [LlmDownload]).
 /// - [image]: an image from the post that clearly belongs to THIS mod, stored as
@@ -309,6 +314,7 @@ class LlmDownload with LlmDownloadMappable {
 class LlmMod with LlmModMappable {
   final String name;
   final String role;
+  final bool? isTool;
   final String? requires;
   final List<LlmDownload> downloads;
   final String? image;
@@ -324,6 +330,7 @@ class LlmMod with LlmModMappable {
   LlmMod({
     this.name = '',
     this.role = LlmModRole.main,
+    this.isTool,
     this.requires,
     this.downloads = const [],
     this.image,

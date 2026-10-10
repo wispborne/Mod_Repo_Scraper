@@ -66,6 +66,7 @@ posts written to be easy.
 | 35651 | Computica's Faction Forks. Seven mods, and every download is a badge image inside a link with no words of its own, in the author's *second* post. The first post also lists forks that are not out yet, which must not become mods. |
 | 21968 | Yunru Mods. A library plus five add-ons that each name it, and a paragraph per add-on for `descriptionAnchors` to point at. |
 | 27785 | Customizable Star Systems. One sentence answers two save questions — safe to add, and safe to remove — and the model once copied the whole sentence into both fields. |
+| 35155 | QBMBAMM, a mod manager. A program made for Starsector but run beside it, not loaded into it: `isMod` must be true, so the thread is kept, and its one entry must be `isTool`, so TriOS never tries to install it as a mod. The prompt used to call tools non-mods. |
 | 34645 | A question thread. Not a mod release at all — `isMod` must be false. |
 
 To add one, copy `qb_data/mods/<id>/detail.json` into `posts/`, drop the

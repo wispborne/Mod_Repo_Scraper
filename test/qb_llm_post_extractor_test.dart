@@ -393,6 +393,35 @@ void main() {
       expect(mods.single.downloads.single.url, 'https://example.com/solo.zip');
     });
 
+    test('a program run beside the game is kept as a tool, and nothing else is',
+        () async {
+      final client = _FakeLlmClient([
+        _json('''
+{"mods":[
+  {"name":"Manager","role":"main","isTool":true,"downloads":[{"url":"https://example.com/manager.zip","label":"Manager","kind":"direct"}]},
+  {"name":"Ships","role":"main","isTool":false,"downloads":[{"url":"https://example.com/ships.zip","label":"Ships","kind":"direct"}]},
+  {"name":"Older","role":"main","downloads":[{"url":"https://example.com/older.zip","label":"Older","kind":"direct"}]}
+]}'''),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(
+            102,
+            '<a href="https://example.com/manager.zip">Manager</a> '
+            '<a href="https://example.com/ships.zip">Ships</a> '
+            '<a href="https://example.com/older.zip">Older</a>'),
+        [],
+      );
+      final mods = modsOf(102);
+      expect(mods[0].isTool, isTrue);
+      expect(mods[1].isTool, isNull,
+          reason: 'a mod that is not a tool carries no field at all, so its '
+              'entry in the bundle reads as it always did');
+      expect(mods[2].isTool, isNull,
+          reason: 'an answer without the field is a mod, not a tool');
+      expect(mods[1].toMap().containsKey('isTool'), isFalse);
+    });
+
     test('a main mod plus an add-on keeps both, add-on requires the main mod',
         () async {
       final client = _FakeLlmClient([

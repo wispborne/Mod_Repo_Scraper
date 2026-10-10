@@ -31,6 +31,10 @@ class _RawDownload {
 class _RawMod {
   final String name;
   final String role;
+
+  /// True when this is a program run beside the game (a mod manager, a
+  /// launcher, an editor) rather than something loaded into it.
+  final bool isTool;
   final String? requires;
   final List<_RawDownload> downloads;
 
@@ -70,6 +74,7 @@ class _RawMod {
   _RawMod({
     required this.name,
     required this.role,
+    this.isTool = false,
     this.requires,
     required this.downloads,
     this.image,
@@ -647,6 +652,7 @@ class PostExtractor {
     return _RawMod(
       name: asString(m['name']) ?? '',
       role: LlmModRole.orMain(asString(m['role'])),
+      isTool: m['isTool'] == true,
       requires: asString(m['requires']),
       downloads: downloads,
       image: asString(m['image']),
@@ -935,6 +941,7 @@ class PostExtractor {
     return _CheckedMod(
       name: mod.name,
       role: mod.role,
+      isTool: mod.isTool,
       requires: mod.requires,
       downloads: downloads,
       image: image,
@@ -1288,6 +1295,8 @@ class PostExtractor {
       result.add(LlmMod(
         name: mod.name,
         role: mod.role,
+        // Absent unless true, so a mod's entry reads as it always did.
+        isTool: mod.isTool ? true : null,
         requires: mod.requires,
         downloads: downloads,
         image: mod.image,
@@ -1476,6 +1485,7 @@ class PostExtractor {
             .map((m) => {
                   'name': m.name,
                   'role': m.role,
+                  if (m.isTool) 'isTool': true,
                   if (m.requires != null) 'requires': m.requires,
                   'downloads': m.downloads
                       .map((d) =>
@@ -1519,6 +1529,10 @@ class PostExtractor {
 class _CheckedMod {
   final String name;
   final String role;
+
+  /// True when this is a program run beside the game (a mod manager, a
+  /// launcher, an editor) rather than something loaded into it.
+  final bool isTool;
   final String? requires;
   final List<_RawDownload> downloads;
 
@@ -1548,6 +1562,7 @@ class _CheckedMod {
   _CheckedMod({
     required this.name,
     required this.role,
+    this.isTool = false,
     this.requires,
     required this.downloads,
     this.image,

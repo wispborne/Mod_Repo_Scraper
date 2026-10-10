@@ -117,6 +117,42 @@ void main() {
             'old spelling finds the mod');
   });
 
+  group('a program run beside the game', () {
+    test('is marked as a tool and shelved under Utilities', () {
+      final data = builder.build(
+        mods: [
+          forumMod(name: 'MOSS').copyWith(categories: ['Faction Mods']),
+        ],
+        bundle: bundleOf(index: [
+          thread(llmMods: [LlmMod(name: 'MOSS', isTool: true)]),
+        ]),
+      );
+
+      final mod = data.list.mods.single;
+      expect(mod.isTool, isTrue);
+      expect(mod.categories, ['Factions', 'Utilities'],
+          reason: 'the sources filed it elsewhere; it is added to Utilities '
+              'beside the mod managers the forum shelves there, and keeps '
+              'what it already had');
+    });
+
+    test('an ordinary mod carries no tool field at all', () {
+      final data = builder.build(
+        mods: [forumMod().copyWith(categories: ['Faction Mods'])],
+        bundle: bundleOf(index: [
+          thread(llmMods: [LlmMod(name: 'Nexerelin')]),
+        ]),
+      );
+
+      final mod = data.list.mods.single;
+      expect(mod.isTool, isNull);
+      expect(mod.toMap().containsKey('isTool'), isFalse,
+          reason: 'mods.json is fetched whole, so a field every mod would '
+              'carry as false is not written');
+      expect(mod.categories, ['Factions']);
+    });
+  });
+
   test('a name that needs no tidying is not published twice', () {
     final data =
         builder.build(mods: [forumMod(name: 'Nexerelin')], bundle: bundleOf());

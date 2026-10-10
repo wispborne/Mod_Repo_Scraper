@@ -146,6 +146,12 @@ class PublicMod with PublicModMappable {
   /// True when the thread marks the mod as a work in progress.
   final bool isWorkInProgress;
 
+  /// True when this is a program run beside the game — a mod manager, a
+  /// launcher, an editor — rather than a mod loaded into it, as the LLM read
+  /// the author's post. Left out otherwise, so it costs `mods.json` nothing
+  /// for the thousand-odd mods that are not tools.
+  final bool? isTool;
+
   /// The day the mod last put out a new version, as the release feed saw it.
   /// Null when no release has been recorded for it yet.
   final DateTime? lastReleaseDate;
@@ -211,6 +217,7 @@ class PublicMod with PublicModMappable {
     this.nexusUrl,
     this.sourceIsPublic = false,
     this.isWorkInProgress = false,
+    this.isTool,
     this.lastReleaseDate,
     this.addedOn,
     this.threadLastPostOn,

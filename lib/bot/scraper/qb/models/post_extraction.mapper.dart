@@ -1331,6 +1331,12 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
     opt: true,
     def: LlmModRole.main,
   );
+  static bool? _$isTool(LlmMod v) => v.isTool;
+  static const Field<LlmMod, bool> _f$isTool = Field(
+    'isTool',
+    _$isTool,
+    opt: true,
+  );
   static String? _$requires(LlmMod v) => v.requires;
   static const Field<LlmMod, String> _f$requires = Field(
     'requires',
@@ -1365,6 +1371,7 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
   final MappableFields<LlmMod> fields = const {
     #name: _f$name,
     #role: _f$role,
+    #isTool: _f$isTool,
     #requires: _f$requires,
     #downloads: _f$downloads,
     #image: _f$image,
@@ -1378,6 +1385,7 @@ class LlmModMapper extends ClassMapperBase<LlmMod> {
     return LlmMod(
       name: data.dec(_f$name),
       role: data.dec(_f$role),
+      isTool: data.dec(_f$isTool),
       requires: data.dec(_f$requires),
       downloads: data.dec(_f$downloads),
       image: data.dec(_f$image),
@@ -1448,6 +1456,7 @@ abstract class LlmModCopyWith<$R, $In extends LlmMod, $Out>
   $R call({
     String? name,
     String? role,
+    bool? isTool,
     String? requires,
     List<LlmDownload>? downloads,
     String? image,
@@ -1490,6 +1499,7 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
   $R call({
     String? name,
     String? role,
+    Object? isTool = $none,
     Object? requires = $none,
     List<LlmDownload>? downloads,
     Object? image = $none,
@@ -1499,6 +1509,7 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
     FieldCopyWithData({
       if (name != null) #name: name,
       if (role != null) #role: role,
+      if (isTool != $none) #isTool: isTool,
       if (requires != $none) #requires: requires,
       if (downloads != null) #downloads: downloads,
       if (image != $none) #image: image,
@@ -1510,6 +1521,7 @@ class _LlmModCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, LlmMod, $Out>
   LlmMod $make(CopyWithData data) => LlmMod(
     name: data.get(#name, or: $value.name),
     role: data.get(#role, or: $value.role),
+    isTool: data.get(#isTool, or: $value.isTool),
     requires: data.get(#requires, or: $value.requires),
     downloads: data.get(#downloads, or: $value.downloads),
     image: data.get(#image, or: $value.image),

@@ -7,7 +7,7 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 18;
+  static const int promptVersion = 20;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -100,11 +100,12 @@ Hard rules:
 
 Return this JSON object:
 {
-  "isMod": <true or false: is this thread a downloadable Starsector mod release?>,
+  "isMod": <true or false: is this thread a downloadable Starsector mod or Starsector tool release?>,
   "mods": [
     {
       "name": "<the mod's name as written in the post>",
       "role": "<main | addon | separate | variant>",
+      "isTool": <true for a program you run beside the game, such as a mod manager, launcher or editor; false for anything loaded into the game>,
       "requires": "<for an addon, the exact name of the mod it needs; else null>",
       "downloads": [
         {
@@ -146,15 +147,17 @@ Return this JSON object:
 }
 
 Guidance:
-- "isMod" says whether this thread is itself a downloadable Starsector mod
-  release:
+- "isMod" says whether this thread is itself a downloadable Starsector mod or
+  Starsector tool release:
   - true: the post offers a mod you can download and load into the game — this
     is the normal case. If you listed any real download in "mods", "isMod" is
     true.
-  - false: the thread is NOT a mod release. Examples: a discussion or question,
-    a guide or tutorial, a modding-help request, a list or index that only
-    points to other threads, artwork, or a tool that is not itself a mod you
-    load into the game.
+  - also true: the post offers a program made for Starsector that you download
+    and run beside the game rather than load into it — a mod manager, a
+    launcher, a ship or save editor.
+  - false: the thread is NOT a mod or tool release. Examples: a discussion or
+    question, a guide or tutorial, a modding-help request, a list or index that
+    only points to other threads, or artwork.
   When unsure, say true. It is safer to keep a borderline thread than to drop a
   real mod.
 - Most threads are about exactly one mod, so "mods" is usually a one-item list
@@ -180,6 +183,12 @@ Guidance:
   Example: A thread has a mod that the thread title is about as well as a 'standalone' mod
     that adds one ship as an alternative to one in the main mod. This is two main mods because
      the second one is standalone, not needing the first one to run.
+
+- "isTool" says whether this entry is a program made for Starsector that you
+  download and run beside the game — a mod manager, a launcher, a ship or save
+  editor — rather than a mod loaded into the game. Almost every entry is false.
+  A tool still gets its role like any other entry: on its own thread it is
+  "main". List a tool's downloads exactly as you would a mod's.
 
 - Add-on vs mirror — do not confuse these:
   - A DIFFERENT file that adds to or extends the mod is its OWN mod entry, with
@@ -351,6 +360,7 @@ Guidance:
         'type': 'string',
         'enum': ['main', 'addon', 'separate', 'variant'],
       },
+      'isTool': {'type': 'boolean'},
       'requires': nullableString(),
       'downloads': {
         'type': 'array',
@@ -425,6 +435,7 @@ Guidance:
     final modRequired = <String>[
       'name',
       'role',
+      'isTool',
       'requires',
       'downloads',
       'image',

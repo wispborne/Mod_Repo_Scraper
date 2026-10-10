@@ -741,6 +741,7 @@ class PublicDataBuilder {
   }) {
     final extras = chosen?.extras;
     final downloads = _downloadsFor(mod, chosen, threadDownloads);
+    final isTool = chosen?.isTool == true;
 
     final lastPost = parseForumDate(thread?.lastPostDate);
     final copiedSummary = usableSummary(mod.summary);
@@ -753,7 +754,7 @@ class PublicDataBuilder {
       displayName: shownName == mod.name ? null : shownName,
       authors: mod.getAuthors(),
       otherAuthorNames: _otherNamesFor(mod.getAuthors()),
-      categories: publicCategoriesFor(mod.getCategories()),
+      categories: _categoriesFor(mod, isTool: isTool),
       sources: _sourcesFor(mod, thread),
       gameVersion: _firstNonEmpty([mod.gameVersionReq, thread?.gameVersion]),
       modVersion: _firstNonEmpty([extras?.version, mod.modVersion]),
@@ -771,6 +772,7 @@ class PublicDataBuilder {
       nexusUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.NexusMods]]),
       sourceIsPublic: _firstNonEmpty([extras?.sourceCode]) != null,
       isWorkInProgress: thread?.isWip ?? false,
+      isTool: isTool ? true : null,
       lastReleaseDate: releases.isEmpty ? null : _lastReleaseDate(releases),
       addedOn: _addedOn(mod, thread, postDate, topicId),
       threadLastPostOn: lastPost == null ? null : writeDay(lastPost),
@@ -1239,6 +1241,21 @@ class PublicDataBuilder {
     if (authors.isNotEmpty) return 'author:${authors.first.toLowerCase()}';
     return '';
   }
+
+  /// The site's categories for a mod. A tool is always under Utilities, which
+  /// is where the forum shelves mod managers and editors and where the site
+  /// folds Discord's "Mod Manager" tag — so a tool the sources filed nowhere,
+  /// or somewhere else, can still be found beside the others.
+  static List<String> _categoriesFor(ScrapedMod mod, {required bool isTool}) {
+    final found = publicCategoriesFor(mod.getCategories());
+    if (!isTool || found.contains(_toolCategory)) return found;
+    return [
+      for (final category in publicCategories)
+        if (found.contains(category) || category == _toolCategory) category,
+    ];
+  }
+
+  static const String _toolCategory = 'Utilities';
 
   /// The shelves the sources file a mod under, for its own page. The merge has
   /// already folded plain synonyms together ("Faction" into "Faction Mods"), so

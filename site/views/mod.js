@@ -126,6 +126,12 @@ function modHeader(mod, detail, shownName, currentVersion) {
     }));
   }
   if (mod.isWorkInProgress) meta.append(el('span', { class: 'badge wip', text: 'Work in progress' }));
+  if (mod.isTool) {
+    meta.append(el('span', {
+      class: 'badge tool', text: 'Tool — runs beside the game',
+      title: 'A program you run beside the game, not a mod you load into it.',
+    }));
+  }
   if (mod.saveCompatible === true) {
     meta.append(el('span', {
       class: 'badge save-ok', text: 'Can be added to an existing save',

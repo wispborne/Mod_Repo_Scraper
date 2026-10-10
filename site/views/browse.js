@@ -623,6 +623,12 @@ function badges(mod, currentVersion) {
     }));
   }
   if (mod.isWorkInProgress) out.push(el('span', { class: 'badge wip', text: 'WIP' }));
+  if (mod.isTool) {
+    out.push(el('span', {
+      class: 'badge tool', text: 'Tool',
+      title: 'A program you run beside the game, not a mod you load into it.',
+    }));
+  }
   if (isDiscordOnly(mod)) {
     out.push(el('span', {
       class: 'badge discord', text: 'Discord only',

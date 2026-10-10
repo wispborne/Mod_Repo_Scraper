@@ -892,6 +892,7 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 .badge.save-no { color: var(--warning); border-color: var(--edge-warning); }
 .badge.save-unknown { opacity: 0.75; }
 .badge.discord { color: var(--secondary); border-color: var(--edge-secondary); }
+.badge.tool { color: var(--text); }
 
 .pager {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;

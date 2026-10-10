@@ -305,6 +305,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     opt: true,
     def: false,
   );
+  static bool? _$isTool(PublicMod v) => v.isTool;
+  static const Field<PublicMod, bool> _f$isTool = Field(
+    'isTool',
+    _$isTool,
+    opt: true,
+  );
   static DateTime? _$lastReleaseDate(PublicMod v) => v.lastReleaseDate;
   static const Field<PublicMod, DateTime> _f$lastReleaseDate = Field(
     'lastReleaseDate',
@@ -362,6 +368,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #nexusUrl: _f$nexusUrl,
     #sourceIsPublic: _f$sourceIsPublic,
     #isWorkInProgress: _f$isWorkInProgress,
+    #isTool: _f$isTool,
     #lastReleaseDate: _f$lastReleaseDate,
     #addedOn: _f$addedOn,
     #threadLastPostOn: _f$threadLastPostOn,
@@ -396,6 +403,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       nexusUrl: data.dec(_f$nexusUrl),
       sourceIsPublic: data.dec(_f$sourceIsPublic),
       isWorkInProgress: data.dec(_f$isWorkInProgress),
+      isTool: data.dec(_f$isTool),
       lastReleaseDate: data.dec(_f$lastReleaseDate),
       addedOn: data.dec(_f$addedOn),
       threadLastPostOn: data.dec(_f$threadLastPostOn),
@@ -505,6 +513,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     String? nexusUrl,
     bool? sourceIsPublic,
     bool? isWorkInProgress,
+    bool? isTool,
     DateTime? lastReleaseDate,
     String? addedOn,
     String? threadLastPostOn,
@@ -595,6 +604,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     Object? nexusUrl = $none,
     bool? sourceIsPublic,
     bool? isWorkInProgress,
+    Object? isTool = $none,
     Object? lastReleaseDate = $none,
     Object? addedOn = $none,
     Object? threadLastPostOn = $none,
@@ -626,6 +636,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (nexusUrl != $none) #nexusUrl: nexusUrl,
       if (sourceIsPublic != null) #sourceIsPublic: sourceIsPublic,
       if (isWorkInProgress != null) #isWorkInProgress: isWorkInProgress,
+      if (isTool != $none) #isTool: isTool,
       if (lastReleaseDate != $none) #lastReleaseDate: lastReleaseDate,
       if (addedOn != $none) #addedOn: addedOn,
       if (threadLastPostOn != $none) #threadLastPostOn: threadLastPostOn,
@@ -667,6 +678,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     nexusUrl: data.get(#nexusUrl, or: $value.nexusUrl),
     sourceIsPublic: data.get(#sourceIsPublic, or: $value.sourceIsPublic),
     isWorkInProgress: data.get(#isWorkInProgress, or: $value.isWorkInProgress),
+    isTool: data.get(#isTool, or: $value.isTool),
     lastReleaseDate: data.get(#lastReleaseDate, or: $value.lastReleaseDate),
     addedOn: data.get(#addedOn, or: $value.addedOn),
     threadLastPostOn: data.get(#threadLastPostOn, or: $value.threadLastPostOn),
