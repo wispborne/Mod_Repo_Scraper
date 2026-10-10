@@ -39,6 +39,12 @@
      badge that carries the mod's own version. */
   --primary-ghost: rgba(73, 252, 255, 0.35);
   --primary-bar-lit: rgba(73, 252, 255, 0.55);
+  /* Something switched on: the page you are on, a ticked choice, a filter in
+     use. The default is the same cyan as everything else; a theme makes it
+     its second colour, the way TriOS marks a picked chip. Hovering stays
+     cyan, so "on" and "under the pointer" can be told apart. */
+  --on: var(--primary);
+  --on-soft: var(--primary-soft);
 
   /* The line round each kind of badge, and the wash behind the line saying
      what a mod needs. Each is its own colour at a strength that shows without
@@ -146,6 +152,105 @@
   }
 }
 
+/* The themes a reader can pick in Settings, copied from TriOS's
+   `assets/themes.json`. Picking one sets `data-theme` on the page; the default
+   sets nothing, so it still follows the computer's light or dark setting.
+
+   Each theme block is written against `[data-theme]` rather than `:root`, so
+   the little colour preview on each theme's button in Settings can carry the
+   same attribute and draw itself in that theme's colours, whatever theme the
+   page is in. These blocks come after the light block on purpose: they are no
+   more specific than it, so being later is what lets them win.
+
+   Every theme is a dark one. This first block puts back the dark version of
+   everything that is not the theme's own colours, for a reader whose computer
+   asks for light pages, and works out the see-through strengths of the
+   theme's colours from the colours themselves. */
+[data-theme] {
+  --text: rgb(220, 225, 240);
+  --text-dim: rgb(140, 150, 170);
+  --warning: rgb(255, 183, 77);
+  --error: rgb(255, 100, 100);
+  --success: rgb(100, 255, 150);
+  --llm: rgb(196, 148, 255);
+  --edge-warning: rgba(255, 183, 77, 0.4);
+  --edge-success: rgba(100, 255, 150, 0.35);
+  --edge-llm: rgba(196, 148, 255, 0.4);
+  --warning-wash: rgba(255, 183, 77, 0.06);
+  --lifted: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --badge-back: rgba(255, 255, 255, 0.02);
+  --over-picture-fade: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
+  --raised: none;
+
+  --surface-2: color-mix(in srgb, var(--surface) 50%, var(--surface-container));
+  --border: color-mix(in srgb, var(--primary) 15%, transparent);
+  --primary-soft: color-mix(in srgb, var(--primary) 14%, transparent);
+  --primary-faint: color-mix(in srgb, var(--primary) 5%, transparent);
+  --primary-bar: color-mix(in srgb, var(--primary) 30%, transparent);
+  --primary-ghost: color-mix(in srgb, var(--primary) 35%, transparent);
+  --primary-bar-lit: color-mix(in srgb, var(--primary) 55%, transparent);
+  --edge-secondary: color-mix(in srgb, var(--secondary) 35%, transparent);
+  --on: var(--secondary);
+  --on-soft: color-mix(in srgb, var(--secondary) 16%, transparent);
+  --over-picture: color-mix(in srgb, var(--surface) 82%, transparent);
+}
+/* The default's dark colours, for its preview button only. On the page the
+   default sets no `data-theme`, so this never applies there. */
+[data-theme="default"] {
+  --primary: rgb(73, 252, 255);
+  --secondary: rgb(59, 203, 232);
+  --surface: rgb(14, 22, 43);
+  --surface-container: rgb(32, 41, 65);
+}
+[data-theme="sigma"] {
+  --primary: #40D7A3;
+  --secondary: #18FFFF;
+  --surface: #21242B;
+  --surface-container: #282C34;
+}
+[data-theme="redacted"] {
+  --primary: #46FFEB;
+  --secondary: #8FA9A6;
+  --surface: #071412;
+  --surface-container: #0D1F1C;
+}
+[data-theme="player"] {
+  --primary: #8BC3E8;
+  --secondary: #31779C;
+  --surface: #04141C;
+  --surface-container: #0A2029;
+}
+[data-theme="one-dark"] {
+  --primary: #4D78CC;
+  --secondary: #98C379;
+  --surface: #21242B;
+  --surface-container: #282C34;
+}
+[data-theme="independents"] {
+  --primary: #B8BCC4;
+  --secondary: #FFD737;
+  --surface: #101216;
+  --surface-container: #1A1D23;
+}
+[data-theme="lavender"] {
+  --primary: #C0A2E8;
+  --secondary: #E3B7D8;
+  --surface: #1A1524;
+  --surface-container: #241D31;
+}
+[data-theme="knights-of-ludd"] {
+  --primary: #B4D93C;
+  --secondary: #E03B30;
+  --surface: #14170A;
+  --surface-container: #1D2110;
+}
+[data-theme="sindrian-diktat"] {
+  --primary: #E762CE;
+  --secondary: #C8007D;
+  --surface: #170A12;
+  --surface-container: #22101B;
+}
+
 /* The roomier spacing, for a reader who picked "Comfortable" in Settings. */
 :root[data-spacing="comfortable"] {
   --gap: 16px;
@@ -208,11 +313,11 @@ h3 { font-size: var(--type-big); line-height: 1.25; margin: 0 0 6px; }
   border-bottom: 2px solid transparent;
 }
 .site-nav a:hover { color: var(--text); text-decoration: none; }
-.site-nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
+.site-nav a.active { color: var(--on); border-bottom-color: var(--on); }
 .nav-count {
   display: inline-block; margin-left: 6px; padding: 0 6px;
-  border-radius: 999px; background: var(--primary-soft);
-  color: var(--primary); font-size: var(--type-tiny);
+  border-radius: 999px; background: var(--on-soft);
+  color: var(--on); font-size: var(--type-tiny);
 }
 
 .settings-button {
@@ -272,10 +377,30 @@ h3 { font-size: var(--type-big); line-height: 1.25; margin: 0 0 6px; }
   background: var(--surface-2);
 }
 .choice:hover { border-color: var(--primary); }
-.choice:has(input:checked) { border-color: var(--primary); background: var(--primary-soft); }
-.choice input { accent-color: var(--primary); margin-top: 3px; cursor: pointer; }
+.choice:has(input:checked) { border-color: var(--on); background: var(--on-soft); }
+.choice input { accent-color: var(--on); margin-top: 3px; cursor: pointer; }
 .choice-name { color: var(--text); font-size: var(--type-small); font-weight: 600; }
 .choice-note { color: var(--text-dim); font-size: var(--type-tiny); }
+
+/* The theme buttons: a strip of each theme's colours and its name, in a row
+   that wraps. The radio button is hidden but still there, so the arrow keys
+   and a screen reader treat the row as one choice. */
+.theme-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.theme-choice {
+  position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 5px 10px 5px 6px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface-2); color: var(--text-dim); font-size: var(--type-small);
+}
+.theme-choice:hover { border-color: var(--primary); color: var(--text); }
+.theme-choice:has(input:checked) { border-color: var(--on); background: var(--on-soft); color: var(--text); }
+.theme-choice:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+.theme-choice input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.theme-strip { display: inline-flex; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 1px var(--border); }
+.theme-strip > span { width: 8px; height: 18px; }
+.strip-surface { background: var(--surface); }
+.strip-container { background: var(--surface-container); }
+.strip-primary { background: var(--primary); }
+.strip-secondary { background: var(--secondary); }
 
 .header-search { position: relative; flex: 0 1 260px; min-width: 0; }
 .header-search .search-box { width: 100%; }
@@ -372,7 +497,7 @@ main {
 .btn:hover:not([disabled]) { border-color: var(--primary); color: var(--primary); }
 .btn[disabled] { opacity: 0.4; cursor: default; }
 .btn-primary { border-color: var(--primary); color: var(--primary); }
-.btn.on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+.btn.on { background: var(--on-soft); border-color: var(--on); color: var(--on); }
 
 /* The one download button every list carries. A mod can offer a dozen
    downloads; the builder has already put them in order, so the button shows the
@@ -554,7 +679,7 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   text-decoration: none;
 }
 .category-cell.on {
-  background: var(--primary-soft); border-color: var(--primary);
+  background: var(--on-soft); border-color: var(--on);
   font-weight: 600;
 }
 .category-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -562,7 +687,8 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   flex: none; color: var(--text-dim); font-size: var(--type-tiny);
   font-variant-numeric: tabular-nums;
 }
-.category-cell.on .category-count, .category-cell:hover .category-count { color: var(--primary); }
+.category-cell:hover .category-count { color: var(--primary); }
+.category-cell.on .category-count { color: var(--on); }
 .result-line { color: var(--text-dim); font-size: var(--type-small); }
 
 /* --- The mod list --- */
@@ -607,8 +733,8 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 }
 .fav-toggle:hover { border-color: var(--primary); color: var(--primary); }
 .fav-toggle.on {
-  background: var(--primary-soft);
-  border-color: var(--primary); color: var(--primary);
+  background: var(--on-soft);
+  border-color: var(--on); color: var(--on);
 }
 /* The whole picture, never a cut-down of it: mod pictures come in every shape
    from a wide banner to a tall poster, and cropping to the card's 16:9 cut the
@@ -792,7 +918,7 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   color: var(--text-dim); cursor: pointer; border-radius: 4px;
 }
 .rows-pick button:hover { color: var(--primary); background: var(--primary-faint); }
-.rows-pick button.on { color: var(--primary); background: var(--primary-soft); }
+.rows-pick button.on { color: var(--on); background: var(--on-soft); }
 .rows-word { margin-left: 4px; }
 
 /* "Show all changelogs" — as quiet as the rows picker beside the other

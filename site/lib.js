@@ -233,6 +233,43 @@ export function applySpacing() {
   document.documentElement.dataset.spacing = spacingPreference();
 }
 
+// --- The theme setting ---
+
+/// The themes a reader can pick, copied from TriOS. Each id names a
+/// `[data-theme]` block in style.css, which holds its colours; this list only
+/// says which exist and what to call them. "default" sets no `data-theme` at
+/// all, so it keeps following the computer's light or dark setting.
+export const THEMES = [
+  { id: 'default', name: 'Default' },
+  { id: 'sigma', name: 'Sigma' },
+  { id: 'redacted', name: '[REDACTED]' },
+  { id: 'player', name: 'Player' },
+  { id: 'one-dark', name: 'One Dark' },
+  { id: 'independents', name: 'Independents' },
+  { id: 'lavender', name: 'Lavender' },
+  { id: 'knights-of-ludd', name: 'Knights of Ludd' },
+  { id: 'sindrian-diktat', name: 'Sindrian Diktat' },
+];
+const THEME_KEY = 'starmodderTheme';
+
+export function themePreference() {
+  const saved = localStorage.getItem(THEME_KEY);
+  return THEMES.some((t) => t.id === saved) ? saved : 'default';
+}
+
+/// Remembers the choice and applies it straight away; the style sheet does the
+/// rest. (index.html applies the saved choice before the first paint too.)
+export function setThemePreference(theme) {
+  localStorage.setItem(THEME_KEY, theme);
+  applyTheme();
+}
+
+export function applyTheme() {
+  const theme = themePreference();
+  if (theme === 'default') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+}
+
 // --- Which of a mod's two pictures to show ---
 
 /// "post" (the default) shows the picture from the author's forum post;
