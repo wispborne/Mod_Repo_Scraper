@@ -1,0 +1,3205 @@
+[
+ {
+  "id": "additional-console-commands",
+  "name": "Additional Console Commands",
+  "authors": [
+   "albinobigfoot",
+   "Android9k"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities",
+   "Quality of life",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.3.16",
+  "summary": "A few extra console commands.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=30955.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1355609846400946316/1355609846400946316",
+  "bestDownload": {
+   "url": "https://www.dropbox.com/scl/fi/g97etju2g6smep9rrx18d/Additional-Console-Commands.zip?rlkey=ufo9lkg0xbsb932rpitb8ht5u&st=pwfvkcj0&dl=1",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "amazigh-s-ship-foundry",
+  "name": "Amazigh's Ship Foundry",
+  "authors": [
+   "Amazigh"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "v1.7.1",
+  "summary": "Adds a Selection of Ships and Weapons.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=24401.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1355723983760265458/1355723983760265458",
+  "bestDownload": {
+   "url": "https://github.com/Bare-Poles/A_S-F/releases/latest/download/A_S-F.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "an-ok-portrait-pack",
+  "name": "An OK Portrait Pack",
+  "authors": [
+   "geminitiger"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Portraits and flags"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.97a",
+  "summary": "Adds 300 new portraits for all factions.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=30262.0",
+  "bestDownload": {
+   "url": "https://www.nexusmods.com/starsector/mods/115",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "apex-design-collective",
+  "name": "Apex Design Collective",
+  "authors": [
+   "theDragn"
+  ],
+  "otherAuthorNames": {
+   "theDragn": [
+    "iryx.gay"
+   ]
+  },
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.2.14",
+  "summary": "A collectivist and technological faction that focuses on armor and remote-support subsystems.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=30074.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1246007929543331870/1246007929543331870",
+  "bestDownload": {
+   "url": "https://github.com/theDragn/ApexDesignCollective/releases/latest/download/Apex.Design.Collective.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "apex-design-collective-skin-peak",
+  "name": "Apex Design Collective Skin - PEAK",
+  "authors": [
+   "Nes"
+  ],
+  "otherAuthorNames": {
+   "Nes": [
+    "nescom"
+   ]
+  },
+  "categories": [
+   "Factions",
+   "Utilities",
+   "Sound and graphics"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.1",
+  "summary": "Peace Keeper, a comprehensive skin pack for the Apex Design Collective faction.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=30826.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1356243338914697266/1356243338914697266",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/apex-design-skin-125580688",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "arma-armatura",
+  "name": "Arma Armatura",
+  "authors": [
+   "shoi"
+  ],
+  "otherAuthorNames": {
+   "shoi": [
+    "gettag"
+   ]
+  },
+  "categories": [
+   "Ships and weapons",
+   "Content expansions",
+   "Quests and stories",
+   "Portraits and flags",
+   "Skills and officers"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "3.3.6",
+  "summary": "A story and content mod primarily focused around pilotable strikecraft: fighter-scale ships with own unique mechanics, over 30 pilotable units across 18 chassis families, 7 warships and carriers built to support them, and 9 fighter wings, a fully fleshed out companion officer, a minor faction with campaign layer elements, and a story centering around a system level conflict.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=18751.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1397364283821523085/1397364283821523085",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2Fgomarz%2Fss-armaa%2Fmaster%2Farmaa.version%22%2C%22id%22%3A%22armaa%22%2C%22version%22%3A%223.3.4b%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22MagicLib%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "arsenal-expansion",
+  "name": "Arsenal Expansion",
+  "authors": [
+   "doodledude1212",
+   "InventorRaccoon"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.95a",
+  "modVersion": "1.5.5",
+  "summary": "with permission from Inventor Raccoon, maintenance update which strips all story-related elements, should be up-to-date with 0.98a forum thread: https://fractalsoftworks.com/forum/index.php?topic=11536.msg518750#msg518750",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=11536.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1512074939589722232/1512074939589722232",
+  "bestDownload": {
+   "url": "https://github.com/InventRaccoon/arsenal-expansion/releases/download/v1.5.5/Arsenal.Expansion.1.5.5.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "arthr-s-pirates-but-epicer-mrmagolor-edition-1-3-1-fool-me-not-at-all",
+  "name": "Arthr's Pirates but EPICer - MrMagolor Edition 1.3.1 \"Fool Me Not At All\"",
+  "authors": [
+   "mrmagolor"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Gives the pirates practically every ship/weapon/fighter/hullmod in your modlist.",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1356793347112697968/1356793347112697968",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1oZ0qwVFB18zQmID66F2Llc4qZ9K4Rl3m",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "arthr-s-ships-n-shit-pre-release",
+  "name": "Arthr's Ships n' Shit - pre-release 0.100",
+  "displayName": "Arthr's Ships n' Shit - pre-release",
+  "authors": [
+   ".arthr."
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Campaign and exploration",
+   "Total conversions"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "summary": "after 9 years in development I return to you with 2 new ships, 1 halfbaked gameplay system and 4 short missions making this a vanilla-quality mod",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1316867938220904580/1316867938220904580",
+  "bestDownload": {
+   "url": "https://drive.google.com/file/d/1CaEc5i4BSJDPZYGMUKwsNx5Hz5Wev6f8/view?usp=sharing",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "ashes-of-the-domain",
+  "name": "Ashes of The Domain",
+  "authors": [
+   "Kaysaar"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Mod heavily centered around campaign layer stuff",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=26307.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1289964566188658798/1289964566188658798",
+  "bestDownload": {
+   "url": "http://www.ashesofthedomain.info",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "attd-all-the-domain-drones",
+  "name": "ATTD+ - All the Domain Drones+",
+  "authors": [
+   "nathan_the_grudge_bearer"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions",
+   "Ships and weapons",
+   "Campaign and exploration"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "summary": "All the Domain Drones (ATDD+) <:facderelicts:644273854486806544> A collection of mods which adds/buffs/modifies the Derelict Drones found out in the wild of Starsector. These mods should be 100% compatible with all other mods excluding major overhauls that aren't normally compatible with any other mods.",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1271590391065477143/1271590391065477143",
+  "bestDownload": {
+   "url": "https://www.dropbox.com/s/lxqxz8w8j4zemrx/Domain%20Drones%2B%20Vanilla.rar?dl=1",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "battlestar-galactica-portrait-pack",
+  "name": "Battlestar Galactica - Portrait Pack",
+  "displayName": "Battlestar Galactica Portrait Pack",
+  "authors": [
+   "razorator"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Portraits and flags"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95a",
+  "modVersion": "1.0.6",
+  "summary": "Adds portraits of major Battlestar Galactica characters for use in Starsector.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=22077.0",
+  "bestDownload": {
+   "url": "https://github.com/Razorator/Battlestar-Galactica-Portrait-Pack/raw/main/Battlestar%20Galactica%20Portrait%20Pack%201.0.6.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "better-colonies",
+  "name": "Better Colonies",
+  "authors": [
+   "Timid"
+  ],
+  "otherAuthorNames": {
+   "Timid": [
+    "techpriest"
+   ]
+  },
+  "categories": [
+   "Campaign and exploration",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "1.91",
+  "summary": "Better Colonies 1.91 I find the great thing in this sector is not so much where we stand, as in what direction we are moving.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=17103.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1539899418990481430/1539899418990481430",
+  "bestDownload": {
+   "url": "https://github.com/TechpriestEnginseer/solid-winner2/releases/download/1.91/Better.Colonies.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "better-vanilla-hullmods-shield-invictus-ecm-maxxing-edition",
+  "name": "Better Vanilla Hullmods v0.8.0 - Shield Invictus ECM Maxxing edition™",
+  "displayName": "Better Vanilla Hullmods",
+  "authors": [
+   "ymfah"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "0.8.0",
+  "summary": "Remove vanilla hullmod restrictions, restore hidden hullmods, and add s-mod interactions to built-in hullmods.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=28474.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1223647250392285284/1223647250392285284",
+  "bestDownload": {
+   "url": "https://github.com/ymfah/Better-Vanilla-Hullmods/releases/download/0.8.0/Better.Vanilla.Hullmods.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "black-lion-ships-unique-lion-s-guard-encounter",
+  "name": "Black Lion Ships v1.0.0 — Unique Lion's Guard Encounter",
+  "displayName": "Black Lion Ships",
+  "authors": [
+   "caccus"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.0.0",
+  "summary": "Adds a unique Sindrian Diktat fleet encounter in the Askonia system featuring modified Executor, Eagle, and Brawler ships with experimental hullmods and ship systems.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35492.0",
+  "bestDownload": {
+   "url": "https://github.com/c4tntnitro-netizen/Starsector-BlackLion",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "blackrock-drive-yards-2",
+  "name": "Blackrock Drive Yards",
+  "authors": [
+   "Computica"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "modVersion": "Starsector 0.98a",
+  "summary": "Provides a modernized and updated version of Blackrock Drive Yards.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35651.0",
+  "bestDownload": {
+   "url": "https://github.com/Compterra/Starsector-CFF-BRDY/archive/refs/heads/main.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "blackrock-drive-yards",
+  "name": "Blackrock Drive Yards",
+  "authors": [
+   "Cycerin"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.65.2a",
+  "modVersion": "0.9.5a",
+  "summary": "Adds the Blackrock Drive Yards Corporation, an unscrupulous corporate faction-state with new ships, weapons, and content.",
+  "forumUrl": "http://fractalsoftworks.com/forum/index.php?topic=4018.0",
+  "bestDownload": {
+   "url": "https://bitbucket.org/thegneissplace/brdy/downloads/Blackrock%20Drive%20Yards%200.9.5a.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "brighton-federation",
+  "name": "Brighton Federation 0.0.4a",
+  "displayName": "Brighton Federation",
+  "authors": [
+   "kingalfonzo"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "A faction comprised of refugees from beyond the Core worlds dedicated to the protection and ferrying of the poor and desperate to the Core Worlds. This polity uses ships cobbled together from Derelict and Remnant scrap, with a strong emphasis on missile alpha strike.",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1365923731083362334/1365923731083362334",
+  "bestDownload": {
+   "url": "https://bitbucket.org/King_Alfonzo/i-will-make-sindria-great-again/downloads/HMI_brighton_0_4_0a.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "commissioned-crews",
+  "name": "Commissioned Crews",
+  "authors": [
+   "Timid"
+  ],
+  "otherAuthorNames": {
+   "Timid": [
+    "techpriest"
+   ]
+  },
+  "categories": [
+   "Ships and weapons",
+   "Utilities",
+   "Campaign and exploration",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "1.999999ggggg",
+  "summary": "Commissioned Crews 1.999999ggggg Download: https://github.com/TechpriestEnginseer/solid-winner/releases/download/1.999999ggggg/Commissioned.Crews.zip",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=16677.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1440879527193739336/1440879527193739336",
+  "bestDownload": {
+   "url": "https://github.com/TechpriestEnginseer/solid-winner/releases/download/1.999999ggggg/Commissioned.Crews.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "console-commands",
+  "name": "Console Commands",
+  "authors": [
+   "LazyWizard",
+   "lukas04"
+  ],
+  "otherAuthorNames": {
+   "LazyWizard": [
+    "arkmagius",
+    "lazy"
+   ]
+  },
+  "categories": [
+   "Utilities",
+   "Quality of life",
+   "Campaign and exploration",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "4.0.8",
+  "summary": "An official update to console commands that overhauls the interface to feel more modern and provide additional quality of life.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=4106.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1419747750987173908/1419747750987173908",
+  "bestDownload": {
+   "url": "https://github.com/LazyWizard/console-commands/releases/latest/download/ConsoleCommands.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "dalton-s-revised-arthr-s-pirates-but-epic",
+  "name": "Dalton's Revised Arthr's Pirates but Epic 1.0.0",
+  "displayName": "Dalton's Revised Arthr's Pirates but Epic",
+  "authors": [
+   "lord_dalton"
+  ],
+  "otherAuthorNames": {
+   "lord_dalton": [
+    "dalton",
+    "epta consortium"
+   ]
+  },
+  "categories": [
+   "Utilities"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Have you ever been playing starsector with a billion modded factions, but, much to your chagrin, you actually don't end up encountering their ships and fleets in combat very often, if ever? I certainly have had this happen to me fairly often while playing; I dont necessarily want to go to war with a faction just to see their ships and I don't really want to make my whole fleet based on said faction just to see them either. Plus pirates get kinda monotonous and boring to fight after a while.",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1466337426229297204/1466337426229297204",
+  "bestDownload": {
+   "url": "https://mega.nz/file/Me5wnK7I#eZMBzreBJZcZ1HFUD9mjoUuuM3vn2Z8-GbqAu0AWk5c",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "dark-qol",
+  "name": "Dark QOL",
+  "authors": [
+   "Darkelle24"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Everything else"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "2.40",
+  "summary": "Adds quality-of-life features including colony buildings like a private arsenal and reverse engineering hub, faction system intel menus, and a command to spawn gates.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=31590.0",
+  "bestDownload": {
+   "url": "https://github.com/darkelle24/DarkQOL-Starsector/releases/latest/download/DarkQOL.rar",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "dassault-mikoyan-engineering",
+  "name": "Dassault-Mikoyan Engineering",
+  "authors": [
+   "Harmful Mechanic"
+  ],
+  "otherAuthorNames": {
+   "Harmful Mechanic": [
+    "soren",
+    "søren"
+   ]
+  },
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95.1a",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=11322.0"
+ },
+ {
+  "id": "diable-armaonics",
+  "name": "Diable ArmAonics 1.3.7",
+  "displayName": "Diable ArmAonics",
+  "authors": [
+   "Argonaut",
+   "lovengard"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.3.7",
+  "summary": "Allows you to pilot Diable Wanzers directly by using the Arma Armatura system to do so.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=26984.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1374866320524447824/1374866320524447824",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FAyreos%2FDiableArmaaonics%2Fmain%2Fdiablearmaaonics.version%22%2C%22id%22%3A%22diablearmaaonics%22%2C%22version%22%3A%221.3.5%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FCaymonJoestar%2FDiable-Avionics%2Fmain%2FDA.version%22%2C%22id%22%3A%22diableavionics%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2Fgomarz%2Fss-armaa%2Fmaster%2Farmaa.version%22%2C%22id%22%3A%22armaa%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "diable-avionics-2",
+  "name": "Diable Avionics",
+  "authors": [
+   "Tartiflette"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95.1a",
+  "modVersion": "2.70rc3",
+  "summary": "Adds a new faction with transforming ships, mech-like strike-crafts called Wanzers, and extensive balancing changes.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=10046.0",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/81270023",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "diable-avionics",
+  "name": "Diable Avionics",
+  "authors": [
+   "Caymon Joestar",
+   "Tartiflette"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "2.9.5",
+  "summary": "Credit to Tartiflette and all those credited on the mod, his patreon: <https://www.patreon.com/tartiflette>",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=29432.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1373166321931649034/1373166321931649034",
+  "bestDownload": {
+   "url": "https://github.com/CaymonJoestar/Diable-Avionics/releases/download/V2.9.5/Diable-Avionics.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "diable-avionics-tidal-fork",
+  "name": "Diable Avionics (TIDAL FORK) v 3.0.1",
+  "displayName": "Diable Avionics (TIDAL FORK)",
+  "authors": [
+   "tidal5590"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "my own version of diable cause i didnt like some of the changes in other forks changelog:",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1507163509224509510/1507163509224509510",
+  "bestDownload": {
+   "url": "https://drive.google.com/file/d/19HmFHq3-5cf-ZxQ81TN_naB2XtHZrjc7/view?usp=sharing",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "diable-avionics-skin-luxurious-bronze",
+  "name": "Diable Avionics Skin - Luxurious Bronze",
+  "displayName": "Diable Avionics Skin - LUXURIOUS BRONZE",
+  "authors": [
+   "Nes"
+  ],
+  "otherAuthorNames": {
+   "Nes": [
+    "nescom"
+   ]
+  },
+  "categories": [
+   "Factions",
+   "Utilities",
+   "Sound and graphics"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "0.98a",
+  "summary": "Luxurious Bronze, a comprehensive skin pack for the Diable Avionics faction.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=34713.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1455281017995923639/1455281017995923639",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/diable-avionics-146931740",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "diable-avionics-original-flavor-2",
+  "name": "Diable Avionics: Original Flavor",
+  "authors": [
+   "After",
+   "Tartiflette"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "3.0.4",
+  "summary": "A different, more hardcore take on Diable Avionics, with tighter combat balance, roster-wide viability, additional polish, and a few tentative story additions.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35818.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1532578139795095562/1532578139795095562",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FTIDAL88%2Fdiable_avionics%2Fmaster%2FDA.version%22%2C%22id%22%3A%22diableavionics%22%2C%22version%22%3A%223.0.4%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22MagicLib%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "disco-balls-1-1-c-more-lamp-colour-options",
+  "name": "Disco.Balls 1.1.c - More Lamp Colour Options",
+  "displayName": "Disco.Balls",
+  "authors": [
+   "sirhartley"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.1.c",
+  "summary": "Adds the option to make your lamp play Carameldansen and go disco, and adds more colours to the selection.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=34161.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1355297749679210787/1355297749679210787",
+  "bestDownload": {
+   "url": "https://github.com/SirHartley/Disco.Balls/releases/download/1.1.c/Disco.Balls1.0.c.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "dustkeeper-xo",
+  "name": "Dustkeeper XO",
+  "authors": [
+   "shmone-else"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.6.0",
+  "summary": "This mod is a plug-in for the Second-in-Command mod by Lukas04, implementing an Executive Officer aptitude for the Dustkeeper Contingency faction from Secrets of the Frontier by Inventor Raccoon. The player can hire their own Executive Officers from the Dustkeeper Contingency at their Holdout Forgeship.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=30636.msg449299#msg449299",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1411090943217504256/1411090943217504256",
+  "bestDownload": {
+   "url": "https://github.com/shmone-else/sicdustkeeper/releases/latest/download/sicdustkeeper.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "ed-shipyard",
+  "name": "ED Shipyard",
+  "authors": [
+   "Ed",
+   "Nick XR"
+  ],
+  "otherAuthorNames": {
+   "Nick XR": [
+    "nick",
+    "nick7884"
+   ]
+  },
+  "categories": [
+   "Ships and weapons",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "2.7.2",
+  "summary": "Adds high-tech ships and weapons to Independents (and pirates) as well as a few unique bounties with a focus on fun, novel ships.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=24976.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1356135415983243396/1356135415983243396",
+  "bestDownload": {
+   "url": "https://raw.githubusercontent.com/Nickwwest/StarSectorMods/main/mods/EDShipyard.2.7.2.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "ed-shipyard-2",
+  "name": "ED Shipyard 2.1.2",
+  "displayName": "ED Shipyard",
+  "authors": [
+   "Ed"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.9.1a",
+  "modVersion": "2.1.2",
+  "summary": "Adds high-tech ships and weapons to Independents and pirates with a dog-themed naming convention.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=16479.0",
+  "bestDownload": {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=24976.0",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "exotica-technologies",
+  "name": "Exotica Technologies",
+  "authors": [
+   "kaysaar",
+   "Lukas04",
+   "presidentmattdamon",
+   "Wispborne"
+  ],
+  "otherAuthorNames": {
+   "Wispborne": [
+    "tartiflette and wispborne",
+    "wisp"
+   ]
+  },
+  "categories": [
+   "Campaign and exploration",
+   "Content expansions",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.8.7",
+  "summary": "Port of Exotica for 0.98a I do not plan to maintain Exotica, as i dont really use it myself. But if you come across any (technical) issues, please notify me about them.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=32811.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1218337390570246274/1218337390570246274",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1Mze9Mn5LDkYuhPxoNTr_mcD4ZB0Ra3fT",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "fleet-action-history",
+  "name": "Fleet Action History",
+  "authors": [
+   "briansd9"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.96a",
+  "modVersion": "1.0.10",
+  "summary": "Tracks individual battle histories, ship kill counts, and officer level ups for personal fleets.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=21929.0",
+  "bestDownload": {
+   "url": "https://github.com/briansd9/starsector-fleethistory/releases/latest/download/fleethistory.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "foxy-s-quality-of-life-cosmetic-tweaks",
+  "name": "Foxy's Quality of Life Cosmetic Tweaks",
+  "displayName": "Foxy's Quality of Life - Cosmetic Tweaks",
+  "authors": [
+   "Foxy"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Everything else"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.96a",
+  "modVersion": "192.168.0.5",
+  "summary": "Adds new music, sound effects, and graphic illustrations to refine the look and feel of the game.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=24579.0",
+  "bestDownload": {
+   "url": "https://tzr.ro/mods/starsector/fqol/fqol.rar",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "fsf-military-corporation",
+  "name": "FSF Military Corporation",
+  "authors": [
+   "Computica"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "modVersion": "Starsector 0.98a",
+  "summary": "Provides a translated and polished fork of FSF with numerous fixes.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35651.0",
+  "bestDownload": {
+   "url": "https://github.com/Compterra/Starsector-CFF-FSF/archive/refs/heads/main.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "garou-labs-a-diable-submod",
+  "name": "Garou Labs: A Diable Submod",
+  "authors": [
+   "leviathan_5000"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Hey folks. It's been a while since this got updated - several game versions and a change of hands for Diable itself- but now that <@312627217559715840> got to the rebalance and re-format to not use the original diableavionics prefix, it is finally ready to go. This also means there aren't patch notes, because it's been years.",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1518509487508422706/1518509487508422706"
+ },
+ {
+  "id": "girls-frontline-portrait-pack",
+  "name": "Girls Frontline Portrait Pack",
+  "authors": [
+   "Haze"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Portraits and flags"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.96a",
+  "modVersion": "1.3",
+  "summary": "Adds portraits sourced from Girls Frontline for the player character and vanilla factions.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=15939.0",
+  "bestDownload": {
+   "url": "https://www.dropbox.com/s/1u47obe35qw7238/Girls%20Frontline%20Portrait%20Pack.7z?dl=1",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "girls-frontline-2-exilium-portraits-pack",
+  "name": "Girls' Frontline 2: Exilium Portraits Pack",
+  "authors": [
+   "HarryVanguard"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.3.0",
+  "summary": "Adds 350+ portraits from Girls' Frontline 2: Exilium characters to player and vanilla factions, along with 7 faction flags.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=34955.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/drive/u/4/folders/1WNCY-0SLkxDK1aJ2j-HPmU8ix6VYW-n2",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "grand-colonies",
+  "name": "Grand.Colonies",
+  "authors": [
+   "SirHartley"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "2.1.b",
+  "summary": "Additional building slots for colonies. Do I have to say more?",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=20986.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1356007403543330948/1356007403543330948",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FSirHartley%2FGrand.Colonies%2Fmaster%2FGrandColonies.version%22%2C%22id%22%3A%22GrandColonies%22%2C%22version%22%3A%222.1.b%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22lw_lazylib%22%2C%22version%22%3A%223.0%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FLunaLib%2Fmain%2FLunaLib.version%22%2C%22id%22%3A%22lunalib%22%2C%22version%22%3A%222.0.5%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "graphicslib",
+  "name": "GraphicsLib",
+  "authors": [
+   "Dark.Revenant"
+  ],
+  "otherAuthorNames": {
+   "Dark.Revenant": [
+    "dr"
+   ]
+  },
+  "categories": [
+   "Utilities",
+   "Libraries",
+   "Sound and graphics"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.12.1",
+  "summary": "GraphicsLib is a mod package containing numerous graphical improvements, including a variety of effects plugins, a dynamic lighting engine, and a screen-space distortion shader. This library can also be used by other modders to implement unique shaders and make use of the built-in lighting, distortion, and post-processing APIs.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=10982.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1356178729646428170/1356178729646428170",
+  "bestDownload": {
+   "url": "https://bitbucket.org/DarkRevenant/graphicslib/downloads/GraphicsLib_1.12.1.7z",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "hazard-mining-incorporated",
+  "name": "Hazard Mining Incorporated",
+  "authors": [
+   "King Alfonzo"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions",
+   "Ships and weapons",
+   "Campaign and exploration",
+   "Total conversions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "0.4.0e",
+  "summary": "-Locomotive (LP) modules fixed.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=13236.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1365922680871583796/1365922680871583796",
+  "bestDownload": {
+   "url": "https://www.dropbox.com/scl/fi/87mpigntc8tfwc6ey9t2s/HMI_0_4_0e.zip?rlkey=bzjviqccosoazp7pxjmq5xt1p&st=auazwrlx&dl=1",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "hmi-supervillians",
+  "name": "HMI Supervillians 0.0.5d",
+  "displayName": "HMI Supervillians",
+  "authors": [
+   "kingalfonzo"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Adds two psychotic factions on the fringes of the Core.",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1365923281361829899/1365923281361829899",
+  "bestDownload": {
+   "url": "https://bitbucket.org/King_Alfonzo/i-will-make-sindria-great-again/downloads/HMI_Supervillains_0_0_5d.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "illustrated-entities",
+  "name": "Illustrated.Entities",
+  "authors": [
+   "SirHartley"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Sound and graphics",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "2.0.c",
+  "summary": "Change your colony descriptions and illustrations.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=25649.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1373643033878466562/1373643033878466562",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FSirHartley%2FIllustrated.Entities%2Fmaster%2FIllustratedEntities.version%22%2C%22id%22%3A%22illustrated_entities%22%2C%22version%22%3A%222.0.c%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FLunaLib%2Fmain%2FLunaLib.version%22%2C%22id%22%3A%22lunalib%22%2C%22version%22%3A%222.0.5%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%2C%22version%22%3A%223.0.0%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "industrial-evolution",
+  "name": "Industrial.Evolution",
+  "authors": [
+   "SirHartley"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Total conversions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "4.1.b",
+  "summary": "A massive campaign content expansion for colonies and exploration.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=18011.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1356019260194951240/1356019260194951240",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FSirHartley%2FIndustrial.Evolution%2Fmaster%2FIndEvo.version%22%2C%22id%22%3A%22IndEvo%22%2C%22version%22%3A%224.1.b%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fgithub.com%2FLazyWizard%2Flazylib%2Freleases%2Fdownload%2F3.0%2FLazyLib.3.0.zip%22%2C%22id%22%3A%22lw_lazylib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22MagicLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fbitbucket.org%2FDarkRevenant%2Fgraphicslib%2Fdownloads%2FgraphicsLib.version%22%2C%22id%22%3A%22shaderLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FLunaLib%2Fmain%2FLunaLib.version%22%2C%22id%22%3A%22lunalib%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "interstellar-federation",
+  "name": "Interstellar Federation",
+  "authors": [
+   "keptin"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.6.1a",
+  "modVersion": "1.27",
+  "summary": "Adds a large collection of new capital ships, cruisers, destroyers, frigates, fighters, and industrial vessels for the Interstellar Federation faction.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=2012.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1a6pDgXwBcw479F18mnMigD5sPQlGjRKg",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "interstellar-federation-refurbished",
+  "name": "Interstellar Federation (refurbished)",
+  "authors": [
+   "Keptin"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Content expansions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95.1a",
+  "summary": "Revives the Interstellar Federation mod for the current game version with cleaned collision meshes and two balance variants.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=24311.0",
+  "bestDownload": {
+   "url": "https://download1323.mediafire.com/0k5dvy7qmqqgRXk6xZ3QnE0MlZmFt-j--oJmkOwqtFpGvOUPTazV28jJCRJ1EUjkqaLjMNEF4YEpnvxHPaOKi8b8HoYA99qzSQREmfFsbRR0XJx8Z3lP5BrQFVXWdA73qQ9O7BgcLQ68YRcqXEZSXjQ_bMzKSNPiOOjESEPVaHM/ad5n9wkhir7ooma/Interstellar+Federation+Refurbished.rar",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "interstellar-imperium",
+  "name": "Interstellar Imperium",
+  "authors": [
+   "Dark.Revenant"
+  ],
+  "otherAuthorNames": {
+   "Dark.Revenant": [
+    "dr"
+   ]
+  },
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "2.6.9",
+  "summary": "This mod contains a complete faction including 21 flyable ships, 25 modular weapons, 7 equippable fighter wings, 4 amazing hull mods, a fully-fledged station with 4 tiers of power, and 3 detailed star systems with interesting lore to dig up.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=8007.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1358332719217770557/1358332719217770557",
+  "bestDownload": {
+   "url": "https://bitbucket.org/DarkRevenant/interstellar-imperium/downloads/Interstellar_Imperium_2.6.9.7z",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "iron-shell",
+  "name": "Iron Shell",
+  "authors": [
+   "avanitia",
+   "Selkie",
+   "Timid"
+  ],
+  "otherAuthorNames": {
+   "Timid": [
+    "techpriest"
+   ]
+  },
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "1.1813aj",
+  "summary": "By cycle 212, I deemed it a mathematical certainty that I'd have to pay taxes. Every calculation I ran confirmed it. I knew I couldn't pay taxes, nor did I care to. But I could commit tax fraud, and in the process, save money.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=18297.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1208459180797591552/1208459180797591552",
+  "bestDownload": {
+   "url": "https://github.com/TechpriestEnginseer/solid-winner4/releases/download/1.1813aj/Iron.Shell.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "iron-shell-dev-probably-scuffed-im-sorry-save-compatible",
+  "name": "Iron Shell (DEV) ((probably scuffed)) (((im sorry))) ((((save compatible))))",
+  "authors": [
+   "selkie"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Updated art & sprites, features some rebalancing efforts as well as bug fixes over the forum release # DOWNLOAD : https://github.com/Selkieeee/Iron-Shell/releases/tag/1.183.5d",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1474069957242261606/1474069957242261606",
+  "bestDownload": {
+   "url": "https://github.com/Selkieeee/Iron-Shell/releases/tag/1.183.5d",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "junk-pirates-2",
+  "name": "Junk Pirates",
+  "authors": [
+   "Computica"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "modVersion": "Starsector 0.98a",
+  "summary": "Restores and modernizes Junk Pirates, PACK, and ASP Syndicate content with compatibility fixes and balance tweaks.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35651.0",
+  "bestDownload": {
+   "url": "https://github.com/Compterra/Starsector-CFF-JunkPirates/archive/refs/heads/main.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "junk-pirates",
+  "name": "Junk Pirates",
+  "authors": [
+   "mendonca"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.65.2a",
+  "modVersion": "3.53",
+  "summary": "Adds three new factions with unique ships, loadouts, and gameplay mechanics.",
+  "forumUrl": "http://fractalsoftworks.com/forum/index.php?topic=161.0",
+  "bestDownload": {
+   "url": "https://bitbucket.org/mendoncka/my-files/downloads/Junk_Pirates_353.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "kadur-remnant",
+  "name": "Kadur Remnant",
+  "authors": [
+   "Vayra"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95a",
+  "modVersion": "3.2.3",
+  "summary": "Adds the Kadur Remnant faction with new ships, weapons, and systems.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=6649.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?authuser=0&id=1cBtUSfKUNf3NM7sL-5JrDasWWaj1OfDo&export=download",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "kadur-remnant-2",
+  "name": "Kadur Remnant",
+  "displayName": "Kadur Remnant 3.2.4 support2",
+  "authors": [
+   "Timid"
+  ],
+  "otherAuthorNames": {
+   "Timid": [
+    "techpriest"
+   ]
+  },
+  "categories": [
+   "Factions",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "3.2.4support2",
+  "summary": "Kadur Remnants 3.2.4support2 god rest the theocrats",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35145.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1489194723024310382/1489194723024310382",
+  "bestDownload": {
+   "url": "https://github.com/TechpriestEnginseer/solid-vayra/releases/download/3.2.4support2/Kadur.Remnant.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "kaleidoscope",
+  "name": "Kaleidoscope",
+  "authors": [
+   "pixel_rice_bowl",
+   "SirHartley"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Sound and graphics",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.0.e",
+  "summary": "Over 70 new planet textures for more variety - a planet portrait pack!",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=31738.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1354963719360086177/1354963719360086177",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FSirHartley%2FKaleidoscope%2Fmaster%2Fkaleidoscope.version%22%2C%22id%22%3A%22kaleidoscope%22%2C%22version%22%3A%221.0.e%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FLunaLib%2Fmain%2FLunaLib.version%22%2C%22id%22%3A%22lunalib%22%2C%22version%22%3A%222.0.5%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%2C%22version%22%3A%223.0.0%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "knights-hospitaller-unique-luddic-church-quest-ship-questline",
+  "name": "Knights Hospitaller - Unique Luddic Church Quest, Ship, Questline",
+  "authors": [
+   "caccus",
+   "miaolong"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Quests and stories"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Adds a unique Fleet, unique Invictus + Luddic Church Questline that leads to acquiring the Invictus of the Knights Hospitaller.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35617",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1518674878893654066/1518674878893654066",
+  "bestDownload": {
+   "url": "https://github.com/c4tntnitro-netizen/KnightsHospitaller/releases/download/Release_V1/KnightsHospitallar.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "lazylib",
+  "name": "LazyLib",
+  "authors": [
+   "LazyWizard"
+  ],
+  "otherAuthorNames": {
+   "LazyWizard": [
+    "arkmagius",
+    "lazy"
+   ]
+  },
+  "categories": [
+   "Libraries"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "3.0",
+  "summary": "LazyLib 3.0 is out, adding compatibility for Starsector 0.98a. This release includes an upgrade to the latest version of Kotlin as well as a few new features and bugfixes.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=5444.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1354904662096220360/1354904662096220360",
+  "bestDownload": {
+   "url": "https://github.com/LazyWizard/lazylib/releases/download/3.0/LazyLib.3.0.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "luddic-enhancement-mod",
+  "name": "Luddic Enhancement Mod",
+  "displayName": "Luddic Enhancement",
+  "authors": [
+   "King Alfonzo"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.2.7b",
+  "summary": "A small mod to enhance the Luddic Church's position in Nexerellin, and enhance Luddic Church and Luddic Path fleets with new, lore-friendly ships.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=15084.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1365924313022337074/1365924313022337074",
+  "bestDownload": {
+   "url": "https://bitbucket.org/King_Alfonzo/i-will-make-sindria-great-again/downloads/Luddic_Enhancement_1_2_7b.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "magiclib",
+  "name": "MagicLib",
+  "authors": [
+   "Tartiflette",
+   "Wispborne"
+  ],
+  "otherAuthorNames": {
+   "Wispborne": [
+    "tartiflette and wispborne",
+    "wisp"
+   ]
+  },
+  "categories": [
+   "Libraries"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "0.45.2",
+  "summary": "A community-driven Starsector library of useful code that can be leveraged and contributed to by every modder.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=25868.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1355301122121924730/1355301122121924730",
+  "bestDownload": {
+   "url": "https://github.com/MagicLibStarsector/MagicLib/releases/latest/download/MagicLib.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "missiles-and-sundry",
+  "name": "Missiles and Sundry",
+  "authors": [
+   "DatonKallandor"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "0.97a-RC11",
+  "summary": "Adds regenerating missiles and clip-based ballistics to vanilla Starsector with reduced re-fire rates and strikecraft-specific variants.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=14921.0",
+  "bestDownload": {
+   "url": "https://github.com/DatonKallandor/Missiles-and-Sundry-0.97a-RC11",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "missing-ships-mod",
+  "name": "Missing Ships Mod",
+  "authors": [
+   "IceFire",
+   "scarface"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Content expansions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "0.98a",
+  "summary": "Adds 44 ships, 6 weapons, and one mission to the game.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=31181.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/drive/folders/1UwqrE4-MYQR6cCCF8onubtaeelUKvGt4?dmr=1&ec=wgc-drive-hero-goto",
+   "kind": "mirror",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "more-tolerant-luddic-majority-2",
+  "name": "More Tolerant Luddic Majority 2.0",
+  "displayName": "More Tolerant Luddic Majority",
+  "authors": [
+   "exonexpedition"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "More Tolerant Luddic Majority 2.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1425338098493165638/1426390919187402905"
+ },
+ {
+  "id": "more-tolerant-luddic-majority",
+  "name": "More Tolerant Luddic Majority",
+  "authors": [
+   "DonationBox"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "summary": "Simply makes the Luddic Majority market condition tolerate Mining, Military Base and High Command industries.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=31591.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1340175857922215997/1340175857922215997",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1ZfimEu0q7ykOaCOInzATWWH0sIT6roIk",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "m-s-mod",
+  "name": "M’s Mod",
+  "authors": [
+   "Monno"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Everything else"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "2.5.5",
+  "summary": "Adds 26 new hullmods that allow players to trade ship stats for Ordnance Points.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=26388.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/drive/folders/1kepn3jdSdpKX4mh4IOJPbSNEIJZDkJiK?usp=sharing",
+   "kind": "mirror",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "nexerelin",
+  "name": "Nexerelin",
+  "authors": [
+   "Histidine",
+   "Zaphide"
+  ],
+  "otherAuthorNames": {
+   "Histidine": [
+    "histidine, zaphide",
+    "histidine_my"
+   ]
+  },
+  "categories": [
+   "Campaign and exploration",
+   "Quests and stories",
+   "Total conversions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "0.12.2c",
+  "summary": "4X in Starsector.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=9175.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1355540819095978154/1355540819095978154",
+  "bestDownload": {
+   "url": "https://github.com/Histidine91/Nexerelin/releases/download/v0.12.2c/Nexerelin_0.12.2c.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "nijigen-extend",
+  "name": "Nijigen Extend",
+  "authors": [
+   "creature"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "0.3.3",
+  "summary": "Adds utility weapons, forge ships, criminal industries, and a tech cooperative market as a standalone expansion pack.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=17846.0",
+  "bestDownload": {
+   "url": "https://bitbucket.org/tanem_rin/tanemrin_yrxp_public/downloads/YREX_0.3.3.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "pirate-collection-2",
+  "name": "Pirate Collection",
+  "authors": [
+   "Crimson Sky Gaurdian"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Content expansions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.9.1a",
+  "summary": "Adds a collection of new pirate ships including utility variants, military ships, and a capital ship to provide more options for the Pirate faction.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=16921.0",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/mod-links-60097706",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "pirate-collection",
+  "name": "Pirate Collection",
+  "authors": [
+   "Yunru"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Content expansions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95a",
+  "summary": "Provides a library framework that allows other Yunru mods to be enabled or disabled without losing saves.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=21968.0",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/0-98a-mod-125459046",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "pirate-mini-mod",
+  "name": "Pirate Mini Mod",
+  "authors": [
+   "MiniDeth3"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions",
+   "Ships and weapons",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.7.7",
+  "summary": "I always feel that once you hit a certain point you are no longer really surprised by pirates. Their roster is limited and their few ships are either weak or just repaints of existing hulls. This alongside mod power creep often renders the faction a minor annoyance or time sink even in the mid game.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=27893.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1375722717470523453/1375722717470523453",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1R5I_kJijUMsJBkFODWmfcNewr6rGjADJ",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "pirate-utility-pack",
+  "name": "Pirate Utility Pack",
+  "authors": [
+   "Dazs"
+  ],
+  "otherAuthorNames": {
+   "Dazs": [
+    "spiritfox",
+    "spiritfox_"
+   ]
+  },
+  "categories": [
+   "Ships and weapons",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "0.5.3",
+  "summary": "A ship pack of utility/combat pirate ships focused on exploring scraping/mining and resource transport.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=34862.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1470122209032016096/1470122209032016096",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1577g9hOGqRMA46GchWqQgIH8TNxueErz",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "polaris-prime",
+  "name": "Polaris Prime",
+  "authors": [
+   "AnyIDElse",
+   "Iriscoral"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95.1a",
+  "modVersion": "0.25",
+  "summary": "Adds a new faction with dense armor, excellent flux dissipation, and fleet-wide hullmod synergies.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=17822.0",
+  "bestDownload": {
+   "url": "https://github.com/Scarlet-MagicianX26/StarsectorPolaris/archive/refs/heads/master.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "portrait-pack",
+  "name": "Portrait Pack",
+  "authors": [
+   "HELMUT"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Portraits and flags"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.9.1a",
+  "modVersion": "1.2.4",
+  "summary": "Adds more than a hundred lore-friendly portraits to the game for use by the player and other factions.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=10836.0",
+  "bestDownload": {
+   "url": "https://www.dropbox.com/s/7z7fscvqsbdakad/Portrait%20pack%20v1.2.4.7z?dl=1",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "price-of-command",
+  "name": "Price of Command 0.0.10",
+  "displayName": "Price of Command",
+  "authors": [
+   "atlanticaccent"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Libraries",
+   "Skills and officers"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "summary": "Allows your officers to get tired, get injured, and, in the worst case, die.",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1203147246233722890/1203147246233722890",
+  "bestDownload": {
+   "url": "https://github.com/atlanticaccent/price-of-command/releases/download/0.0.10/price-of-command.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "privateering-commission-overhaul",
+  "name": "Privateering - Commission Overhaul",
+  "authors": [
+   "Lukas04"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Quality of life",
+   "Campaign and exploration",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "A simple overhaul to faction commissions. The goal of the mod is to add a few more features to commissions while making them feel less \"passive\" overall.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=33914.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1409610329524142191/1409610329524142191",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FPrivateering%2Fmain%2FPrivateering.version%22%2C%22id%22%3A%22privateering%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fbitbucket.org%2FDarkRevenant%2Fgraphicslib%2Fdownloads%2FgraphicsLib.version%22%2C%22id%22%3A%22shaderLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22MagicLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FLunaLib%2Fmain%2FLunaLib.version%22%2C%22id%22%3A%22lunalib%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "project-mistral-a-diable-armaa-expansion-mod",
+  "name": "Project MISTRAL - a Diable/ArmaA Expansion Mod",
+  "authors": [
+   "Bass294"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "This mod adds a new faction: The Angelos Contingent, A faction of former Diable Avionics rebels with a luddic tilt, operating out of the Angelos trinary system near diable space. Using Diable Avionics-based hull designs with some Arma-Armatura-styled Strikecraft. Ships from this mod forego micro-missiles for a more up-close playstyle.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35781.msg525989#msg525989",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1529687309132496976/1529687309132496976",
+  "bestDownload": {
+   "url": "https://github.com/Bass294/Project_MISTRAL/releases/latest/download/Project_MISTRAL.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "qb-mod-browser-and-mod-manager-qbmbamm",
+  "name": "QB Mod Browser and Mod Manager - QBMBAMM",
+  "authors": [
+   "qb"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "summary": "Provides a modern, all-in-one UI experience for Starsector modded gameplay including browsing, downloading, and managing mods.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35155.0",
+  "bestDownload": {
+   "url": "https://github.com/theRoastSuckling/QBMBAMM/releases/latest/download/QBMBAMM-Windows.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "qol-pack",
+  "name": "QoL Pack",
+  "authors": [
+   "PureTilt"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities",
+   "Quality of life"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.5.2",
+  "summary": "Quality of Life Pack adds stuff which should make your time in starsector more pleasant such as: - Clock in campaign",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=23652.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1362529566442127450/1362529566442127450",
+  "bestDownload": {
+   "url": "https://github.com/PureTilt/QoLPack/releases/latest/download/QoLPack.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "random-assortment-of-battlegroups",
+  "name": "Random Assortment of Battlegroups",
+  "authors": [
+   "Akarthus"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.3.1",
+  "summary": "Do you feel like the II, VI, IX, XVI, and XXVII Battlegroups are still not enough? Do you want more (poorly designed and colored) Battlegroups? Well my friend, you are in the right place! This mod currently adds 2 more battlegroups, only accessible to the players! (You gotta find the blueprints first...although some people might have those and are willing to nanoforge you some)",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=33595.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1393112068785307728/1393112068785307728",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1a_r7t2L3wCe8b7xkOa0WAfaikwcQh6hW",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "random-assortment-of-things",
+  "name": "Random Assortment of Things",
+  "authors": [
+   "Lukas04"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Campaign and exploration",
+   "Total conversions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "A collection of features that i felt like making. Every feature can be disabled, so pick and choose whatever you want from the ingame config menu.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=26260.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1354958227770708120/1354958227770708120",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FRandom-Assortment-of-Things%2Frefs%2Fheads%2Fmain%2FRandomAssortmentOfThings.version%22%2C%22id%22%3A%22assortment_of_things%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FLunaLib%2Fmain%2FLunaLib.version%22%2C%22id%22%3A%22lunalib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fbitbucket.org%2FDarkRevenant%2Fgraphicslib%2Fdownloads%2FgraphicsLib.version%22%2C%22id%22%3A%22shaderLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22MagicLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "rat",
+  "name": "RAT",
+  "authors": [
+   "lukas04"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Total conversions"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "RAT (RAT.RAT.RAT) RAT",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1356374175505191113/1356374175505191113"
+ },
+ {
+  "id": "re-mepgear-s-bullships",
+  "name": "Re:  mepgear´s bullships v0.1.0",
+  "displayName": "Re: mepgear´s bullships",
+  "authors": [
+   "mepgear"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "0.1.0",
+  "summary": "Adds a collection of overpowered ships ranging from medium to massive sizes along with one powerful cannon.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=34625.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1PGx7htVD88X9fzISZIH99JRmjTzIqM4K",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "rotcesrats",
+  "name": "RotcesRats",
+  "authors": [
+   "Amazigh"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "v0.3.4",
+  "summary": "Adds a selection of unusual vessels and weapons.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=19787.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1355723571552583850/1355723571552583850",
+  "bestDownload": {
+   "url": "https://github.com/Bare-Poles/rotcesrats/releases/latest/download/RotcesRats.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "scav-co-ship-weapon-pack",
+  "name": "SCAV-CO Ship/Weapon Pack",
+  "authors": [
+   "Ladean",
+   "Zanagrave"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Content expansions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "X-8",
+  "summary": "Download: https://github.com/Zanagrave/Mods/raw/main/SCAV-CO%20Ship%20Works.rar Forum link: https://fractalsoftworks.com/forum/index.php?topic=29449.msg431430#msg431430",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=29449.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1520484865865158806/1520484865865158806",
+  "bestDownload": {
+   "url": "https://github.com/Zanagrave/Mods/raw/main/SCAV-CO%20Ship%20Works.rar",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "scy-2",
+  "name": "Scy",
+  "authors": [
+   "Tartiflette"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95.1a",
+  "modVersion": "1.66rc3",
+  "summary": "Adds a new faction with fast, fragile ships that rely on hit-and-run tactics and advanced, mixed technology.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=8010.0",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/scy-nation-1-76913714",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "scy",
+  "name": "SCY",
+  "authors": [
+   "starficz"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.11.1",
+  "summary": "As the previous maintainer is unable to update as of this moment, here is the latest patch for SCY.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=29535.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1359298072999493693/1359298072999493693",
+  "bestDownload": {
+   "url": "https://github.com/Starficz/scy-nation/releases/latest/download/ScyNation.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "scy-nation",
+  "name": "SCY Nation",
+  "authors": [
+   "presidentmattdamon"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "1.7.0",
+  "summary": "Adds the Scy Nation faction with unique ships, weapons, and hullmods.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=29290.0",
+  "bestDownload": {
+   "url": "https://bitbucket.org/CodingTartiflette/scy-nation-mod/downloads/ScyNation_bluesky.zip",
+   "kind": "mirror",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "second-in-command",
+  "name": "Second-in-Command",
+  "authors": [
+   "Lukas04"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Content expansions",
+   "Skills and officers",
+   "Total conversions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "A skill system rework that almost entirely replaces the original system with a new one. More information on it can be found on its forum page.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=30407.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1354933898462625873/1354933898462625873",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FSecondInCommand%2Fmain%2FSecondInCommand.version%22%2C%22id%22%3A%22second_in_command%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FLunaLib%2Fmain%2FLunaLib.version%22%2C%22id%22%3A%22lunalib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fbitbucket.org%2FDarkRevenant%2Fgraphicslib%2Fdownloads%2FgraphicsLib.version%22%2C%22id%22%3A%22shaderLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22MagicLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "second-in-command-auxiliaries",
+  "name": "Second-in-Command: Auxiliaries",
+  "authors": [
+   "zamster"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Skills and officers"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.3.0",
+  "summary": "Adds multiple new executive officers, exploration focused milestones as well as some QoL utilities for the player.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35525.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1510717094231019541/1510717094231019541",
+  "bestDownload": {
+   "url": "https://gitlab.com/starsector-public/sic-auxiliaries/-/archive/1.3.0/sic-auxiliaries-1.3.0.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "secrets-of-the-frontier",
+  "name": "Secrets of the Frontier",
+  "authors": [
+   "Inventor Raccoon"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Content expansions",
+   "Quests and stories"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "0.15.1",
+  "summary": "Dance amongst the void. Discover the secrets of the frontier.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=15820.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1355249594258161845/1355249594258161845",
+  "bestDownload": {
+   "url": "https://github.com/InventRaccoon/secrets-of-the-frontier/releases/latest/download/Secrets.of.the.Frontier.0.15.1.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "seeker",
+  "name": "Seeker",
+  "authors": [
+   "Tartiflette"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.65.2a",
+  "modVersion": "0.1",
+  "summary": "Adds quests, exploration, unique ships, and scripted encounters featuring Anomalies and Artifacts.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=9428.0",
+  "bestDownload": {
+   "url": "https://bitbucket.org/CodingTartiflette/seeker-mod/downloads/SEEKER_0.1.rar",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "seeker-unidentified-contact",
+  "name": "Seeker - Unidentified Contact",
+  "authors": [
+   "s_numan"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Campaign and exploration"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Update for a mod by Tartiflette",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1370652306214883368/1370652306214883368",
+  "bestDownload": {
+   "url": "https://github.com/S-Numan/Seeker/releases/latest/download/SEEKER.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "seeker-unknown-contact",
+  "name": "Seeker - Unknown Contact",
+  "authors": [
+   "Tartiflette"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Content expansions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95.1a",
+  "modVersion": "0.53rc1",
+  "summary": "Adds a wide selection of over 30 unique and unconventional vessels, including rare super-ships and specialized classes, with balanced strengths and weaknesses.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=19414.0",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/79266950",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "shadowyards-reconstruction-authority",
+  "name": "Shadowyards Reconstruction Authority",
+  "authors": [
+   "MShadowy",
+   "wispborne"
+  ],
+  "otherAuthorNames": {
+   "wispborne": [
+    "tartiflette and wispborne",
+    "wisp"
+   ]
+  },
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.95a",
+  "modVersion": "0.9.5-rc4",
+  "summary": "The SRA is the most lasting incarnation of a long line of anti-Domain movements which survived by virtue of remaining one step ahead of the Domains authority intruding into newly colonized space. Rejecting the vast machines of the Domains' industry, this lineage of rebel groups had a noted history of modifying, and in some instances designing, machinery and arms to suit their own needs. In the decades leading up to the collapse this group came under the control of one Alexandr Inokkenti, who put it’s technical expertise to use creating warships and weapons with which to oppose the Domain. ## Mod created by MShadowy",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=3491.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1361905703672877317/1361905703672877317",
+  "bestDownload": {
+   "url": "https://github.com/MShadowy/shadowyards/releases/download/0.9.5-rc4/Shadowyards_0.9.5-rc4.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "ship-weapon-pack",
+  "name": "Ship/Weapon Pack",
+  "authors": [
+   "Dark.Revenant"
+  ],
+  "otherAuthorNames": {
+   "Dark.Revenant": [
+    "dr"
+   ]
+  },
+  "categories": [
+   "Ships and weapons",
+   "Content expansions",
+   "Quests and stories"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.16.6",
+  "summary": "The Ship/Weapon Pack seeks to flesh out the content of Starsector by adding ships, weapons, hull mods, and campaign missions. Included are a couple dozen ships and fighters, new skins, new modular weapons, and a bevy of unique IBB boss ships.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=11018.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1356902159433601065/1356902159433601065",
+  "bestDownload": {
+   "url": "https://bitbucket.org/DarkRevenant/ship-weapon-pack/downloads/Ship_and_Weapon_Pack_1.16.6.7z",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "space-rave",
+  "name": "Space Rave",
+  "authors": [
+   "scc_"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities",
+   "Sound and graphics"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "You don't know what this weapon is. You don't know where to find it. All you know is that this is drum n bass, what you gonna do? Preview: https://youtu.be/Z8obQWpEsM",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=32076.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1357062429485433014/1357062429485433014",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1F1JQa39SDknonQYUAnSLyphVy-ESAFPl",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "star-wars-2020",
+  "name": "Star Wars 2020 v1.1.1a",
+  "displayName": "Star Wars 2020",
+  "authors": [
+   "BeyondTheHorizon"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.1.1a",
+  "summary": "Faction mod introduces 9 Star Wars factions and more features into the game. Requires LazyLib, GraphicsLib and MagicLib",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=19084.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1219270872905420931/1219270872905420931",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/147126542",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "starsector-en-espa-ol-spanish-translation",
+  "name": "Starsector en Español (Spanish translation) v0.3.1",
+  "displayName": "Starsector en Español",
+  "authors": [
+   "victorfer"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a-RC8",
+  "modVersion": "0.3.1",
+  "summary": "Translates the majority of Starsector 0.98a-RC8 into Spanish (Spain), including data files and an optional menu patch.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35924.0",
+  "bestDownload": {
+   "url": "https://github.com/vfernandezmeca/starsector-es/releases/latest",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "starsector",
+  "name": "Starsector+",
+  "authors": [
+   "Dark.Revenant"
+  ],
+  "otherAuthorNames": {
+   "Dark.Revenant": [
+    "dr"
+   ]
+  },
+  "categories": [
+   "Total conversions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.65.2a",
+  "modVersion": "3.7.0",
+  "summary": "Adds balance changes, an overhauled bounty system, vengeance fleets, campaign improvements, officer death mechanics, and crew salary requirements.",
+  "forumUrl": "http://fractalsoftworks.com/forum/index.php?topic=7679.0",
+  "bestDownload": {
+   "url": "https://bitbucket.org/modmafia/starsector/downloads/Starsector%20Plus%203.7.0.7z",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "stellar-networks",
+  "name": "Stellar Networks",
+  "authors": [
+   "Jaghaimo",
+   "Volt"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "3.1.3",
+  "summary": "Adds six new interactive intel boards for managing contacts, commodities, exploration, market queries, market viewing, and storage.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=20836.0",
+  "bestDownload": {
+   "url": "https://github.com/jaghaimo/stelnet/releases/latest",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "stellar-networks-2",
+  "name": "Stellar Networks",
+  "authors": [
+   "Computica"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "modVersion": "Starsector 0.98a",
+  "summary": "Provides an unofficial patched version of Stellar Networks with performance and compatibility fixes.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35651.0",
+  "bestDownload": {
+   "url": "https://github.com/Compterra/Starsector-UFP-StelNet/archive/refs/heads/main.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "sundiving",
+  "name": "Sundiving",
+  "authors": [
+   "ShadowDragon8685"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.9.1a",
+  "forumUrl": "http://fractalsoftworks.com/forum/index.php?topic=15584.0"
+ },
+ {
+  "id": "sunrider",
+  "name": "Sunrider",
+  "authors": [
+   "Alex_Sans"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Content expansions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "0.8.5",
+  "summary": "Adds a quest-focused story mod based on the game Sunrider, featuring new ships, wings, weapons, and soundtracks.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=24274.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1oYxYq4D99JqpWhjZ3U3VMea10RJtqiIE",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "tahlan-shipworks",
+  "name": "Tahlan Shipworks",
+  "authors": [
+   "Nia Tahl"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions",
+   "Ships and weapons",
+   "Campaign and exploration",
+   "Content expansions",
+   "Total conversions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.4",
+  "summary": "There, updated, probably doesn't crash your game",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=14935.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1362475523254648982/1362475523254648982",
+  "bestDownload": {
+   "url": "https://github.com/niatahl/tahlan-shipworks/releases/latest",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "target-practice",
+  "name": "Target Practice",
+  "authors": [
+   "Tartiflette"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95a",
+  "modVersion": "V1.41rc2",
+  "summary": "Adds four practice targets to simulation opponents for testing weapons and ships.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=9438.0",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/49264503",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "the-brighton-federation",
+  "name": "The Brighton Federation",
+  "authors": [
+   "King Alfonzo"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Adds a desperate polity relying on scavenged Remnant and Derelict hulls and converted base-blueprint hulls.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=13236.0",
+  "bestDownload": {
+   "url": "https://bitbucket.org/King_Alfonzo/i-will-make-sindria-great-again/downloads/HMI_brighton_0_4_0a.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "the-knights-of-ludd",
+  "name": "The Knights of Ludd",
+  "authors": [
+   "Dal",
+   "P.M.Damon",
+   "Selkie",
+   "Starficz"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions",
+   "Campaign and exploration",
+   "Quests and stories",
+   "Total conversions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.4.0",
+  "summary": "An ambitious expansion for the sector's holy defenders and their unholy enemies.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=29124",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1360329542711120053/1360329542711120053",
+  "bestDownload": {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FDal-041%2FKnights_of_Ludd%2Fmaster%2Fkol.version%22%2C%22id%22%3A%22knights_of_ludd%22%2C%22version%22%3A%221.4.0%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22MagicLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fbitbucket.org%2FDarkRevenant%2Fgraphicslib%2Fdownloads%2FgraphicsLib.version%22%2C%22id%22%3A%22shaderLib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FLunaLib%2Fmain%2FLunaLib.version%22%2C%22id%22%3A%22lunalib%22%7D",
+   "kind": "trios",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "thog-s-domain-more-explorarium-drones",
+  "name": "Thog's Domain  - More Explorarium Drones",
+  "displayName": "Thog's Domain - More Explorarium Drones",
+  "authors": [
+   "Mr. THG"
+  ],
+  "otherAuthorNames": {
+   "Mr. THG": [
+    "thog"
+   ]
+  },
+  "categories": [
+   "Content expansions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.96a",
+  "modVersion": "RELEASE7",
+  "summary": "Adds 29 new explorarium drone ships, seven fighter wings, and four weapons to the game.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=27632.0",
+  "bestDownload": {
+   "url": "https://github.com/caninmyham/THG-Domain/releases/download/RELEASE7/Thogs.Domain.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "tiandong-heavy-industries",
+  "name": "Tiandong Heavy Industries",
+  "authors": [
+   "MesoTroniK"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.9.1a",
+  "modVersion": "1.2.1a",
+  "summary": "Adds a vanilla-friendly mercenary faction with seventeen ship classes, six fighter wings, modular weapons, and a unique star system with campaign mechanics.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=9583.0",
+  "bestDownload": {
+   "url": "http://download1076.mediafire.com/gco1wcsu6dpgevBA2x2QS321tG7v7leRr88tDiXj5UliVokvAvVXSDiNpd-k6LhbQMHVFH_Iys8QQ-J6DaINqucP2sHR309MGUeYEyAhaYWD-ReOJ8_S4pBXFsloyzIsgklU1pZogZcC9o45Qr5H2V119CJnpNkfWfGFzOofv7jD/x9cjwhsahuajuhy/Tiandong_Heavy_Industries_1.2.1a.zip",
+   "kind": "mirror",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "tolerant-luddic-majority",
+  "name": "Tolerant Luddic Majority",
+  "authors": [
+   "exonexpedition"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities",
+   "Campaign and exploration"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "Ever feel like your Luddic faithful are just too picky? Worlds that are harsh, polluted, or missing a few farms shouldn’t ruin a colony’s harmony?",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1426411592559628328/1426411592559628328",
+  "bestDownload": {
+   "url": "https://github.com/exon-farer/Tolerant.LuddicMajority/releases/latest/download/Tolerant.LuddicMajority.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "torched-seeker-1-0c-unofficial-fork-of-torchships-and-seeker",
+  "name": "Torched Seeker 1.0c (Unofficial Fork of Torchships and Seeker)",
+  "authors": [
+   "unofficialupdater"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Ships and weapons",
+   "Campaign and exploration"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "summary": "(Please check the message at the bottom of the thread before downloading)",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1293359484454047764/1293359794517704814",
+  "bestDownload": {
+   "url": "https://www.dropbox.com/scl/fi/g28o232psoiecs8scugnb/Torched-Seeker-1.0c.zip?rlkey=7lluqt88web8ndpz179awvvc0&st=5skd5z74&dl=1",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "trios-launcher-mod-manager-toolkit",
+  "name": "TriOS: Launcher/Mod Manager/Toolkit",
+  "authors": [
+   "Wispborne"
+  ],
+  "otherAuthorNames": {
+   "Wispborne": [
+    "tartiflette and wispborne",
+    "wisp"
+   ]
+  },
+  "categories": [
+   "Utilities"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "summary": "All-in-one Starsector mod manager, toolkit, and launcher.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=29674.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1355300468968001586/1355300468968001586",
+  "bestDownload": {
+   "url": "https://github.com/wispborne/TriOS/releases/latest/download/TriOS-Windows.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "tyrador-safeguard-coalition",
+  "name": "Tyrador Safeguard Coalition",
+  "authors": [
+   "Machine"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.9a",
+  "modVersion": "1.6.1c",
+  "summary": "Adds a new faction, the Tyrador Safeguard Coalition, centered around a single industrialized planet with a \"Forge World\" theme.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=5492.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=1ofSUZ6H_eKDnT1GYjjgCpyyn3v_RvGzZ",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "uma-musume-portrait-pack",
+  "name": "Uma Musume Portrait Pack v1.0",
+  "displayName": "Uma Musume Portrait Pack",
+  "authors": [
+   "coldhatch"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Portraits and flags"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "v1.0",
+  "summary": "\"A 'horse'? Oh, you mean those girls with tails and cute animal ears who can run really fast.\"",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=33717.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1397616897599733905/1397616897599733905",
+  "bestDownload": {
+   "url": "https://github.com/ColdHatch/Starsector-Uma-Musume-Portrait-Pack/archive/refs/tags/v1.0.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "underworld",
+  "name": "Underworld",
+  "authors": [
+   "Dark.Revenant"
+  ],
+  "otherAuthorNames": {
+   "Dark.Revenant": [
+    "dr"
+   ]
+  },
+  "categories": [
+   "Factions",
+   "Ships and weapons",
+   "Quests and stories"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.8.8",
+  "summary": "Underworld seeks to flesh out the pirates and criminal elements in Starsector. Included are numerous new ships, the Starlight Cabal faction, Cabal skins, an IBB battle featuring a unique Astral, a new star system, and numerous campaign features.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=11002.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1357971923392397428/1357971923392397428",
+  "bestDownload": {
+   "url": "https://bitbucket.org/DarkRevenant/underworld/downloads/Underworld_1.8.8.7z",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "united-aurora-federation",
+  "name": "[WIP] United Aurora Federation  0.84c",
+  "displayName": "United Aurora Federation",
+  "authors": [
+   "Ryxsen1421"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98",
+  "modVersion": "0.84c",
+  "summary": "Adds a stray faction from another dimension that guards an interdimensional gate in the Persean Sector.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=12709.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?export=download&id=13Cl6eyK1eXHYCOJza12zFiHuNF07DQb-",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "unknown-skies-2",
+  "name": "Unknown Skies",
+  "authors": [
+   "Tartiflette"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95.1a",
+  "modVersion": "1.00rc2",
+  "summary": "Expands the variety of systems and planets encountered while exploring.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=12041.0",
+  "bestDownload": {
+   "url": "https://www.patreon.com/posts/80147964",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "unknown-skies",
+  "name": "Unknown Skies",
+  "authors": [
+   "JamesTripleQ",
+   "Tartiflette"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Campaign and exploration",
+   "Sound and graphics",
+   "Everything else"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "3.0.3",
+  "summary": "An update to Tartiflette's amazing mod, greatly expanding the variety of systems and planets you'll encounter while exploring along with many new backgrounds, unique planetary conditions and a few new ambiance sounds.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=29876.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1358489947614740762/1358489947614740762",
+  "bestDownload": {
+   "url": "https://github.com/JamesTripleQ/Unknown-Skies/releases/latest",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "useful-tithes-1-0-a",
+  "name": "Useful.Tithes 1.0.a",
+  "displayName": "Useful.Tithes",
+  "authors": [
+   "sirhartley"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Quality of life",
+   "Campaign and exploration"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "1.0.a",
+  "summary": "A small mod making pather tithes more useful.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=34161.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1424047145354268672/1424047145354268672",
+  "bestDownload": {
+   "url": "https://github.com/SirHartley/Useful.Tithes/releases/download/1.0.a/Useful.Tithes1.0.a.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "va11-hall-a-portrait-pack",
+  "name": "Va11 Hall-A Portrait Pack",
+  "authors": [
+   "Joshinken"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Portraits and flags"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95a",
+  "modVersion": "5",
+  "summary": "Adds 28 character portraits from the game VA-11 Hall-A to Starsector.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=18105.0",
+  "bestDownload": {
+   "url": "https://github.com/Joshinken/VA-11-Portrait-Pack/releases/download/v5-0.95-rc11/VA-11.Portrait.Pack.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "valkyrians-2",
+  "name": "Valkyrians",
+  "authors": [
+   "Computica"
+  ],
+  "otherAuthorNames": {},
+  "categories": [],
+  "sources": [
+   "forum"
+  ],
+  "modVersion": "Starsector 0.98a",
+  "summary": "Provides a translated and polished fork of Valkyrians with new buildings and code modernization.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=35651.0",
+  "bestDownload": {
+   "url": "https://github.com/Compterra/Starsector-CFF-Valkyrians/archive/refs/tags/v4.0.4.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "valkyrians",
+  "name": "Valkyrians",
+  "authors": [
+   "Originem",
+   "persocom01",
+   "ValkyriaL"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.98a",
+  "modVersion": "3.3.0",
+  "summary": "Adds a female-dominated independent military faction with a massive fleet of unconventional capital ships, cruisers, destroyers, frigates, and fighters, along with new weapons and a campaign mission.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=30560.0",
+  "bestDownload": {
+   "url": "https://github.com/persocom01/Valkyrian_EN/releases/download/3.3.0-rc4/Valkyrian_EN.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "vayra-merged-modpack-download-from-the-last-post",
+  "name": "Vayra Merged modpack - DOWNLOAD FROM THE LAST POST",
+  "authors": [
+   "rksharkz"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Factions",
+   "Ships and weapons",
+   "Total conversions"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "summary": "Vayra Sectors Vayra Shippack",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1254891301015523438/1254891301015523438",
+  "bestDownload": {
+   "url": "https://github.com/RkShaRkz/Starsector-IntelliJ-Template/releases/tag/release-vayra-merged-v3.3.6",
+   "kind": "direct",
+   "needsAnotherStep": true
+  }
+ },
+ {
+  "id": "vayra-s-sector",
+  "name": "Vayra's Sector",
+  "authors": [
+   "Vayra"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Total conversions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.9.1a",
+  "modVersion": "3.2.1",
+  "summary": "Adds numerous campaign-level gameplay mechanics including dynamic bounties, colonial factions, raider bases, and exploration content.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=16058.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?authuser=0&id=1iC2V4boJY7wmedtnBG82_nOSSq65KND-&export=download",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "vayra-s-ship-pack",
+  "name": "Vayra's Ship Pack",
+  "displayName": "Vayra's Ship Pack 1.2.3 - less ruined ruin",
+  "authors": [
+   "Vayra"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Content expansions"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.95a",
+  "modVersion": "1.2.3",
+  "summary": "Adds numerous new ships and weapons focused on Low Tech, Mining Tech, and Luddic factions, along with new starting options for Vayra's Sector.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=16059.0",
+  "bestDownload": {
+   "url": "https://drive.google.com/uc?authuser=0&id=1SD7NdTkErv1EzzvEgrbzc4u0H385crC3&export=download",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "volkov-industrial-conglomerate",
+  "name": "Volkov Industrial Conglomerate",
+  "authors": [
+   "Astarat",
+   "PureTilt"
+  ],
+  "otherAuthorNames": {
+   "Astarat": [
+    "astarat and puretilt",
+    "astarat."
+   ]
+  },
+  "categories": [
+   "Factions"
+  ],
+  "sources": [
+   "forum",
+   "discord"
+  ],
+  "gameVersion": "0.97a",
+  "modVersion": "1.6.3a",
+  "summary": "A transhumanist Megacorporation from the Human Domain era, hell-bent on helping humanity survive and evolve through extensive genetic modification, ardently enforcing their views and regime either by pen, or by sword.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=19603.0",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1205989768232570880/1205989768232570880",
+  "bestDownload": {
+   "url": "https://github.com/AstaratStarsector/VIC/releases/download/1.6.3a/VIC.1.6.3a.zip",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ },
+ {
+  "id": "weebshit-ai-portrait-pack",
+  "name": "Weebshit AI portrait pack",
+  "authors": [
+   "niatahl"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Utilities",
+   "Portraits and flags",
+   "Sound and graphics",
+   "Skills and officers"
+  ],
+  "sources": [
+   "discord"
+  ],
+  "gameVersion": "0.98a",
+  "summary": "What it says on the tin",
+  "discordUrl": "https://discord.com/channels/187635036525166592/1363091535968604181/1363091535968604181"
+ },
+ {
+  "id": "wow-portraits",
+  "name": "Wow Portraits",
+  "authors": [
+   "Foxy"
+  ],
+  "otherAuthorNames": {},
+  "categories": [
+   "Portraits and flags"
+  ],
+  "sources": [
+   "forum"
+  ],
+  "gameVersion": "0.96a",
+  "summary": "Replaces vanilla portraits with custom sci-fi themed images generated via Stable Diffusion.",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=26960",
+  "bestDownload": {
+   "url": "https://tzr.ro/mods/starsector/wowp/wowp.rar",
+   "kind": "direct",
+   "needsAnotherStep": false
+  }
+ }
+]

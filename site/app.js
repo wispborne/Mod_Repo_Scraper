@@ -16,7 +16,7 @@ import {
   thumbnail, watchFavorites,
 } from './lib.js';
 import { address } from './address.js';
-import { scoreOfTerm } from './search.js';
+import { peopleMatching, suggestMods } from './search.js';
 import * as home from './views/home.js';
 import * as browse from './views/browse.js';
 import * as mod from './views/mod.js';
@@ -334,16 +334,13 @@ function mountHeaderSearch() {
   };
 
   box.addEventListener('input', () => {
-    const wanted = box.value.trim().toLowerCase();
+    const wanted = box.value;
     clear(drop);
-    if (wanted.length < 2) { hide(); return; }
 
-    const hits = mods
-      .filter((m) => matchStrength(m, wanted) > 0)
-      .sort((a, b) => matchStrength(b, wanted) - matchStrength(a, wanted)
-        || modName(a).localeCompare(modName(b)))
-      .slice(0, SUGGESTION_COUNT);
-    const people = peopleMatching(mods, wanted);
+    // The same search Browse runs, so the two never disagree about which mod
+    // answers best. Both give nothing until there is something to look for.
+    const hits = suggestMods(mods, wanted, SUGGESTION_COUNT);
+    const people = peopleMatching(mods, wanted, PEOPLE_SUGGESTION_COUNT);
 
     if (!hits.length && !people.length) { hide(); return; }
     if (hits.length) {
@@ -420,27 +417,6 @@ function suggestion(hit, hide) {
   return row;
 }
 
-/// The people whose name holds what has been typed. Search already covers
-/// authors, so this is only to save the reader working out that a name is a
-/// person rather than a mod.
-///
-/// They are listed by name, not by how many mods each has. Ordering people by
-/// mod count is a scoreboard, and a scoreboard is a reason to publish more
-/// mods rather than better ones.
-function peopleMatching(mods, wanted) {
-  const found = new Map();
-  for (const mod of mods) {
-    for (const name of mod.authors || []) {
-      if (!name.toLowerCase().includes(wanted)) continue;
-      const key = name.toLowerCase();
-      if (!found.has(key)) found.set(key, { name });
-    }
-  }
-  return [...found.values()]
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, PEOPLE_SUGGESTION_COUNT);
-}
-
 /// One suggested person under the search box.
 function personSuggestion(person, hide) {
   const row = el('a', {
@@ -455,13 +431,6 @@ function personSuggestion(person, hide) {
   ]);
   row.addEventListener('click', hide);
   return row;
-}
-
-/// How well a mod answers what has been typed, for putting the suggestions in
-/// order. The same scoring the browse page's "Best match" uses, so the two
-/// never disagree about which mod answers best.
-function matchStrength(mod, wanted) {
-  return scoreOfTerm(mod, wanted);
 }
 
 /// The skip link at the very top, for anyone moving through the page by
