@@ -37,6 +37,12 @@ const SWITCHES = [
     keep: (mod) => mod.sourceIsPublic === true,
   },
   {
+    key: 'addable',
+    label: 'Safe to add mid-game',
+    title: 'Only mods whose author says they can be added to a game already in progress.',
+    keep: (mod) => mod.saveCompatible === true,
+  },
+  {
     key: 'nowip',
     label: 'Hide works in progress',
     title: 'Leave out mods whose thread marks them as unfinished.',
