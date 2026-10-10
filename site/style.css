@@ -529,6 +529,7 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   height: 28px; padding: 0 8px 2px; line-height: normal;
   position: relative; top: 1px;
 }
+.sort-holder { display: flex; align-items: center; gap: 8px; }
 .switches { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* The categories, as a small table you can see all of at once: a name and a

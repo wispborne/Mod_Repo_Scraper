@@ -58,7 +58,15 @@ const SORTS = [
   { key: 'name', label: 'Name' },
   { key: 'newest', label: 'Newest' },
   { key: 'updated', label: 'Recently updated' },
+  { key: 'random', label: 'Random' },
 ];
+
+/// A new number to shuffle by. The shuffle is worked out from it rather than
+/// drawn fresh each time, so turning a page or changing a filter keeps the same
+/// order, and it rides in the address so a link brings back the same shuffle.
+function newSeed() {
+  return Math.floor(Math.random() * 0x7fffffff) + 1;
+}
 
 export async function render(root, parts) {
   const list = await modList();
@@ -76,6 +84,7 @@ export async function render(root, parts) {
     author: query.get('author') || '',
     sort: SORTS.some((s) => s.key === query.get('sort')) ? query.get('sort')
       : ((query.get('q') || '') ? 'relevance' : 'current'),
+    seed: Number(query.get('seed')) || newSeed(),
     switches: new Set((query.get('only') || '').split(',')
       .filter((key) => SWITCHES.some((option) => option.key === key))),
     // Older mods are left out to begin with. Nineteen pages of A-to-Z over
@@ -121,6 +130,7 @@ export async function render(root, parts) {
       category: shown.category,
       author: shown.author,
       sort: shown.sort === 'current' ? '' : shown.sort,
+      seed: shown.sort === 'random' ? shown.seed : '',
       only: [...shown.switches].join(','),
       older: shown.olderToo ? '1' : '',
       page: shown.page || '',
@@ -133,7 +143,7 @@ export async function render(root, parts) {
     clear(into);
 
     const matches = sortMods(all.filter((mod) => matchesFilters(mod, shown)),
-      sortInUse(shown), shown.currentVersion, shown.search);
+      sortInUse(shown), shown.currentVersion, shown.search, shown.seed);
 
     fillResultLine(countLine, all, matches, shown,
       () => { shown.olderToo = true; drawResults(into, all, shown); });
@@ -296,7 +306,16 @@ function drawControls(into, mods, state, onChange) {
 
   // "Best match" is only in the list while something is typed, so the dropdown
   // is rebuilt whenever that changes rather than drawn once like the others.
-  const sortHolder = el('div', {});
+  const sortHolder = el('div', { class: 'sort-holder' });
+  // Picking Random again from the dropdown does nothing, so a fresh shuffle
+  // needs a button of its own. It is made once and only shown or hidden, so
+  // choosing a sort never rebuilds the dropdown out from under the reader.
+  const shuffleAgain = el('button', { class: 'btn', text: 'Shuffle' });
+  shuffleAgain.addEventListener('click', () => {
+    state.seed = newSeed();
+    changed();
+  });
+  const showShuffleAgain = () => { shuffleAgain.hidden = state.sort !== 'random'; };
   const drawSort = () => {
     clear(sortHolder);
     const offered = SORTS.filter(
@@ -304,12 +323,15 @@ function drawControls(into, mods, state, onChange) {
     sortHolder.append(dropdown('Sort by', offered.map((s) => s.key), state.sort,
       (v) => {
         state.sort = v || 'current';
+        showShuffleAgain();
         // Choosing a sort by hand while searching means it is wanted for this
         // search, so typing on does not snatch the list back to Best match.
         chosenByHand = true;
         changed();
       },
       { anyLabel: null, labels: Object.fromEntries(offered.map((s) => [s.key, s.label])) }));
+    sortHolder.append(shuffleAgain);
+    showShuffleAgain();
   };
   filters.append(sortHolder);
   drawSort();
@@ -435,7 +457,7 @@ export function matchesFilters(mod, state) {
   return true;
 }
 
-export function sortMods(mods, sort, currentVersion, search = '') {
+export function sortMods(mods, sort, currentVersion, search = '', seed = 1) {
   const byName = (a, b) =>
     modName(a).localeCompare(modName(b), undefined, { sensitivity: 'base' });
   const newestFirst = (get) => (a, b) => {
@@ -457,6 +479,12 @@ export function sortMods(mods, sort, currentVersion, search = '') {
   } else if (sort === 'newest') sorted.sort(newestFirst((m) => m.addedOn));
   else if (sort === 'updated') sorted.sort(newestFirst((m) => m.lastReleaseDate));
   else if (sort === 'name') sorted.sort(byName);
+  else if (sort === 'random') {
+    // Each mod's place comes from its id and the seed alone, so a mod keeps its
+    // place relative to the others whichever filters are on.
+    const places = new Map(mods.map((mod) => [mod, shufflePlace(mod.id, seed)]));
+    sorted.sort((a, b) => places.get(a) - places.get(b) || byName(a, b));
+  }
   else {
     // The default: what a reader can use first, then what moved most recently,
     // then by name.
@@ -468,6 +496,19 @@ export function sortMods(mods, sort, currentVersion, search = '') {
     });
   }
   return sorted;
+}
+
+/// A number from 0 up to 2^32 for one mod under one seed: the same answer every
+/// time for the same two, and no pattern between neighbouring ids. FNV-1a over
+/// the id, started from the seed, then mixed so similar ids land far apart.
+function shufflePlace(id, seed) {
+  let hash = (2166136261 ^ seed) >>> 0;
+  for (const char of String(id)) {
+    hash = Math.imul(hash ^ char.codePointAt(0), 16777619);
+  }
+  hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
+  hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35);
+  return (hash ^ (hash >>> 16)) >>> 0;
 }
 
 // --- Drawing the mods ---
