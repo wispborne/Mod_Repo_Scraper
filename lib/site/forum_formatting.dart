@@ -1,10 +1,4 @@
-/// Reads the forum's own formatting — a text size, a colour, a video embed —
-/// so `post_html.dart` can write it back out in the site's own terms.
-///
-/// Every reader here either gives back a value the site writes itself (a size
-/// step, a six-digit colour, an 11-character video id) or null. Nothing the
-/// forum wrote is ever passed through, so a value can never carry anything
-/// extra with it.
+/// Read forum formatting into fixed size classes, checked colours and video ids.
 library;
 
 /// The four size steps a description can use, from the class names the site's

@@ -1,22 +1,8 @@
 import 'package:html/parser.dart' as html_parser;
 
-/// Tells a screenshot from everything else in a forum post.
-///
-/// A post's pictures are not all screenshots. Most threads carry a "Buy me a
-/// coffee" button, a build badge, the author's avatar, a title banner and a
-/// handful of the forum's own smileys, and showing all of them as
-/// "Screenshots" made the gallery useless. The gallery still publishes them
-/// (all but the forum's own furniture), marked as small pictures, and the
-/// page hides those behind a button.
-///
-/// Three rules, in order of how sure they are:
-///
-/// - The host says what it is. Nothing hosted by Ko-fi, Patreon or a badge
-///   service is a screenshot of a mod.
-/// - The address says what it is: "donate", "button", "badge", "avatar".
-/// - The post says how big it is. A picture under [smallestScreenshot] pixels
-///   on its widest side is a button or an icon, whatever it is called. Where
-///   the post gives no size, nothing is assumed and the picture is kept.
+// Classify gallery pictures by host, URL and stated dimensions. Unknown sizes
+// remain eligible as screenshots. Non-screenshots are published as small;
+// forum furniture is omitted.
 
 /// How wide a picture has to be before it can be a screenshot, where the post
 /// says how wide it is.

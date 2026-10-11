@@ -22,9 +22,8 @@ class PublicModDetail with PublicModDetailMappable {
   /// A paragraph describing the mod, as plain words.
   final String? description;
 
-  /// The same description with its formatting kept: paragraphs, lists,
-  /// emphasis and links, and nothing else. Where the mod has a forum thread
-  /// this is the author's own post, rebuilt from a short list of safe tags.
+  /// The author’s description with safe formatting, pictures and video links.
+  /// Rebuilt by cleanPostHtml rather than passed through from the forum.
   final String? descriptionHtml;
 
   /// True when [description] is words the LLM wrote rather than words copied
@@ -175,9 +174,8 @@ class PublicImage with PublicImageMappable {
   /// The picture's own caption or alt text. Null when it had none.
   final String? caption;
 
-  /// True for a button, a badge, an icon or anything the post says is small —
-  /// whatever [looksLikeAScreenshot] turns down. The page hides these behind a
-  /// button. Only written when true.
+  /// A badge, button, icon or small picture, hidden by default in the gallery.
+  /// Only written when true.
   final bool? small;
 
   PublicImage({required this.url, this.caption, this.small});

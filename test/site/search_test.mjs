@@ -9,10 +9,6 @@
 // above the other", "this is not listed"), never about score numbers, so the
 // scoring can be tuned without rewriting the tests.
 //
-// These were written before the code. When one fails, first work out whether
-// the expectation or the code is wrong. If the expectation is wrong, fix it and
-// add a line saying why. Never loosen a check just to make it pass.
-
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { describe, test } from 'node:test';
@@ -521,8 +517,6 @@ describe('better matches come first', () => {
   test('a name beats a summary', () => {
     above('pirate', 'pirate-mini-mod', 'underworld');
     above('ship', 'ship-weapon-pack', 'seeker');
-    // Was "underworld" against Vayra's Sector, whose summary never says
-    // "underworld", so it was never going to be listed at all.
     above('starsector', 'starsector', 'lazylib');
   });
 
@@ -675,8 +669,6 @@ describe('close spellings', () => {
   test('short words are not guessed at', () => {
     nothing('magc');
     nothing('qxzv');
-    // Was "lazl", but that is "Laz-y L-ib" run together, which the shorthand
-    // rule rightly finds.
     nothing('lzay');
   });
 
@@ -1057,10 +1049,10 @@ describe('nothing to look for lists every mod', () => {
   });
 
   test('compileSearch says when it is empty', () => {
-    assert.equal(compileSearch('', fixture).isEmpty, true);
-    assert.equal(compileSearch(' - ', fixture).isEmpty, true);
-    assert.equal(compileSearch('seeker', fixture).isEmpty, false);
-    assert.equal(compileSearch('-seeker', fixture).isEmpty, false);
+    assert.equal(compileSearch('').isEmpty, true);
+    assert.equal(compileSearch(' - ').isEmpty, true);
+    assert.equal(compileSearch('seeker').isEmpty, false);
+    assert.equal(compileSearch('-seeker').isEmpty, false);
   });
 });
 
@@ -1192,8 +1184,6 @@ describe('people suggested in the top bar', () => {
   });
 
   test('too little typed suggests nobody, the same as for mods', () => {
-    // Added once the box was tried for real: one letter hid the mods but
-    // still listed every person with an "a" in their name.
     for (const text of ['a', ' a ', 'x', '"', '-']) {
       assert.deepEqual(people(text), [], JSON.stringify(text));
     }
@@ -1208,7 +1198,7 @@ describe('people suggested in the top bar', () => {
   });
 
   test('never more than asked for', () => {
-    assert.ok(people('a', 3).length <= 3);
+    assert.equal(people('an', 3).length, 3);
   });
 });
 

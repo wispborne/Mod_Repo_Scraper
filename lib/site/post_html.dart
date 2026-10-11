@@ -3,34 +3,9 @@ import 'package:html/parser.dart' as html_parser;
 
 import 'forum_formatting.dart';
 
-/// Turns a forum post into a small, safe piece of HTML the mod's page can show.
-///
-/// The description used to be one line of plain text picked from whichever
-/// source the merge liked best, which for the bigger mods was the Discord
-/// announcement rather than the author's own post. The post itself is already
-/// in the bundle, so it is what the page shows now — but a forum post is
-/// whatever HTML the forum produced, so it is rebuilt here from a short list of
-/// tags rather than published as it arrived.
-///
-/// What survives: paragraphs, line breaks, lists, headings, quotes, code,
-/// emphasis, links and pictures. What does not: anything that can run (scripts,
-/// event handlers), anything that can style the page, and anything else that
-/// loads from another host (frames, embeds, video).
-///
-/// Pictures stay where the author put them. With them gone, a post read like a
-/// different post, and a link whose only content was a picture — a badge used
-/// as a download button — was thrown away as empty. Each picture is written
-/// out fresh with its address, alt text and size and nothing else, the same
-/// way a link is, so nothing on the forum's own tag can get through.
-///
-/// The forum's own formatting is kept too, read from the classes and styles
-/// the forum puts on its `div`s and `span`s and written back out as the site's
-/// own: spoilers become folds, tables keep their cells, centring, sizes,
-/// underlines and colours are kept, a YouTube video becomes a link holding its
-/// thumbnail, and the "Quote" and "Code" header lines go. The readers for
-/// sizes, colours and videos are in `forum_formatting.dart`. The only classes
-/// that can come out are the site's own, and the only `style` is a checked
-/// colour written as `--c:#rrggbb`.
+// Rebuild forum HTML from allowed tags and attributes. Formatting uses site
+// classes and checked colours; YouTube embeds become thumbnail links.
+// Scripts, event handlers and arbitrary styles never reach the page.
 
 /// How much of a post is published. A few threads run to tens of thousands of
 /// words of changelog; what is published stops at about this many characters
@@ -99,11 +74,10 @@ String? postHtmlAsText(String? postHtml) => plainWordsOf(cleanPostHtml(postHtml)
 /// The plain words of something [cleanPostHtml] has already been through, so a
 /// caller that wants both shapes only pays to read the post once.
 String? plainWordsOf(String? cleanedHtml) {
-  final cleaned = cleanedHtml;
-  if (cleaned == null || cleaned.isEmpty) return null;
+  if (cleanedHtml == null || cleanedHtml.isEmpty) return null;
 
   final blocks = <String>[];
-  for (final node in html_parser.parseFragment(cleaned).nodes) {
+  for (final node in html_parser.parseFragment(cleanedHtml).nodes) {
     final text = _plainWords(node).replaceAll(RegExp(r'[ \t]+'), ' ').trim();
     if (text.isNotEmpty) blocks.add(text);
   }
@@ -476,12 +450,8 @@ String _linkify(String text) {
       after = url.substring(tail.start);
       url = url.substring(0, tail.start);
     }
-    if (url.isEmpty) {
-      out.write(_escape(match[0]!));
-    } else {
-      out.write('<a href="${_escapeAttribute(url)}" rel="nofollow noopener" '
-          'target="_blank">${_escape(url)}</a>${_escape(after)}');
-    }
+    out.write('<a href="${_escapeAttribute(url)}" rel="nofollow noopener" '
+        'target="_blank">${_escape(url)}</a>${_escape(after)}');
     at = match.end;
   }
   out.write(_escape(text.substring(at)));

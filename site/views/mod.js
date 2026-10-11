@@ -6,21 +6,19 @@
 // so a thin page reads as deliberate instead of broken.
 
 import {
-  aiSparkle, aiSummaryNote, aiSummaryOf,
-  breadcrumbs, clear,
+  aiOnModPages, aiSparkle, aiSummaryNote, aiSummaryOf,
+  clear,
   currentGameVersion, DATA_BASE, downloadButton, el, errorPanel, formatDay,
   favoriteToggle, formatMoment, imageUrlOf, inlinePictures, joinNames,
-  setInlinePictures,
-  modDetail, modHref, modList, modName, MOD_VERSION_NOTE, neededModsLine,
+  setAiOnModPages, setInlinePictures, summaryToShow,
+  modDetail, modHref, modList, modName, MOD_VERSION_NOTE,
   NO_DESCRIPTION, pageIcon, picture, showPicture, sourceName, summaryTitle,
   versionStanding, versionStandingNote,
 } from '../lib.js';
 import { modCard } from './browse.js';
 
-/// How many mods the two strips at the foot of the page show.
 const RELATED_COUNT = 6;
 
-/// Plain names for the support links, keyed by the type the scraper works out.
 const SUPPORT_NAMES = {
   patreon: 'Patreon',
   kofi: 'Ko-fi',
@@ -69,121 +67,157 @@ export async function render(root, parts) {
   const currentVersion = currentGameVersion(everyMod);
 
   clear(root);
-  root.append(breadcrumbs([
-    { label: 'Browse mods', href: '#/browse' },
-    { label: shownName },
-  ]));
+  // A small link back rather than the full breadcrumb trail every other page
+  // carries: the nav bar already says where Home and Browse are, and the
+  // room is worth more to the cards at the side.
+  root.append(el('a', { class: 'back-link', href: '#/browse', text: '‹ Browse mods' }));
 
-  // In the order a reader asks: what is it, is it for my game, can I add it to
-  // my save, what does it need, how do I get it — then the detail, then where
-  // to go next.
+  // CSS places download buttons before the post on narrow screens.
   root.append(el('div', { class: 'stack' }, [
     modHeader(mod, detail, shownName, currentVersion),
-    needsLine(mod),
-    saves(detail),
-    sameNameMods(detail),
-    description(detail),
-    aiSummary(detail),
-    gallery(detail),
-    downloads(detail),
-    changelog(detail),
-    releases(detail),
-    addons(detail),
-    facts(detail),
+    el('div', { class: 'mod-layout' }, [
+      el('div', { class: 'mod-main stack' }, [
+        sameNameMods(detail),
+        tabs([
+          { label: 'Description', parts: [aiSummary(detail, mod), description(detail)] },
+          { label: 'Gallery', count: (detail.gallery || []).length, parts: [gallery(detail)] },
+          // The author's changelog and the releases this site noticed are one
+          // question — what changed, and when — so they share a tab.
+          { label: 'Changelog', parts: [releases(detail), changelog(detail)] },
+          { label: 'Add-ons', count: (detail.addons || []).length, parts: [addons(detail)] },
+        ]),
+      ]),
+      // One column that stays in view while the post is read. On a narrow
+      // screen it stands aside (`display: contents`) so its two parts can sit
+      // either side of the mod.
+      el('div', { class: 'mod-aside' }, [
+        el('aside', { class: 'mod-side-top' }, [howToGetIt(mod, detail)]),
+        el('aside', { class: 'mod-side stack' }, [
+          compatibility(detail, currentVersion),
+          linksOut(detail),
+          facts(detail),
+          downloads(detail),
+        ]),
+      ]),
+    ]),
     moreByTheAuthor(mod, everyMod, currentVersion),
     similarMods(mod, everyMod, currentVersion),
     rawInfo(detail, id),
   ]));
 }
 
-/// The top of the page: the mod's picture on one side, and on the other
-/// everything a reader needs before they decide — the name, who made it, which
-/// game version it is for, whether it can go in an existing save, and the
-/// buttons that actually get it.
+// Tab state stays out of the URL because hashes are used for routing.
+function tabs(list) {
+  const shown = list
+    .map((tab) => ({ ...tab, parts: tab.parts.filter(Boolean) }))
+    .filter((tab) => tab.parts.length);
+  if (!shown.length) return null;
+  if (shown.length === 1) return el('div', { class: 'stack' }, shown[0].parts);
+
+  const bar = el('div', { class: 'mod-tabs', role: 'tablist' });
+  const holder = el('div', { class: 'stack' });
+  const buttons = shown.map((tab) => {
+    const button = el('button', {
+      class: 'mod-tab', type: 'button', role: 'tab',
+    }, [
+      tab.label,
+      tab.count ? el('span', { class: 'mod-tab-count', text: String(tab.count) }) : null,
+    ]);
+    button.addEventListener('click', () => open(tab));
+    bar.append(button);
+    return button;
+  });
+  const open = (tab) => {
+    shown.forEach((one, i) => {
+      buttons[i].classList.toggle('on', one === tab);
+      buttons[i].setAttribute('aria-selected', String(one === tab));
+    });
+    holder.replaceChildren(...tab.parts);
+  };
+  open(shown[0]);
+  return el('div', { class: 'stack' }, [bar, holder]);
+}
+
 function modHeader(mod, detail, shownName, currentVersion) {
-  const meta = el('div', { class: 'mod-meta' });
-  if (mod.modVersion) {
-    meta.append(el('span', {
-      class: 'badge version', text: mod.modVersion, title: MOD_VERSION_NOTE,
-    }));
-    // Beside the version, because an update note is about one release.
-    const updating = {
-      yes: ['save-ok', 'Keeps saves from earlier versions'],
-      no: ['save-no', 'Breaks saves from earlier versions'],
-      depends: ['', 'Earlier saves: it depends'],
-    }[detail.canUpdate];
-    if (updating && detail.updateCompatibilityText) {
-      meta.append(el('span', {
-        class: `badge ${updating[0]}`, text: updating[1],
-        title: `The author says: ${detail.updateCompatibilityText}`,
-      }));
-    }
-  }
+  const chips = el('div', { class: 'mod-meta' });
   if (mod.gameVersion) {
-    meta.append(el('span', {
+    chips.append(el('span', {
       class: `badge game ${versionStanding(mod, currentVersion) || ''}`.trim(),
       text: `For Starsector ${mod.gameVersion}`,
       title: versionStandingNote(versionStanding(mod, currentVersion)),
     }));
   }
-  if (mod.isWorkInProgress) meta.append(el('span', { class: 'badge wip', text: 'Work in progress' }));
+  if (mod.modVersion) {
+    chips.append(el('span', {
+      class: 'badge version', text: mod.modVersion, title: MOD_VERSION_NOTE,
+    }));
+  }
+  if (mod.isWorkInProgress) chips.append(el('span', { class: 'badge wip', text: 'Work in progress' }));
   if (mod.isTool) {
-    meta.append(el('span', {
-      class: 'badge tool', text: 'Tool — runs beside the game',
-      title: 'A program you run beside the game, not a mod you load into it.',
+    chips.append(el('span', {
+      class: 'badge tool', text: 'Tool',
+      title: 'A separate program, such as a launcher or mod editor.',
     }));
   }
-  if (mod.saveCompatible === true) {
-    meta.append(el('span', {
-      class: 'badge save-ok', text: 'Can be added to an existing save',
-      title: 'The author says this can be added to a game already in progress.',
-    }));
-  } else if (mod.saveCompatible === false) {
-    meta.append(el('span', {
-      class: 'badge save-no', text: 'New game required',
-      title: 'The author says this requires a new game.',
-    }));
-  }
-  // Only a "no" on removing earns a badge: it is the one that costs a save.
-  if (detail.canRemove === 'no' && detail.removalCompatibilityText) {
-    meta.append(el('span', {
-      class: 'badge save-no', text: "Can't be removed later",
-      title: `The author says: ${detail.removalCompatibilityText}`,
-    }));
+  for (const category of mod.categories || []) {
+    chips.append(el('span', { class: 'badge', text: category }));
   }
 
-  const authors = el('div', { class: 'card-authors' });
-  (mod.authors || []).forEach((name, i) => {
-    if (i) authors.append(document.createTextNode(', '));
-    authors.append(el('a', { href: `#/authors/${encodeURIComponent(name)}`, text: name }));
-  });
+  const byline = el('div', { class: 'mod-byline' });
+  if ((mod.authors || []).length) {
+    const authors = el('span', { class: 'mod-authors' }, ['by ']);
+    mod.authors.forEach((name, i) => {
+      if (i) authors.append(document.createTextNode(', '));
+      authors.append(el('a', { href: `#/authors/${encodeURIComponent(name)}`, text: name }));
+    });
+    byline.append(authors);
+  }
+  byline.append(chips);
 
-  const words = el('div', { class: 'mod-head-words' }, [
-    el('h1', { text: shownName }),
-    // The thread's own title, where it says more than the name does.
-    shownName === mod.name
-      ? null
-      : el('span', { class: 'sub thread-title' }, [
-        'Original title: ',
-        el('i', { text: mod.name }),
-      ]),
-    partOfThreadLine(mod),
-    (mod.authors || []).length ? authors : null,
-    meta,
-    howToGetIt(mod, detail),
-    supportLinks(detail),
+  return el('div', { class: 'mod-head' }, [
+    headPicture(mod),
+    el('div', { class: 'mod-head-words' }, [
+      el('h1', { text: shownName }),
+      // The thread's own title, where it says more than the name does.
+      shownName === mod.name
+        ? null
+        : el('span', { class: 'sub thread-title' }, [
+          'Original title: ',
+          el('i', { text: mod.name }),
+        ]),
+      partOfThreadLine(mod),
+      el('div', { class: 'mod-summary-slot' }, [headSummary(mod)]),
+      byline,
+    ]),
   ]);
-
-  return el('div', { class: 'mod-head' }, [modPicture(mod), words]);
 }
 
-/// "Part of <thread>", for a mod that shares a forum thread with others.
-///
-/// Some threads are several mods at once — "Hartley's Miscellaneous Mods" is
-/// four. Those mods have no thread of their own, so without this line four
-/// different mods all link the same thread and the page reads as a mistake.
-/// Only a mod read out of somebody else's thread carries the title; a mod with
-/// its own thread shows nothing here.
+function headSummary(mod) {
+  let summary = summaryToShow(mod);
+  if (summary?.generated && aiOnModPages() === 'hide') {
+    summary = !mod.summaryIsGenerated && mod.summary
+      ? { text: mod.summary, generated: false }
+      : null;
+  }
+  if (!summary) return null;
+  return el('p', {
+    class: 'mod-summary',
+    title: summaryTitle(summary),
+  }, [summary.generated ? aiSparkle(summary.text) : null,
+    summary.generated ? ' ' : null, summary.text]);
+}
+
+function headPicture(mod) {
+  const url = imageUrlOf(mod);
+  if (!url) return null;
+  const box = el('button', {
+    class: 'mod-head-picture', type: 'button', title: 'Open the picture',
+  });
+  box.append(picture(url, { alt: '', whenBroken: () => box.remove() }));
+  box.addEventListener('click', () => showPicture([{ url, caption: null }], 0));
+  return box;
+}
+
 function partOfThreadLine(mod) {
   if (!mod.partOfThreadTitle) return null;
   const line = el('div', { class: 'sub part-of' }, [
@@ -200,25 +234,7 @@ function partOfThreadLine(mod) {
   return line;
 }
 
-/// The mod's own picture, big, at the top of its page. A mod with none, and one
-/// whose picture will not load, both leave the words to fill the width rather
-/// than an empty box.
-function modPicture(mod) {
-  const url = imageUrlOf(mod);
-  if (!url) return null;
-  const box = el('div', { class: 'mod-head-picture' });
-  box.append(picture(url, {
-    alt: '',
-    whenBroken: () => box.remove(),
-  }));
-  return box;
-}
-
-/// One of the mod's own downloads, in the small shape the shared button reads.
-///
-/// The list files carry a cut-down download for the cards; a mod's own file
-/// carries the whole thing. Both go through one button, so the two can never
-/// disagree about what a download is called.
+// Adapt a full download to the shared button’s compact download shape.
 function bestOf(download) {
   return {
     url: download.directUrl || download.url,
@@ -229,41 +245,43 @@ function bestOf(download) {
   };
 }
 
-/// Where the mod lives, besides a download, in the order to fall back through.
-/// Each says what to call it when it is the only way to get the mod, and what
-/// to call it when there is a download as well.
 const PLACES = [
-  { field: 'forumUrl', alone: 'Get it from the forum thread', also: 'Official Forum' },
-  { field: 'discordUrl', alone: 'Get it from Discord', also: 'On Discord' },
+  { field: 'forumUrl', alone: 'Get it from the forum thread', also: 'Forum' },
+  { field: 'discordUrl', alone: 'Get it from Discord', also: 'Discord' },
 ];
 
-/// The buttons that get the mod.
-///
-/// The first is a download where there is one, picked by the same rule the
-/// cards and the rows use — the builder has already put the downloads in order,
-/// so this takes the first. Nearly 300 mods have no link that goes straight to
-/// a file, and their pages used to end in nothing at all — so for those, going
-/// to the thread is the first button instead. Either way the thread is on the
-/// page, because that is where the author is.
+// Downloads are already sorted by the builder. Offer a plain download
+// below a TriOS link for readers who do not use TriOS.
 function howToGetIt(mod, detail) {
-  const row = el('div', { class: 'mod-actions' });
-
-  const first = (detail.downloads || [])[0];
+  const list = detail.downloads || [];
+  const first = list[0];
+  const card = el('section', { class: 'panel side-card get-it' });
+  // When the links were last read from the post, on hover over the download
+  // buttons rather than a line of its own.
+  const checked = detail.generatedAt
+    ? `Links last checked ${formatMoment(detail.generatedAt)}`
+    : null;
 
   if (first) {
-    // Every download is listed further down the page, so this one has no need
-    // to say how many there are.
-    row.append(downloadButton(
+    const main = downloadButton(
       { ...mod, bestDownload: bestOf(first), downloadCount: 1 },
       { big: true },
-    ));
+    );
+    main.classList.add('btn-solid');
+    if (checked) main.title = checked;
+    card.append(main);
   }
 
+  // Everything but the main button shares one row of smaller buttons, so the
+  // card stays short.
+  const row = el('div', { class: 'get-it-row' });
+  const plain = first?.kind === 'trios' ? list.find((d) => d.kind !== 'trios') : null;
+  if (plain) row.append(plainDownloadButton(plain, checked));
   const place = PLACES.find((p) => detail[p.field]);
   if (place) {
     const icon = pageIcon(place.field);
-    row.append(el('a', {
-      class: `btn btn-big btn-with-icon${first ? '' : ' btn-primary'}`,
+    const button = el('a', {
+      class: `btn btn-with-icon${first ? '' : ' btn-big'}`,
       href: detail[place.field],
       rel: 'noopener nofollow',
       target: '_blank',
@@ -272,16 +290,49 @@ function howToGetIt(mod, detail) {
         ? el('span', { class: 'original-page-icon', html: icon, 'aria-hidden': 'true' })
         : null,
       el('span', { text: first ? place.also : place.alone }),
-    ]));
+    ]);
+    if (first) {
+      row.append(button);
+    } else {
+      button.classList.add('btn-solid');
+      card.append(button);
+    }
   }
+  const favorite = favoriteToggle(mod, { wide: true });
+  favorite.classList.remove('btn-big');
+  row.append(favorite);
+  card.append(row);
 
-  row.append(favoriteToggle(mod, { wide: true }));
-  return row;
+  card.append(supportLinks(detail));
+  return card;
 }
 
-/// A small row near the main actions for places where readers can support the
-/// author. Downloads and the author's original post stay above it because they
-/// are the main reasons most readers open this page.
+function plainDownloadButton(download, checked) {
+  const extension = /\.(zip|7z|rar|jar|tar\.gz|exe)$/i.exec(download.fileName || '');
+  const label = download.needsAnotherStep ? 'Download page'
+    : extension ? `Download .${extension[1].toLowerCase()}` : 'Download';
+  return el('a', {
+    class: 'btn btn-with-icon',
+    href: download.directUrl || download.url,
+    rel: 'noopener nofollow',
+    target: '_blank',
+    title: [download.fileName, checked].filter(Boolean).join('\n') || null,
+  }, [
+    el('span', { class: 'original-page-icon', html: DOWNLOAD_ICON, 'aria-hidden': 'true' }),
+    el('span', { text: label }),
+  ]);
+}
+
+// Tabler download icon.
+const DOWNLOAD_ICON = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" '
+  + 'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+  + 'stroke-linejoin="round" focusable="false" aria-hidden="true">'
+  + '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/>'
+  + '<path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>';
+
+/// Where readers can support the author, as one line at the foot of the
+/// download card: near the moment a reader decides the mod is worth having,
+/// without a card of its own or competing with the download itself.
 function supportLinks(detail) {
   const support = detail.supportLinks || [];
   if (!support.length) return null;
@@ -297,60 +348,45 @@ function supportLinks(detail) {
   ]);
 }
 
-/// What this mod will not run without, right under the header.
-///
-/// Nearly every Starsector mod needs LazyLib, MagicLib, GraphicsLib or
-/// Nexerelin, and finding that out after the download — from a crash on
-/// startup — is the oldest annoyance in Starsector modding.
-function needsLine(mod) {
-  return neededModsLine('Requires', mod.needs);
-}
-
 function downloads(detail) {
   const list = detail.downloads || [];
   if (!list.length) return null;
 
-  const box = el('div', { class: 'download-list' });
+  const box = el('div', { class: 'side-downloads' });
   for (const download of list) box.append(downloadRow(download));
-  return el('section', { class: 'panel' }, [
-    el('h2', { text: list.length === 1 ? 'Download' : 'Every download' }),
+  return el('section', { class: 'panel side-card' }, [
+    el('h2', { class: 'side-heading', text: list.length === 1 ? 'Download' : 'All downloads' }),
     box,
-    detail.generatedAt
-      ? el('p', {
-          class: 'checked-on',
-          text: `Last checked ${formatMoment(detail.generatedAt)}.`,
-          title: "When these links were last read from the mod's post.",
+    detail.changelogUrl
+      ? el('a', {
+          class: 'side-more',
+          href: detail.changelogUrl, target: '_blank', rel: 'noopener nofollow',
+          text: 'Full changelog →',
         })
       : null,
   ]);
 }
 
 function downloadRow(download) {
-  const label = download.kind === 'mirror' ? 'Mirror'
-    : download.kind === 'trios' ? 'Install with TriOS'
-      : 'Download';
+  const label = download.kind === 'trios' ? 'Install with TriOS'
+    : download.fileName || (download.kind === 'mirror' ? 'Mirror' : 'Download');
   return el('div', { class: 'download' }, [
     el('a', {
-      class: 'btn btn-primary',
+      class: 'download-name',
       href: download.directUrl || download.url,
       rel: 'noopener nofollow',
       target: '_blank',
       text: label,
+      title: download.needsAnotherStep
+        ? "Opens the download page rather than the file."
+        : (download.kind === 'mirror' ? 'A mirror of the main download.' : null),
     }),
-    download.fileName ? el('span', { class: 'file', text: download.fileName }) : null,
     download.host ? el('span', { class: 'badge', text: download.host }) : null,
-    download.needsAnotherStep
-      ? el('span', {
-          class: 'badge', text: 'Has download page',
-          title: "The host's own page opens first; the file comes after that.",
-        })
-      : null,
   ]);
 }
 
-/// The author's description. AI-written words have their own section directly
-/// after this one, so the two are never mixed together.
-function description(detail) {
+// Author text only; generated descriptions are shown by aiSummary.
+function description(detail, { collapsed = false } = {}) {
   const generated = Boolean(detail.descriptionIsGenerated);
   const formatted = generated ? null : detail.descriptionHtml;
   const text = generated ? null : detail.description;
@@ -363,108 +399,58 @@ function description(detail) {
     ]);
   }
 
-  // The formatted description is built by the scraper from a short list of safe
-  // tags — no scripts, no styles, and pictures written out fresh with nothing
-  // but their address and size — so it is put into the page as it arrives,
-  // once its pictures have been seen to. Anything else is shown as plain words.
+  // descriptionHtml is sanitized by the builder; plain descriptions use textContent.
   const body = formatted
     ? postBody(formatted)
     : el('div', { class: 'prose plain', text });
 
-  // A long post would push the screenshots, the downloads and the changelog
-  // below the fold, so the description starts cut off, with a line under it
-  // that says it can be opened out. The line only appears when there is more
-  // to see: a short post is shown whole, with nothing to click.
-  const clip = el('div', { class: 'prose-clip' }, [body]);
-  const more = el('button', {
-    class: 'link-button prose-more',
+  const clip = el('div', { class: `prose-clip${collapsed ? ' clipped' : ''}` }, [body]);
+  const fold = el('button', {
+    class: 'link-button pictures-switch',
     type: 'button',
-    'aria-expanded': 'false',
+    text: collapsed ? 'Show full description' : 'Collapse',
+    'aria-expanded': String(!collapsed),
   });
-  const moreRow = el('p', { class: 'prose-more-row' }, [more]);
-  const showAll = () => {
-    clip.classList.remove('clipped');
-    more.textContent = 'Show less ▴';
-    more.setAttribute('aria-expanded', 'true');
-  };
-  const showSome = () => {
-    clip.classList.add('clipped');
-    more.textContent = 'Show more ▾';
-    more.setAttribute('aria-expanded', 'false');
-  };
-
-  // Whether the words overrun the cut-off can only be measured once they are
-  // on the page, which is after this function has returned — and it changes
-  // as the post's pictures load, since a short post can turn long once its
-  // screenshots arrive. So it is measured every time the post changes size,
-  // until the reader presses the button and decides for themselves. Starting
-  // with the link showing is the safe way round: if the measurement never
-  // comes, a reader still has a way to open the post out.
-  let readerChose = false;
+  fold.addEventListener('click', () => {
+    collapsed = !collapsed;
+    clip.classList.toggle('clipped', collapsed);
+    fold.textContent = collapsed ? 'Show full description' : 'Collapse';
+    fold.setAttribute('aria-expanded', String(!collapsed));
+  });
+  // Images can change the post height after it is attached.
   const settle = () => {
-    if (readerChose || !clip.isConnected) return;
-    clip.classList.add('clipped');
-    const limit = clip.clientHeight;
-    if (limit === 0) return;
-    const overruns = body.offsetHeight > limit + 1;
-    if (overruns) showSome();
-    else clip.classList.remove('clipped');
-    moreRow.hidden = !overruns;
+    if (!clip.isConnected) return;
+    const preview = parseFloat(getComputedStyle(body).fontSize) * PREVIEW_LINES;
+    fold.hidden = body.offsetHeight <= preview + 1;
   };
-  showSome();
-
-  let watcher = null;
-  more.addEventListener('click', () => {
-    readerChose = true;
-    if (watcher) watcher.disconnect();
-    if (clip.classList.contains('clipped')) showAll();
-    else showSome();
-  });
-  // While the post is cut off, a click anywhere on it opens it out instead of
-  // reaching what was clicked. The reader is looking at a fragment, so a click
-  // there means "show me this", not "follow this link" or "play this video".
-  // Caught on the way down, so nothing inside the post sees it first.
-  clip.addEventListener('click', (e) => {
-    if (!clip.classList.contains('clipped')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    readerChose = true;
-    if (watcher) watcher.disconnect();
-    showAll();
-  }, true);
-  // Two ways to get the measurement: whenever the browser sizes the post, and
-  // a timer a moment after this function returns, for a tab the browser is not
-  // drawing (layout is still worked out on demand).
-  if (typeof ResizeObserver !== 'undefined') {
-    watcher = new ResizeObserver(settle);
-    watcher.observe(body);
-  }
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(settle).observe(body);
   setTimeout(settle, 0);
 
   const section = el('section', { class: 'panel' }, [
     el('div', { class: 'section-head' }, [
       el('h2', { text: 'About this mod' }),
-      formatted && /<img\s/i.test(formatted)
-        ? picturesSwitch(() => section.replaceWith(description(detail)))
-        : null,
+      el('span', { class: 'description-switches' }, [
+        formatted && /<img\s/i.test(formatted)
+          ? picturesSwitch(() => section.replaceWith(description(detail, { collapsed })))
+          : null,
+        fold,
+      ]),
     ]),
     clip,
-    moreRow,
   ]);
   return section;
 }
 
-/// The same choice as "Pictures in descriptions" in Settings, put beside the
-/// description itself, because that is where a reader thinks of it. Only drawn
-/// when the post has pictures. Pressing it changes the setting for every mod
-/// and redraws the description in place, so the reader stays where they are.
+// Keep in step with `.prose-clip.clipped` in style.css.
+const PREVIEW_LINES = 14;
+
 function picturesSwitch(redraw) {
   const on = inlinePictures() !== 'off';
   const button = el('button', {
     class: 'link-button pictures-switch',
     type: 'button',
     text: on ? 'Hide pictures' : 'Show pictures',
-    title: 'Changes this for every mod. It is also in Settings.',
+    title: 'Applies to all mod descriptions. Also available in Settings.',
   });
   button.addEventListener('click', () => {
     setInlinePictures(on ? 'off' : 'on');
@@ -473,17 +459,8 @@ function picturesSwitch(redraw) {
   return button;
 }
 
-/// The author's post, with its pictures seen to before any of them loads.
-///
-/// The post is read into a `<template>` first, because putting it straight into
-/// an element — even one not yet on the page — starts every picture in it
-/// downloading, and a reader who turned pictures off must not pay for them.
-///
-/// With pictures on, a picture that will not load is taken out, and a picture
-/// that is not a link opens over the page. With them off, each becomes a small
-/// "picture" link instead. Either way, a link whose only content was a
-/// picture is left with its address in the picture's place, so a badge used as
-/// a download button still works.
+// Parse in a template so hidden pictures do not start downloading.
+// Preserve image-only links as text when removing their pictures.
 function postBody(html) {
   const template = document.createElement('template');
   template.innerHTML = html;
@@ -549,14 +526,7 @@ function postBody(html) {
   return body;
 }
 
-/// A YouTube video in a description: the builder writes a plain link to the
-/// video holding its thumbnail. A plain click plays it right there instead,
-/// with YouTube's privacy-enhanced player, so nothing of YouTube's player is
-/// loaded until the reader asks. A click with a key held, or a middle click,
-/// still opens the video on YouTube.
-///
-/// With pictures turned off, or when the thumbnail will not load, the link
-/// reads "Video on YouTube" instead, and no thumbnail is fetched.
+// Load the YouTube player only on an unmodified click.
 function youTubePreview(link, showPictures) {
   const thumb = link.querySelector('img');
   const asWords = () => {
@@ -596,10 +566,7 @@ function youTubePreview(link, showPictures) {
   });
 }
 
-/// The AI paragraph, shown for either enabled summary setting. `aiSummaryOf`
-/// also handles older data and leaves this section out when the reader chose
-/// "Never".
-function aiSummary(detail) {
+function aiSummary(detail, mod) {
   const words = aiSummaryOf({
     aiSummary: detail.aiDescription,
     summary: detail.description,
@@ -607,7 +574,31 @@ function aiSummary(detail) {
   });
   if (!words) return null;
 
-  return el('div', { class: 'panel' }, [
+  const shown = aiOnModPages() !== 'hide';
+  let section = null;
+  const flip = () => {
+    setAiOnModPages(shown ? 'hide' : 'show');
+    section.replaceWith(aiSummary(detail, mod));
+    // The line under the name follows the same choice.
+    const slot = document.querySelector('.mod-summary-slot');
+    if (slot) slot.replaceChildren(...[headSummary(mod)].filter(Boolean));
+  };
+  const toggle = el('button', {
+    class: 'link-button ai-switch',
+    type: 'button',
+    text: shown ? 'Hide AI summaries' : 'Show AI summary',
+    title: 'Applies to all mod pages.',
+  });
+  toggle.addEventListener('click', flip);
+
+  if (!shown) {
+    section = el('p', { class: 'ai-hidden-row' }, [
+      aiSparkle(), ' ', toggle,
+    ]);
+    return section;
+  }
+
+  section = el('div', { class: 'panel' }, [
     el('div', {
       class: 'summary-block',
       title: summaryTitle({ text: words, generated: true }),
@@ -615,9 +606,10 @@ function aiSummary(detail) {
       el('div', { class: 'prose plain' }, [
         el('p', {}, [aiSparkle(words), ' ', words]),
       ]),
-      aiSummaryNote(),
+      el('div', { class: 'ai-foot' }, [aiSummaryNote(), toggle]),
     ]),
   ]);
+  return section;
 }
 
 function gallery(detail) {
@@ -629,10 +621,7 @@ function gallery(detail) {
   const smallCount = images.filter((image) => image.small).length;
   let showSmall = false;
 
-  // A picture that will not load takes its button with it, so the grid holds
-  // no empty boxes to click on. A picture that does load opens over the page
-  // rather than in a new tab, so a reader can look through the lot and still be
-  // where they were. The viewer only steps through the pictures showing.
+  // Exclude failed and hidden images from the viewer.
   const broken = new Set();
   const showing = () => images.filter((image) =>
     !broken.has(image) && (showSmall || !image.small));
@@ -689,7 +678,8 @@ function gallery(detail) {
 
 function changelog(detail) {
   const entries = Object.entries(detail.changelog || {});
-  if (!entries.length && !detail.changelogUrl) return null;
+  const changelogUrl = (detail.downloads || []).length ? null : detail.changelogUrl;
+  if (!entries.length && !changelogUrl) return null;
 
   const box = el('div', {});
   entries.forEach(([version, notes], i) => {
@@ -698,11 +688,11 @@ function changelog(detail) {
       el('pre', { text: notes }),
     ]));
   });
-  if (detail.changelogUrl) {
+  if (changelogUrl) {
     box.append(el('p', {}, [
       el('a', {
-        href: detail.changelogUrl, target: '_blank', rel: 'noopener nofollow',
-        text: 'The full changelog →',
+        href: changelogUrl, target: '_blank', rel: 'noopener nofollow',
+        text: 'Full changelog →',
       }),
     ]));
   }
@@ -719,6 +709,11 @@ function releases(detail) {
   for (const release of list) {
     rows.append(el('details', { class: release.changelogNotes ? 'release' : 'release no-notes' }, [
       el('summary', {}, [
+        // The same arrow Home's release rows carry; a row with no notes has
+        // none and is pushed along to line up with the rest.
+        release.changelogNotes
+          ? el('span', { class: 'chevron', text: '›', 'aria-hidden': 'true' })
+          : null,
         el('span', { class: 'badge version', text: release.newVersion }),
         el('span', {
           class: 'release-versions',
@@ -737,13 +732,6 @@ function releases(detail) {
   ]);
 }
 
-/// The other downloads on the same thread, in two boxes rather than one.
-///
-/// They used to share a box headed "Add-ons on the same thread", which told a
-/// reader that "Postmodern Carriers Lite" was something to install as well as
-/// Postmodern Carriers. It is the same mod cut down, and you install it
-/// instead. Anything the extractor called a variant is another build; anything
-/// else needs the mod and goes beside it.
 function addons(detail) {
   const list = detail.addons || [];
   if (!list.length) return null;
@@ -752,16 +740,12 @@ function addons(detail) {
   const extras = list.filter((a) => a.role !== 'variant');
 
   return el('div', { class: 'stack' }, [
-    addonBox(extras, 'Add-ons on the same thread', null),
-    addonBox(
-      versions,
-      'Other versions of this mod',
-      null,
-    ),
+    addonBox(extras, 'Add-ons on the same thread'),
+    addonBox(versions, 'Other versions of this mod'),
   ]);
 }
 
-function addonBox(list, heading, note) {
+function addonBox(list, heading) {
   if (!list.length) return null;
 
   const box = el('div', { class: 'stack' });
@@ -776,13 +760,10 @@ function addonBox(list, heading, note) {
   }
   return el('section', { class: 'panel' }, [
     el('h2', { text: heading }),
-    note ? el('p', { class: 'card-authors', text: note }) : null,
     box,
   ]);
 }
 
-/// The chip for each short answer on saves. "Depends" and "Unknown" get no
-/// colour.
 const SAVE_ANSWERS = {
   yes: ['save-ok', 'Yes'],
   no: ['save-no', 'No'],
@@ -790,25 +771,24 @@ const SAVE_ANSWERS = {
   unknown: ['save-unknown', 'Unknown'],
 };
 
-/// Whether the mod can go into a game in progress, and come out of one: a
-/// question, a short answer and the author's words, one row each. Both rows
-/// are shown once the author has said anything, so a question they never
-/// answered reads as "Unknown" rather than vanishing. Updating is left to the
-/// badge beside the version, because an update note belongs to one release.
+// Show unanswered add/remove questions as Unknown. Show update only
+// when the author supplied text.
 function saves(detail) {
   const questions = [
-    ['Add mid-game?', detail.saveCompatibilityText, detail.canAdd],
-    ['Remove from game?', detail.removalCompatibilityText, detail.canRemove],
+    ['Add mid-game?', detail.saveCompatibilityText, detail.canAdd, true],
+    ['Update mid-game?', detail.updateCompatibilityText, detail.canUpdate, false],
+    ['Remove from game?', detail.removalCompatibilityText, detail.canRemove, true],
   ];
   if (!questions.some(([, words]) => words)) return null;
 
   const authors = joinNames((detail.listing || {}).authors || []);
   const quoted = new Set();
   const rows = el('div', { class: 'save-lines' });
-  for (const [question, words, answer] of questions) {
+  for (const [question, words, answer, alwaysAsked] of questions) {
+    if (!words && !alwaysAsked) continue;
     const shown = words ? answer : 'unknown';
     const chip = SAVE_ANSWERS[shown];
-    // Where the model copied the same words into both fields, they are quoted
+    // Where the model copied the same words into two fields, they are quoted
     // on the first row only.
     const quote = words && !quoted.has(words)
       ? el('q', {
@@ -816,23 +796,22 @@ function saves(detail) {
           text: chip ? withoutLeadingAnswer(words, shown) : words,
           title: authors ? `${authors}, in the mod's forum thread` : null,
         })
-      : el('span');
+      : null;
     if (words) quoted.add(words);
-    rows.append(
-      el('span', { class: 'save-question', text: question }),
-      chip ? el('span', { class: `badge ${chip[0]}`.trim(), text: chip[1] }) : el('span'),
+    rows.append(el('div', { class: 'save-line' }, [
+      el('div', { class: 'save-ask' }, [
+        el('span', { class: 'save-question', text: question }),
+        chip && chip[1] !== 'Depends'
+          ? el('span', { class: `badge ${chip[0]}`.trim(), text: chip[1] })
+          : null,
+      ]),
       quote,
-    );
+    ]));
   }
 
-  return el('div', { class: 'save-box' }, [
-    el('span', { class: 'needs-label', text: 'Save compatibility' }),
-    rows,
-  ]);
+  return rows;
 }
 
-/// The author's words with a leading "Yes." or "No." taken off when the chip
-/// beside them already says it, so the answer is not read twice.
 function withoutLeadingAnswer(words, answer) {
   if (answer !== 'yes' && answer !== 'no') return words;
   const rest = words.replace(new RegExp(`^${answer}\\b[\\s.,!:;\u2014-]*`, 'i'), '');
@@ -840,69 +819,117 @@ function withoutLeadingAnswer(words, answer) {
   return rest[0].toUpperCase() + rest.slice(1);
 }
 
-/// The links out and the license. The whole box is left out when the mod has
-/// none of them. Support links sit near the main actions instead.
-function facts(detail) {
-  const rows = [];
-  const link = (label, url, text) => {
-    if (!url) return;
-    rows.push([label, el('a', {
-      href: url, target: '_blank', rel: 'noopener nofollow', text: text || url,
-    })]);
-  };
-
-  link('Forum thread', detail.forumUrl, 'On the Starsector forum');
-  link('Discord', detail.discordUrl, 'On Discord');
-  link('Source code', detail.sourceCodeUrl);
-  if (detail.license) rows.push(['License', el('span', { text: detail.license })]);
-  const listing = detail.listing || {};
-  if ((listing.categories || []).length) {
-    rows.push(['Category', el('span', { text: joinNames(listing.categories) })]);
-  }
-  // What each source actually called it, which is not always what the site
-  // does. Left out when it says nothing the line above did not.
-  const raw = detail.rawCategories || [];
-  if (raw.length && joinNames(raw) !== joinNames(listing.categories || [])) {
-    rows.push(['Original categories', el('span', {
-      class: 'dim', text: joinNames(raw),
-      title: 'The original categories on the forum and/or Discord.',
-    })]);
-  }
-  if ((listing.sources || []).length) {
-    rows.push(['Found on',
-      el('span', { text: joinNames(listing.sources.map(sourceName)) })]);
-  }
-
-  if (!rows.length) return null;
-
-  const facts = el('dl', { class: 'fact-list' });
-  for (const [label, value] of rows) {
-    facts.append(el('dt', { text: label }), el('dd', {}, [value]));
-  }
-  return el('section', { class: 'panel' }, [
-    el('h2', { text: 'Details' }), facts,
+function sideFact(label, value, { beside = false } = {}) {
+  return el('div', { class: `side-fact${beside ? ' beside' : ''}` }, [
+    el('span', { class: 'side-label', text: label }),
+    el('div', { class: 'side-value' }, [value]),
   ]);
 }
 
-/// The other mods on the site that carry this one's name.
-///
-/// Dozens of names here belong to more than one mod. Some are a mod's own older
-/// thread, which often holds the last build that ran on an older game version.
-/// Some are a fork that kept the name of the mod it forked, which is often the
-/// only build that runs on the current one. Some are two people who happened to
-/// pick the same name. All three are worth keeping, so the site keeps them all
-/// and says which is which instead of choosing for the reader.
-///
-/// The day each thread was last posted on leads the facts, because it is the
-/// one that separates a live thread from an archive. Everything else about a
-/// pair like this is either the same on both or missing.
+function sideCard(heading, rows) {
+  const kept = rows.filter(Boolean);
+  if (!kept.length) return null;
+  return el('section', { class: 'panel side-card' }, [
+    el('h2', { class: 'side-heading', text: heading }),
+    el('div', { class: 'side-facts' }, kept),
+  ]);
+}
+
+function compatibility(detail, currentVersion) {
+  const listing = detail.listing || {};
+  const needs = (listing.needs || []).length
+    ? sideFact('Requires', el('div', { class: 'needs-chips' }, listing.needs.map((needed) =>
+      needed.id
+        ? el('a', { class: 'chip needed', href: modHref(needed.id), text: needed.name })
+        : el('span', {
+            class: 'chip needed unknown', text: needed.name,
+            title: 'No page available for this requirement.',
+          }))))
+    : null;
+  const saveRows = saves(detail);
+  return sideCard('Compatibility', [
+    listing.gameVersion
+      ? sideFact('Game version', el('span', {
+          text: `Starsector ${listing.gameVersion}`,
+          title: versionStandingNote(versionStanding(listing, currentVersion)),
+        }), { beside: true })
+      : null,
+    needs,
+    saveRows ? el('div', { class: 'side-fact' }, [saveRows]) : null,
+  ]);
+}
+
+function linksOut(detail) {
+  const links = [
+    ['Forum thread', detail.forumUrl, 'forumUrl'],
+    ['Discord', detail.discordUrl, 'discordUrl'],
+    ['Source code', detail.sourceCodeUrl, null],
+  ].filter(([, url]) => url);
+  if (!links.length) return null;
+  return el('section', { class: 'panel side-card' }, [
+    el('h2', { class: 'side-heading', text: 'Links' }),
+    el('div', { class: 'side-link-list' }, links.map(([text, url, field]) => {
+      const icon = field ? pageIcon(field) : CODE_ICON;
+      return el('a', {
+        href: url, target: '_blank', rel: 'noopener nofollow', title: url,
+      }, [
+        icon ? el('span', { class: 'original-page-icon', html: icon, 'aria-hidden': 'true' }) : null,
+        el('span', { text }),
+      ]);
+    })),
+  ]);
+}
+
+// Tabler code icon.
+const CODE_ICON = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" '
+  + 'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+  + 'stroke-linejoin="round" focusable="false" aria-hidden="true">'
+  + '<path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/></svg>';
+
+function facts(detail) {
+  const listing = detail.listing || {};
+  // What each source actually called it, which is not always what the site
+  // does. Left out when it says nothing the categories line did not.
+  const raw = detail.rawCategories || [];
+  const rawDiffers = raw.length && joinNames(raw) !== joinNames(listing.categories || []);
+  const day = (label, value, title) => (value
+    ? sideFact(label, el('span', { text: formatDay(value), title }), { beside: true })
+    : null);
+  return sideCard('Details', [
+    listing.modVersion
+      ? sideFact('Mod version', el('span', { text: listing.modVersion, title: MOD_VERSION_NOTE }),
+        { beside: true })
+      : null,
+    (listing.categories || []).length
+      ? sideFact('Category', el('span', { text: joinNames(listing.categories) }))
+      : null,
+    rawDiffers
+      ? sideFact('Original categories', el('span', {
+          class: 'dim', text: joinNames(raw),
+          title: 'Categories from the forum or Discord.',
+        }))
+      : null,
+    detail.license ? sideFact('License', el('span', { text: detail.license })) : null,
+    day('Added', listing.addedOn,
+      'When the forum thread was posted, or the mod was first seen on Discord.'),
+    day('Last release', listing.lastReleaseDate,
+      'When this site last noticed a new version.'),
+    day('Thread last posted', listing.threadLastPostOn || detail.threadLastPostOn, null),
+    (listing.sources || []).length
+      ? sideFact('Found on', el('span', { text: joinNames(listing.sources.map(sourceName)) }),
+        { beside: true })
+      : null,
+  ]);
+}
+
+// Same-name entries may be older threads, forks, or unrelated mods.
 function sameNameMods(detail) {
   const others = detail.sameNameMods || [];
   if (!others.length) return null;
 
   const rows = el('div', { class: 'mod-rows' });
   for (const other of others) {
-    const saidAbout = [
+    const metadata = [
       (other.authors || []).length ? `by ${joinNames(other.authors)}` : null,
       other.threadLastPostOn
         ? `thread last posted ${formatDay(other.threadLastPostOn)}`
@@ -920,8 +947,8 @@ function sameNameMods(detail) {
         });
     inner.append(el('div', { class: 'row-main' }, [
       el('div', { class: 'row-title', text: other.title }),
-      saidAbout.length
-        ? el('div', { class: 'row-sub', text: saidAbout.join(' · ') })
+      metadata.length
+        ? el('div', { class: 'row-sub', text: metadata.join(' · ') })
         : null,
     ]));
     rows.append(el('div', { class: 'mod-row' }, [inner]));
@@ -929,7 +956,7 @@ function sameNameMods(detail) {
 
   const many = others.length > 1;
   return el('section', { class: 'panel name-share' }, [
-    el('h3', { text: `Note: ${many ? 'other mods have' : 'another mod has'} the same name` }),
+    el('h3', { text: `${many ? 'Other mods have' : 'Another mod has'} the same name` }),
     el('p', {
       class: 'sub',
       text: `${many ? 'Each' : 'It'} may be an older thread for this mod, a fork `
@@ -939,8 +966,6 @@ function sameNameMods(detail) {
   ]);
 }
 
-/// The rest of this person's mods, at the foot, so the page leads somewhere
-/// instead of stopping.
 function moreByTheAuthor(mod, everyMod, currentVersion) {
   const people = new Set((mod.authors || []).map((a) => a.toLowerCase()));
   if (!people.size) return null;
@@ -956,13 +981,6 @@ function moreByTheAuthor(mod, everyMod, currentVersion) {
   ]);
 }
 
-/// Other mods on the same shelves, the ones sharing most of them first.
-///
-/// A mod under "Faction" and "Ship Pack" has more in common with another mod
-/// under both than with one that only happens to share "Everything else", so
-/// how many categories overlap decides the order and the release date only
-/// settles ties. It is still not clever, but it is the difference between a
-/// page that ends and a page that leads on.
 function similarMods(mod, everyMod, currentVersion) {
   const shelves = new Set(mod.categories || []);
   if (!shelves.size) return null;
@@ -976,9 +994,7 @@ function similarMods(mod, everyMod, currentVersion) {
     && shared(other) > 0);
   if (!alike.length) return null;
 
-  // Sorted by release date first, then by how much they share, because a sort
-  // keeps the order of equal items — so mods sharing the same number of
-  // categories come out newest first.
+  // Stable sorting preserves release order within each category count.
   const ranked = newestFirst(alike).sort((a, b) => shared(b) - shared(a));
 
   return el('section', { class: 'stack' }, [
@@ -987,8 +1003,6 @@ function similarMods(mod, everyMod, currentVersion) {
   ]);
 }
 
-/// A short row of cards, newest first, the same shape Home uses. A caller that
-/// has already put the mods in the order it wants says so.
 function strip(mods, currentVersion, { alreadyOrdered = false } = {}) {
   const row = el('div', { class: 'strip' });
   const inOrder = alreadyOrdered ? mods : newestFirst(mods);
@@ -998,11 +1012,7 @@ function strip(mods, currentVersion, { alreadyOrdered = false } = {}) {
   return row;
 }
 
-/// The "See raw info" fold at the very foot of the page: everything the site
-/// holds about this mod, straight from its published file, laid out field by
-/// field. It is for working out why a page looks wrong — a reader never needs
-/// it, so it sits closed and quiet under everything else, and its insides are
-/// only built the first time somebody opens it.
+// Build the diagnostic view only when first opened.
 function rawInfo(detail, id) {
   const fold = el('details', { class: 'raw-info' }, [
     el('summary', { text: 'See raw info' }),
@@ -1042,10 +1052,7 @@ function rawInfoBody(detail, id) {
   ]);
 }
 
-/// One value from the mod's file, whatever its shape, drawn so it can be read:
-/// an object as field names down the left, a list as numbered entries, a long
-/// or HTML string as a scrolling block of plain text (never put into the page
-/// as markup), an address as a link, and everything else as itself.
+// Render raw HTML strings as text.
 function rawValue(value) {
   if (value === null || value === undefined) {
     return el('span', { class: 'raw-none', text: 'nothing' });
@@ -1082,8 +1089,7 @@ function rawValue(value) {
   return el('span', { text: String(value) });
 }
 
-/// Most recently released first, then by name. A mod with no release yet sorts
-/// last, whichever way round the dates are.
+// Undated releases sort last.
 function newestFirst(mods) {
   return [...mods].sort((a, b) => {
     const left = a.lastReleaseDate || '';

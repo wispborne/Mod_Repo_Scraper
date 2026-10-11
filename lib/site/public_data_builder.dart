@@ -109,19 +109,24 @@ class _ReadPost {
     final postsHtml = <String>[];
     final words = <String>[];
     final sizes = <String, int>{};
+    String? firstHtml;
+    String? firstWords;
 
-    for (final post in posts) {
+    for (final (index, post) in posts.indexed) {
       final html = cleanPostHtml(post.contentHtml);
       if (html != null) postsHtml.add(html);
       final plain = plainWordsOf(html);
+      if (index == 0) {
+        firstHtml = html;
+        firstWords = plain;
+      }
       if (plain != null) words.add(plain);
       sizes.addAll(pictureSizesInPost(post.contentHtml));
     }
 
-    final firstHtml = cleanPostHtml(detail?.contentHtml);
     return _ReadPost._(
       firstHtml,
-      plainWordsOf(firstHtml),
+      firstWords,
       postsHtml,
       words.isEmpty ? null : words.join('\n\n'),
       sizes,
@@ -967,37 +972,8 @@ class PublicDataBuilder {
     return false;
   }
 
-  /// The mod on the thread this page is about, or null when the thread cannot
-  /// say which of its mods this is.
-  ///
-  /// Two ways to know, and no third. The names may agree once the version is
-  /// off them, which is the usual one. Or the thread names a single mod, and
-  /// then it is this mod whatever the two are called — a thread titled
-  /// "Red - the Oculian Armada (0.10.2-RC4) Mod" is the mod called "Red", and
-  /// no comparison of names would ever say so. TriOS reads it the same way.
-  ///
-  /// Where the thread names several mods and none of them matches, the answer
-  /// is nothing. It used to be "the first one the LLM called main", which put
-  /// one mod's downloads, changelog, version and picture on another mod's page:
-  /// every mod on "Hartley's Miscellaneous Mods" whose name carried a version
-  /// took Useful.Tithes' facts. A page with no facts is honest; a page with
-  /// somebody else's is not.
-  /// The name a reader sees for [mod].
-  ///
-  /// A thread title is not a name, and [displayName]'s rules cannot take every
-  /// shape of one apart: "Sea of Stars 0.5.1 - Go Beyond the Persean Sector"
-  /// has a bare version in the middle and a subtitle after it, and comes
-  /// through whole. The LLM reads the mod's own name off the post, so where it
-  /// has one for this mod ([chosen]) and that name agrees with the title by
-  /// [modNamesMatch], the LLM's name is the one shown.
-  ///
-  /// Agreeing is required, not just being the thread's one main mod. A name
-  /// that only matches by being the single mod on the thread ("Red" against
-  /// "Red - the Oculian Armada") is a different name, not a tidier spelling of
-  /// the same one, and the title is what the author called the thread. Anything
-  /// else, and any mod the LLM has not read, gets [displayName]'s rules.
-  ///
-  /// The LLM's name goes through [displayName] too, in case it kept a version.
+  /// Prefer the extracted name only when it matches the title. The sole-mod
+  /// fallback identifies a mod but does not justify replacing its name.
   String _shownNameFor(ScrapedMod mod, LlmMod? chosen) {
     final fromRules = displayName(mod.name);
     final written = chosen?.name.trim() ?? '';
@@ -1006,6 +982,8 @@ class PublicDataBuilder {
     return fromLlm.isEmpty ? fromRules : fromLlm;
   }
 
+  /// Match by name, or use the sole main mod. Never borrow facts from an
+  /// unmatched mod on a collection thread.
   LlmMod? _mainLlmMod(ScrapedMod mod, QbModSummary? thread) {
     final llmMods = thread?.llm?.mods ?? const <LlmMod>[];
     if (llmMods.isEmpty) return null;

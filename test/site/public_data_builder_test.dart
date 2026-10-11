@@ -246,8 +246,7 @@ void main() {
       expect(mod.displayName, 'Nexerelin');
     });
 
-    test('is what the release feed and "Requires" links call the mod too',
-        () async {
+    test('uses the shown name in Requires links', () {
       final data = builder.build(
         mods: [
           forumMod(name: seaOfStars, topicId: 36134),

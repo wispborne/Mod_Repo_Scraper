@@ -146,16 +146,12 @@ class PublicMod with PublicModMappable {
   /// True when the thread marks the mod as a work in progress.
   final bool isWorkInProgress;
 
-  /// True when this is a program run beside the game — a mod manager, a
-  /// launcher, an editor — rather than a mod loaded into it, as the LLM read
-  /// the author's post. Left out otherwise, so it costs `mods.json` nothing
-  /// for the thousand-odd mods that are not tools.
+  /// A tool run outside the game, as identified in the author’s post.
+  /// Omitted for mods loaded into the game.
   final bool? isTool;
 
-  /// Other names the author's own post uses for the mod — a short form such
-  /// as "IndEvo", or a name it used to go by — as the LLM read them and the
-  /// extractor found them in the post. The search matches on these. Left out
-  /// when there are none, which is most mods, so it costs `mods.json` little.
+  /// Search aliases extracted from and checked against the author’s post.
+  /// Omitted when none are known.
   final List<String>? nicknames;
 
   /// The day the mod last put out a new version, as the release feed saw it.

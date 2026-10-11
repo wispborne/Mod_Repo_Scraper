@@ -33,19 +33,19 @@ const SWITCHES = [
   {
     key: 'source',
     label: 'Source is public',
-    title: 'Only mods whose code is somewhere you can read it.',
+    title: 'Only mods with publicly available source code.',
     keep: (mod) => mod.sourceIsPublic === true,
   },
   {
     key: 'addable',
     label: 'Safe to add mid-game',
-    title: 'Only mods whose author says they can be added to a game already in progress.',
+    title: 'Only mods the author says are safe to add mid-game.',
     keep: (mod) => mod.saveCompatible === true,
   },
   {
     key: 'nowip',
     label: 'Hide works in progress',
-    title: 'Leave out mods whose thread marks them as unfinished.',
+    title: 'Hide mods marked as unfinished in their thread.',
     keep: (mod) => mod.isWorkInProgress !== true,
   },
 ];
@@ -411,12 +411,11 @@ function clearFilters(state) {
 }
 
 function nothingMatched(onClear) {
-  const button = el('button', { class: 'btn btn-primary', text: 'Clear the filters' });
+  const button = el('button', { class: 'btn btn-primary', text: 'Clear filters' });
   button.addEventListener('click', onClear);
   return el('div', { class: 'notice' }, [
     el('h3', { text: 'No mods match' }),
-    el('p', { text: 'Nothing here matches what you asked for. Try fewer words, '
-      + 'or clear the filters and start again.' }),
+    el('p', { text: 'Try fewer search words or clear the filters.' }),
     el('p', { class: 'notice-action' }, [button]),
   ]);
 }
@@ -643,7 +642,7 @@ function badges(mod, currentVersion) {
   if (mod.isTool) {
     out.push(el('span', {
       class: 'badge tool', text: 'Tool',
-      title: 'A program you run beside the game, not a mod you load into it.',
+      title: 'A separate program, such as a launcher or mod editor.',
     }));
   }
   if (isDiscordOnly(mod)) {
