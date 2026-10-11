@@ -219,6 +219,9 @@ String describe(LlmStoreEntry? entry) {
         if (answer == null && words == null) continue;
         b.write('\n      $label: ${answer?.name ?? '-'} "${words ?? ''}"');
       }
+      for (final link in extras.supportLinks ?? const <LlmSupportLink>[]) {
+        b.write('\n      support: ${link.url} "${link.label ?? ''}"');
+      }
     }
   }
   return b.toString();

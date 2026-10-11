@@ -1081,6 +1081,49 @@ export function openInfoDialog(title, paragraphs) {
   close.focus();
 }
 
+/// One button that opens every fold in [container] matching [selector], and
+/// closes them all again once they are open. Home's release list and a mod's
+/// Changelog tab both carry one.
+///
+/// Reading down a list of changelogs means clicking every row in turn, and
+/// there is no way back short of clicking each one again. The label says what
+/// a press would do, so nobody has to guess which way it goes.
+///
+/// Returns null when there are no folds — a button that would do nothing is
+/// worse than no button.
+export function expandAllButton(container, selector,
+  { open: openLabel = 'Expand all', shut: shutLabel = 'Collapse all' } = {}) {
+  const foldsIn = () => [...container.querySelectorAll(selector)];
+  if (!foldsIn().length) return null;
+
+  const button = el('button', { type: 'button', class: 'expand-all' });
+
+  // Read off the page every time rather than kept in a variable: folds are
+  // also opened one at a time, and a button that thinks it knows better tells
+  // the reader the wrong thing.
+  const relabel = () => {
+    const folds = foldsIn();
+    const allOpen = folds.length > 0 && folds.every((fold) => fold.open);
+    button.textContent = allOpen ? shutLabel : openLabel;
+    button.setAttribute('aria-expanded', allOpen ? 'true' : 'false');
+  };
+
+  button.addEventListener('click', () => {
+    const folds = foldsIn();
+    const open = !folds.every((fold) => fold.open);
+    for (const fold of folds) fold.open = open;
+    relabel();
+  });
+
+  // A fold's own `toggle` event does not travel up the page, so it is caught on
+  // the way down instead. Without this, opening the last shut fold by hand
+  // would leave the button still offering to open them all.
+  container.addEventListener('toggle', relabel, true);
+
+  relabel();
+  return button;
+}
+
 // --- The reader's favorites ---
 
 /// Where the favorites are kept. In the reader's own browser, and nowhere else

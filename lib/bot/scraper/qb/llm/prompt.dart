@@ -7,7 +7,7 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 21;
+  static const int promptVersion = 22;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -124,7 +124,12 @@ Return this JSON object:
         }
       },
       "version": "<the mod's own current version, without a leading v, or null>",
-      "supportLinks": ["<Patreon/Ko-fi/donate URL from the post>", "..."],
+      "supportLinks": [
+        {
+          "url": "<a link where readers can support THIS mod's own author with money, copied exactly from the post>",
+          "label": "<1 to 4 words naming what the link is, e.g. Donate, Patreon, Buy me a coffee>"
+        }
+      ],
       "license": "<the license exactly as stated in the post, or null>",
       "sourceCode": "<the URL of the page where this mod's code is kept, copied from the post, or null>",
       "saveCompatibility": "<the post's own words on whether the mod can be ADDED to a game already in progress or needs a new game, copied exactly, or null>",
@@ -240,6 +245,21 @@ Guidance:
   - Copy the image URL exactly from the images list. Never guess or build a URL,
     and never use one that is not in that list.
   - Do NOT use badges or icons (license shields, version badges, forum smileys, donation links).
+- "supportLinks" is where readers can give money to the author of THIS mod: a
+  Patreon, Ko-fi, PayPal or donation page. Most posts have none, and the list
+  is then empty.
+  - Only the mod's OWN author. Posts often credit other people — a composer, an
+    artist, a playtester — and say "Support him here!" beside their links.
+    Those support somebody else: leave them out.
+    Example: "Credits: Ed Harrison — Music, used with permission. Support him
+    here! https://edharrison.bandcamp.com/" is a credit, so it gives nothing.
+  - A link only to somebody's social media, website, video channel or music
+    page is not a support link, even beside the word "support".
+  - A forum thread is never a support link, and nor is a feedback form.
+  - "label" is a short name for the button, in 1 to 4 words: "Donate",
+    "Patreon", "Ko-fi", "Buy me a coffee". The post often gives the link no
+    words of its own (it is a picture button, or a bare address), so name it
+    from what the post says around it. Never put the address in the label.
 - "sourceCode" is where the mod's code is kept — a GitHub, GitLab, Bitbucket or
   similar repository page:
   - Give the repository's own page (e.g. "https://github.com/someone/theirmod"),
@@ -416,7 +436,15 @@ Guidance:
       'version': nullableString(),
       'supportLinks': {
         'type': 'array',
-        'items': {'type': 'string'},
+        'items': {
+          'type': 'object',
+          'properties': {
+            'url': {'type': 'string'},
+            'label': {'type': 'string'},
+          },
+          'required': ['url', 'label'],
+          'additionalProperties': false,
+        },
       },
       'license': nullableString(),
       'sourceCode': nullableString(),

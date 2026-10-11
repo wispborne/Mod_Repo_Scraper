@@ -7,14 +7,15 @@ import 'forum_formatting.dart';
 // classes and checked colours; YouTube embeds become thumbnail links.
 // Scripts, event handlers and arbitrary styles never reach the page.
 
-/// How much of a post is published. A few threads run to tens of thousands of
-/// words of changelog; what is published stops at about this many characters
-/// and ends with a "…" paragraph so the reader can see it was cut short. The
-/// mod page's link to the thread is where the rest is.
+/// How much of a post is published. Set above the longest post on the forum
+/// (about 116,000 characters of HTML), so in practice a post is published
+/// whole: it has the Description tab to itself, and 12,000 used to cut one
+/// post in five. It stays as a limit against a runaway post. Anything cut ends
+/// with a "…" paragraph, which the mod page turns into a link to the thread.
 ///
 /// Picture tags are not counted. A tag is about 150 characters, so a short post
 /// with forty screenshots would otherwise be cut short with little to read.
-const int maxDescriptionLength = 12000;
+const int maxDescriptionLength = 150000;
 
 /// Tags kept as they are.
 const Set<String> _keptTags = {

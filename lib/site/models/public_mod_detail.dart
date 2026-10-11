@@ -226,7 +226,12 @@ class PublicSupportLink with PublicSupportLinkMappable {
   /// A plain name for the kind of page, e.g. `patreon`, `kofi`.
   final String type;
 
-  PublicSupportLink({required this.url, required this.type});
+  /// A few words naming the link, for a host [type] has no name for — the
+  /// model's, since the post rarely gives a donation link words of its own.
+  /// Left out when there is none; the site then names it by its host.
+  final String? label;
+
+  PublicSupportLink({required this.url, required this.type, this.label});
 }
 
 /// Another published mod that carries this one's name: its own older thread, a

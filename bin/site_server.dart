@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -6,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
+import 'package:mod_repo_scraper/viewer/site_version.dart';
 
 /// Serves the public website against the data a real run built.
 ///
@@ -79,6 +81,13 @@ Future<void> main(List<String> args) async {
     handlers.add(createStaticHandler(dataDir,
         defaultDocument: 'index.html', listDirectories: false));
   }
+
+  // The build line in the footer reads `version.json`, which only the release
+  // workflow writes. Run from the repo there is none, so the footer would show
+  // no build at all; this answers it from git instead, the same way the
+  // results viewer does (`SiteVersion`). A real `site/version.json` is served
+  // by the static handler above and wins.
+  handlers.add(_buildVersion(p.dirname(p.absolute(siteDir))));
 
   final liveReload =
       opts['reload'] as bool ? _LiveReload.watch(Directory(siteDir)) : null;
@@ -220,3 +229,13 @@ class _LiveReload {
 </script>
 ''';
 }
+
+/// Answers `version.json` with the build number, commit and day, read by
+/// [SiteVersion] from the release file or from git. Nothing else.
+Handler _buildVersion(String rootDir) => (request) {
+      if (request.url.path != 'version.json') return Response.notFound('');
+      final version = SiteVersion(rootDir).read();
+      if (version == null) return Response.notFound('');
+      return Response.ok(jsonEncode(version),
+          headers: {'content-type': 'application/json'});
+    };

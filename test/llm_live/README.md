@@ -46,7 +46,7 @@ is failing on a fact — the wrong number of mods, a download under the wrong
 mod, the game version reported as the mod's own — that is a real miss, and the
 fix goes in `lib/bot/scraper/qb/llm/prompt.dart`.
 
-**Changing the prompt costs a re-read of everything.** `ExtractionPrompt.promptVersion`
+**Changing the prompt means a re-read of everything.** `ExtractionPrompt.promptVersion`
 is part of the cache key, so bumping it makes the next run read all ~1,000
 stored topics again. Bump it anyway — a prompt change that doesn't reach the
 stored topics isn't a fix.
@@ -67,6 +67,8 @@ posts written to be easy.
 | 21968 | Yunru Mods. A library plus five add-ons that each name it, and a paragraph per add-on for `descriptionAnchors` to point at. One pack is "Formerly known as the Pirate Collection", so that old name must land in that pack's `nicknames` and no other mod's. |
 | 27785 | Customizable Star Systems. One sentence answers two save questions — safe to add, and safe to remove — and the model once copied the whole sentence into both fields. |
 | 35155 | QBMBAMM, a mod manager. A program made for Starsector but run beside it, not loaded into it: `isMod` must be true, so the thread is kept, and its one entry must be `isTool`, so TriOS never tries to install it as a mod. The prompt used to call tools non-mods. |
+| 33489 | Draconis Fleet. The credits list a composer, an artist and a playtester, each with "Support him here!" beside their links. Those support somebody else, so `supportLinks` must not take them — only links that support the mod's own author count. |
+| 10982 | GraphicsLib. The author's donate link is a picture button with no words of its own and none around it, on a host no rule recognises. It must still be kept as a support link, and given a `label`, since that label is the only name the button will have. The check against Draconis must not cost this one. |
 | 34645 | A question thread. Not a mod release at all — `isMod` must be false. |
 
 To add one, copy `qb_data/mods/<id>/detail.json` into `posts/`, drop the

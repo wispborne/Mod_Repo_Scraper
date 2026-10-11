@@ -1123,7 +1123,7 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   background: none; color: var(--text); font: inherit;
   font-size: var(--type-small); font-weight: 600; cursor: pointer;
 }
-.mod-tab:hover { background: var(--primary-faint); color: var(--primary); }
+.mod-tab:hover { background: var(--primary-faint); color: var(--primary); text-decoration: none; }
 .mod-tab.on { background: var(--on-soft); color: var(--on); }
 .mod-tab-count {
   font-size: var(--type-tiny); font-weight: 400; color: var(--text-dim);
@@ -1186,10 +1186,21 @@ a.chip.needed:hover { background: var(--primary-bar); text-decoration: none; }
    left, quiet pills on the right, so the download stays the first thing the
    eye lands on. */
 .support-row {
+  display: flex; align-items: center; gap: 6px var(--gap); flex-wrap: wrap;
+  margin-left: auto;
+}
+/* The last line of the download card: the source code at the left, the
+   support links at the right. Quiet, so the download stays the first thing
+   the eye lands on. */
+.card-foot-line {
   display: flex; justify-content: space-between; align-items: center;
   gap: 6px var(--gap); flex-wrap: wrap; font-size: var(--type-small);
   padding-top: 8px; border-top: 1px solid var(--border);
 }
+.source-link {
+  display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim);
+}
+.source-link:hover { color: var(--primary); text-decoration: none; }
 /* The page's own small way back, in place of the breadcrumb trail. */
 .back-link {
   align-self: flex-start; font-size: var(--type-small); margin-bottom: 6px;
@@ -1540,7 +1551,7 @@ body.picture-open { overflow: hidden; }
 .site-footer {
   max-width: var(--page-width); margin: 0 auto;
   padding: 14px 16px 30px; border-top: 1px solid var(--border);
-  display: flex; gap: 14px; flex-wrap: wrap;
+  display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
   color: var(--text-dim); font-size: var(--type-small);
 }
 .footer-note { margin-left: auto; }

@@ -343,6 +343,7 @@ export function extrasBlock(extras) {
   if (extras.supportLinks && extras.supportLinks.length) {
     const rows = extras.supportLinks.map((s) => el('div', { class: 'support-link' }, [
       el('span', { class: `support-type support-type-${esc(s.type || 'other')}`, text: s.type || 'other' }),
+      s.label ? el('span', { class: 'support-label', text: s.label }) : null,
       el('a', { class: 'support-url', href: s.url, target: '_blank', text: s.url }),
     ]));
     list.append(el('li', {}, [

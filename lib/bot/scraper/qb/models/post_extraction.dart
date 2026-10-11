@@ -50,19 +50,30 @@ class LlmChangelog with LlmChangelogMappable {
       (link == null || link!.isEmpty) && (entries == null || entries!.isEmpty);
 }
 
-/// A place readers can support the mod author (Patreon, Ko-fi, PayPal, ...).
-/// [url] is the link exactly as it appeared in the post; [type] is what kind
-/// of page it is, worked out from the link's host — see [SupportLinkType].
-@MappableClass()
+/// A place readers can support the mod's own author (Patreon, Ko-fi, PayPal,
+/// ...). [url] is the link exactly as it appeared in the post; [type] is what
+/// kind of page it is, worked out from the link's host — see
+/// [SupportLinkType].
+///
+/// [label] is a few words from the model saying what the link is ("Donate",
+/// "Author's Patreon"), for a host [type] has no name for. The post itself
+/// rarely says: a donation link is usually a picture button or a bare
+/// address, so naming it by its host would give "sc2mafia.com" or "bit.ly".
+/// Written only when there is one, so older entries read as they always did.
+@MappableClass(ignoreNull: true)
 class LlmSupportLink with LlmSupportLinkMappable {
   final String url;
   final String type;
+  final String? label;
 
-  LlmSupportLink({required this.url, required this.type});
+  LlmSupportLink({required this.url, required this.type, this.label});
 
-  /// Builds a support link, working out its [type] from the [url]'s host.
-  factory LlmSupportLink.fromUrl(String url) =>
-      LlmSupportLink(url: url, type: SupportLinkType.fromUrl(url));
+  /// Builds a support link, working out its [type] from the [url]'s host and
+  /// tidying the model's [label] (see [SupportLinkType.cleanLabel]).
+  factory LlmSupportLink.fromUrl(String url, {String? label}) => LlmSupportLink(
+      url: url,
+      type: SupportLinkType.fromUrl(url),
+      label: SupportLinkType.cleanLabel(label));
 }
 
 /// Names the kind of support page a URL points at, based on its host. Returns
@@ -88,6 +99,41 @@ class SupportLinkType {
     ('opencollective.', 'opencollective'),
     ('github.com/sponsors', 'githubsponsors'),
   ];
+
+  /// The longest label kept, in words and in letters. A label is a name for a
+  /// button, not a sentence about it.
+  static const int maxLabelWords = 4;
+  static const int maxLabelLength = 40;
+
+  /// The model's label tidied up, or null when there is nothing usable: empty,
+  /// longer than a button's name, or holding an address, which says nothing a
+  /// reader can't already see.
+  static String? cleanLabel(String? label) {
+    if (label == null) return null;
+    var words = label.replaceAll(RegExp(r'\s+'), ' ').trim();
+    words = words.replaceAll(RegExp(r'''^["'“”‘’]+|["'“”‘’.:!]+$'''), '').trim();
+    if (words.isEmpty || words.length > maxLabelLength) return null;
+    if (words.split(' ').length > maxLabelWords) return null;
+    if (RegExp(r'://|www\.', caseSensitive: false).hasMatch(words)) return null;
+    return words;
+  }
+
+  /// True for an address that is never a place to support anybody, whatever
+  /// the post says beside it: a forum thread (a credits list, a charity drive,
+  /// another mod's thread) or a feedback form. Checked in code because the
+  /// model keeps offering them.
+  static bool isNeverSupport(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return false;
+    final host = uri.host.toLowerCase();
+    final path = uri.path.toLowerCase();
+    if (host.endsWith('fractalsoftworks.com') && path.startsWith('/forum')) {
+      return true;
+    }
+    if (host == 'forms.gle') return true;
+    if (host == 'docs.google.com' && path.startsWith('/forms')) return true;
+    return false;
+  }
 
   /// Works out the support type from a URL. Looks at the host (and, for GitHub
   /// Sponsors, the path). Falls back to [other].

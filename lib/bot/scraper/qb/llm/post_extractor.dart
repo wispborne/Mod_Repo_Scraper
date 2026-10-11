@@ -51,7 +51,7 @@ class _RawMod {
   /// link or no changelog text.
   final Map<String, String> changelogEntries;
   final String? version;
-  final List<String> supportLinks;
+  final List<LlmSupportLink> supportLinks;
   final String? license;
 
   /// A link to where the mod's code is kept, before it is checked against the
@@ -616,12 +616,16 @@ class PostExtractor {
       }
     }
 
-    final supportLinks = <String>[];
+    // Each is an address and a few words naming it. A plain address is still
+    // read, which is how the model answered before it was asked for a label.
+    final supportLinks = <LlmSupportLink>[];
     final rawSupport = m['supportLinks'];
     if (rawSupport is List) {
       for (final s in rawSupport) {
-        final u = asString(s);
-        if (u != null) supportLinks.add(u);
+        final u = s is Map ? asString(s['url']) : asString(s);
+        if (u == null) continue;
+        supportLinks.add(LlmSupportLink.fromUrl(u,
+            label: s is Map ? asString(s['label']) : null));
       }
     }
 
@@ -827,14 +831,18 @@ class PostExtractor {
       }
     }
 
-    // Support links: every URL must appear in the post.
-    final supportLinks = <String>[];
+    // Support links: every URL must appear in the post, and none may be a
+    // forum thread or a form, which are never a place to support anybody.
+    final supportLinks = <LlmSupportLink>[];
     for (final s in mod.supportLinks) {
-      if (_urlInPost(s, postUrls)) {
-        supportLinks.add(s);
-      } else {
+      if (!_urlInPost(s.url, postUrls)) {
         _log.warning(
-            'Dropped support URL not found in post (topic $topicId): $s');
+            'Dropped support URL not found in post (topic $topicId): ${s.url}');
+      } else if (SupportLinkType.isNeverSupport(s.url)) {
+        _log.info('Dropped support URL that is a thread or a form '
+            '(topic $topicId): ${s.url}');
+      } else {
+        supportLinks.add(s);
       }
     }
 
@@ -1460,9 +1468,7 @@ class PostExtractor {
     final extras = LlmExtras(
       version: g.version,
       changelog: changelog,
-      supportLinks: g.supportLinks.isEmpty
-          ? null
-          : g.supportLinks.map(LlmSupportLink.fromUrl).toList(),
+      supportLinks: g.supportLinks.isEmpty ? null : g.supportLinks,
       license: g.license,
       sourceCode: g.sourceCode,
       saveCompatibility: g.saveCompatibility,
@@ -1639,7 +1645,7 @@ class _CheckedMod {
   final String? changelogLink;
   final Map<String, String> changelogEntries;
   final String? version;
-  final List<String> supportLinks;
+  final List<LlmSupportLink> supportLinks;
   final String? license;
 
   /// The link to where the mod's code is kept, once checked against the post.

@@ -176,11 +176,11 @@ void main() {
   });
 
   test('cuts a very long post off at a paragraph and says so', () {
-    final long = List.generate(1000, (i) => '<p>Paragraph number $i.</p>').join();
+    final long = List.generate(10000, (i) => '<p>Paragraph number $i.</p>').join();
     final cleaned = cleanPostHtml(long)!;
     expect(cleaned.length, lessThan(maxDescriptionLength + 200));
     expect(cleaned, contains('Paragraph number 0.'));
-    expect(cleaned, isNot(contains('Paragraph number 999.')));
+    expect(cleaned, isNot(contains('Paragraph number 9999.')));
     expect(cleaned, endsWith('<p>…</p>'));
   });
 

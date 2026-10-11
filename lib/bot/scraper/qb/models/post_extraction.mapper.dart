@@ -362,15 +362,28 @@ class LlmSupportLinkMapper extends ClassMapperBase<LlmSupportLink> {
   static const Field<LlmSupportLink, String> _f$url = Field('url', _$url);
   static String _$type(LlmSupportLink v) => v.type;
   static const Field<LlmSupportLink, String> _f$type = Field('type', _$type);
+  static String? _$label(LlmSupportLink v) => v.label;
+  static const Field<LlmSupportLink, String> _f$label = Field(
+    'label',
+    _$label,
+    opt: true,
+  );
 
   @override
   final MappableFields<LlmSupportLink> fields = const {
     #url: _f$url,
     #type: _f$type,
+    #label: _f$label,
   };
+  @override
+  final bool ignoreNull = true;
 
   static LlmSupportLink _instantiate(DecodingData data) {
-    return LlmSupportLink(url: data.dec(_f$url), type: data.dec(_f$type));
+    return LlmSupportLink(
+      url: data.dec(_f$url),
+      type: data.dec(_f$type),
+      label: data.dec(_f$label),
+    );
   }
 
   @override
@@ -435,7 +448,7 @@ extension LlmSupportLinkValueCopy<$R, $Out>
 
 abstract class LlmSupportLinkCopyWith<$R, $In extends LlmSupportLink, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? url, String? type});
+  $R call({String? url, String? type, String? label});
   LlmSupportLinkCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -450,16 +463,18 @@ class _LlmSupportLinkCopyWithImpl<$R, $Out>
   late final ClassMapperBase<LlmSupportLink> $mapper =
       LlmSupportLinkMapper.ensureInitialized();
   @override
-  $R call({String? url, String? type}) => $apply(
+  $R call({String? url, String? type, Object? label = $none}) => $apply(
     FieldCopyWithData({
       if (url != null) #url: url,
       if (type != null) #type: type,
+      if (label != $none) #label: label,
     }),
   );
   @override
   LlmSupportLink $make(CopyWithData data) => LlmSupportLink(
     url: data.get(#url, or: $value.url),
     type: data.get(#type, or: $value.type),
+    label: data.get(#label, or: $value.label),
   );
 
   @override

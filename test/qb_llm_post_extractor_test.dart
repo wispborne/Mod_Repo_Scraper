@@ -652,6 +652,65 @@ void main() {
       );
     });
 
+    test('a link with a label keeps it, and an older plain address still reads',
+        () async {
+      final client = _FakeLlmClient([
+        _json('''
+{"mods":[{"name":"m","role":"main","supportLinks":[
+  {"url":"https://example.com/donate.html","label":"Donate"},
+  "https://ko-fi.com/someone"
+]}]}'''),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(
+            81,
+            '<a href="https://example.com/donate.html"><img src="x.png"></a> '
+            '<a href="https://ko-fi.com/someone">Ko-fi</a>'),
+        [],
+      );
+
+      final links = extrasOf(81)!.supportLinks!;
+      expect(links.map((s) => (s.url, s.type, s.label)), [
+        ('https://example.com/donate.html', 'other', 'Donate'),
+        ('https://ko-fi.com/someone', 'kofi', null),
+      ]);
+    });
+
+    test('a forum thread or a form is never kept as a support link', () async {
+      final client = _FakeLlmClient([
+        _json('''
+{"mods":[{"name":"m","role":"main","supportLinks":[
+  {"url":"https://fractalsoftworks.com/forum/index.php?topic=19739.0","label":"Charity drive"},
+  {"url":"https://forms.gle/abc","label":"Feedback"},
+  {"url":"https://www.patreon.com/someone","label":"Patreon"}
+]}]}'''),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(
+            82,
+            '<a href="https://fractalsoftworks.com/forum/index.php?topic=19739.0">Drive</a> '
+            '<a href="https://forms.gle/abc">Form</a> '
+            '<a href="https://www.patreon.com/someone">Patreon</a>'),
+        [],
+      );
+
+      expect(extrasOf(82)!.supportLinks!.map((s) => s.url),
+          ['https://www.patreon.com/someone']);
+    });
+
+    test('a label is tidied, and one that is not a short name is dropped', () {
+      expect(SupportLinkType.cleanLabel('  "Donate!"  '), 'Donate');
+      expect(SupportLinkType.cleanLabel('Buy me a coffee'), 'Buy me a coffee');
+      expect(SupportLinkType.cleanLabel(''), isNull);
+      expect(SupportLinkType.cleanLabel(null), isNull);
+      expect(SupportLinkType.cleanLabel('Support the author of this mod here'),
+          isNull);
+      expect(SupportLinkType.cleanLabel('https://ko-fi.com/x'), isNull);
+      expect(SupportLinkType.cleanLabel('www.example.com'), isNull);
+    });
+
     test('unknown URL falls back to "other"', () {
       expect(SupportLinkType.fromUrl('not a url'), 'other');
       expect(SupportLinkType.fromUrl('https://github.com/user/repo'), 'other');

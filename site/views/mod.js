@@ -8,13 +8,14 @@
 import {
   aiOnModPages, aiSparkle, aiSummaryNote, aiSummaryOf,
   clear,
-  currentGameVersion, DATA_BASE, downloadButton, el, errorPanel, formatDay,
+  currentGameVersion, DATA_BASE, downloadButton, el, errorPanel, expandAllButton, formatDay,
   favoriteToggle, formatMoment, imageUrlOf, inlinePictures, joinNames,
   setAiOnModPages, setInlinePictures, summaryToShow,
   modDetail, modHref, modList, modName, MOD_VERSION_NOTE,
   NO_DESCRIPTION, pageIcon, picture, showPicture, sourceName, summaryTitle,
   versionStanding, versionStandingNote,
 } from '../lib.js';
+import { address } from '../address.js';
 import { modCard } from './browse.js';
 
 const RELATED_COUNT = 6;
@@ -29,8 +30,21 @@ const SUPPORT_NAMES = {
   boosty: 'Boosty',
   opencollective: 'Open Collective',
   githubsponsors: 'GitHub Sponsors',
-  other: 'Support the author',
 };
+
+/// What a support link's button says. A site with a name of its own (Patreon,
+/// Ko-fi…) is called by it, the same on every mod. Any other is called by the
+/// words the model gave it, or failing those by its host — never by one shared
+/// word, or a mod with three such links shows three identical buttons.
+function supportName(link) {
+  if (SUPPORT_NAMES[link.type]) return SUPPORT_NAMES[link.type];
+  if (link.label) return link.label;
+  try {
+    return new URL(link.url).host.replace(/^www\./, '');
+  } catch {
+    return 'Donate';
+  }
+}
 
 export async function render(root, parts) {
   const id = parts[0];
@@ -78,12 +92,12 @@ export async function render(root, parts) {
     el('div', { class: 'mod-layout' }, [
       el('div', { class: 'mod-main stack' }, [
         sameNameMods(detail),
-        tabs([
+        tabs(id, [
           { label: 'Description', parts: [aiSummary(detail, mod), description(detail)] },
           { label: 'Gallery', count: (detail.gallery || []).length, parts: [gallery(detail)] },
           // The author's changelog and the releases this site noticed are one
           // question — what changed, and when — so they share a tab.
-          { label: 'Changelog', parts: [releases(detail), changelog(detail)] },
+          { label: 'Recent Updates', parts: [changelog(detail), releases(detail)] },
           { label: 'Add-ons', count: (detail.addons || []).length, parts: [addons(detail)] },
         ]),
       ]),
@@ -106,36 +120,67 @@ export async function render(root, parts) {
   ]));
 }
 
-// Tab state stays out of the URL because hashes are used for routing.
-function tabs(list) {
+/// The mod's sections as tabs. A tab with nothing in it is not drawn, and a mod
+/// with only one has no tab row at all.
+///
+/// The open tab is kept in the address as a plain hash after the mod's own
+/// path — `mods/<id>/#gallery` — so a link can open a mod on a tab. On a mod's
+/// page the route is read from the path alone, so the hash names no page. The
+/// first tab is the page as it opens and writes no hash. A move between tabs
+/// replaces the address rather than adding to the history, so Back leaves the
+/// mod instead of stepping back through its tabs.
+///
+/// Each tab is a real link to that address, so it can be copied or opened in a
+/// new tab. A plain click is kept on this page: the site's link handling would
+/// otherwise read `#gallery` on the site's root as a page called "gallery".
+function tabs(modId, list) {
   const shown = list
-    .map((tab) => ({ ...tab, parts: tab.parts.filter(Boolean) }))
+    .map((tab) => ({ ...tab, parts: tab.parts.filter(Boolean), key: tabKey(tab.label) }))
     .filter((tab) => tab.parts.length);
   if (!shown.length) return null;
   if (shown.length === 1) return el('div', { class: 'stack' }, shown[0].parts);
 
+  const addressOf = (tab) => (tab === shown[0]
+    ? modHref(modId)
+    : `${modHref(modId)}#${tab.key}`);
+
   const bar = el('div', { class: 'mod-tabs', role: 'tablist' });
   const holder = el('div', { class: 'stack' });
-  const buttons = shown.map((tab) => {
-    const button = el('button', {
-      class: 'mod-tab', type: 'button', role: 'tab',
+  const links = shown.map((tab) => {
+    const link = el('a', {
+      class: 'mod-tab', role: 'tab', href: addressOf(tab),
     }, [
       tab.label,
       tab.count ? el('span', { class: 'mod-tab-count', text: String(tab.count) }) : null,
     ]);
-    button.addEventListener('click', () => open(tab));
-    bar.append(button);
-    return button;
+    link.addEventListener('click', (e) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      open(tab);
+      address().replace(addressOf(tab));
+    });
+    bar.append(link);
+    return link;
   });
   const open = (tab) => {
     shown.forEach((one, i) => {
-      buttons[i].classList.toggle('on', one === tab);
-      buttons[i].setAttribute('aria-selected', String(one === tab));
+      links[i].classList.toggle('on', one === tab);
+      links[i].setAttribute('aria-selected', String(one === tab));
     });
     holder.replaceChildren(...tab.parts);
   };
-  open(shown[0]);
+
+  // A hash that names no tab here, or a tab this mod has nothing in, opens
+  // the first one.
+  const asked = location.hash.replace(/^#/, '');
+  open(shown.find((tab) => tab.key === asked) || shown[0]);
   return el('div', { class: 'stack' }, [bar, holder]);
+}
+
+/// A tab's name as it is written in the address: "Recent Updates" is
+/// `recent-updates`.
+function tabKey(label) {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 function modHeader(mod, detail, shownName, currentVersion) {
@@ -303,8 +348,48 @@ function howToGetIt(mod, detail) {
   row.append(favorite);
   card.append(row);
 
-  card.append(supportLinks(detail));
+  // The source code and the support links share one quiet line at the foot.
+  // `append` writes a missing value out as the word "null", so a mod with
+  // neither must add nothing at all.
+  const source = sourceCodeLink(detail);
+  const support = supportLinks(detail);
+  if (source || support) {
+    card.append(el('div', { class: 'card-foot-line' }, [source, support]));
+  }
   return card;
+}
+
+/// Plain names for the places a mod's code is kept, by host.
+const CODE_HOSTS = {
+  'github.com': 'GitHub',
+  'gitlab.com': 'GitLab',
+  'bitbucket.org': 'Bitbucket',
+  'codeberg.org': 'Codeberg',
+  'sourceforge.net': 'SourceForge',
+};
+
+/// A small link to the mod's code, at the foot of the download card. Sharing
+/// the code is a gift to other modders — they can learn from it, fix it, and
+/// keep it alive after the author moves on — so it sits beside the download
+/// rather than down in the list of links, but quietly: a note in the author's
+/// favour, not another button competing with the download.
+function sourceCodeLink(detail) {
+  const url = detail.sourceCodeUrl;
+  if (!url) return null;
+  let host = '';
+  try {
+    host = new URL(url).host.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+  return el('a', {
+    class: 'source-link',
+    href: url, target: '_blank', rel: 'noopener nofollow',
+    title: `The mod's source code, on ${CODE_HOSTS[host] || host}`,
+  }, [
+    el('span', { class: 'original-page-icon', html: CODE_ICON, 'aria-hidden': 'true' }),
+    'Source code',
+  ]);
 }
 
 function plainDownloadButton(download, checked) {
@@ -337,13 +422,14 @@ function supportLinks(detail) {
   const support = detail.supportLinks || [];
   if (!support.length) return null;
 
-  return el('div', { class: 'support-row' }, [
-    el('span', { class: 'support-label', text: 'Support the author' }),
+  return el('span', { class: 'support-row' }, [
+    el('span', { class: 'support-label', text: 'Support' }),
     el('span', { class: 'support-links' }, support.map((one) => el('a', {
       href: one.url,
       target: '_blank',
       rel: 'noopener nofollow',
-      text: SUPPORT_NAMES[one.type] || SUPPORT_NAMES.other,
+      text: supportName(one),
+      title: one.url,
     }))),
   ]);
 }
@@ -403,6 +489,7 @@ function description(detail, { collapsed = false } = {}) {
   const body = formatted
     ? postBody(formatted)
     : el('div', { class: 'prose plain', text });
+  continuedOnTheForum(body, detail.forumUrl);
 
   const clip = el('div', { class: `prose-clip${collapsed ? ' clipped' : ''}` }, [body]);
   const fold = el('button', {
@@ -443,6 +530,18 @@ function description(detail, { collapsed = false } = {}) {
 
 // Keep in step with `.prose-clip.clipped` in style.css.
 const PREVIEW_LINES = 14;
+
+/// A post too long to publish whole ends with a "…" paragraph (the builder's
+/// cap, `maxDescriptionLength`). That is turned into a link to the thread, so
+/// the reader is told where the rest is rather than left at a dot-dot-dot.
+function continuedOnTheForum(body, forumUrl) {
+  const last = body.lastElementChild;
+  if (!forumUrl || !last || last.tagName !== 'P' || last.textContent.trim() !== '…') return;
+  last.replaceChildren(el('a', {
+    href: forumUrl, target: '_blank', rel: 'noopener nofollow',
+    text: 'Continued on the forum →',
+  }));
+}
 
 function picturesSwitch(redraw) {
   const on = inlinePictures() !== 'off';
@@ -676,6 +775,19 @@ function gallery(detail) {
   ]);
 }
 
+/// A section whose entries fold, with a button beside its heading that opens
+/// or closes every one of them. The button works on this section alone, and is
+/// left out when nothing in it folds.
+function foldingPanel(heading, body, foldSelector) {
+  return el('section', { class: 'panel' }, [
+    el('div', { class: 'section-head' }, [
+      el('h2', { text: heading }),
+      expandAllButton(body, foldSelector),
+    ]),
+    body,
+  ]);
+}
+
 function changelog(detail) {
   const entries = Object.entries(detail.changelog || {});
   const changelogUrl = (detail.downloads || []).length ? null : detail.changelogUrl;
@@ -696,9 +808,7 @@ function changelog(detail) {
       }),
     ]));
   }
-  return el('section', { class: 'panel' }, [
-    el('h2', { text: 'Changelog' }), box,
-  ]);
+  return foldingPanel('Recent Updates', box, 'details.changelog-entry');
 }
 
 function releases(detail) {
@@ -727,9 +837,7 @@ function releases(detail) {
         : null,
     ]));
   }
-  return el('section', { class: 'panel' }, [
-    el('h2', { text: 'Release history' }), rows,
-  ]);
+  return foldingPanel('Release history', rows, 'details.release:not(.no-notes)');
 }
 
 function addons(detail) {
@@ -764,10 +872,12 @@ function addonBox(list, heading) {
   ]);
 }
 
+/// The chip beside each save question. "Maybe" is the author saying it
+/// depends: the words under it say on what.
 const SAVE_ANSWERS = {
   yes: ['save-ok', 'Yes'],
   no: ['save-no', 'No'],
-  depends: ['', 'Depends'],
+  depends: ['', 'Maybe'],
   unknown: ['save-unknown', 'Unknown'],
 };
 
@@ -801,7 +911,7 @@ function saves(detail) {
     rows.append(el('div', { class: 'save-line' }, [
       el('div', { class: 'save-ask' }, [
         el('span', { class: 'save-question', text: question }),
-        chip && chip[1] !== 'Depends'
+        chip
           ? el('span', { class: `badge ${chip[0]}`.trim(), text: chip[1] })
           : null,
       ]),
@@ -863,7 +973,6 @@ function linksOut(detail) {
   const links = [
     ['Forum thread', detail.forumUrl, 'forumUrl'],
     ['Discord', detail.discordUrl, 'discordUrl'],
-    ['Source code', detail.sourceCodeUrl, null],
   ].filter(([, url]) => url);
   if (!links.length) return null;
   return el('section', { class: 'panel side-card' }, [

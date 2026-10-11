@@ -946,8 +946,12 @@ class PublicDataBuilder {
       changelogUrl: _firstNonEmpty([extras?.changelog?.link]),
       license: _firstNonEmpty([extras?.license]),
       sourceCodeUrl: _firstNonEmpty([extras?.sourceCode]),
+      // A thread or a form is never a place to support anybody. The extractor
+      // drops them now; this also clears them out of answers read before it
+      // did.
       supportLinks: (extras?.supportLinks ?? const [])
-          .map((l) => PublicSupportLink(url: l.url, type: l.type))
+          .where((l) => !SupportLinkType.isNeverSupport(l.url))
+          .map((l) => PublicSupportLink(url: l.url, type: l.type, label: l.label))
           .toList(),
       forumUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Forum]]),
       discordUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]),

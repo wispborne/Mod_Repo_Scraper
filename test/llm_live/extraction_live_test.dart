@@ -274,6 +274,52 @@ void main() {
     });
   });
 
+  group('who a support link is for', () {
+    test("Draconis Fleet (33489) gives no support links: its credits' links "
+        'support other people', () async {
+      final answer = await read(33489);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      // The post's credits say "Support him here!" beside a composer's, an
+      // artist's and a playtester's links. None of them is the mod's author.
+      final links = [
+        for (final mod in answer.mods)
+          ...?mod.extras?.supportLinks?.map((l) => l.url),
+      ];
+      for (final credit in [
+        'edharrison',
+        '00edit',
+        'DrSolis',
+        'Duckie0012',
+      ]) {
+        expect(links, isNot(contains(contains(credit))),
+            reason: 'a link in the credits supports that person, not the '
+                "mod's author.\n$why");
+      }
+    });
+
+    test("GraphicsLib (10982) keeps its author's donate button, and names it",
+        () async {
+      final answer = await read(10982);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      // The link is a picture with no words of its own and none around it, on
+      // a host nothing recognises. Only the address says "donate".
+      final donate = [
+        for (final mod in answer.mods)
+          ...?mod.extras?.supportLinks
+              ?.where((l) => l.url.contains('sc2mafia.com/Starsector/donate')),
+      ];
+      expect(donate, isNotEmpty,
+          reason: "it is the author's own donation page.\n$why");
+      expect(donate.first.label, isNotNull,
+          reason: 'with no words in the post, the label is the only name the '
+              'button will have.\n$why');
+    });
+  });
+
   group('a program run beside the game', () {
     test('a mod manager (35155) is kept as a tool, not dropped as a non-mod',
         () async {

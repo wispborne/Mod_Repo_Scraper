@@ -961,17 +961,28 @@ class PublicSupportLinkMapper extends ClassMapperBase<PublicSupportLink> {
   static const Field<PublicSupportLink, String> _f$url = Field('url', _$url);
   static String _$type(PublicSupportLink v) => v.type;
   static const Field<PublicSupportLink, String> _f$type = Field('type', _$type);
+  static String? _$label(PublicSupportLink v) => v.label;
+  static const Field<PublicSupportLink, String> _f$label = Field(
+    'label',
+    _$label,
+    opt: true,
+  );
 
   @override
   final MappableFields<PublicSupportLink> fields = const {
     #url: _f$url,
     #type: _f$type,
+    #label: _f$label,
   };
   @override
   final bool ignoreNull = true;
 
   static PublicSupportLink _instantiate(DecodingData data) {
-    return PublicSupportLink(url: data.dec(_f$url), type: data.dec(_f$type));
+    return PublicSupportLink(
+      url: data.dec(_f$url),
+      type: data.dec(_f$type),
+      label: data.dec(_f$label),
+    );
   }
 
   @override
@@ -1045,7 +1056,7 @@ abstract class PublicSupportLinkCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? url, String? type});
+  $R call({String? url, String? type, String? label});
   PublicSupportLinkCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -1060,16 +1071,18 @@ class _PublicSupportLinkCopyWithImpl<$R, $Out>
   late final ClassMapperBase<PublicSupportLink> $mapper =
       PublicSupportLinkMapper.ensureInitialized();
   @override
-  $R call({String? url, String? type}) => $apply(
+  $R call({String? url, String? type, Object? label = $none}) => $apply(
     FieldCopyWithData({
       if (url != null) #url: url,
       if (type != null) #type: type,
+      if (label != $none) #label: label,
     }),
   );
   @override
   PublicSupportLink $make(CopyWithData data) => PublicSupportLink(
     url: data.get(#url, or: $value.url),
     type: data.get(#type, or: $value.type),
+    label: data.get(#label, or: $value.label),
   );
 
   @override

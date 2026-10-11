@@ -202,6 +202,36 @@ test('a filter change moves the address without redrawing', () => {
   assert.equal(browser.entries(), 1, 'a filter change piled up in the history');
 });
 
+test("a tab's hash on a mod's page names the tab, not a page", () => {
+  // A mod's page keeps its open tab as a plain hash after its path. The route
+  // must still be the mod, and the scroll position must still be filed under
+  // it, whichever tab is open.
+  const browser = fakeBrowser('https://example.test/mods/nexerelin/#gallery', {
+    baseHref: '../../',
+  });
+  const address = siteAddress(browser);
+  assert.deepEqual(address.parts(), ['mods', 'nexerelin']);
+  assert.equal(address.scrollKey(), '#/mods/nexerelin');
+});
+
+test('picking a tab moves the address without redrawing or adding history', () => {
+  const browser = fakeBrowser('https://example.test/mods/nexerelin/', {
+    baseHref: '../../',
+  });
+  const address = siteAddress(browser);
+  const drawn = [];
+  address.watch(() => drawn.push(address.parts()));
+
+  address.replace(`${address.modHref('nexerelin')}#gallery`);
+
+  assert.equal(
+    browser.locationRef.href,
+    'https://example.test/mods/nexerelin/#gallery',
+  );
+  assert.deepEqual(drawn, []);
+  assert.equal(browser.entries(), 1, 'a tab piled up in the history');
+});
+
 test("a mod's scroll position is filed under its route", () => {
   const mod = fakeBrowser('https://example.test/mods/nexerelin/', {
     baseHref: '../../',
