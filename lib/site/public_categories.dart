@@ -44,7 +44,7 @@ const List<String> publicCategories = [
   'Sound and graphics',
   'Skills and officers',
   'Total conversions',
-  'Everything else',
+  'Miscellaneous',
 ];
 
 /// Every name the forum's index and Discord's tags use, and the public category
@@ -85,8 +85,8 @@ const Map<String, String> _publicCategoryByRawName = {
   'megamods': 'Total conversions',
   'total conversion': 'Total conversions',
 
-  'miscellaneous mods': 'Everything else',
-  'other/misc.': 'Everything else',
+  'miscellaneous mods': 'Miscellaneous',
+  'other/misc.': 'Miscellaneous',
 };
 
 /// Every raw name the table knows, as the sources spell them. A test walks this

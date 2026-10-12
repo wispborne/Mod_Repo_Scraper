@@ -33,8 +33,8 @@ void main() {
     expect(publicCategoryFor('Standalone Utilities'), 'Utilities');
     expect(publicCategoryFor('Mod Manager'), 'Utilities');
 
-    expect(publicCategoryFor('Miscellaneous Mods'), 'Everything else');
-    expect(publicCategoryFor('Other/Misc.'), 'Everything else');
+    expect(publicCategoryFor('Miscellaneous Mods'), 'Miscellaneous');
+    expect(publicCategoryFor('Other/Misc.'), 'Miscellaneous');
 
     expect(publicCategoryFor('Portrait Packs'), 'Portraits and flags');
     expect(publicCategoryFor('Flag Packs'), 'Portraits and flags');

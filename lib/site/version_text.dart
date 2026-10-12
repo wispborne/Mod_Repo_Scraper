@@ -1,3 +1,5 @@
+import 'version_compare.dart';
+
 /// Reading and comparing the version strings mod authors actually write.
 ///
 /// The same version turns up spelled several ways — "0.95", "v.0.95",
@@ -25,16 +27,6 @@ class VersionText {
   /// A dotted number, e.g. "1.2" or "0.9.5". Two of these in one string means
   /// the text holds more than one version.
   static final RegExp _dottedNumber = RegExp(r'\d+(?:\.\d+)+');
-
-  /// Words that mean "not finished yet". A version carrying one of these is
-  /// older than the same version without it.
-  static const Map<String, int> _prereleaseRank = {
-    'dev': 0,
-    'pre': 1,
-    'alpha': 2,
-    'beta': 3,
-    'rc': 4,
-  };
 
   /// One spelling of a version, or null when the text does not read as a single
   /// version.
@@ -65,14 +57,13 @@ class VersionText {
   /// Compares two cleaned versions. Negative when [a] is older, positive when it
   /// is newer, zero when they are the same version.
   ///
-  /// Numbers are read as numbers, so 1.10 is newer than 1.9. A letter on the end
-  /// counts as newer, so 3.5.2g is newer than 3.5.2. An "rc", "alpha", "beta",
-  /// "pre" or "dev" counts as older, so 1.0-rc1 is older than 1.0.
-  static int compare(String a, String b) {
-    final left = _Version.parse(a);
-    final right = _Version.parse(b);
-    return left.compareTo(right);
-  }
+  /// TriOS's rules, through [compareVersionParts], so the site and the launcher
+  /// agree about which version is newer: numbers are read as numbers, so 1.10
+  /// is newer than 1.9; a letter on the end counts as newer, so 3.5.2g is newer
+  /// than 3.5.2; an "rc", "alpha", "beta", "pre" or "dev" counts as older, so
+  /// 1.0-rc1 is older than 1.0. Two versions whose parts all match are the
+  /// same, so "1.0" and "1" compare as equal.
+  static int compare(String a, String b) => compareVersionParts(a, b);
 
   /// True when [a] is a later version than [b].
   static bool isNewer(String a, String b) => compare(a, b) > 0;
@@ -131,85 +122,5 @@ class VersionText {
     final found = _versionInTitle.allMatches(rest).toList();
     if (found.isEmpty) return null;
     return clean(found.last.group(0));
-  }
-}
-
-/// A cleaned version split into the parts that decide which of two is newer.
-class _Version implements Comparable<_Version> {
-  /// The dotted numbers, in order, each with any letter that trailed it.
-  final List<_NumberPart> numbers;
-
-  /// The "not finished yet" marker, when there is one: how far along it is, and
-  /// its own number ("rc2" is later than "rc1").
-  final int? prereleaseRank;
-  final int prereleaseNumber;
-
-  const _Version(this.numbers, this.prereleaseRank, this.prereleaseNumber);
-
-  static final RegExp _numberPart = RegExp(r'^(\d+)([a-z]*)$');
-  static final RegExp _prereleasePart = RegExp(r'^([a-z]+)(\d*)$');
-
-  static _Version parse(String cleaned) {
-    final numbers = <_NumberPart>[];
-    int? rank;
-    var prereleaseNumber = 0;
-
-    for (final part in cleaned.split('.')) {
-      final asNumber = _numberPart.firstMatch(part);
-      if (asNumber != null) {
-        numbers.add(_NumberPart(
-          int.parse(asNumber.group(1)!),
-          asNumber.group(2)!,
-        ));
-        continue;
-      }
-
-      final asWord = _prereleasePart.firstMatch(part);
-      if (asWord == null) continue;
-      final known = VersionText._prereleaseRank[asWord.group(1)!];
-      if (known == null) continue; // A word we have no meaning for: ignore it.
-      rank = known;
-      prereleaseNumber = int.tryParse(asWord.group(2)!) ?? 0;
-    }
-
-    return _Version(numbers, rank, prereleaseNumber);
-  }
-
-  @override
-  int compareTo(_Version other) {
-    final length =
-        numbers.length > other.numbers.length ? numbers.length : other.numbers.length;
-    for (var i = 0; i < length; i++) {
-      final mine = i < numbers.length ? numbers[i] : const _NumberPart(0, '');
-      final theirs =
-          i < other.numbers.length ? other.numbers[i] : const _NumberPart(0, '');
-      final byNumber = mine.compareTo(theirs);
-      if (byNumber != 0) return byNumber;
-    }
-
-    // No marker means finished, and finished is newer than any run-up to it.
-    if (prereleaseRank == null && other.prereleaseRank == null) return 0;
-    if (prereleaseRank == null) return 1;
-    if (other.prereleaseRank == null) return -1;
-
-    final byRank = prereleaseRank!.compareTo(other.prereleaseRank!);
-    if (byRank != 0) return byRank;
-    return prereleaseNumber.compareTo(other.prereleaseNumber);
-  }
-}
-
-/// One dotted number with whatever letter followed it, e.g. "2" or "2g".
-class _NumberPart implements Comparable<_NumberPart> {
-  final int number;
-  final String letters;
-
-  const _NumberPart(this.number, this.letters);
-
-  @override
-  int compareTo(_NumberPart other) {
-    final byNumber = number.compareTo(other.number);
-    if (byNumber != 0) return byNumber;
-    // No letter comes before any letter, so 3.5.2 is older than 3.5.2g.
-    return letters.compareTo(other.letters);
   }
 }
