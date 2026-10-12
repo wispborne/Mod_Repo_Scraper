@@ -447,6 +447,27 @@ h3 { font-size: var(--type-big); line-height: 1.25; margin: 0 0 6px; }
 .choice input { accent-color: var(--on); margin-top: 3px; cursor: pointer; }
 .choice-name { color: var(--text); font-size: var(--type-small); font-weight: 600; }
 .choice-note { color: var(--text-dim); font-size: var(--type-tiny); }
+/* A setting with two short answers, on one line: its name at the left and the
+   answers as joined buttons at the right. The radio buttons stay in the page
+   for the keyboard and screen readers, but are drawn as the buttons. */
+.setting-row {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--gap);
+  font-size: var(--type-small);
+}
+.segmented { display: inline-flex; }
+.segmented > label {
+  position: relative; cursor: pointer; padding: 4px 12px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+}
+.segmented > label + label { margin-left: -1px; }
+.segmented > label:first-child { border-radius: 6px 0 0 6px; }
+.segmented > label:last-child { border-radius: 0 6px 6px 0; }
+.segmented > label:hover { border-color: var(--primary); z-index: 1; }
+.segmented > label:has(input:checked) {
+  border-color: var(--on); background: var(--on-soft); color: var(--text); z-index: 1;
+}
+.segmented > label:has(input:focus-visible) { outline: 2px solid var(--on); outline-offset: 1px; }
+.segmented input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
 
 /* The theme buttons: a strip of each theme's colours and its name, in a row
    that wraps. The radio button is hidden but still there, so the arrow keys
