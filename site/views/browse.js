@@ -20,6 +20,7 @@ import {
 import { compileSearch } from '../search.js';
 
 const VIEW_KEY = 'starmodderView';
+const FILTERS_KEY = 'starmodderBrowseFilters';
 const NO_REQUIREMENTS = '__none__';
 
 /// The switches, each a plain yes-or-no question about one field.
@@ -32,7 +33,7 @@ const SWITCHES = [
   },
   {
     key: 'source',
-    label: 'Source is public',
+    label: 'Source code linked',
     title: 'Only mods with publicly available source code.',
     keep: (mod) => mod.sourceIsPublic === true,
   },
@@ -68,12 +69,35 @@ function newSeed() {
   return Math.floor(Math.random() * 0x7fffffff) + 1;
 }
 
+// A shared address supplies the whole selection. An ordinary Browse visit
+// picks up the last selection, starting on the first page.
+function browseQuery(query) {
+  if (query.size) return query;
+  try {
+    const saved = new URLSearchParams(localStorage.getItem(FILTERS_KEY) || '');
+    saved.delete('page');
+    return saved;
+  } catch {
+    return query;
+  }
+}
+
+function rememberFilters(hash) {
+  const query = new URLSearchParams(hash.split('?')[1] || '');
+  query.delete('page');
+  try {
+    localStorage.setItem(FILTERS_KEY, query.toString());
+  } catch {
+    // The address still keeps the selection when storage is unavailable.
+  }
+}
+
 export async function render(root, parts) {
   const list = await modList();
   const mods = list.mods || [];
   const currentVersion = currentGameVersion(mods);
 
-  const query = hashQuery();
+  const query = browseQuery(hashQuery());
   const state = {
     search: query.get('q') || '',
     // The filter works on the number a game release shares, so a link saved
@@ -135,6 +159,7 @@ export async function render(root, parts) {
       older: shown.olderToo ? '1' : '',
       page: shown.page || '',
     });
+    rememberFilters(hash);
     replaceHash(hash);
   }
 
@@ -152,6 +177,7 @@ export async function render(root, parts) {
     if (!matches.length) {
       into.append(nothingMatched(() => {
         clearFilters(shown);
+        saveState(shown);
         render(root, parts);
       }));
       return;
@@ -399,7 +425,6 @@ function neededMods(mods) {
 }
 
 function clearFilters(state) {
-  replaceHash(buildHash(['browse']));
   state.search = '';
   state.game = '';
   state.needs = '';
