@@ -1064,15 +1064,19 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
   font-size: var(--type-small);
 }
 .mod-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-/* The mod on the left, the cards a reader decides on at the right. The card
-   with the download buttons is its own grid item, so on a narrow screen it
-   can come before the mod while the rest of the side comes after. */
+/* The header above the mod on the left, and one side column at the right that
+   starts level with the header. The second row is `1fr` so the tall side
+   column does not stretch the header's row: a grid leaves an item that spans
+   a flexible row out when it sizes the other rows. On a narrow screen the
+   download card comes before the mod and the other cards after it. */
 .mod-layout {
   display: grid; gap: var(--gap-wide);
   grid-template-columns: minmax(0, 1fr) 340px;
-  grid-template-areas: "main aside";
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "head aside" "main aside";
   align-items: start;
 }
+.mod-layout > .mod-head { grid-area: head; }
 .mod-main { grid-area: main; min-width: 0; }
 /* The side stays in view while the post is read. Below the bar at the top,
    which is sticky too, and scrolling on its own when it is taller than the
@@ -1088,10 +1092,11 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 @media (max-width: 900px) {
   .mod-layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "top" "main" "side";
+    grid-template-rows: none;
+    grid-template-areas: "head" "get" "main" "side";
   }
   .mod-aside { display: contents; }
-  .mod-side-top { grid-area: top; }
+  .mod-get { grid-area: get; }
   .mod-side { grid-area: side; }
 }
 
@@ -1140,7 +1145,7 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 
 /* A card at the side. Its heading is a small label rather than a title, so
    the side reads as reference and the mod's own words lead. */
-.side-card { display: flex; flex-direction: column; gap: var(--gap); }
+.side-card { display: flex; flex-direction: column; gap: 8px; }
 .panel > h2.side-heading, .side-heading {
   margin: 0; color: var(--text-dim); font-size: var(--type-tiny);
   font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
@@ -1159,17 +1164,21 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 }
 
 /* The facts card: a label over its value, or beside it where the value is
-   short, with a hairline between each. */
-.side-facts { display: flex; flex-direction: column; font-size: var(--type-small); }
-.side-fact {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: var(--gap) 0; border-top: 1px solid var(--border);
+   short. Spacing alone separates them. */
+.side-facts {
+  display: flex; flex-direction: column; gap: var(--gap); font-size: var(--type-small);
 }
-.side-fact:first-child { border-top: 0; padding-top: 0; }
-.side-fact:last-child { padding-bottom: 0; }
-.side-fact.beside { flex-direction: row; justify-content: space-between; gap: var(--gap); }
+.side-fact { display: flex; flex-direction: column; gap: 3px; }
+.side-fact.beside {
+  flex-direction: row; justify-content: space-between; align-items: center; gap: var(--gap);
+}
 .side-fact.beside > .side-value { text-align: right; }
 .side-label { color: var(--text-dim); }
+/* A label with an explanation on hover. */
+.side-label.has-tip {
+  cursor: help; text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.badge.dim { color: var(--text-dim); }
 .side-value { min-width: 0; overflow-wrap: anywhere; }
 .side-value .dim { color: var(--text-dim); }
 .side-link-list { display: flex; flex-direction: column; gap: 8px; font-size: var(--type-small); }
@@ -1182,32 +1191,19 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 a.chip.needed:hover { background: var(--primary-bar); text-decoration: none; }
 .chip.needed.unknown { background: var(--surface-container); color: var(--text-dim); }
 
-/* Support links as the last line of the download card: the label on the
-   left, quiet pills on the right, so the download stays the first thing the
-   eye lands on. */
-.support-row {
-  display: flex; align-items: center; gap: 6px var(--gap); flex-wrap: wrap;
-  margin-left: auto;
+/* Where the code is kept: a green badge that links to it, or a grey one. */
+.badge.source-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--success); border-color: var(--edge-success);
 }
-/* The last line of the download card: the source code at the left, the
-   support links at the right. Quiet, so the download stays the first thing
-   the eye lands on. */
-.card-foot-line {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 6px var(--gap); flex-wrap: wrap; font-size: var(--type-small);
-  padding-top: 8px; border-top: 1px solid var(--border);
-}
-.source-link {
-  display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim);
-}
-.source-link:hover { color: var(--primary); text-decoration: none; }
+.badge.source-link:hover { border-color: var(--success); text-decoration: none; }
+.badge.source-missing { color: var(--text-dim); cursor: help; }
 /* The page's own small way back, in place of the breadcrumb trail. */
 .back-link {
   align-self: flex-start; font-size: var(--type-small); margin-bottom: 6px;
   display: inline-block;
 }
-.support-label { color: var(--text-dim); }
-.support-links { display: flex; gap: 7px; flex-wrap: wrap; }
+.support-links { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .support-links a {
   padding: 3px 12px; border: 1px solid var(--border); border-radius: 999px;
   background: var(--surface-2); color: var(--text);
@@ -1353,7 +1349,7 @@ a.chip.needed:hover { background: var(--primary-bar); text-decoration: none; }
 /* Whether a mod can be added to, updated in or removed from a game in
    progress: the question with its short answer at the right, and the
    author's words under it. */
-.save-lines { display: flex; flex-direction: column; gap: var(--gap); font-size: var(--type-small); }
+.save-lines { display: flex; flex-direction: column; gap: 8px; font-size: var(--type-small); }
 .save-line { display: flex; flex-direction: column; gap: 2px; }
 .save-ask { display: flex; justify-content: space-between; align-items: center; gap: var(--gap); }
 .save-question { font-weight: 600; }
@@ -1398,8 +1394,9 @@ a.row-title:hover,
 }
 .shot:hover { border-color: var(--primary); }
 .shot[hidden] { display: none; }
-/* The button that shows the gallery's buttons, badges and small icons. */
+/* The button that shows the gallery's small pictures. */
 .small-pictures-row { margin: var(--gap) 0 0; }
+.small-pictures-row:has(> [hidden]) { display: none; }
 .small-pictures-toggle { text-decoration: none; }
 
 /* A screenshot over the page, rather than a raw image in a new tab. */

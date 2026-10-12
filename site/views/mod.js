@@ -86,15 +86,24 @@ export async function render(root, parts) {
   // room is worth more to the cards at the side.
   root.append(el('a', { class: 'back-link', href: '#/browse', text: '‹ Browse mods' }));
 
-  // CSS places download buttons before the post on narrow screens.
+  // The gallery drops pictures as they load and turn out not to be
+  // screenshots, so its tab's count is a live number.
+  const galleryCount = el('span', { class: 'mod-tab-count' });
+  const galleryPanel = gallery(detail, (count) => {
+    galleryCount.textContent = String(count);
+    galleryCount.hidden = !count;
+  });
+
+  // The header above the mod on the left; the side column at the right starts
+  // level with the header, so the download card sits beside the mod's name.
   root.append(el('div', { class: 'stack' }, [
-    modHeader(mod, detail, shownName, currentVersion),
     el('div', { class: 'mod-layout' }, [
+      modHeader(mod, detail, shownName),
       el('div', { class: 'mod-main stack' }, [
         sameNameMods(detail),
         tabs(id, [
           { label: 'Description', parts: [aiSummary(detail, mod), description(detail)] },
-          { label: 'Gallery', count: (detail.gallery || []).length, parts: [gallery(detail)] },
+          { label: 'Gallery', countNode: galleryCount, parts: [galleryPanel] },
           // The author's changelog and the releases this site noticed are one
           // question — what changed, and when — so they share a tab.
           { label: 'Recent Updates', parts: [changelog(detail), releases(detail)] },
@@ -102,11 +111,12 @@ export async function render(root, parts) {
         ]),
       ]),
       // One column that stays in view while the post is read. On a narrow
-      // screen it stands aside (`display: contents`) so its two parts can sit
-      // either side of the mod.
+      // screen it stands aside (`display: contents`) so the download card can
+      // come before the mod and the other cards after it.
       el('div', { class: 'mod-aside' }, [
-        el('aside', { class: 'mod-side-top' }, [howToGetIt(mod, detail)]),
+        el('aside', { class: 'mod-get' }, [howToGetIt(mod, detail)]),
         el('aside', { class: 'mod-side stack' }, [
+          codeAndSupport(detail),
           compatibility(detail, currentVersion),
           linksOut(detail),
           facts(detail),
@@ -151,7 +161,8 @@ function tabs(modId, list) {
       class: 'mod-tab', role: 'tab', href: addressOf(tab),
     }, [
       tab.label,
-      tab.count ? el('span', { class: 'mod-tab-count', text: String(tab.count) }) : null,
+      tab.countNode
+        || (tab.count ? el('span', { class: 'mod-tab-count', text: String(tab.count) }) : null),
     ]);
     link.addEventListener('click', (e) => {
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -183,15 +194,9 @@ function tabKey(label) {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-function modHeader(mod, detail, shownName, currentVersion) {
+// The game version is not here: the Compatibility card at the side has it.
+function modHeader(mod, detail, shownName) {
   const chips = el('div', { class: 'mod-meta' });
-  if (mod.gameVersion) {
-    chips.append(el('span', {
-      class: `badge game ${versionStanding(mod, currentVersion) || ''}`.trim(),
-      text: `For Starsector ${mod.gameVersion}`,
-      title: versionStandingNote(versionStanding(mod, currentVersion)),
-    }));
-  }
   if (mod.modVersion) {
     chips.append(el('span', {
       class: 'badge version', text: mod.modVersion, title: MOD_VERSION_NOTE,
@@ -347,16 +352,27 @@ function howToGetIt(mod, detail) {
   favorite.classList.remove('btn-big');
   row.append(favorite);
   card.append(row);
-
-  // The source code and the support links share one quiet line at the foot.
-  // `append` writes a missing value out as the word "null", so a mod with
-  // neither must add nothing at all.
-  const source = sourceCodeLink(detail);
-  const support = supportLinks(detail);
-  if (source || support) {
-    card.append(el('div', { class: 'card-foot-line' }, [source, support]));
-  }
   return card;
+}
+
+/// The source code, the license and the support links, in a card of their
+/// own at the top of the side. The source code row is always there, so the
+/// card always is.
+function codeAndSupport(detail) {
+  const support = supportLinks(detail);
+  return el('section', { class: 'panel side-card' }, [
+    el('h2', { class: 'side-heading', text: 'Links' }),
+    el('div', { class: 'side-facts' }, [
+      sideFact('Source code', sourceCodeStatus(detail), { beside: true }),
+      // The short name, with the author's own wording on hover.
+      detail.license
+        ? sideFact('License', el('span', {
+            text: shortLicenseName(detail.license), title: detail.license,
+          }), { beside: true })
+        : null,
+      support ? sideFact('Support the author', support, { beside: true }) : null,
+    ].filter(Boolean)),
+  ]);
 }
 
 /// Plain names for the places a mod's code is kept, by host.
@@ -368,28 +384,78 @@ const CODE_HOSTS = {
   'sourceforge.net': 'SourceForge',
 };
 
-/// A small link to the mod's code, at the foot of the download card. Sharing
-/// the code is a gift to other modders — they can learn from it, fix it, and
-/// keep it alive after the author moves on — so it sits beside the download
-/// rather than down in the list of links, but quietly: a note in the author's
-/// favour, not another button competing with the download.
-function sourceCodeLink(detail) {
+/// Where the mod's code is kept, named by its host with a green code icon.
+/// Sharing the code lets other modders learn from it, fix it, and keep it
+/// alive after the author moves on. A mod with no link gets a quiet grey note
+/// rather than a warning: data-only mods have no code, and many mods ship
+/// their code inside the download, where we cannot see it.
+function sourceCodeStatus(detail) {
   const url = detail.sourceCodeUrl;
-  if (!url) return null;
   let host = '';
   try {
     host = new URL(url).host.replace(/^www\./, '');
   } catch {
-    return null;
+    return el('span', {
+      class: 'badge source-missing',
+      title: "The author's forum post has no link to the mod's code. "
+        + 'The code may be inside the download, or the mod may have none. '
+        + 'Authors: add a GitHub, GitLab or Bitbucket link to your post and it will show here.',
+      text: 'Not linked',
+    });
   }
   return el('a', {
-    class: 'source-link',
+    class: 'badge source-link',
     href: url, target: '_blank', rel: 'noopener nofollow',
-    title: `The mod's source code, on ${CODE_HOSTS[host] || host}`,
+    title: url,
   }, [
     el('span', { class: 'original-page-icon', html: CODE_ICON, 'aria-hidden': 'true' }),
-    'Source code',
+    CODE_HOSTS[host] || host,
   ]);
+}
+
+/// A license's usual short name, read from however the author wrote it: the
+/// full name, a short code, or a link to the license's own page. A license in
+/// the author's own words has no short name, so it reads "Own license"; a
+/// link to a license file we cannot read reads "Licensed".
+function shortLicenseName(text) {
+  const t = text.trim();
+  const version = (/(?:version|v|-|\s)\s*(\d(?:\.\d)?)\b/i.exec(t) || [])[1];
+  const withVersion = (name) => (version ? `${name} ${version}` : name);
+  if (/unlicense/i.test(t)) return 'Unlicense';
+  if (/\bMIT\b/.test(t)) return 'MIT';
+  if (/apache/i.test(t)) return withVersion('Apache');
+  if (/\bMPL\b|mozilla public/i.test(t)) return withVersion('MPL');
+  if (/\bLGPL|lesser general public/i.test(t)) return withVersion('LGPL');
+  if (/\bAGPL|affero/i.test(t)) return withVersion('AGPL');
+  if (/\bGPL|general public license/i.test(t)) return withVersion('GPL');
+  if (/\bEUPL\b/.test(t)) return withVersion('EUPL');
+  if (/\bBSD\b/.test(t)) return 'BSD';
+  if (/\bCC0\b|publicdomain\/zero/i.test(t)) return 'CC0';
+  const cc = creativeCommonsName(t);
+  if (cc) return cc;
+  if (/^https?:\/\/\S+$/.test(t)) return 'Licensed';
+  return 'Own license';
+}
+
+/// "CC BY-NC-SA 4.0" from a Creative Commons license however it is written:
+/// the code, the words, or the link to creativecommons.org.
+function creativeCommonsName(t) {
+  const link = /creativecommons\.org\/licenses\/([a-z-]+)\/(\d\.\d)/i.exec(t);
+  if (link) return `CC ${link[1].toUpperCase()} ${link[2]}`;
+  if (!/\bCC\b|creative\s*commons/i.test(t)) return null;
+  const number = (/\b(\d\.\d)\b/.exec(t) || [])[1];
+  const code = /\bBY(?:-(?:NC|SA|ND))*\b/i.exec(t);
+  let name = code ? code[0].toUpperCase() : null;
+  if (!name) {
+    const parts = /attrib/i.test(t) ? ['BY'] : [];
+    if (/non-?\s*commercial/i.test(t)) parts.push('NC');
+    if (/share-?\s*alike/i.test(t)) parts.push('SA');
+    if (/no-?\s*deriv/i.test(t)) parts.push('ND');
+    // A post that only says "Creative Commons" does not say which one.
+    if (!parts.length) return 'Creative Commons';
+    name = parts.join('-');
+  }
+  return [`CC ${name}`, number].filter(Boolean).join(' ');
 }
 
 function plainDownloadButton(download, checked) {
@@ -422,16 +488,13 @@ function supportLinks(detail) {
   const support = detail.supportLinks || [];
   if (!support.length) return null;
 
-  return el('span', { class: 'support-row' }, [
-    el('span', { class: 'support-label', text: 'Support' }),
-    el('span', { class: 'support-links' }, support.map((one) => el('a', {
+  return el('span', { class: 'support-links' }, support.map((one) => el('a', {
       href: one.url,
       target: '_blank',
       rel: 'noopener nofollow',
       text: supportName(one),
       title: one.url,
-    }))),
-  ]);
+    })));
 }
 
 function downloads(detail) {
@@ -711,34 +774,65 @@ function aiSummary(detail, mod) {
   return section;
 }
 
-function gallery(detail) {
+/// Screenshots first. Buttons, badges and icons are marked `small` when the
+/// site is built. Most posts do not say how big a picture is, so each one is
+/// also measured once it loads, and hidden if it is too small to be a
+/// screenshot or is a thin strip such as a title banner or a divider. Hidden
+/// pictures are one button away. [onCount] hears how many screenshots are
+/// showing each time that changes.
+function gallery(detail, onCount) {
   const images = detail.gallery || [];
-  if (!images.length) return null;
+  if (!images.length) {
+    onCount(0);
+    return null;
+  }
 
-  // Buttons, badges and small icons are published too, but kept out of the
-  // way behind a button, so the section reads as screenshots first.
-  const smallCount = images.filter((image) => image.small).length;
-  let showSmall = false;
-
-  // Exclude failed and hidden images from the viewer.
+  const hidden = new Set(images.filter((image) => image.small));
   const broken = new Set();
-  const showing = () => images.filter((image) =>
-    !broken.has(image) && (showSmall || !image.small));
-  const grid = el('div', { class: 'gallery' });
+  let showHidden = false;
   const buttons = new Map();
+  const grid = el('div', { class: 'gallery' });
+  const empty = el('p', { class: 'sub', text: "No screenshots in this mod's posts." });
+  const toggle = el('button', { class: 'link-button small-pictures-toggle', type: 'button' });
+
+  // The pictures the viewer steps through: the ones on screen.
+  const showing = () => images.filter((image) =>
+    !broken.has(image) && (showHidden || !hidden.has(image)));
+
+  const redraw = () => {
+    for (const [image, button] of buttons) {
+      button.hidden = !showHidden && hidden.has(image);
+    }
+    const hiddenCount = [...hidden].filter((image) => !broken.has(image)).length;
+    const screenshots = images.length - broken.size - hiddenCount;
+    onCount(screenshots);
+    empty.hidden = screenshots > 0;
+    toggle.hidden = !hiddenCount;
+    toggle.textContent = showHidden
+      ? 'Hide small pictures'
+      : `Show ${hiddenCount} small ${hiddenCount === 1 ? 'picture' : 'pictures'}`;
+    toggle.setAttribute('aria-expanded', String(showHidden));
+  };
+
   images.forEach((image) => {
     const button = el('button', {
       class: 'shot',
-      title: image.caption || 'Open screenshot',
+      title: image.caption || 'Open picture',
     });
-    button.hidden = Boolean(image.small);
-    button.append(picture(image.url, {
+    const img = picture(image.url, {
       alt: image.caption || '',
       whenBroken: () => {
         button.remove();
         broken.add(image);
+        redraw();
       },
-    }));
+    });
+    img.addEventListener('load', () => {
+      if (hidden.has(image) || isScreenshotSized(img.naturalWidth, img.naturalHeight)) return;
+      hidden.add(image);
+      redraw();
+    });
+    button.append(img);
     button.addEventListener('click', () => {
       const list = showing();
       showPicture(list, list.indexOf(image));
@@ -747,32 +841,29 @@ function gallery(detail) {
     grid.append(button);
   });
 
-  let toggle = null;
-  if (smallCount) {
-    toggle = el('button', {
-      class: 'link-button small-pictures-toggle', type: 'button',
-    });
-    const label = () => {
-      toggle.textContent = showSmall
-        ? 'Hide small pictures'
-        : `Show ${smallCount} small ${smallCount === 1 ? 'picture' : 'pictures'}`;
-      toggle.setAttribute('aria-expanded', String(showSmall));
-    };
-    label();
-    toggle.addEventListener('click', () => {
-      showSmall = !showSmall;
-      for (const [image, button] of buttons) {
-        if (image.small) button.hidden = !showSmall;
-      }
-      label();
-    });
-  }
+  toggle.addEventListener('click', () => {
+    showHidden = !showHidden;
+    redraw();
+  });
+  redraw();
 
+  // No heading: the tab already says what this is.
   return el('section', { class: 'panel' }, [
-    el('h2', { text: 'Screenshots' }),
     grid,
-    toggle ? el('p', { class: 'small-pictures-row' }, [toggle]) : null,
+    empty,
+    el('p', { class: 'small-pictures-row' }, [toggle]),
   ]);
+}
+
+/// Narrower than this and a picture is a button or an icon, not a screenshot.
+/// The same number the site's builder uses where a post gives the width.
+const SMALLEST_SCREENSHOT = 200;
+
+/// Whether a loaded picture's real size could be a screenshot: wide enough,
+/// tall enough, and not a thin strip many times wider than it is tall.
+function isScreenshotSized(width, height) {
+  if (!width || !height) return true;
+  return width >= SMALLEST_SCREENSHOT && height >= 100 && width / height <= 4.5;
 }
 
 /// A section whose entries fold, with a button beside its heading that opens
@@ -929,11 +1020,19 @@ function withoutLeadingAnswer(words, answer) {
   return rest[0].toUpperCase() + rest.slice(1);
 }
 
-function sideFact(label, value, { beside = false } = {}) {
+function sideFact(label, value, { beside = false, labelTitle = null } = {}) {
   return el('div', { class: `side-fact${beside ? ' beside' : ''}` }, [
-    el('span', { class: 'side-label', text: label }),
+    el('span', {
+      class: `side-label${labelTitle ? ' has-tip' : ''}`, text: label, title: labelTitle,
+    }),
     el('div', { class: 'side-value' }, [value]),
   ]);
+}
+
+/// Categories as the same small pills the header uses.
+function categoryPills(names, extra = '') {
+  return el('div', { class: 'needs-chips' }, names.map((name) =>
+    el('span', { class: `badge ${extra}`.trim(), text: name })));
 }
 
 function sideCard(heading, rows) {
@@ -960,6 +1059,7 @@ function compatibility(detail, currentVersion) {
   return sideCard('Compatibility', [
     listing.gameVersion
       ? sideFact('Game version', el('span', {
+          class: `badge game ${versionStanding(listing, currentVersion) || ''}`.trim(),
           text: `Starsector ${listing.gameVersion}`,
           title: versionStandingNote(versionStanding(listing, currentVersion)),
         }), { beside: true })
@@ -976,7 +1076,7 @@ function linksOut(detail) {
   ].filter(([, url]) => url);
   if (!links.length) return null;
   return el('section', { class: 'panel side-card' }, [
-    el('h2', { class: 'side-heading', text: 'Links' }),
+    el('h2', { class: 'side-heading', text: 'Community' }),
     el('div', { class: 'side-link-list' }, links.map(([text, url, field]) => {
       const icon = field ? pageIcon(field) : CODE_ICON;
       return el('a', {
@@ -1010,15 +1110,15 @@ function facts(detail) {
         { beside: true })
       : null,
     (listing.categories || []).length
-      ? sideFact('Category', el('span', { text: joinNames(listing.categories) }))
+      ? sideFact('Category', categoryPills(listing.categories))
       : null,
     rawDiffers
-      ? sideFact('Original categories', el('span', {
-          class: 'dim', text: joinNames(raw),
-          title: 'Categories from the forum or Discord.',
-        }))
+      ? sideFact('Original categories', categoryPills(raw, 'dim'), {
+          labelTitle: "The categories exactly as the forum's mod index and Discord "
+            + 'list them. The site groups those names into its own shorter list, '
+            + 'shown above.',
+        })
       : null,
-    detail.license ? sideFact('License', el('span', { text: detail.license })) : null,
     day('Added', listing.addedOn,
       'When the forum thread was posted, or the mod was first seen on Discord.'),
     day('Last release', listing.lastReleaseDate,

@@ -19,6 +19,18 @@ void main() {
         isFalse);
   });
 
+  test('drops license badges', () {
+    expect(
+        looksLikeAScreenshot(
+            'https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png'),
+        isFalse);
+    expect(
+        looksLikeAScreenshot(
+            'https://licensebuttons.net/l/by-nc-nd/4.0/80x15.png'),
+        isFalse);
+    expect(looksLikeAScreenshot('https://example.com/cc-88x31.png'), isFalse);
+  });
+
   test('drops the forum\'s own smileys and interface pictures', () {
     expect(
         looksLikeAScreenshot(

@@ -53,11 +53,19 @@ final RegExp _neverAModPicture = RegExp(
 
 /// Words in an address that say the picture is not a screenshot, on top of
 /// [_neverAModPicture]: a logo or an icon is the mod's mark, not a picture of
-/// it running.
+/// it running, and 88x31 is the size of the old web's little badges.
 final RegExp _notAScreenshot = RegExp(
-  r'(_icon|-icon|/icon|logo)',
+  r'(_icon|-icon|/icon|logo|88x31)',
   caseSensitive: false,
 );
+
+/// Hosts that only serve license badges. Kept out of the gallery only, not out
+/// of [isBadgeOrDonationImage], because that list also decides what the LLM is
+/// shown, and changing it would mean paying to read those threads again.
+const List<String> _licenseBadgeHosts = [
+  'creativecommons.org',
+  'licensebuttons.net',
+];
 
 /// True when [url] can never be a picture of a mod at all: a donation button,
 /// a badge, an avatar, a forum smiley, a loading spinner, or a piece of the
@@ -121,6 +129,11 @@ bool looksLikeAScreenshot(String url, {Map<String, int> sizes = const {}}) {
   if (address == null) return false;
 
   if (isBadgeOrDonationImage(trimmed)) return false;
+
+  final host = address.host.toLowerCase();
+  for (final banned in _licenseBadgeHosts) {
+    if (host == banned || host.endsWith('.$banned')) return false;
+  }
 
   // Same rule as [isBadgeOrDonationImage]: only the path is read for words.
   if (_notAScreenshot.hasMatch(address.path.toLowerCase())) return false;
