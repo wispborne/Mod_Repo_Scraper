@@ -5,12 +5,12 @@
 // files, fetched off this site's own origin.
 
 import {
-  aiSummaryMode, buildHash, clear, el, errorPanel, formatDay,
+  aiNoteChoice, aiSummaryMode, buildHash, clear, el, errorPanel, formatDay,
   formatMoment, applySpacing, go, imageChoice, imageUrlOf, inlinePictures,
   loading,
   favorites, modHref, modList, modName,
   preparePageScroll, restorePageScroll, searchHelpField, setAiSummaryMode,
-  setImageChoice, setInlinePictures,
+  setAiNoteChoice, setImageChoice, setInlinePictures,
   setSpacingPreference, spacingPreference,
   THEMES, applyTheme, setThemePreference, themePreference,
   thumbnail, watchFavorites,
@@ -185,6 +185,7 @@ function mountSettings() {
     [...dialog.querySelectorAll('input[name="mod-pictures"]')];
   const inlineRadios =
     [...dialog.querySelectorAll('input[name="inline-pictures"]')];
+  const aiNoteRadios = [...dialog.querySelectorAll('input[name="ai-note"]')];
   const themeRadios = mountThemeList(dialog.querySelector('#theme-list'));
 
   applySpacing();
@@ -198,6 +199,8 @@ function mountSettings() {
     for (const radio of pictureRadios) radio.checked = radio.value === picture;
     const inline = inlinePictures();
     for (const radio of inlineRadios) radio.checked = radio.value === inline;
+    const aiNote = aiNoteChoice();
+    for (const radio of aiNoteRadios) radio.checked = radio.value === aiNote;
     const theme = themePreference();
     for (const radio of themeRadios) radio.checked = radio.value === theme;
     dialog.showModal();
@@ -237,6 +240,13 @@ function mountSettings() {
     radio.addEventListener('change', () => {
       if (!radio.checked) return;
       setInlinePictures(radio.value);
+      route();
+    });
+  }
+  for (const radio of aiNoteRadios) {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      setAiNoteChoice(radio.value);
       route();
     });
   }
