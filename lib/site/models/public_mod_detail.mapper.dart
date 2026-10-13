@@ -60,6 +60,20 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     opt: true,
     def: false,
   );
+  static bool _$descriptionIsForumPost(PublicModDetail v) =>
+      v.descriptionIsForumPost;
+  static const Field<PublicModDetail, bool> _f$descriptionIsForumPost = Field(
+    'descriptionIsForumPost',
+    _$descriptionIsForumPost,
+    opt: true,
+    def: false,
+  );
+  static String? _$discordPostHtml(PublicModDetail v) => v.discordPostHtml;
+  static const Field<PublicModDetail, String> _f$discordPostHtml = Field(
+    'discordPostHtml',
+    _$discordPostHtml,
+    opt: true,
+  );
   static String? _$aiDescription(PublicModDetail v) => v.aiDescription;
   static const Field<PublicModDetail, String> _f$aiDescription = Field(
     'aiDescription',
@@ -201,6 +215,8 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     #description: _f$description,
     #descriptionHtml: _f$descriptionHtml,
     #descriptionIsGenerated: _f$descriptionIsGenerated,
+    #descriptionIsForumPost: _f$descriptionIsForumPost,
+    #discordPostHtml: _f$discordPostHtml,
     #aiDescription: _f$aiDescription,
     #saveCompatibilityText: _f$saveCompatibilityText,
     #updateCompatibilityText: _f$updateCompatibilityText,
@@ -235,6 +251,8 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       description: data.dec(_f$description),
       descriptionHtml: data.dec(_f$descriptionHtml),
       descriptionIsGenerated: data.dec(_f$descriptionIsGenerated),
+      descriptionIsForumPost: data.dec(_f$descriptionIsForumPost),
+      discordPostHtml: data.dec(_f$discordPostHtml),
       aiDescription: data.dec(_f$aiDescription),
       saveCompatibilityText: data.dec(_f$saveCompatibilityText),
       updateCompatibilityText: data.dec(_f$updateCompatibilityText),
@@ -366,6 +384,8 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     String? description,
     String? descriptionHtml,
     bool? descriptionIsGenerated,
+    bool? descriptionIsForumPost,
+    String? discordPostHtml,
     String? aiDescription,
     String? saveCompatibilityText,
     String? updateCompatibilityText,
@@ -489,6 +509,8 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     Object? description = $none,
     Object? descriptionHtml = $none,
     bool? descriptionIsGenerated,
+    bool? descriptionIsForumPost,
+    Object? discordPostHtml = $none,
     Object? aiDescription = $none,
     Object? saveCompatibilityText = $none,
     Object? updateCompatibilityText = $none,
@@ -520,6 +542,9 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       if (descriptionHtml != $none) #descriptionHtml: descriptionHtml,
       if (descriptionIsGenerated != null)
         #descriptionIsGenerated: descriptionIsGenerated,
+      if (descriptionIsForumPost != null)
+        #descriptionIsForumPost: descriptionIsForumPost,
+      if (discordPostHtml != $none) #discordPostHtml: discordPostHtml,
       if (aiDescription != $none) #aiDescription: aiDescription,
       if (saveCompatibilityText != $none)
         #saveCompatibilityText: saveCompatibilityText,
@@ -558,6 +583,11 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       #descriptionIsGenerated,
       or: $value.descriptionIsGenerated,
     ),
+    descriptionIsForumPost: data.get(
+      #descriptionIsForumPost,
+      or: $value.descriptionIsForumPost,
+    ),
+    discordPostHtml: data.get(#discordPostHtml, or: $value.discordPostHtml),
     aiDescription: data.get(#aiDescription, or: $value.aiDescription),
     saveCompatibilityText: data.get(
       #saveCompatibilityText,

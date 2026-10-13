@@ -100,10 +100,68 @@ const int _longestExcerptSummary = 300;
 /// Chinese or Japanese, which needs no space after it.
 final RegExp _sentenceEnd = RegExp(r'[.!?](?=\s|$)|[。！？]');
 
+/// A Discord heading line ("## Hullmods - Renewed"). A heading is a title, and
+/// at the top of a post it is nearly always the mod's own name.
+final RegExp _headingLine = RegExp(r'^#{1,6}\s');
+
+/// The marks Discord puts at the start of a line: small text, a quote, a list
+/// item.
+final RegExp _lineMarks = RegExp(r'^(?:-#\s+|>+\s*|[-*•]\s+)');
+
+/// At most four words and a colon, the way "Forum post:" introduces a link.
+final RegExp _labelOnly = RegExp(r'^[^\s:]+(?:\s+[^\s:]+){0,3}\s*:$');
+
+/// True when [line] is only a link, or a short label and a link — "Forum
+/// post: https://…".
+bool _onlyALabelledLink(String line) {
+  if (!_address.hasMatch(line)) return false;
+  final rest = line.replaceAll(_address, ' ').replaceAll(_spaces, ' ').trim();
+  return rest.isEmpty || _labelOnly.hasMatch(rest);
+}
+
+/// The first usable paragraph near the top of a Discord post, cut to whole
+/// sentences the way [summaryOfExcerpt] cuts an excerpt. Null when none of
+/// the first few paragraphs says anything about the mod.
+///
+/// The Discord reader keeps only a post's first two lines as its summary, and
+/// those are often the mod's name as a heading and a link. Hullmods - Renewed
+/// opens that way and writes its real opening ("Ever scrolled past 200+
+/// hullmods…") a few lines further down. Only the first few paragraphs are
+/// read, so a line from a changelog far down the post never stands in.
+String? summaryOfDiscordPost(String? post) {
+  if (post == null) return null;
+  final paragraphs = post
+      .replaceAll('\r\n', '\n')
+      .split(RegExp(r'\n\s*\n'))
+      .where((block) => block.trim().isNotEmpty)
+      .take(_paragraphsToRead);
+  for (final paragraph in paragraphs) {
+    final usable = usableSummary(paragraph);
+    if (usable != null) return summaryOfExcerpt(usable);
+  }
+  return null;
+}
+
+/// How many of a Discord post's paragraphs [summaryOfDiscordPost] reads.
+const int _paragraphsToRead = 4;
+
 /// [summary] tidied, or null when it is not a description at all.
+///
+/// Read a line at a time first: a heading and a line that only points at a
+/// link are dropped, and the marks Discord starts a line with come off. The
+/// top of Hullmods - Renewed's post is its name as a heading and then "Forum
+/// post:" and the thread's address, which together read as a summary.
 String? usableSummary(String? summary) {
+  final lines = (summary ?? '')
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty && !_headingLine.hasMatch(line))
+      // Emphasis comes off first, so a bold label ("**Download:**") still
+      // ends in its colon.
+      .map((line) => line.replaceFirst(_lineMarks, '').replaceAll(_emphasis, '').trim())
+      .where((line) => line.isNotEmpty && !_onlyALabelledLink(line));
   final tidied =
-      (summary ?? '').replaceAll(_emphasis, '').replaceAll(_spaces, ' ').trim();
+      lines.join(' ').replaceAll(_emphasis, '').replaceAll(_spaces, ' ').trim();
   if (tidied.isEmpty) return null;
 
   // A summary that is only a list of requirements says nothing about the mod.

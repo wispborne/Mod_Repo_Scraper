@@ -88,6 +88,7 @@ class ModRepoService implements JobRunner {
     required bool scrapeFirst,
   }) async {
     final mods = <ScrapedMod>[];
+    var discordMods = const <ScrapedMod>[];
     var errors = 0;
 
     for (final source in ModSourceKind.values) {
@@ -104,6 +105,7 @@ class ModRepoService implements JobRunner {
       final result = await _loadSource(source, request, reporter,
           scrapeFirst: scrapeFirst);
       mods.addAll(result.mods);
+      if (source == ModSourceKind.discord) discordMods = result.mods;
       if (result.failed) errors++;
     }
 
@@ -139,7 +141,8 @@ class ModRepoService implements JobRunner {
     }
 
     reporter.phase('Website files');
-    await siteStep.afterMerge(merged, log: reporter.log);
+    await siteStep.afterMerge(merged,
+        discordMods: discordMods, log: reporter.log);
 
     return JobOutcome(
       itemsDone: merged.length,

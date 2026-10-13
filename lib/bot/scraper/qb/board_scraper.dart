@@ -1,6 +1,7 @@
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 import 'forum_constants.dart';
 import 'models/mod_summary.dart';
@@ -20,6 +21,7 @@ class QbBoardScraper {
     bool sortByLastPostDesc = false,
     String? boardBaseUrl,
     bool Function(String title)? topicTitleFilter,
+    Set<int> pinnedTopicsToKeep = const {},
   }) async {
     final baseUrl = boardBaseUrl ?? ForumConstants.boardUrl;
     final allMods = <QbModSummary>[];
@@ -40,10 +42,12 @@ class QbBoardScraper {
 
       final doc = html_parser.parse(response.body);
       final skipStickyTopics = !ForumConstants.isLibraryBoardBase(baseUrl);
-      final mods = _extractTopicsFromPage(
+      final mods = extractTopicsFromPage(
         doc,
-        topicTitleFilter,
-        skipStickyTopics,
+        topicTitleFilter: topicTitleFilter,
+        skipStickyTopics: skipStickyTopics,
+        pinnedTopicsToKeep: pinnedTopicsToKeep,
+        log: _log,
       );
       _log.info('Found ${mods.length} topics on page ${pageIndex + 1}');
 
@@ -86,11 +90,20 @@ class QbBoardScraper {
     return allMods;
   }
 
-  List<QbModSummary> _extractTopicsFromPage(
-    Document doc,
+  /// The topics listed on one board page.
+  ///
+  /// Pinned threads are skipped when [skipStickyTopics] is set, because most of them are not mods (the
+  /// mod index itself, the beginner's guide). A pinned thread in [pinnedTopicsToKeep] is kept anyway:
+  /// the caller passes the topics today's mod index lists, which is how TriOS (topic 29674), pinned to
+  /// the top of the Mods board, gets scraped.
+  @visibleForTesting
+  static List<QbModSummary> extractTopicsFromPage(
+    Document doc, {
     bool Function(String)? topicTitleFilter,
-    bool skipStickyTopics,
-  ) {
+    bool skipStickyTopics = false,
+    Set<int> pinnedTopicsToKeep = const {},
+    Logger? log,
+  }) {
     final mods = <QbModSummary>[];
 
     // Each topic row contains a span[id^='msg_'] with the topic link
@@ -110,7 +123,7 @@ class QbBoardScraper {
         if (topicId == null) continue;
 
         // Sticky detection: walk up to parent td, look for show_sticky.gif
-        if (skipStickyTopics) {
+        if (skipStickyTopics && !pinnedTopicsToKeep.contains(topicId)) {
           final parentTd = _findAncestor(span, 'td');
           if (parentTd != null) {
             final stickyImg = parentTd.querySelector("img[src*='show_sticky.gif']");
@@ -181,7 +194,7 @@ class QbBoardScraper {
           scrapedAt: DateTime.now().toUtc(),
         ));
       } catch (e) {
-        _log.warning('Failed to parse topic span: $e');
+        log?.warning('Failed to parse topic span: $e');
       }
     }
 

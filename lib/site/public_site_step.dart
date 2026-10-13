@@ -82,10 +82,18 @@ class PublicSiteStep {
 
   /// Rebuilds the website's files after a merge. The release state is read, not
   /// changed: a merge tells us nothing new about any mod's version.
+  ///
+  /// [discordMods] are the Discord source's own mods, before merging. Each
+  /// one's post is saved to `discord-posts.json`, because the merge keeps only
+  /// one description per mod and a mod's page shows its Discord post beside
+  /// its forum post. A merge that read no Discord mods leaves the file as it
+  /// was.
   Future<void> afterMerge(
     List<ScrapedMod> mods, {
+    List<ScrapedMod> discordMods = const [],
     void Function(String message)? log,
   }) async {
+    if (discordMods.isNotEmpty) _saveDiscordPosts(discordMods);
     await _rebuild(
       mods: mods,
       bundle: _readBundle(),
@@ -121,6 +129,7 @@ class PublicSiteStep {
       mods: mods,
       bundle: bundle,
       threadReleases: releases,
+      discordPosts: _readDiscordPosts(),
     );
     await builder.write(data);
     idStore.save();
@@ -147,6 +156,40 @@ class PublicSiteStep {
         if (item is Map)
           ScrapedModMapper.fromMap(Map<String, dynamic>.from(item)),
     ];
+  }
+
+  File get _discordPostsFile => File(p.join(dataPath, 'discord-posts.json'));
+
+  /// Each Discord mod's post, filed under the link to that post — the same
+  /// link the merged mod carries.
+  void _saveDiscordPosts(List<ScrapedMod> discordMods) {
+    final posts = <String, String>{
+      for (final mod in discordMods)
+        if (mod.getUrls()[ModUrlType.Discord] case final url?)
+          if (mod.description?.trim() case final text? when text.isNotEmpty)
+            url: text,
+    };
+    _discordPostsFile.parent.createSync(recursive: true);
+    _discordPostsFile.writeAsStringSync(jsonEncode(posts));
+  }
+
+  /// The saved Discord posts, or none when there is no such file yet. A file
+  /// that cannot be read costs the pages their Discord posts, not the build.
+  Map<String, String> _readDiscordPosts() {
+    final file = _discordPostsFile;
+    if (!file.existsSync()) return const {};
+    try {
+      final decoded = jsonDecode(file.readAsStringSync());
+      if (decoded is! Map) return const {};
+      return {
+        for (final entry in decoded.entries)
+          if (entry.value is String) '${entry.key}': entry.value as String,
+      };
+    } catch (e) {
+      _log.warning('Could not read ${file.path}, so the website was built '
+          'without Discord posts: $e');
+      return const {};
+    }
   }
 
   /// The published bundle, or null when there is no such file yet.

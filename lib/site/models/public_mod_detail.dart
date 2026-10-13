@@ -30,6 +30,18 @@ class PublicModDetail with PublicModDetailMappable {
   /// from the author's post.
   final bool descriptionIsGenerated;
 
+  /// True when [descriptionHtml] is the author's forum post, or the part of it
+  /// about this mod. The page heads it "Forum post"; any other description is
+  /// "About this mod".
+  final bool descriptionIsForumPost;
+
+  /// The mod's Discord post, its markdown turned into the same small set of
+  /// tags a forum post is published with. Shown beside the forum post rather
+  /// than instead of it, since authors often write different things in each.
+  /// Null when the mod is not on Discord, or when the Discord post is already
+  /// what [descriptionHtml] holds.
+  final String? discordPostHtml;
+
   /// The paragraph the LLM wrote about this mod, whenever there is one — even
   /// when [description] already holds the author's own post. The detail page
   /// shows this in its own section unless the reader turned AI summaries off,
@@ -140,6 +152,8 @@ class PublicModDetail with PublicModDetailMappable {
     this.description,
     this.descriptionHtml,
     this.descriptionIsGenerated = false,
+    this.descriptionIsForumPost = false,
+    this.discordPostHtml,
     this.aiDescription,
     this.saveCompatibilityText,
     this.updateCompatibilityText,

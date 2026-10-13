@@ -83,6 +83,49 @@ void main() {
     expect(usableSummary('Current version: https://gitlab.com/x/y.zip'), isNull);
   });
 
+  test('drops a heading and a labelled link at the top of a Discord post', () {
+    // Hullmods - Renewed, as its Discord post opens.
+    expect(
+        usableSummary('## Hullmods - Renewed\n'
+            'Forum post: https://fractalsoftworks.com/forum/index.php?topic=35619.0'),
+        isNull);
+    expect(usableSummary('# Big Mod\nAdds a new faction to the sector.'),
+        'Adds a new faction to the sector.');
+    expect(usableSummary('- Create custom hullmods.\n- Delve too deep.'),
+        'Create custom hullmods. Delve too deep.');
+  });
+
+  test('a bold label before a link is still only a label', () {
+    expect(usableSummary('**Download (latest release):** https://github.com/x/y'),
+        isNull);
+  });
+
+  test('a Discord post gives its first paragraph with words in it', () {
+    // Hullmods - Renewed's post, as it opens.
+    const post = '## Hullmods - Renewed\n'
+        'Forum post: https://fractalsoftworks.com/forum/index.php?topic=35619.0\n'
+        '**Download (latest release):** https://github.com/x/y/releases/latest\n'
+        '\n'
+        'Ever scrolled past 200+ hullmods hunting for the one you actually wanted?\n'
+        'Ever been annoyed by carrier mods cluttering the list?';
+    expect(summaryOfDiscordPost(post),
+        'Ever scrolled past 200+ hullmods hunting for the one you actually wanted? '
+        'Ever been annoyed by carrier mods cluttering the list?');
+  });
+
+  test('a Discord post with nothing usable near the top gives nothing', () {
+    expect(summaryOfDiscordPost(null), isNull);
+    expect(
+        summaryOfDiscordPost('# A\n\nhttps://x.com/a\n\n# B\n\nLink: https://x.com/b\n\n'
+            'Adds a new faction to the sector.'),
+        isNull);
+  });
+
+  test('keeps a line that has words of its own beside a link', () {
+    expect(usableSummary('Adds new ships, see https://x.com/y for pictures.'),
+        'Adds new ships, see https://x.com/y for pictures.');
+  });
+
   test('drops a summary that is only the mod\'s name in bold', () {
     expect(usableSummary('**StopBloatingMe**'), isNull);
     expect(usableSummary('__LazyLib__'), isNull);

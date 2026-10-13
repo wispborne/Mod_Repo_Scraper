@@ -15,6 +15,7 @@ import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
 import 'days.dart';
 import 'description_slice.dart';
+import 'discord_markdown.dart';
 import 'discord_download.dart';
 import 'display_name.dart';
 import 'download_order.dart';
@@ -207,6 +208,7 @@ class PublicDataBuilder {
     required List<ScrapedMod> mods,
     ForumDataBundle? bundle,
     List<ThreadRelease> threadReleases = const [],
+    Map<String, String> discordPosts = const {},
     DateTime? generatedAt,
   }) {
     final builtAt = (generatedAt ?? DateTime.now()).toUtc();
@@ -318,6 +320,7 @@ class PublicDataBuilder {
         modsByName: modsByName,
         partOfThreadTitle: entry.partOfThreadTitle,
         shownName: entry.shownName,
+        discordPosts: discordPosts,
       );
       listRecords.add(record);
       details[id] = _detailRecord(
@@ -331,6 +334,7 @@ class PublicDataBuilder {
         ownSection: ownSection,
         threadDownloads: threadDownloads,
         releases: modReleases,
+        discordPosts: discordPosts,
       );
     }
 
@@ -746,14 +750,17 @@ class PublicDataBuilder {
     required Map<String, _JoinedMod> modsByName,
     required String? partOfThreadTitle,
     required String shownName,
+    required Map<String, String> discordPosts,
   }) {
     final extras = chosen?.extras;
     final downloads = _downloadsFor(mod, chosen, threadDownloads);
     final isTool = chosen?.isTool == true;
 
     final lastPost = parseForumDate(thread?.lastPostDate);
+    final discordUrl = _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]);
     final copiedSummary = summaryOfExcerpt(plainWordsOf(ownSection)) ??
-        usableSummary(mod.summary);
+        usableSummary(mod.summary) ??
+        summaryOfDiscordPost(discordUrl == null ? null : discordPosts[discordUrl]);
     final generatedSummary = usableSummary(extras?.summary?.sentence);
     final pictures = _picturesFor(mod, chosen, authorAvatarPath);
 
@@ -885,6 +892,7 @@ class PublicDataBuilder {
     required String? ownSection,
     required List<AssumedDownloadCandidate> threadDownloads,
     required List<ModRelease> releases,
+    required Map<String, String> discordPosts,
   }) {
     final extras = chosen?.extras;
 
@@ -899,9 +907,19 @@ class PublicDataBuilder {
     // mod's section belongs in its description. The listing's clipped summary
     // and the generated summary are independent of the full description.
     final descriptionSection = sharesItsThread ? ownSection : null;
+    final fromForum = usablePost?.words != null || descriptionSection != null;
+
+    // The Discord post has a place of its own on the page. Where the merge's
+    // description is only that same post again, it is not shown twice.
+    final discordUrl = _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]);
+    final discordPost = discordUrl == null ? null : discordPosts[discordUrl];
+    final mergedDescription = !fromForum && sameWords(mod.description, discordPost)
+        ? null
+        : _firstNonEmpty([mod.description]);
+
     final copiedDescription = usablePost?.words ??
         plainWordsOf(descriptionSection) ??
-        _firstNonEmpty([mod.description]);
+        mergedDescription;
     final generatedDescription = _firstNonEmpty([extras?.summary?.paragraph]);
     final isGenerated =
         copiedDescription == null && generatedDescription != null;
@@ -922,6 +940,8 @@ class PublicDataBuilder {
           descriptionSection ??
           plainTextAsHtml(copiedDescription ?? generatedDescription),
       descriptionIsGenerated: isGenerated,
+      descriptionIsForumPost: fromForum,
+      discordPostHtml: discordMarkdownAsHtml(discordPost),
       aiDescription: generatedDescription,
       saveCompatibilityText: addingWords,
       // Only the note that speaks for the version this page is about. A note
@@ -948,7 +968,7 @@ class PublicDataBuilder {
           .map((l) => PublicSupportLink(url: l.url, type: l.type, label: l.label))
           .toList(),
       forumUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Forum]]),
-      discordUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]),
+      discordUrl: discordUrl,
       nexusUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.NexusMods]]),
       releases: releases,
       threadLastPostOn: listing.threadLastPostOn,

@@ -169,6 +169,9 @@ class QbScraperEngine {
         final isPages = scope.type == ScopeType.pages;
         final isNewData = scope.type == ScopeType.newData;
 
+        // A pinned thread is skipped unless today's mod index lists it as a mod.
+        final pinnedModsInIndex = modIndex.mainTopicCategoryMap.keys.toSet();
+
         var mainList = <QbModSummary>[];
         var lesserList = <QbModSummary>[];
         var libraryList = <QbModSummary>[];
@@ -186,6 +189,7 @@ class QbScraperEngine {
             maxPages: maxPagesMain,
             shouldContinueAfterPage: shouldContinueMain,
             sortByLastPostDesc: isNewData,
+            pinnedTopicsToKeep: pinnedModsInIndex,
           );
           mainList = mainList.map((m) {
             mainTopicIds.add(m.topicId);
@@ -216,6 +220,7 @@ class QbScraperEngine {
             sortByLastPostDesc: isNewData,
             boardBaseUrl: ForumConstants.lesserBoardUrl,
             topicTitleFilter: ForumConstants.isLesserBoardTopicTitle,
+            pinnedTopicsToKeep: pinnedModsInIndex,
           );
           lesserList = lesserList.map((m) {
             lesserTopicIds.add(m.topicId);

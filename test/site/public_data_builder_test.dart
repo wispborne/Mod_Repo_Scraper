@@ -442,6 +442,58 @@ void main() {
     expect(detail.descriptionIsGenerated, isFalse);
   });
 
+  test('the Discord post is published beside the forum post, markdown read', () {
+    final mod = ScrapedMod(
+      name: 'Nexerelin',
+      description: 'Discord: 4X in Starsector.',
+      gameVersionReq: '0.98a',
+      authorsList: const ['Histidine'],
+      sources: const [ModSource.Index, ModSource.Discord],
+      urls: const {
+        ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+        ModUrlType.Discord: 'https://discord.com/channels/1/2/3',
+      },
+    );
+
+    final detail = builder.build(
+      mods: [mod],
+      bundle: bundleOf(
+        index: [thread()],
+        details: {'9175': postOf('<p>A campaign overhaul.</p>')},
+      ),
+      discordPosts: const {
+        'https://discord.com/channels/1/2/3': '**4X** in Starsector.\n- Invade\n- Trade',
+      },
+    ).details['nexerelin']!;
+
+    expect(detail.descriptionIsForumPost, isTrue);
+    expect(detail.descriptionHtml, '<p>A campaign overhaul.</p>');
+    expect(detail.discordPostHtml,
+        '<p><strong>4X</strong> in Starsector.</p><ul><li>Invade</li><li>Trade</li></ul>');
+  });
+
+  test('a description that is only the Discord post again is not shown twice', () {
+    final discordOnly = ScrapedMod(
+      name: 'Quality Captains',
+      description: 'Officers gain skills you choose.',
+      authorsList: const ['Sundog'],
+      sources: const [ModSource.Discord],
+      urls: const {ModUrlType.Discord: 'https://discord.com/channels/1/2'},
+    );
+
+    final detail = builder.build(
+      mods: [discordOnly],
+      bundle: bundleOf(),
+      discordPosts: const {
+        'https://discord.com/channels/1/2': 'Officers gain  skills you choose.',
+      },
+    ).details['quality-captains']!;
+
+    expect(detail.descriptionIsForumPost, isFalse);
+    expect(detail.description, isNull);
+    expect(detail.discordPostHtml, '<p>Officers gain  skills you choose.</p>');
+  });
+
   test('a Discord-only mod publishes the link its announcement carried', () {
     // Before this, every download came off a forum thread, so a mod announced
     // only on Discord reached the site with no download button while its link

@@ -129,7 +129,7 @@ void main() {
           </div></div>
           <div class="post"><div class="inner">
             <strong>Factions:</strong><br /><br />
-            <ul class="bbc_list">${_entry('0.7.2a', 'AI War', 9175, 'Histidine')}</ul>
+            <ul class="bbc_list">${_entry('0.7.2a', 'AI War', 9000, 'Histidine')}</ul>
             <br /><br />
             <strong>Total Conversions:</strong><br /><br />
             <ul class="bbc_list">${_entry('0.7.2a', 'Old Conversion', 500, 'Someone')}</ul>
@@ -193,6 +193,34 @@ void main() {
       final ancient = mods.firstWhere((mod) => mod.name == 'Ancient Mod');
 
       expect(ancient.categories, ['Something We Have Never Seen']);
+    });
+
+    test('a mod in today\'s index is not read again from an older post', () {
+      // Topic 29674 (TriOS): today's index says "[-]", an old post says "[0.97a]". The merge keeps the
+      // highest game version, so reading both put TriOS on 0.97a.
+      final doc = html_parser.parse('''
+        <div id="forumposts">
+          <div class="post"><div class="inner">
+            <strong>Standalone Utilities:</strong><br /><br />
+            <ul class="bbc_list">${_entry('-', 'TriOS: Launcher/Mod Manager/Toolkit', 29674, 'Wispborne')}</ul>
+          </div></div>
+          <div class="post"><div class="inner">
+            <strong>Standalone Utilities:</strong><br /><br />
+            <ul class="bbc_list">
+              <li>[<strong><span class="bbc_color">0.97a</span></strong>]
+                <strong><a class="bbc_link" href="https://fractalsoftworks.com/forum/index.php?topic=29674.msg435018">TriOS: Launcher/Mod Manager/Toolkit</a></strong>
+                by <em><strong>Wispborne</strong></em></li>
+              ${_entry('0.97a', 'Only In The Old Post', 800, 'Someone')}
+            </ul>
+          </div></div>
+        </div>
+      ''');
+
+      final mods = ForumScraper.parseModIndex(doc);
+
+      expect(mods.map((mod) => mod.name), ['TriOS: Launcher/Mod Manager/Toolkit', 'Only In The Old Post']);
+      expect(mods.first.gameVersionReq, '-');
+      expect(mods.last.gameVersionReq, '0.97a', reason: 'a mod only the old post lists is still read from it');
     });
 
     test('the heading keeps its wording, minus the trailing colon', () {

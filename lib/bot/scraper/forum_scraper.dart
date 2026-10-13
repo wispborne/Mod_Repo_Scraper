@@ -98,6 +98,11 @@ class ForumScraper {
   /// The index post is followed by one post per past game version, and those still use the category
   /// names of their day, so their headings go through [currentCategoryName] — the same table and rule
   /// the QB scraper uses. A name that table doesn't know is kept as it was written, and logged.
+  ///
+  /// A mod listed in today's index is read from today's index only. The older posts still list it with
+  /// the game version of their day, and the merge keeps whichever entry has the highest game version, so
+  /// an old "[0.97a]" used to beat today's "[-]" (TriOS, topic 29674). The older posts still add the mods
+  /// today's index does not list.
   @visibleForTesting
   static List<ScrapedMod> parseModIndex(Document doc) {
     final areas = _indexPosts(doc);
@@ -107,8 +112,11 @@ class ForumScraper {
     final mods = <ScrapedMod>[];
     var listsWithoutHeading = 0;
     final oldNamesNotInTheTable = <String>{};
+    final threadsInTodaysIndex = <String>{};
+    var olderEntriesSkipped = 0;
 
-    for (final area in areas) {
+    for (final (areaIndex, area) in areas.indexed) {
+      final isTodaysIndex = areaIndex == 0;
       for (final listElement in area.querySelectorAll("ul.bbc_list")) {
         if (_isInsideAnotherList(listElement)) continue;
 
@@ -131,6 +139,16 @@ class ForumScraper {
           final forumPostLink = link.attributes["href"]?.trim();
           final cleanedLink = forumPostLink?.isNotEmpty == true ? _cleanForumUrl(forumPostLink!) : null;
 
+          final thread = _threadKey(cleanedLink);
+          if (thread != null) {
+            if (isTodaysIndex) {
+              threadsInTodaysIndex.add(thread);
+            } else if (threadsInTodaysIndex.contains(thread)) {
+              olderEntriesSkipped++;
+              continue;
+            }
+          }
+
           mods.add(ScrapedMod(
             name: link.text,
             summary: null,
@@ -149,6 +167,11 @@ class ForumScraper {
       }
     }
 
+    if (olderEntriesSkipped > 0) {
+      timber.i(
+          message: () =>
+              "Mod Index: skipped $olderEntriesSkipped entry(s) in older index posts for mods today's index already lists.");
+    }
     if (listsWithoutHeading > 0) {
       timber.i(message: () => "Mod Index: skipped $listsWithoutHeading list(s) with no category heading above them.");
     }
@@ -203,6 +226,17 @@ class ForumScraper {
     }
     return null;
   }
+
+  /// Which thread a link points at. The forum writes one thread as "topic=29674", "topic=29674.0" or
+  /// "topic=29674.msg435018", so the topic id is compared, not the address. A link with no topic id
+  /// falls back to the whole address.
+  static String? _threadKey(String? url) {
+    if (url == null) return null;
+    final topicId = _topicIdRegex.firstMatch(url)?.group(1);
+    return topicId ?? url;
+  }
+
+  static final _topicIdRegex = RegExp(r'topic=(\d+)');
 
   static String? _cleanForumUrl(String? url) {
     if (url == null || url.isEmpty) return null;
