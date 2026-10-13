@@ -100,21 +100,25 @@
      lines, so most of the boxes that used to carry a border now carry one of
      these instead.
 
-     These are the "Dense" numbers, which is the default. The reader can pick
-     "Comfortable" in Settings, which sets `data-spacing="comfortable"` on the
-     page and swaps in the roomier block further down. Only the room between
-     and around things changes — never the size of the words, the pictures or
-     the controls. Nothing outside these two blocks should write a gap or a
-     padding out longhand where one of these fits. */
-  --gap: 10px;             /* between things in one group */
-  --gap-wide: 22px;        /* between the sections of a page. It has to be
+     One set of numbers, taken from the old Dense and Comfortable
+     settings where each worked best. Lists and grids are tight, so more mods
+     fit on a screen: the gap between cards, the room inside a card or a row,
+     and the bar at the top. Reading is roomy: the gap between a page's
+     sections, the room inside a panel, and the margin round the page. A
+     phone gets the tight numbers throughout (the block near the end), since
+     room there costs more than it gives. Only the room between and around
+     things is set here — never the size of the words, the pictures or the
+     controls. Nothing else should write a gap or a padding out longhand
+     where one of these fits. */
+  --gap: 12px;             /* between things in one group */
+  --gap-wide: 32px;        /* between the sections of a page. It has to be
                               clearly more than --gap, or a heading sits as
                               close to the section above as to its own words */
-  --gap-cells: 10px;       /* between cards in a grid */
-  --pad-page: 16px 16px 40px;   /* round the whole page */
-  --pad-block: 12px 14px;  /* inside a panel or a notice */
-  --pad-cell: 6px 10px;    /* inside a card's words, a row, a release */
-  --pad-bar: 6px 16px;     /* the bar at the top */
+  --gap-cells: 12px;       /* between cards in a grid */
+  --pad-page: 24px 20px 56px;   /* round the whole page */
+  --pad-block: 18px 20px;  /* inside a panel or a notice */
+  --pad-cell: 7px 10px;    /* inside a card's words, a row, a release */
+  --pad-bar: 8px 16px;     /* the bar at the top */
 
   --page-width: 1200px;
 }
@@ -303,15 +307,15 @@
   --surface-container: #22101B;
 }
 
-/* The roomier spacing, for a reader who picked "Comfortable" in Settings. */
-:root[data-spacing="comfortable"] {
-  --gap: 16px;
-  --gap-wide: 36px;
-  --gap-cells: 18px;
-  --pad-page: 28px 20px 64px;
-  --pad-block: 20px 22px;
-  --pad-cell: 10px 12px;
-  --pad-bar: 10px 16px;
+/* A phone keeps the tight numbers: on a narrow screen, room around a
+   section pushes the next one off the bottom. */
+@media (max-width: 640px) {
+  :root {
+    --gap: 10px;
+    --gap-wide: 22px;
+    --pad-page: 16px 16px 40px;
+    --pad-block: 12px 14px;
+  }
 }
 
 * { box-sizing: border-box; }

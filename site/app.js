@@ -6,12 +6,11 @@
 
 import {
   aiNoteChoice, aiSummaryMode, buildHash, clear, el, errorPanel, formatDay,
-  formatMoment, applySpacing, go, imageChoice, imageUrlOf, inlinePictures,
+  formatMoment, go, imageChoice, imageUrlOf, inlinePictures,
   loading,
   favorites, modHref, modList, modName,
   preparePageScroll, restorePageScroll, searchHelpField, setAiSummaryMode,
   setAiNoteChoice, setImageChoice, setInlinePictures,
-  setSpacingPreference, spacingPreference,
   THEMES, applyTheme, setThemePreference, themePreference,
   thumbnail, watchFavorites,
 } from './lib.js';
@@ -179,7 +178,6 @@ function mountSettings() {
   const dialog = document.getElementById('settings');
   if (!open || !dialog) return;
   const close = dialog.querySelector('.settings-close');
-  const radios = [...dialog.querySelectorAll('input[name="spacing"]')];
   const aiRadios = [...dialog.querySelectorAll('input[name="ai-summaries"]')];
   const pictureRadios =
     [...dialog.querySelectorAll('input[name="mod-pictures"]')];
@@ -188,11 +186,8 @@ function mountSettings() {
   const aiNoteRadios = [...dialog.querySelectorAll('input[name="ai-note"]')];
   const themeRadios = mountThemeList(dialog.querySelector('#theme-list'));
 
-  applySpacing();
   applyTheme();
   open.addEventListener('click', () => {
-    const current = spacingPreference();
-    for (const radio of radios) radio.checked = radio.value === current;
     const ai = aiSummaryMode();
     for (const radio of aiRadios) radio.checked = radio.value === ai;
     const picture = imageChoice();
@@ -212,11 +207,6 @@ function mountSettings() {
   dialog.addEventListener('click', (e) => {
     if (e.target === dialog) dialog.close();
   });
-  for (const radio of radios) {
-    radio.addEventListener('change', () => {
-      if (radio.checked) setSpacingPreference(radio.value);
-    });
-  }
   for (const radio of themeRadios) {
     radio.addEventListener('change', () => {
       if (radio.checked) setThemePreference(radio.value);

@@ -29,15 +29,10 @@
        written, and its address resolves against that page's own `<base>`. -->
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
-  <!-- The reader's spacing choice, applied before anything is drawn so the
-       page does not change shape a moment after it appears. The same key
-       lib.js keeps it under. -->
+  <!-- The reader's theme, applied before anything is drawn so the page does
+       not change colour a moment after it appears. The same key lib.js keeps
+       it under. -->
   <script>
-    try {
-      var spacing = localStorage.getItem('starmodderSpacing');
-      document.documentElement.dataset.spacing =
-        spacing === 'comfortable' ? 'comfortable' : 'dense';
-    } catch (e) { document.documentElement.dataset.spacing = 'dense'; }
     // Browser Default (and the old default preference) sets nothing.
     try {
       var theme = localStorage.getItem('starmodderTheme');
@@ -79,16 +74,6 @@
       <section class="settings-section" aria-labelledby="appearance-title">
         <h3 id="appearance-title">Appearance</h3>
         <div id="theme-list" class="theme-list" role="radiogroup" aria-label="Theme"></div>
-        <div class="choice-list" role="radiogroup" aria-label="Spacing">
-          <label class="choice">
-            <input type="radio" name="spacing" value="dense">
-            <span class="choice-name">Dense</span>
-          </label>
-          <label class="choice">
-            <input type="radio" name="spacing" value="comfortable">
-            <span class="choice-name">Comfortable</span>
-          </label>
-        </div>
       </section>
       <section class="settings-section" aria-labelledby="pictures-title">
         <h3 id="pictures-title">Mod images</h3>

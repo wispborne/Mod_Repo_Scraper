@@ -251,28 +251,6 @@ function readCookie(name) {
   return null;
 }
 
-// --- The spacing setting ---
-
-/// "dense" (the default) or "comfortable". Dense keeps less room between and
-/// around things; nothing else about the page changes size.
-export const SPACINGS = ['dense', 'comfortable'];
-const SPACING_KEY = 'starmodderSpacing';
-
-export function spacingPreference() {
-  const saved = localStorage.getItem(SPACING_KEY);
-  return SPACINGS.includes(saved) ? saved : 'dense';
-}
-
-// index.html also applies the saved theme before first paint.
-export function setSpacingPreference(spacing) {
-  localStorage.setItem(SPACING_KEY, spacing);
-  applySpacing();
-}
-
-export function applySpacing() {
-  document.documentElement.dataset.spacing = spacingPreference();
-}
-
 // --- The theme setting ---
 
 // Theme ids match style.css. Browser Default follows the browser's colour scheme.
@@ -1384,7 +1362,7 @@ export function downloadButton(mod, opts = {}) {
     text: label,
     'aria-label': `${label}: ${modName(mod)}`,
     title: count > 1
-      ? `${count} downloads. The mod's own page lists them all.`
+      ? `${count} downloads.`
       : null,
   });
   // On a card and on a row the button sits inside, or on top of, one big link
