@@ -77,14 +77,46 @@ String? postHtmlAsText(String? postHtml) => plainWordsOf(cleanPostHtml(postHtml)
 String? plainWordsOf(String? cleanedHtml) {
   if (cleanedHtml == null || cleanedHtml.isEmpty) return null;
 
+  // Words, links and emphasis that sit side by side in the post are one run of
+  // text. Only a block (a paragraph, a list, a fold…) starts a new one, or a
+  // sentence with a link in the middle would be broken into three paragraphs.
   final blocks = <String>[];
-  for (final node in html_parser.parseFragment(cleanedHtml).nodes) {
-    final text = _plainWords(node).replaceAll(RegExp(r'[ \t]+'), ' ').trim();
+  final run = StringBuffer();
+  void endRun() {
+    final text = _tidyPlain(run.toString());
     if (text.isNotEmpty) blocks.add(text);
+    run.clear();
   }
+
+  for (final node in html_parser.parseFragment(cleanedHtml).nodes) {
+    if (node is dom.Element && _blockTags.contains(node.localName)) {
+      endRun();
+      final text = _tidyPlain(_plainWords(node));
+      if (text.isNotEmpty) blocks.add(text);
+    } else {
+      run.write(_plainWords(node));
+    }
+  }
+  endRun();
   final joined = blocks.join('\n\n').trim();
   return joined.isEmpty ? null : joined;
 }
+
+/// The tags [cleanPostHtml] can write that stand on lines of their own.
+const Set<String> _blockTags = {
+  'p', 'div', 'ul', 'ol', 'li', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre',
+  'details', 'table',
+};
+
+/// Plain words with runs of spaces made one, each line trimmed, and no more
+/// than one blank line in a row.
+String _tidyPlain(String text) => text
+    .replaceAll(RegExp(r'[ \t]+'), ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+    .trim();
 
 /// A tag with nothing inside it. Nearly always a link whose only content was a
 /// picture — a download banner, say — which was dropped on the way through.
@@ -276,6 +308,19 @@ bool _writeForumFormatting(
 }) {
   final classes = _classesOf(node);
 
+  // The site's own fold, read back when HTML is cleaned a second time.
+  if (tag == 'details' && classes.contains('spoiler')) {
+    final head = node.children.where((c) => c.localName == 'summary').firstOrNull;
+    final title = _oneLine(head?.text ?? '');
+    out.write('<details class="spoiler"><summary>'
+        '${_escape(title.isEmpty ? 'Spoiler' : title)}</summary>');
+    for (final child in node.nodes) {
+      if (child != head) _write(child, out, inLink: inLink);
+    }
+    out.write('</details>');
+    return true;
+  }
+
   if (tag == 'div') {
     if (classes.contains('sp-wrap')) return _writeSpoiler(node, out, inLink: inLink);
     // The spoiler's "[close]" line, and the lines the forum puts above and
@@ -288,8 +333,17 @@ bool _writeForumFormatting(
       return true;
     }
 
+    // The site's own class is read back too, so HTML that has already been
+    // cleaned once — a description cut out of a post — keeps its blocks. Dropped,
+    // two blocks side by side run their words together ("ContentsThe Ship…").
+    final ownAlign = classes.contains('align-center')
+        ? 'center'
+        : classes.contains('align-right')
+            ? 'right'
+            : null;
     final align = (node.attributes['align'] ??
             styleValue(node.attributes['style'], 'text-align') ??
+            ownAlign ??
             '')
         .trim()
         .toLowerCase();
@@ -306,7 +360,10 @@ bool _writeForumFormatting(
     final style = node.attributes['style'];
     final opened = <String>[];
     if (classes.contains('bbc_u')) opened.add('<u>');
-    final step = sizeStepOf(styleValue(style, 'font-size'));
+    final step = sizeStepOf(styleValue(style, 'font-size')) ??
+        SizeStep.values
+            .where((s) => classes.contains(s.className))
+            .firstOrNull;
     if (step != null) opened.add('<span class="${step.className}">');
     final colour = hexColourOf(styleValue(style, 'color'));
     if (colour != null) {
@@ -423,6 +480,8 @@ String _plainWords(dom.Node node) {
   // thing starts, so they are kept apart.
   if (tag == 'td' || tag == 'th') return '$words ';
   if (tag == 'summary' || tag == 'cite' || tag == 'tr') return '$words\n';
+  // A block inside a block, such as a list item, is still a line of its own.
+  if (_blockTags.contains(tag)) return '$words\n';
   return words;
 }
 

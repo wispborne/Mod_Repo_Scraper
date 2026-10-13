@@ -156,7 +156,9 @@ void main() {
       expect(detail.description, plainWordsOf(detail.descriptionHtml));
       expect(detail.descriptionIsGenerated, isFalse);
       expect(detail.aiDescription, aiParagraph);
-      expect(detail.listing.summary, firstSentence);
+      // The opening sentences of the paragraph the anchors point at.
+      expect(detail.listing.summary,
+          '$firstSentence Only your ships. Enemy fleets never get any of it.');
       expect(detail.listing.summaryIsGenerated, isFalse);
       expect(detail.listing.aiSummary, aiSentence);
     });

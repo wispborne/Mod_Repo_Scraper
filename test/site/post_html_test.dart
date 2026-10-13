@@ -202,4 +202,22 @@ void main() {
         'Hello world\n\nAgain');
     expect(postHtmlAsText('<script>alert(1)</script>'), isNull);
   });
+
+  // Topic 36126: the forum writes a post as loose text, links and line breaks
+  // with no paragraph around them. A link in a sentence used to split it into
+  // three paragraphs, so the card's summary stopped at "A fork of Starficz's".
+  test('a link in the middle of a sentence keeps the sentence whole', () {
+    expect(
+      postHtmlAsText('A fork of Starficz\'s <a href="https://x.com/">Refit '
+          'Filters</a>. It adds a <strong>Weapon Class</strong> row.<br>'
+          '<br>Next line'),
+      'A fork of Starficz\'s Refit Filters. It adds a Weapon Class row.\n\n'
+      'Next line',
+    );
+  });
+
+  test('each list item is a line of its own', () {
+    expect(postHtmlAsText('Requirements<ul><li>LazyLib</li><li>LunaLib</li></ul>'),
+        'Requirements\n\nLazyLib\nLunaLib');
+  });
 }

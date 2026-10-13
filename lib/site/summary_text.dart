@@ -33,21 +33,72 @@ final RegExp _spaces = RegExp(r'\s+');
 /// Anything that is not a letter or a number.
 final RegExp _notWordy = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
 
-/// The first sentence or line of a verified author excerpt, for a listing.
+/// The opening sentences of a verified author excerpt, for a listing.
 /// Keep the author's words rather than asking the model to shorten them.
+///
+/// Whole sentences from the excerpt's opening lines are kept until the next one
+/// would pass [_longestExcerptSummary]; the first sentence is always kept. One
+/// sentence alone is often the least useful one ("A fork of Starficz's Refit
+/// Filters."), and a card cuts a long summary at three lines anyway. The limit
+/// is there for `mods.json`, which every mod's summary rides in.
 String? summaryOfExcerpt(String? excerpt) {
   if (excerpt == null) return null;
-  final firstLine = excerpt.trim().split('\n').first.trim();
-  final sentenceEnd = RegExp(r'[.!?](?:\s|$)|[。！？]').firstMatch(firstLine);
-  final sentence = sentenceEnd == null
-      ? firstLine
-      : firstLine.substring(0, sentenceEnd.start + 1);
-  final copied = sentence
-      .replaceFirst(RegExp(r'^[-•]\s+'), '')
-      .replaceAll(_spaces, ' ')
-      .trim();
+  final firstLine = _openingLines(excerpt);
+
+  var kept = '';
+  var from = 0;
+  for (final end in _sentenceEnd.allMatches(firstLine)) {
+    final upTo = end.start + 1;
+    if (kept.isNotEmpty && upTo > _longestExcerptSummary) break;
+    kept = firstLine.substring(0, upTo);
+    from = upTo;
+  }
+  // Words after the last full stop, when the line has no sentence end at all
+  // or the rest still fits.
+  if (from < firstLine.length &&
+      (kept.isEmpty || firstLine.length <= _longestExcerptSummary)) {
+    kept = firstLine;
+  }
+  final copied = kept.trim();
   return copied.isEmpty ? null : copied;
 }
+
+/// The excerpt's first line, with the lines after it that carry on from it,
+/// as one line.
+///
+/// Forum authors often press Enter in the middle of a sentence ("…feel more
+/// part of" / "the world + other optional add-ons."), so a line that starts
+/// with a small letter belongs to the one before. A line that follows a
+/// finished sentence is more of the same paragraph. Anything else, such as a
+/// heading or a list of names after an unfinished line, ends it, and so does a
+/// blank line.
+String _openingLines(String excerpt) {
+  final lines = excerpt.trim().split('\n');
+  final joined = StringBuffer();
+  for (final raw in lines) {
+    final line = raw.replaceFirst(RegExp(r'^\s*[-•]\s+'), '').trim();
+    if (line.isEmpty) break;
+    if (joined.isNotEmpty) {
+      final soFar = joined.toString();
+      final carriesOn = _endsASentence.hasMatch(soFar) ||
+          RegExp(r'^\p{Ll}', unicode: true).hasMatch(line);
+      if (!carriesOn) break;
+      joined.write(' ');
+    }
+    joined.write(line);
+  }
+  return joined.toString().replaceAll(_spaces, ' ').trim();
+}
+
+/// A line whose last word finishes a sentence.
+final RegExp _endsASentence = RegExp(r'[.!?。！？]$');
+
+/// How long an excerpt summary may grow before it stops adding sentences.
+const int _longestExcerptSummary = 300;
+
+/// The end of a sentence: a stop followed by a space or the end, or a stop in
+/// Chinese or Japanese, which needs no space after it.
+final RegExp _sentenceEnd = RegExp(r'[.!?](?=\s|$)|[。！？]');
 
 /// [summary] tidied, or null when it is not a description at all.
 String? usableSummary(String? summary) {
