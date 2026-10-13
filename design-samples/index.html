@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Starmodder design samples</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Archivo:wght@400;500;700;800&family=Archivo+Narrow:wght@500;700&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* The switcher at the top. Kept plain so it never reads as part of a sample. */
+body { margin: 0; }
+#switch {
+  position: sticky; top: 0; z-index: 50; display: flex; gap: 6px; align-items: center;
+  flex-wrap: wrap; padding: 8px 12px; background: #222; color: #ddd;
+  font: 13px/1.2 system-ui, sans-serif; border-bottom: 1px solid #000;
+}
+#switch b { margin-right: 8px; }
+#switch button {
+  font: inherit; color: #ddd; background: #333; border: 1px solid #555; padding: 5px 10px; cursor: pointer;
+}
+#switch button[aria-pressed="true"] { background: #ddd; color: #111; }
+#switch .note { margin-left: auto; color: #999; }
+.sample { display: none; min-height: 100vh; }
+.sample.on { display: block; }
+img { display: block; }
+
+/* =====================================================================
+   1. CODEX — the game's own screens. Near-black, thin cyan lines, cut
+   corners, small mono labels, amber for the thing you can press.
+   ===================================================================== */
+.d1 {
+  --bg: #04070b; --panel: #08111a; --line: rgba(120, 200, 230, 0.22); --line-hi: rgba(120, 200, 230, 0.6);
+  --text: #c9dbe6; --dim: #6f8796; --cyan: #7fd8f5; --amber: #f2b543;
+  background: var(--bg); color: var(--text); font-family: 'Chakra Petch', sans-serif; font-size: 15px;
+  background-image:
+    linear-gradient(rgba(120,200,230,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120,200,230,0.035) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.d1 .mono { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+.d1 .bar { display: flex; align-items: center; gap: 28px; padding: 12px 28px; border-bottom: 1px solid var(--line); background: rgba(4,7,11,0.85); }
+.d1 .logo { font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--cyan); font-size: 15px; }
+.d1 .logo span { color: var(--amber); }
+.d1 nav a { color: var(--dim); text-decoration: none; text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; margin-right: 20px; padding: 4px 0; }
+.d1 nav a.here { color: var(--cyan); border-bottom: 1px solid var(--cyan); }
+.d1 .search { margin-left: auto; border: 1px solid var(--line); padding: 7px 12px; min-width: 240px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--dim); }
+.d1 .search::before { content: '> '; color: var(--cyan); }
+.d1 main { max-width: 1200px; margin: 0 auto; padding: 32px 28px 64px; }
+.d1 h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--cyan); font-weight: 600; margin: 0 0 14px; display: flex; align-items: center; gap: 12px; }
+.d1 h2::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line-hi), transparent); }
+.d1 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.d1 .card {
+  position: relative; background: var(--panel); border: 1px solid var(--line);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+.d1 .card:hover { border-color: var(--line-hi); }
+.d1 .card .pic { height: 130px; background: #000 center/cover; border-bottom: 1px solid var(--line); position: relative; }
+.d1 .card .pic::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,17,26,0.9), transparent 60%); }
+.d1 .card .body { padding: 12px 14px 14px; }
+.d1 .card .name { font-size: 17px; font-weight: 600; color: #e9f4fa; margin: 4px 0 2px; }
+.d1 .card .by { font-size: 13px; color: var(--dim); }
+.d1 .card .sum { font-size: 13.5px; line-height: 1.45; margin: 10px 0 12px; color: var(--text); min-height: 3.9em; }
+.d1 .readout { display: flex; gap: 14px; border-top: 1px solid var(--line); padding-top: 9px; }
+.d1 .readout b { color: var(--cyan); font-weight: 500; }
+.d1 .act {
+  display: inline-block; margin-top: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--amber); border: 1px solid rgba(242,181,67,0.5); padding: 7px 12px; text-decoration: none;
+}
+.d1 .act:hover { background: rgba(242,181,67,0.1); }
+.d1 .hero { display: grid; grid-template-columns: 1fr 320px; gap: 18px; margin-bottom: 40px; }
+.d1 .hero .pane { border: 1px solid var(--line); background: var(--panel); padding: 20px; }
+.d1 .hero h1 { font-size: 40px; margin: 6px 0 4px; letter-spacing: 0.04em; font-weight: 700; color: #fff; }
+.d1 .hero .lede { font-size: 16px; color: var(--text); max-width: 60ch; line-height: 1.5; }
+.d1 .spec { width: 100%; border-collapse: collapse; font-size: 13px; }
+.d1 .spec td { padding: 7px 0; border-bottom: 1px dashed var(--line); }
+.d1 .spec td:first-child { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; width: 45%; }
+.d1 .ok { color: #7ee2a0; } .d1 .warn { color: var(--amber); }
+.d1 .big-act { display: block; text-align: center; background: var(--amber); color: #120c02; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; padding: 12px; text-decoration: none; margin-bottom: 14px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
+
+/* =====================================================================
+   2. CATALOG — a printed parts catalogue. Light grey sheet, black type,
+   one red. Shared hairlines instead of floating cards; numbered entries.
+   ===================================================================== */
+.d2 {
+  --paper: #ececea; --sheet: #fafafa; --ink: #111; --mid: #5d5d5d; --rule: #111; --hair: #c8c8c4; --red: #d8261c;
+  background: var(--paper); color: var(--ink); font-family: 'Archivo', sans-serif; font-size: 15px;
+}
+.d2 .bar { display: flex; align-items: stretch; border-bottom: 3px solid var(--rule); background: var(--sheet); }
+.d2 .logo { font-family: 'Archivo Narrow', sans-serif; font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: -0.01em; padding: 14px 24px; background: var(--ink); color: var(--sheet); }
+.d2 .logo span { color: var(--red); }
+.d2 nav { display: flex; }
+.d2 nav a { display: flex; align-items: center; padding: 0 18px; color: var(--ink); text-decoration: none; font-weight: 500; border-right: 1px solid var(--hair); font-size: 14px; }
+.d2 nav a.here { background: var(--red); color: #fff; }
+.d2 .search { margin-left: auto; display: flex; align-items: center; padding: 0 20px; border-left: 1px solid var(--hair); color: var(--mid); min-width: 260px; font-size: 14px; }
+.d2 main { max-width: 1240px; margin: 0 auto; padding: 36px 24px 72px; }
+.d2 .sect { display: flex; align-items: baseline; gap: 16px; border-bottom: 1px solid var(--rule); padding-bottom: 6px; margin-bottom: 0; }
+.d2 .sect h2 { font-family: 'Archivo Narrow', sans-serif; font-size: 30px; text-transform: uppercase; margin: 0; letter-spacing: -0.01em; }
+.d2 .sect .count { color: var(--mid); font-size: 13px; margin-left: auto; }
+.d2 .grid { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--sheet); border-left: 1px solid var(--hair); }
+.d2 .card { border-right: 1px solid var(--hair); border-bottom: 1px solid var(--hair); padding: 16px 18px 18px; display: grid; grid-template-columns: 108px 1fr; gap: 0 16px; }
+.d2 .card .no { grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 12px; color: var(--mid); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+.d2 .card .no b { color: var(--red); }
+.d2 .card .pic { width: 108px; height: 108px; background: #ddd center/cover; filter: grayscale(1) contrast(1.05); transition: filter .2s; }
+.d2 .card:hover .pic { filter: none; }
+.d2 .card .name { font-family: 'Archivo Narrow', sans-serif; font-weight: 700; font-size: 21px; line-height: 1.05; margin: 0 0 4px; text-transform: uppercase; }
+.d2 .card .by { font-size: 13px; color: var(--mid); margin-bottom: 8px; }
+.d2 .card .sum { font-size: 13.5px; line-height: 1.4; margin: 0 0 10px; }
+.d2 .card .act { font-weight: 700; font-size: 13px; color: var(--ink); text-decoration: none; border-bottom: 2px solid var(--red); }
+.d2 .card .act::after { content: ' →'; }
+.d2 .tags { grid-column: 1 / -1; margin-top: 12px; font-size: 12px; color: var(--mid); border-top: 1px solid var(--hair); padding-top: 8px; }
+.d2 .hero { display: grid; grid-template-columns: 1.2fr 1fr; background: var(--sheet); border: 1px solid var(--hair); margin-bottom: 48px; }
+.d2 .hero .pic { min-height: 320px; background: #ccc center/cover; }
+.d2 .hero .txt { padding: 28px 32px; border-left: 3px solid var(--rule); }
+.d2 .kicker { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--red); font-weight: 700; }
+.d2 .hero h1 { font-family: 'Archivo Narrow', sans-serif; font-size: 64px; line-height: 0.92; margin: 8px 0 12px; text-transform: uppercase; letter-spacing: -0.02em; }
+.d2 .hero .lede { font-size: 17px; line-height: 1.45; margin: 0 0 20px; }
+.d2 .facts { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); margin-bottom: 20px; }
+.d2 .facts div { padding: 10px 10px 10px 0; font-size: 12px; color: var(--mid); }
+.d2 .facts b { display: block; font-size: 20px; color: var(--ink); font-family: 'Archivo Narrow', sans-serif; }
+.d2 .btn { display: inline-block; background: var(--ink); color: #fff; padding: 13px 22px; font-weight: 700; text-decoration: none; font-size: 15px; }
+.d2 .btn:hover { background: var(--red); }
+
+/* =====================================================================
+   3. HAZARD — industrial, the Hegemony's dockyards. Charcoal, safety
+   amber, heavy condensed capitals, stripes where something matters.
+   ===================================================================== */
+.d3 {
+  --bg: #161614; --plate: #22221f; --plate-2: #2c2c28; --edge: #3a3a35; --text: #e6e2d6; --dim: #9a968a; --amber: #ffb400; --red: #e5482e;
+  background: var(--bg); color: var(--text); font-family: 'Barlow', sans-serif; font-size: 15px;
+}
+.d3 .stripe { height: 8px; background: repeating-linear-gradient(-45deg, var(--amber) 0 12px, #111 12px 24px); }
+.d3 .bar { display: flex; align-items: center; gap: 24px; padding: 0 28px; height: 60px; background: var(--plate); border-bottom: 1px solid var(--edge); }
+.d3 .logo { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 28px; text-transform: uppercase; letter-spacing: 0.02em; }
+.d3 .logo span { background: var(--amber); color: #111; padding: 0 6px; margin-left: 2px; }
+.d3 nav a { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 17px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); text-decoration: none; margin-right: 22px; }
+.d3 nav a.here { color: var(--amber); }
+.d3 .search { margin-left: auto; background: #111; border: 1px solid var(--edge); padding: 9px 14px; min-width: 260px; color: var(--dim); font-size: 14px; }
+.d3 main { max-width: 1200px; margin: 0 auto; padding: 36px 28px 72px; }
+.d3 h2 { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 34px; text-transform: uppercase; margin: 0 0 16px; line-height: 1; }
+.d3 h2 small { font-size: 15px; color: var(--amber); letter-spacing: 0.1em; font-weight: 600; margin-left: 10px; vertical-align: middle; }
+.d3 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; }
+.d3 .card { background: var(--plate); border-top: 4px solid var(--edge); transition: border-color .15s; }
+.d3 .card:hover { border-top-color: var(--amber); }
+.d3 .card .pic { height: 140px; background: #000 center/cover; position: relative; }
+.d3 .stamp { position: absolute; left: 10px; bottom: 10px; background: var(--amber); color: #111; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; padding: 2px 8px; letter-spacing: 0.04em; }
+.d3 .stamp.old { background: var(--red); color: #fff; }
+.d3 .card .body { padding: 14px 16px 16px; }
+.d3 .card .name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; text-transform: uppercase; line-height: 1.02; margin: 0 0 4px; }
+.d3 .card .by { color: var(--dim); font-size: 14px; }
+.d3 .card .sum { font-size: 14px; line-height: 1.45; margin: 10px 0 14px; color: #cfcbbf; min-height: 4.2em; }
+.d3 .tags span { display: inline-block; border: 1px solid var(--edge); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; margin: 0 4px 4px 0; color: var(--dim); }
+.d3 .act { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; background: var(--plate-2); color: var(--text); text-decoration: none; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; text-transform: uppercase; font-size: 17px; letter-spacing: 0.04em; padding: 9px 12px; border-left: 4px solid var(--amber); }
+.d3 .act:hover { background: var(--amber); color: #111; }
+.d3 .hero { display: grid; grid-template-columns: 1fr 340px; background: var(--plate); margin-bottom: 44px; }
+.d3 .hero .left { padding: 28px; background: linear-gradient(90deg, rgba(22,22,20,0.95) 40%, rgba(22,22,20,0.4)), center/cover; }
+.d3 .hero h1 { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 76px; text-transform: uppercase; line-height: 0.9; margin: 6px 0 10px; }
+.d3 .hero .lede { font-size: 17px; max-width: 48ch; line-height: 1.5; color: #d8d4c8; }
+.d3 .hero .right { padding: 22px; border-left: 1px solid var(--edge); }
+.d3 .row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--edge); font-size: 14px; }
+.d3 .row span:first-child { color: var(--dim); text-transform: uppercase; font-size: 12px; letter-spacing: 0.08em; align-self: center; }
+.d3 .big { display: block; text-align: center; background: var(--amber); color: #111; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px; text-transform: uppercase; padding: 12px; text-decoration: none; margin-bottom: 14px; }
+
+/* =====================================================================
+   4. LEDGER — the old mod database. White, small Verdana, blue links,
+   one long table. Nothing decorated; as many mods on screen as fit.
+   ===================================================================== */
+.d4 {
+  --bg: #fff; --text: #1d1d1d; --dim: #666; --link: #0645ad; --visited: #5a3696; --line: #d4d4d4; --zebra: #f4f6f9; --head: #e4e9f0; --green: #2a7a2a;
+  background: var(--bg); color: var(--text); font: 12.5px/1.4 Verdana, Tahoma, sans-serif;
+}
+.d4 a { color: var(--link); }
+.d4 .bar { background: #2d3e57; color: #fff; display: flex; align-items: center; gap: 18px; padding: 8px 16px; }
+.d4 .logo { font: bold 18px Georgia, serif; }
+.d4 .logo small { font: 11px Verdana, sans-serif; color: #b8c4d6; margin-left: 8px; }
+.d4 nav a { color: #dfe7f3; margin-right: 12px; }
+.d4 nav a.here { color: #fff; font-weight: bold; text-decoration: none; }
+.d4 .search { margin-left: auto; display: flex; gap: 4px; }
+.d4 .search span { background: #fff; color: #888; padding: 3px 6px; min-width: 220px; border: 1px solid #1a2638; }
+.d4 .search b { background: #e4e9f0; color: #222; padding: 3px 10px; border: 1px solid #1a2638; font-weight: normal; }
+.d4 main { padding: 14px 16px 40px; max-width: 1280px; margin: 0 auto; }
+.d4 .crumbs { color: var(--dim); margin-bottom: 10px; }
+.d4 .layout { display: grid; grid-template-columns: 190px 1fr; gap: 16px; }
+.d4 .side h3 { font-size: 12px; background: var(--head); margin: 0 0 4px; padding: 4px 6px; border: 1px solid var(--line); }
+.d4 .side ul { list-style: none; margin: 0 0 14px; padding: 0 6px; }
+.d4 .side li { padding: 2px 0; display: flex; justify-content: space-between; }
+.d4 .side li span { color: var(--dim); }
+.d4 table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); }
+.d4 th { background: var(--head); text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); font-size: 11.5px; white-space: nowrap; }
+.d4 th.sorted::after { content: ' ▼'; font-size: 9px; }
+.d4 td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.d4 tr:nth-child(even) td { background: var(--zebra); }
+.d4 td.pic { width: 64px; } .d4 td.pic div { width: 64px; height: 40px; background: #ccc center/cover; border: 1px solid var(--line); }
+.d4 .name { font-weight: bold; font-size: 13px; }
+.d4 .sum { color: #333; margin-top: 2px; }
+.d4 .cats { color: var(--dim); font-size: 11px; margin-top: 2px; }
+.d4 .num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.d4 .gv { color: var(--green); font-weight: bold; }
+.d4 .dl { white-space: nowrap; }
+.d4 .box { border: 1px solid var(--line); margin-bottom: 18px; }
+.d4 .box .t { background: var(--head); padding: 5px 8px; font-weight: bold; border-bottom: 1px solid var(--line); }
+.d4 .box .in { padding: 10px; display: grid; grid-template-columns: 200px 1fr 240px; gap: 14px; }
+.d4 .box .in .pic { height: 120px; background: #ccc center/cover; border: 1px solid var(--line); }
+.d4 .box h1 { font: bold 20px Georgia, serif; margin: 0 0 4px; }
+.d4 dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; }
+.d4 dt { color: var(--dim); } .d4 dd { margin: 0; }
+.d4 .dlbtn { display: inline-block; margin-top: 8px; background: linear-gradient(#fdfdfd, #e3e3e3); border: 1px solid #999; padding: 4px 12px; color: #111; text-decoration: none; font-weight: bold; }
+
+@media (max-width: 760px) {
+  .d1 .hero, .d2 .hero, .d3 .hero, .d4 .layout, .d4 .box .in { grid-template-columns: 1fr; }
+  .d2 .grid { grid-template-columns: 1fr; }
+  .d1 .search, .d2 .search, .d3 .search, .d4 .search { display: none; }
+  .d2 .hero h1 { font-size: 44px; } .d3 .hero h1 { font-size: 52px; }
+}
+</style>
+</head>
+<body>
+<div id="switch">
+  <b>Starmodder · design samples</b>
+  <button data-s="d1">1 · Codex</button>
+  <button data-s="d2">2 · Catalog</button>
+  <button data-s="d3">3 · Hazard</button>
+  <button data-s="d4">4 · Ledger</button>
+  <span class="note" id="note"></span>
+</div>
+
+<section class="sample d1" id="s-d1"></section>
+<section class="sample d2" id="s-d2"></section>
+<section class="sample d3" id="s-d3"></section>
+<section class="sample d4" id="s-d4"></section>
+
+<script>
+// Real mods from outputs/site/mods.json, so each sample is judged on real names and pictures.
+const mods = [
+  { name: 'Nexerelin', by: 'Histidine, Zaphide', cats: ['Campaign and exploration', 'Total conversions'], game: '0.98a', ver: '0.12.2c', img: 'https://i.imgur.com/xFXACmR.png', sum: '4X in Starsector. Invade markets, conquer the sector, start as any faction.', dl: 'Download', when: '2 days ago' },
+  { name: 'Industrial.Evolution', by: 'SirHartley', cats: ['Campaign and exploration'], game: '0.98a', ver: '4.1.b', img: 'https://i.imgur.com/7k1QAas.png', sum: 'A massive campaign content expansion for colonies and exploration.', dl: 'Install with TriOS', when: '3 days ago' },
+  { name: 'Arma Armatura', by: 'shoi', cats: ['Ships and weapons', 'Quests and stories'], game: '0.98a', ver: '3.3.6', img: 'https://i.imgur.com/zYciRZg.png', sum: 'A story and content mod built around pilotable strikecraft: fighter-scale ships with their own mechanics.', dl: 'Install with TriOS', when: '4 days ago' },
+  { name: 'MagicLib', by: 'Tartiflette, Wispborne', cats: ['Libraries'], game: '0.98a', ver: '0.45.2', img: 'https://i.imgur.com/BVvNdhO.jpg', sum: 'A community library of useful code that every modder can use and add to.', dl: 'Download', when: '5 days ago' },
+  { name: 'Diable Avionics', by: 'Caymon Joestar, Tartiflette', cats: ['Factions'], game: '0.98a', ver: '2.9.5', img: 'https://i.imgur.com/yX8diMJ.png', sum: "Claiming ownership over millions of people's possessions might seem bold. Diable Avionics intends to.", dl: 'Download', when: '1 week ago' },
+  { name: 'Tahlan Shipworks', by: 'Nia Tahl', cats: ['Factions', 'Ships and weapons'], game: '0.97a', ver: '1.4', img: 'https://i.imgur.com/xmr0Cos.png', sum: "There, updated, probably doesn't crash your game.", dl: 'Download', when: '2 weeks ago', old: true },
+];
+const hero = mods[0];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const bg = m => `style="background-image:url('${m.img}')"`;
+const pad = n => String(n).padStart(3, '0');
+
+const samples = {
+  d1: {
+    note: 'The game’s own screens: thin cyan lines, cut corners, mono labels. Amber is the only thing you press.',
+    html: () => `
+      <div class="bar"><div class="logo">Star<span>/</span>modder</div>
+        <nav><a class="here" href="#">Index</a><a href="#">Browse</a><a href="#">Favorites</a><a href="#">About</a></nav>
+        <div class="search">search mods</div></div>
+      <main>
+        <h2>Mod file // 001</h2>
+        <div class="hero">
+          <div class="pane">
+            <div class="mono">Campaign and exploration · Total conversions</div>
+            <h1>${hero.name}</h1>
+            <div class="mono" style="margin-bottom:14px">by ${hero.by}</div>
+            <p class="lede">${hero.sum}</p>
+            <div style="height:180px;background:#000 url('${hero.img}') center/cover;border:1px solid var(--line);margin-top:16px"></div>
+          </div>
+          <div class="pane">
+            <a class="big-act" href="#">Download</a>
+            <table class="spec">
+              <tr><td>Game version</td><td class="ok">${hero.game} · current</td></tr>
+              <tr><td>Mod version</td><td>${hero.ver}</td></tr>
+              <tr><td>Requires</td><td>LazyLib, MagicLib</td></tr>
+              <tr><td>Add to a save</td><td class="warn">Needs a new game</td></tr>
+              <tr><td>Source code</td><td>GitHub</td></tr>
+              <tr><td>Last post</td><td>${hero.when}</td></tr>
+            </table>
+          </div>
+        </div>
+        <h2>Recently updated</h2>
+        <div class="grid">${mods.map(m => `
+          <div class="card">
+            <div class="pic" ${bg(m)}></div>
+            <div class="body">
+              <div class="mono">${esc(m.cats[0])}</div>
+              <div class="name">${esc(m.name)}</div>
+              <div class="by">${esc(m.by)}</div>
+              <div class="sum">${esc(m.sum)}</div>
+              <div class="readout mono"><span>Game <b class="${m.old ? 'warn' : ''}">${m.game}</b></span><span>Ver <b>${m.ver}</b></span><span>${m.when}</span></div>
+              <a class="act" href="#">${m.dl === 'Download' ? '[ Download ]' : '[ Install · TriOS ]'}</a>
+            </div>
+          </div>`).join('')}</div>
+      </main>`,
+  },
+  d2: {
+    note: 'A printed parts catalogue: shared hairlines, numbered entries, one red. Pictures go to colour on hover.',
+    html: () => `
+      <div class="bar"><div class="logo">Star<span>·</span>modder</div>
+        <nav><a class="here" href="#">Home</a><a href="#">Browse</a><a href="#">Favorites</a><a href="#">About</a></nav>
+        <div class="search">Search 1,089 mods</div></div>
+      <main>
+        <div class="hero">
+          <div class="pic" ${bg(hero)}></div>
+          <div class="txt">
+            <div class="kicker">Updated ${hero.when} · v${hero.ver}</div>
+            <h1>${hero.name}</h1>
+            <p class="lede">${hero.sum}</p>
+            <div class="facts">
+              <div><b>${hero.game}</b>Game version</div>
+              <div><b>2</b>Requirements</div>
+              <div><b>New game</b>To add it</div>
+            </div>
+            <a class="btn" href="#">Download ${hero.ver}</a>
+            <span style="margin-left:14px;font-size:13px;color:var(--mid)">by ${hero.by}</span>
+          </div>
+        </div>
+        <div class="sect"><h2>Recently updated</h2><span class="count">6 of 214 this month</span></div>
+        <div class="grid">${mods.map((m, i) => `
+          <div class="card">
+            <div class="no"><span><b>${pad(i + 1)}</b> / ${esc(m.cats[0])}</span><span>${m.game} · ${m.ver}</span></div>
+            <div class="pic" ${bg(m)}></div>
+            <div>
+              <div class="name">${esc(m.name)}</div>
+              <div class="by">${esc(m.by)}</div>
+              <p class="sum">${esc(m.sum)}</p>
+              <a class="act" href="#">${esc(m.dl)}</a>
+            </div>
+            <div class="tags">${m.cats.map(esc).join('  ·  ')}  ·  updated ${m.when}</div>
+          </div>`).join('')}</div>
+      </main>`,
+  },
+  d3: {
+    note: 'Industrial dockyard: charcoal plates, safety amber, heavy condensed capitals. Red stamp for an old game version.',
+    html: () => `
+      <div class="stripe"></div>
+      <div class="bar"><div class="logo">Star<span>modder</span></div>
+        <nav><a class="here" href="#">Home</a><a href="#">Browse</a><a href="#">Favorites</a><a href="#">About</a></nav>
+        <div class="search">Search mods…</div></div>
+      <main>
+        <div class="hero">
+          <div class="left" style="background-image:linear-gradient(90deg, rgba(22,22,20,0.97) 45%, rgba(22,22,20,0.35)), url('${hero.img}')">
+            <div class="tags"><span>Featured</span><span>${hero.cats[0]}</span></div>
+            <h1>${hero.name}</h1>
+            <p class="lede">${hero.sum}</p>
+            <div style="color:var(--dim);font-size:14px">by ${hero.by}</div>
+          </div>
+          <div class="right">
+            <a class="big" href="#">Download</a>
+            <div class="row"><span>Game version</span><span style="color:var(--amber);font-weight:600">${hero.game}</span></div>
+            <div class="row"><span>Mod version</span><span>${hero.ver}</span></div>
+            <div class="row"><span>Requires</span><span>LazyLib · MagicLib</span></div>
+            <div class="row"><span>Add to a save</span><span style="color:var(--red)">New game only</span></div>
+            <div class="row"><span>Updated</span><span>${hero.when}</span></div>
+          </div>
+        </div>
+        <h2>Recently updated <small>// 6 new</small></h2>
+        <div class="grid">${mods.map(m => `
+          <div class="card">
+            <div class="pic" ${bg(m)}><span class="stamp ${m.old ? 'old' : ''}">${m.game}</span></div>
+            <div class="body">
+              <div class="name">${esc(m.name)}</div>
+              <div class="by">${esc(m.by)} · v${m.ver}</div>
+              <div class="sum">${esc(m.sum)}</div>
+              <div class="tags">${m.cats.map(c => `<span>${esc(c)}</span>`).join('')}</div>
+              <a class="act" href="#"><span>${esc(m.dl)}</span><span>${m.when}</span></a>
+            </div>
+          </div>`).join('')}</div>
+      </main>
+      <div class="stripe"></div>`,
+  },
+  d4: {
+    note: 'The old mod database: one long table, small type, blue links. Most mods per screen; nothing decorated.',
+    html: () => `
+      <div class="bar"><div class="logo">Starmodder<small>Starsector mod index</small></div>
+        <nav><a class="here" href="#">Home</a><a href="#">Browse</a><a href="#">Favorites (3)</a><a href="#">About</a></nav>
+        <div class="search"><span>Search mods</span><b>Go</b></div></div>
+      <main>
+        <div class="crumbs"><a href="#">Home</a> › Mods › <b>${hero.name}</b></div>
+        <div class="box">
+          <div class="t">${hero.name} ${hero.ver}</div>
+          <div class="in">
+            <div class="pic" ${bg(hero)}></div>
+            <div><h1>${hero.name}</h1><div style="color:var(--dim);margin-bottom:6px">by <a href="#">Histidine</a>, <a href="#">Zaphide</a></div>
+              <p style="margin:0">${hero.sum}</p>
+              <p style="margin:6px 0 0"><a href="#">Forum thread</a> · <a href="#">Source code (GitHub)</a> · <a href="#">Changelog</a></p></div>
+            <div><dl>
+              <dt>Game:</dt><dd class="gv">${hero.game}</dd>
+              <dt>Version:</dt><dd>${hero.ver}</dd>
+              <dt>Requires:</dt><dd><a href="#">LazyLib</a>, <a href="#">MagicLib</a></dd>
+              <dt>Saves:</dt><dd>Needs a new game</dd>
+              <dt>Updated:</dt><dd>${hero.when}</dd></dl>
+              <a class="dlbtn" href="#">Download</a></div>
+          </div>
+        </div>
+        <div class="layout">
+          <div class="side">
+            <h3>Categories</h3><ul>
+              <li><a href="#">Utilities</a><span>190</span></li><li><a href="#">Factions</a><span>182</span></li>
+              <li><a href="#">Ships and weapons</a><span>144</span></li><li><a href="#">Campaign</a><span>118</span></li>
+              <li><a href="#">Libraries</a><span>26</span></li></ul>
+            <h3>Game version</h3><ul>
+              <li><a href="#"><b>0.98a</b></a><span>712</span></li><li><a href="#">0.97a</a><span>201</span></li><li><a href="#">Any</a><span>1,089</span></li></ul>
+          </div>
+          <table>
+            <tr><th></th><th>Mod</th><th>Author</th><th>Game</th><th>Version</th><th class="sorted">Updated</th><th></th></tr>
+            ${mods.concat(mods.slice(0, 4)).map(m => `<tr>
+              <td class="pic"><div ${bg(m)}></div></td>
+              <td><a class="name" href="#">${esc(m.name)}</a><div class="sum">${esc(m.sum)}</div><div class="cats">${m.cats.map(esc).join(', ')}</div></td>
+              <td>${esc(m.by)}</td>
+              <td class="num ${m.old ? '' : 'gv'}">${m.game}</td>
+              <td class="num">${m.ver}</td>
+              <td class="num">${m.when}</td>
+              <td class="dl"><a href="#">${m.dl === 'Download' ? 'Download' : 'TriOS'}</a></td></tr>`).join('')}
+          </table>
+        </div>
+      </main>`,
+  },
+};
+
+function show(id) {
+  for (const s of document.querySelectorAll('.sample')) s.classList.toggle("on", s.id === "s-" + id);
+  for (const b of document.querySelectorAll('#switch button')) b.setAttribute('aria-pressed', b.dataset.s === id);
+  const el = document.getElementById("s-" + id);
+  if (!el.innerHTML) el.innerHTML = samples[id].html();
+  document.getElementById('note').textContent = samples[id].note;
+  history.replaceState(null, '', '#' + id);
+}
+document.getElementById('switch').addEventListener('click', e => { if (e.target.dataset.s) show(e.target.dataset.s); });
+show(samples[location.hash.slice(1)] ? location.hash.slice(1) : 'd1');
+</script>
+</body>
+</html>

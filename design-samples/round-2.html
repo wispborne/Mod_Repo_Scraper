@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Starmodder samples, round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Big+Shoulders+Display:wght@700;900&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=PT+Sans+Narrow:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* The switcher. Plain on purpose, so it never reads as part of a sample. */
+body { margin: 0; background: #000; }
+#switch { position: sticky; top: 0; z-index: 50; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  padding: 8px 12px; background: #2a2a2a; color: #ddd; font: 13px/1.2 system-ui, sans-serif; border-bottom: 1px solid #000; }
+#switch b { margin-right: 8px; }
+#switch button { font: inherit; color: #ddd; background: #3a3a3a; border: 1px solid #555; padding: 5px 10px; cursor: pointer; }
+#switch button[aria-pressed="true"] { background: #ddd; color: #111; }
+#switch .note { margin-left: auto; color: #aaa; }
+.sample { min-height: calc(100vh - 40px); }
+.sample:not(.on) { display: none !important; }
+
+a { color: inherit; }
+
+/* ===== 5. LAUNCHER — an app, not a web page. List on the left, one mod on the right. ===== */
+.s5 { --bg: #1b1c1f; --list: #222327; --sel: #3a3c43; --line: #2e3035; --text: #dcdde0; --dim: #8b8e96; --go: #2f9e5a;
+  background: var(--bg); color: var(--text); font: 14px/1.45 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  display: grid; grid-template-columns: 300px 1fr; height: calc(100vh - 40px); }
+.s5 .left { background: var(--list); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.s5 .find { margin: 10px; background: #15161a; border: 1px solid var(--line); padding: 7px 10px; color: var(--dim); }
+.s5 .sortline { padding: 0 12px 8px; color: var(--dim); font-size: 12.5px; display: flex; justify-content: space-between; }
+.s5 .list { overflow: auto; flex: 1; }
+.s5 .group { padding: 10px 12px 4px; color: var(--dim); font-size: 12.5px; }
+.s5 .item { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 5px 12px; cursor: default; }
+.s5 .item:hover { background: #2b2c31; }
+.s5 .item.sel { background: var(--sel); }
+.s5 .item .ic { width: 28px; height: 28px; background: #111 center/cover; }
+.s5 .item .ic.none { display: grid; place-items: center; font-weight: 600; color: var(--dim); background: #2b2c31; }
+.s5 .item .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s5 .item .v { color: var(--dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.s5 .item .v.new { color: #7fd69c; }
+.s5 .right { overflow: auto; }
+.s5 .banner { height: 260px; background: #000 center/cover; }
+.s5 .detail { padding: 22px 32px 48px; max-width: 900px; }
+.s5 h1 { font-weight: 500; font-size: 30px; margin: 0; }
+.s5 .who { color: var(--dim); margin: 2px 0 18px; }
+.s5 .who a { color: var(--text); text-decoration: none; border-bottom: 1px solid #555; }
+.s5 .btns { display: flex; gap: 8px; margin-bottom: 22px; }
+.s5 .btn { background: #34363c; color: var(--text); text-decoration: none; padding: 9px 16px; font-weight: 500; }
+.s5 .btn.go { background: var(--go); color: #fff; padding: 9px 26px; }
+.s5 .say { font-size: 15px; max-width: 64ch; }
+.s5 .say p { margin: 0 0 10px; }
+.s5 .say b { font-weight: 600; }
+.s5 .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin: 26px 0 16px; }
+.s5 .tabs span { padding: 8px 0; color: var(--dim); }
+.s5 .tabs span.on { color: var(--text); box-shadow: inset 0 -2px 0 var(--text); }
+.s5 .log { color: #c3c5ca; }
+.s5 .log h4 { margin: 14px 0 4px; font-weight: 600; font-size: 14px; }
+.s5 .log ul { margin: 0; padding-left: 18px; }
+
+/* ===== 6. POSTER WALL — the pictures are the page. No cards, no buttons, names on the art. ===== */
+.s6 { --bg: #0b0b0c; --text: #f2f0eb; --dim: #8d8a83; --hot: #ff5a36;
+  background: var(--bg); color: var(--text); font: 15px/1.4 'IBM Plex Sans', sans-serif; }
+.s6 .top { display: flex; align-items: baseline; gap: 26px; padding: 18px 22px 6px; }
+.s6 .logo { font: 900 30px/1 'Big Shoulders Display', sans-serif; letter-spacing: -0.01em; }
+.s6 .top a { color: var(--dim); text-decoration: none; }
+.s6 .top a.on { color: var(--text); }
+.s6 .ask { padding: 22px 22px 26px; }
+.s6 .ask input { width: 100%; box-sizing: border-box; background: none; border: 0; border-bottom: 2px solid #333; color: var(--text);
+  font: 900 64px/1.1 'Big Shoulders Display', sans-serif; padding: 0 0 6px; outline: none; }
+.s6 .ask input::placeholder { color: #3a3936; }
+.s6 .ask .hint { color: var(--dim); margin-top: 8px; }
+.s6 .ask .hint a { color: var(--text); margin-right: 14px; }
+.s6 .wall { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 170px; grid-auto-flow: dense; gap: 3px; padding: 0 3px 3px; }
+.s6 .t { position: relative; background: #1a1a1a center/cover; overflow: hidden; }
+.s6 .t.w2 { grid-column: span 2; } .s6 .t.h2 { grid-row: span 2; }
+.s6 .t .nm { position: absolute; left: 12px; bottom: 10px; right: 12px; font: 900 28px/0.95 'Big Shoulders Display', sans-serif;
+  text-shadow: 0 2px 0 #000, 0 0 12px rgba(0,0,0,0.9); }
+.s6 .t.w2.h2 .nm { font-size: 54px; }
+.s6 .t .meta { position: absolute; top: 8px; left: 12px; font-size: 12.5px; color: #fff; text-shadow: 0 1px 2px #000; opacity: 0; transition: opacity .15s; }
+.s6 .t:hover .meta { opacity: 1; }
+.s6 .t .new { position: absolute; top: 0; right: 0; background: var(--hot); color: #000; font-weight: 600; font-size: 12.5px; padding: 3px 8px; }
+.s6 .t.text { background: var(--c); display: flex; align-items: flex-end; }
+.s6 .t.text .nm { text-shadow: none; color: rgba(0,0,0,0.82); }
+
+/* ===== 7. PLAIN INDEX — one line per mod, like a link aggregator. Text only. ===== */
+.s7 { --bg: #141414; --text: #d6d6d6; --dim: #858585; --link: #9cc4ff; --seen: #c3a6ff; --old: #e0a35a;
+  background: var(--bg); color: var(--text); font: 14px/1.5 Verdana, 'DejaVu Sans', sans-serif; }
+.s7 .wrap { max-width: 820px; padding: 14px 20px 60px; }
+.s7 .head { display: flex; gap: 14px; align-items: baseline; padding-bottom: 8px; border-bottom: 1px solid #2b2b2b; margin-bottom: 12px; flex-wrap: wrap; }
+.s7 .head b { font-size: 16px; }
+.s7 .head a { color: var(--link); }
+.s7 .head .q { margin-left: auto; }
+.s7 .head .q span { border: 1px solid #3a3a3a; padding: 1px 6px; color: var(--dim); display: inline-block; min-width: 180px; }
+.s7 .day { color: var(--dim); margin: 18px 0 6px; font-size: 13px; }
+.s7 ol { margin: 0; padding-left: 2.6em; }
+.s7 li { margin-bottom: 9px; color: var(--dim); }
+.s7 li::marker { color: #5e5e5e; }
+.s7 .ttl { color: var(--link); text-decoration: none; font-size: 15px; }
+.s7 .ttl:visited, .s7 .ttl.seen { color: var(--seen); }
+.s7 .ttl:hover { text-decoration: underline; }
+.s7 .ver { color: var(--text); }
+.s7 .tag { color: var(--dim); font-size: 12px; }
+.s7 .sub { font-size: 12.5px; }
+.s7 .sub a { color: var(--dim); }
+.s7 .sub .old { color: var(--old); }
+.s7 .ch { font-size: 12.5px; color: #a8a8a8; margin-top: 2px; }
+
+/* ===== 8. BRUTALIST — black, white, one acid colour, big system type, thick rules. ===== */
+.s8 { --bg: #000; --text: #fff; --acid: #d4ff00; --dim: #9a9a9a;
+  background: var(--bg); color: var(--text); font: 16px/1.35 'Helvetica Neue', Arial, sans-serif; }
+.s8 .top { display: flex; border-bottom: 4px solid var(--text); }
+.s8 .top > * { padding: 12px 16px; border-right: 4px solid var(--text); text-decoration: none; font-weight: 700; }
+.s8 .top .logo { background: var(--acid); color: #000; font-size: 22px; }
+.s8 .top .on { text-decoration: underline; text-decoration-thickness: 3px; }
+.s8 .top .q { flex: 1; border-right: 0; color: var(--dim); font-weight: 400; }
+.s8 .feature { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 4px solid var(--text); }
+.s8 .feature .pic { background: #222 center/cover; min-height: 360px; border-right: 4px solid var(--text); }
+.s8 .feature .txt { padding: 20px; }
+.s8 .feature h1 { font-size: 96px; line-height: 0.85; margin: 0 0 16px; letter-spacing: -0.04em; word-break: break-word; }
+.s8 .feature p { font-size: 20px; margin: 0 0 18px; max-width: 30ch; }
+.s8 .feature .facts { font-size: 16px; margin-bottom: 20px; }
+.s8 .feature .facts div { border-top: 1px solid #444; padding: 5px 0; }
+.s8 .get { display: inline-block; background: var(--acid); color: #000; font-weight: 700; font-size: 22px; padding: 10px 18px; text-decoration: none; }
+.s8 .get:hover { background: #fff; }
+.s8 h2 { font-size: 16px; margin: 0; padding: 10px 16px; border-bottom: 4px solid var(--text); }
+.s8 .rows > a { display: grid; grid-template-columns: 70px 1fr 220px 140px; align-items: baseline; border-bottom: 1px solid #333; padding: 10px 16px; text-decoration: none; }
+.s8 .rows > a:hover { background: var(--acid); color: #000; }
+.s8 .rows > a:hover * { color: #000; }
+.s8 .rows .i { color: var(--dim); font-variant-numeric: tabular-nums; }
+.s8 .rows .n { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+.s8 .rows .a { color: var(--dim); }
+.s8 .rows .g { text-align: right; font-variant-numeric: tabular-nums; }
+.s8 .rows .g.old { text-decoration: line-through; color: var(--dim); }
+
+/* ===== 9. THE WIRE — a newspaper front page about this week's mods. ===== */
+.s9 { --bg: #121314; --text: #e3e0d8; --dim: #8e8b84; --rule: #3b3a37; --red: #d9473a;
+  background: var(--bg); color: var(--text); font: 16px/1.5 'PT Serif', Georgia, serif; }
+.s9 .page { max-width: 1240px; margin: 0 auto; padding: 0 24px 60px; }
+.s9 .mast { text-align: center; border-bottom: 3px double var(--rule); padding: 18px 0 10px; }
+.s9 .mast .t { font: 700 64px/1 'PT Sans Narrow', sans-serif; letter-spacing: -0.01em; }
+.s9 .strip { display: flex; justify-content: space-between; font: 14px 'PT Sans Narrow', sans-serif; color: var(--dim); padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.s9 .strip a { color: var(--text); text-decoration: none; margin: 0 8px; }
+.s9 .cols { display: grid; grid-template-columns: 2.1fr 1fr 1fr; margin-top: 18px; }
+.s9 .cols > div { padding: 0 20px; border-left: 1px solid var(--rule); }
+.s9 .cols > div:first-child { padding-left: 0; border-left: 0; }
+.s9 .cols > div:last-child { padding-right: 0; }
+.s9 .kick { font: 700 14px 'PT Sans Narrow', sans-serif; color: var(--red); }
+.s9 h1 { font: 700 46px/1.02 'PT Sans Narrow', sans-serif; margin: 2px 0 10px; }
+.s9 .lead-pic { height: 300px; background: #000 center/cover; margin: 10px 0 4px; }
+.s9 .cap { font-size: 13px; color: var(--dim); font-style: italic; margin-bottom: 12px; }
+.s9 .body { column-count: 2; column-gap: 20px; column-rule: 1px solid var(--rule); }
+.s9 .body p { margin: 0 0 10px; }
+.s9 .body p:first-child::first-letter { font: 700 52px/0.8 'PT Sans Narrow', sans-serif; float: left; margin: 6px 6px 0 0; }
+.s9 h3 { font: 700 20px/1.1 'PT Sans Narrow', sans-serif; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
+.s9 .tick { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 7px 0; border-bottom: 1px dotted var(--rule); font-size: 14.5px; }
+.s9 .tick .n { font-weight: 700; }
+.s9 .tick .v { font: 14px 'PT Sans Narrow', sans-serif; color: var(--dim); text-align: right; white-space: nowrap; }
+.s9 .tick .v b { color: var(--text); }
+.s9 .tick .w { grid-column: 1 / -1; font-size: 13px; color: var(--dim); }
+.s9 .story { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+.s9 .story h4 { font: 700 22px/1.1 'PT Sans Narrow', sans-serif; margin: 0 0 4px; }
+.s9 .story .pic { height: 110px; background: #000 center/cover; margin-bottom: 8px; }
+.s9 .story p { margin: 0; font-size: 14.5px; }
+.s9 .story .by { font-size: 13px; color: var(--dim); font-style: italic; }
+.s9 a.more { color: var(--text); font-weight: 700; }
+
+@media (max-width: 800px) {
+  .s5 { grid-template-columns: 1fr; height: auto; } .s5 .left { max-height: 320px; }
+  .s6 .wall { grid-template-columns: repeat(2, 1fr); } .s6 .ask input { font-size: 40px; }
+  .s8 .feature { grid-template-columns: 1fr; } .s8 .feature h1 { font-size: 60px; }
+  .s8 .rows > a { grid-template-columns: 40px 1fr; } .s8 .rows .a, .s8 .rows .g { grid-column: 2; text-align: left; }
+  .s9 .cols { grid-template-columns: 1fr; } .s9 .cols > div { border-left: 0; padding: 0; } .s9 .body { column-count: 1; }
+}
+</style>
+</head>
+<body>
+<div id="switch">
+  <b>Round 2 · all dark</b>
+  <button data-s="s5">5 · Launcher</button>
+  <button data-s="s6">6 · Poster wall</button>
+  <button data-s="s7">7 · Plain index</button>
+  <button data-s="s8">8 · Brutalist</button>
+  <button data-s="s9">9 · The Wire</button>
+  <span class="note" id="note"></span>
+</div>
+<section class="sample s5" id="x-s5"></section>
+<section class="sample s6" id="x-s6"></section>
+<section class="sample s7" id="x-s7"></section>
+<section class="sample s8" id="x-s8"></section>
+<section class="sample s9" id="x-s9"></section>
+
+<script>
+// Real mods from outputs/site/mods.json. The changelog lines are made up for the mock.
+const mods = [
+  { name: 'Nexerelin', by: 'Histidine, Zaphide', cat: 'Campaign', game: '0.98a', ver: '0.12.2c', from: '0.12.2b', img: 'https://i.imgur.com/xFXACmR.png', sum: '4X in Starsector. Invade markets, take the sector, start as any faction.', dl: 'Download', when: '2 days ago', day: 'Saturday 10 October' },
+  { name: 'Extra Systems Reloaded - Oddisz Rewrite', by: 'oddisz', cat: 'Ships and weapons', game: '0.98a', ver: '', img: 'https://github.com/andrzejsokolowski/starsector-extra-system-reloaded-oddisz/blob/main/ExtraSystemReloadedIconBig.png?raw=true', sum: 'Pour credits, materials and story points into the ships you love, until they are as overpowered as you can afford.', dl: 'Download', when: '2 days ago', day: 'Saturday 10 October', fresh: true },
+  { name: 'Arma Armatura', by: 'shoi', cat: 'Ships and weapons', game: '0.98a', ver: '3.3.6', from: '3.3.5', img: 'https://i.imgur.com/zYciRZg.png', sum: 'A story mod built around pilotable strikecraft: fighter-scale ships with their own mechanics.', dl: 'Install with TriOS', when: '3 days ago', day: 'Friday 9 October' },
+  { name: 'Ship/Weapon Pack', by: 'Dark.Revenant', cat: 'Ships and weapons', game: '0.98a', ver: '1.16.6', from: '1.16.5', img: '', sum: 'Ships and weapons for every faction, plus a handful of bounties.', dl: 'Download', when: '3 days ago', day: 'Friday 9 October' },
+  { name: 'StepSpeedup', by: 'dynafire', cat: 'Quality of life', game: '0.98a', ver: '1.0.0', img: 'https://raw.githubusercontent.com/gilbertgong/stepspeedup/main/graphics/banner.png', sum: 'StepSpeedup', dl: 'Install with TriOS', when: '3 days ago', day: 'Friday 9 October', fresh: true },
+  { name: 'Diable Avionics', by: 'Caymon Joestar, Tartiflette', cat: 'Factions', game: '0.98a', ver: '2.9.5', from: '2.9.4', img: 'https://i.imgur.com/yX8diMJ.png', sum: "Claiming ownership over millions of people's possessions might seem bold. Diable Avionics intends to.", dl: 'Download', when: '5 days ago', day: 'Wednesday 7 October' },
+  { name: 'Console Commands', by: 'LazyWizard, lukas04', cat: 'Utilities', game: '0.98a', ver: '4.0.8', from: '4.0.7', img: 'https://imgur.com/zoCketX.gif', sum: 'Type commands into the game: spawn fleets, add credits, reveal the map.', dl: 'Download', when: '1 week ago', day: 'Sunday 4 October' },
+  { name: 'Industrial.Evolution', by: 'SirHartley', cat: 'Campaign', game: '0.98a', ver: '4.1.b', from: '4.1.a', img: 'https://i.imgur.com/7k1QAas.png', sum: 'A massive campaign expansion for colonies and exploration.', dl: 'Install with TriOS', when: '1 week ago', day: 'Sunday 4 October' },
+  { name: 'Dual-Elevation', by: 'kingfish', cat: 'Campaign', game: '0.98a', ver: '0.0.1', img: '', sum: 'No description yet.', dl: 'On the forum', when: '1 week ago', day: 'Sunday 4 October', fresh: true },
+  { name: 'Tahlan Shipworks', by: 'Nia Tahl', cat: 'Factions', game: '0.98a', ver: '1.4', from: '1.3.2', img: 'https://i.imgur.com/xmr0Cos.png', sum: "There, updated, probably doesn't crash your game.", dl: 'Download', when: '9 days ago', day: 'Saturday 3 October' },
+  { name: 'MagicLib', by: 'Tartiflette, Wispborne', cat: 'Libraries', game: '0.98a', ver: '0.45.2', img: 'https://i.imgur.com/BVvNdhO.jpg', sum: 'A community library of useful code that every modder can use and add to.', dl: 'Download', when: '2 weeks ago', day: 'Saturday 26 September' },
+  { name: 'Second-in-Command', by: 'Lukas04', cat: 'Campaign', game: '0.98a', ver: '', img: 'https://imgur.com/CbmANKW.png', sum: 'Replaces the skill system almost entirely with officers who each bring their own.', dl: 'Install with TriOS', when: '1 month ago', day: 'Wednesday 9 September' },
+  { name: 'Grand.Colonies', by: 'SirHartley', cat: 'Campaign', game: '0.97a', ver: '2.1.b', img: 'https://i.imgur.com/xb2DfcA.png', sum: 'This mod allows you to', dl: 'Install with TriOS', when: '6 months ago', day: 'Thursday 2 April', old: true },
+  { name: 'LazyLib', by: 'LazyWizard', cat: 'Libraries', game: '0.98a', ver: '3.0', img: '', sum: 'Common code that many other mods need.', dl: 'Download', when: '7 months ago', day: 'Friday 20 March' },
+];
+const N = mods[0];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const bg = m => m.img ? `background-image:url('${m.img}')` : '';
+const firstLetter = m => m.name[0];
+const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+const changes = ['Fixed a crash when a faction lost its last market mid-invasion.', 'Diplomacy screen remembers the faction you last looked at.', 'Rebalanced ground battle strength for small fleets.'];
+
+const samples = {
+  s5: {
+    note: 'An app, not a web page: a list you scroll on the left, one mod on the right. Facts written as sentences.',
+    html: () => `
+      <div class="left">
+        <div class="find">Search 1,134 mods</div>
+        <div class="sortline"><span>Recently updated</span><span>Game 0.98a ▾</span></div>
+        <div class="list">
+          <div class="group">This week</div>
+          ${mods.slice(0, 6).map((m, i) => item(m, i === 0)).join('')}
+          <div class="group">Earlier</div>
+          ${mods.slice(6).map(m => item(m, false)).join('')}
+        </div>
+      </div>
+      <div class="right">
+        <div class="banner" style="${bg(N)}"></div>
+        <div class="detail">
+          <h1>${N.name}</h1>
+          <div class="who">by <a href="#">Histidine</a> and <a href="#">Zaphide</a> · version ${N.ver} · updated ${N.when}</div>
+          <div class="btns"><a class="btn go" href="#">Download</a><a class="btn" href="#">Forum thread</a><a class="btn" href="#">Source code</a><a class="btn" href="#">☆</a></div>
+          <div class="say">
+            <p>${N.sum}</p>
+            <p>Built for Starsector <b>0.98a</b>. It needs <a href="#">LazyLib</a> and <a href="#">MagicLib</a>. <b>Start a new game</b> to use it; it can't be added to a save you already have.</p>
+          </div>
+          <div class="tabs"><span class="on">What's new</span><span>Description</span><span>Pictures (14)</span><span>Add-ons (3)</span></div>
+          <div class="log"><h4>${N.ver}</h4><ul>${changes.map(c => `<li>${c}</li>`).join('')}</ul>
+            <h4>${N.from}</h4><ul><li>Fixed invasions sometimes targeting your own colonies.</li></ul></div>
+        </div>
+      </div>`,
+  },
+  s6: {
+    note: 'The pictures are the page. Search is the headline. Names sit on the art; details only on hover.',
+    html: () => `
+      <div class="top"><span class="logo">STARMODDER</span><a class="on" href="#">Mods</a><a href="#">Updates</a><a href="#">Favorites</a><a href="#">About</a></div>
+      <div class="ask"><input placeholder="Find a mod"><div class="hint">or try <a href="#">factions</a><a href="#">ship packs</a><a href="#">quality of life</a><a href="#">libraries</a></div></div>
+      <div class="wall">${mods.map((m, i) => {
+        const size = i === 0 ? 'w2 h2' : i === 2 || i === 7 ? 'w2' : i === 5 ? 'h2' : '';
+        const textOnly = !m.img;
+        return `<div class="t ${size} ${textOnly ? 'text' : ''}" style="${textOnly ? `--c:hsl(${hue(m.name)} 45% 55%)` : bg(m)}">
+          ${m.fresh ? '<span class="new">New</span>' : ''}
+          <div class="meta">${esc(m.by)} · ${m.game} · ${m.when}</div>
+          <div class="nm">${esc(m.name)}</div></div>`;
+      }).join('')}</div>`,
+  },
+  s7: {
+    note: 'One line per mod, grouped by day, like a link aggregator. No pictures. Visited mods change colour.',
+    html: () => {
+      let html = '', day = '', n = 0;
+      for (const m of mods) {
+        if (m.day !== day) { if (day) html += '</ol>'; day = m.day; html += `<div class="day">${day}</div><ol start="${n + 1}">`; }
+        n++;
+        html += `<li><a class="ttl ${n === 4 ? 'seen' : ''}" href="#">${esc(m.name)}</a> ${m.ver ? `<span class="ver">${m.ver}</span>` : ''} <span class="tag">(${m.cat.toLowerCase()})</span>
+          <div class="sub">by ${esc(m.by)} · <span class="${m.old ? 'old' : ''}">${m.old ? 'built for ' : ''}${m.game}</span> · ${m.fresh ? 'new mod' : m.from ? `was ${m.from}` : 'updated'} · <a href="#">${m.dl.toLowerCase()}</a> · <a href="#">thread</a>${m.from ? ' · <a href="#">changelog</a>' : ''}</div>
+          ${m.from && n < 4 ? `<div class="ch">${changes[n - 1]}</div>` : ''}</li>`;
+      }
+      return `<div class="wrap"><div class="head"><b>starmodder</b><a href="#">new</a><a href="#">all mods</a><a href="#">libraries</a><a href="#">favorites</a><a href="#">about</a><span class="q"><span>search</span></span></div>${html}</ol></div>`;
+    },
+  },
+  s8: {
+    note: 'Black, white and one acid colour. Huge plain type, thick rules, whole rows light up on hover.',
+    html: () => `
+      <div class="top"><span class="logo">STARMODDER</span><a class="on" href="#">Mods</a><a href="#">Updates</a><a href="#">Favorites</a><a href="#">About</a><span class="q">Search</span></div>
+      <div class="feature">
+        <div class="pic" style="${bg(N)}"></div>
+        <div class="txt">
+          <h1>${N.name}</h1>
+          <p>${N.sum}</p>
+          <div class="facts"><div>Version ${N.ver}, out ${N.when}</div><div>Game ${N.game}</div><div>Needs LazyLib + MagicLib</div><div>New game only</div></div>
+          <a class="get" href="#">Download →</a>
+        </div>
+      </div>
+      <h2>Updated recently [${mods.length}]</h2>
+      <div class="rows">${mods.slice(1).map((m, i) => `
+        <a href="#"><span class="i">${String(i + 2).padStart(2, '0')}</span><span class="n">${esc(m.name)}</span><span class="a">${esc(m.by)}</span><span class="g ${m.old ? 'old' : ''}">${m.game}${m.ver ? ' / ' + m.ver : ''}</span></a>`).join('')}</div>`,
+  },
+  s9: {
+    note: 'A newspaper front page: the week’s biggest update as the lead story, releases as a ticker column.',
+    html: () => `
+      <div class="page">
+        <div class="mast"><div class="t">The Starmodder</div></div>
+        <div class="strip"><span>Monday 12 October 2026</span><span><a href="#">Mods</a><a href="#">Releases</a><a href="#">Libraries</a><a href="#">Favorites</a><a href="#">About</a></span><span>1,134 mods · 14 updated this week</span></div>
+        <div class="cols">
+          <div>
+            <div class="kick">Updated · version ${N.ver}</div>
+            <h1>${N.name} ${N.ver} is out, and invasions no longer crash when a faction loses its last world</h1>
+            <div class="lead-pic" style="${bg(N)}"></div>
+            <div class="cap">${N.name}, by Histidine and Zaphide. Built for 0.98a; start a new game to use it.</div>
+            <div class="body">
+              <p>${N.sum} This release is mostly fixes. ${changes.join(' ')}</p>
+              <p>It needs LazyLib and MagicLib, both up to date for 0.98a. It can't be added to a save you already have; the author says so on the first page of the thread.</p>
+              <p><a class="more" href="#">Download ${N.ver}</a> · <a class="more" href="#">Read the full changelog</a></p>
+            </div>
+          </div>
+          <div>
+            <h3>Releases</h3>
+            ${mods.filter(m => m.from).map(m => `<div class="tick"><span class="n">${esc(m.name)}</span><span class="v">${m.from} → <b>${m.ver}</b></span><span class="w">${m.when}</span></div>`).join('')}
+          </div>
+          <div>
+            <h3>New on the forum</h3>
+            ${mods.filter(m => m.fresh).map(m => `<div class="story">${m.img ? `<div class="pic" style="${bg(m)}"></div>` : ''}<h4>${esc(m.name)}</h4><p>${esc(m.sum)}</p><div class="by">by ${esc(m.by)}, ${m.when}</div></div>`).join('')}
+          </div>
+        </div>
+      </div>`,
+  },
+};
+
+function item(m, sel) {
+  return `<div class="item ${sel ? 'sel' : ''}">
+    ${m.img ? `<div class="ic" style="${bg(m)}"></div>` : `<div class="ic none">${firstLetter(m)}</div>`}
+    <span class="n">${esc(m.name)}</span><span class="v ${m.from ? 'new' : ''}">${m.ver}</span></div>`;
+}
+
+function show(id) {
+  for (const s of document.querySelectorAll('.sample')) s.classList.toggle('on', s.id === 'x-' + id);
+  for (const b of document.querySelectorAll('#switch button')) b.setAttribute('aria-pressed', b.dataset.s === id);
+  const el = document.getElementById('x-' + id);
+  if (!el.innerHTML) el.innerHTML = samples[id].html();
+  document.getElementById('note').textContent = samples[id].note;
+  history.replaceState(null, '', '#' + id);
+}
+document.getElementById('switch').addEventListener('click', e => { if (e.target.dataset.s) show(e.target.dataset.s); });
+show(samples[location.hash.slice(1)] ? location.hash.slice(1) : 's5');
+</script>
+</body>
+</html>
