@@ -74,16 +74,15 @@ class _Pictures {
 /// once here and the answers passed around.
 class _ReadPost {
   /// The first post rebuilt from the tags the site publishes, or null when the
-  /// mod has no forum post. This is the thread's description, and it is the
-  /// first post alone: a later post is the author writing again, not more of
-  /// what the thread is about.
+  /// mod has no forum post. A single-mod thread keeps this as its full
+  /// description, independently of the excerpt used for its listing summary.
   final String? html;
 
   /// The same words with the tags taken off.
   final String? words;
 
   /// Every one of the author's opening posts, each rebuilt the same way. Used
-  /// to cut one mod's own description out of a post that describes several.
+  /// to cut out a focused description of one mod.
   final List<String> postsHtml;
 
   /// The words of every opening post, run together.
@@ -303,6 +302,7 @@ class PublicDataBuilder {
       // Already read, if anything else on this thread has asked for it.
       final post = postsOf(topicId);
       final chosen = _mainLlmMod(mod, thread);
+      final ownSection = _sectionAbout(chosen, post);
 
       final record = _listRecord(
         id: id,
@@ -312,6 +312,7 @@ class PublicDataBuilder {
         postDate: detail?.postDate,
         authorAvatarPath: detail?.authorAvatarPath,
         chosen: chosen,
+        ownSection: ownSection,
         threadDownloads: threadDownloads,
         releases: modReleases,
         modsByName: modsByName,
@@ -327,6 +328,7 @@ class PublicDataBuilder {
         detail: detail,
         chosen: chosen,
         post: post,
+        ownSection: ownSection,
         threadDownloads: threadDownloads,
         releases: modReleases,
       );
@@ -738,6 +740,7 @@ class PublicDataBuilder {
     required String? postDate,
     required String? authorAvatarPath,
     required LlmMod? chosen,
+    required String? ownSection,
     required List<AssumedDownloadCandidate> threadDownloads,
     required List<ModRelease> releases,
     required Map<String, _JoinedMod> modsByName,
@@ -749,7 +752,8 @@ class PublicDataBuilder {
     final isTool = chosen?.isTool == true;
 
     final lastPost = parseForumDate(thread?.lastPostDate);
-    final copiedSummary = usableSummary(mod.summary);
+    final copiedSummary = summaryOfExcerpt(plainWordsOf(ownSection)) ??
+        usableSummary(mod.summary);
     final generatedSummary = usableSummary(extras?.summary?.sentence);
     final pictures = _picturesFor(mod, chosen, authorAvatarPath);
 
@@ -824,11 +828,9 @@ class PublicDataBuilder {
 
   /// The stretch of the author's post that describes this one mod, or null.
   ///
-  /// Only for a thread carrying several mods: a thread about one mod publishes
-  /// the whole post and needs none of this. The model said where the words
-  /// start and end and the extractor found them in one of the posts, so all
-  /// that is left is to cut them out. It is tried against each post in turn
-  /// because the extractor only promised the words are in one of them.
+  /// The model said where the words start and end and the extractor found them
+  /// in one of the posts. Try each post because the extractor only promised
+  /// the words are in one of them.
   static String? _sectionAbout(LlmMod? chosen, _ReadPost post) {
     final anchors = chosen?.descriptionAnchors;
     if (anchors == null || anchors.isEmpty) return null;
@@ -880,6 +882,7 @@ class PublicDataBuilder {
     required QbModDetail? detail,
     required LlmMod? chosen,
     required _ReadPost post,
+    required String? ownSection,
     required List<AssumedDownloadCandidate> threadDownloads,
     required List<ModRelease> releases,
   }) {
@@ -892,21 +895,12 @@ class PublicDataBuilder {
     final sharesItsThread = _isSharedThread(thread);
     final usablePost = sharesItsThread ? null : post;
 
-    // On a shared thread the post is about every mod at once — but plenty of
-    // authors write a paragraph about each mod under its own name, and that
-    // paragraph is that mod's description. Where the model pointed at one and
-    // the words were found in the post, they are cut out and published as the
-    // author's, because they are.
-    final ownSection = sharesItsThread ? _sectionAbout(chosen, post) : null;
-
-    // The author's own post first. Before this, the description was whichever
-    // text the merge liked best, which for the bigger mods was the Discord
-    // announcement — Nexerelin's page said "4X in Starsector. Download: ..."
-    // rather than anything about the mod. On a shared thread the fallback is
-    // the mod's own merged text, which for a mod posted on Discord is its own
-    // announcement: still the author's words, and about this mod alone.
+    // Single-mod threads keep the full post. On a shared thread only this
+    // mod's section belongs in its description. The listing's clipped summary
+    // and the generated summary are independent of the full description.
+    final descriptionSection = sharesItsThread ? ownSection : null;
     final copiedDescription = usablePost?.words ??
-        plainWordsOf(ownSection) ??
+        plainWordsOf(descriptionSection) ??
         _firstNonEmpty([mod.description]);
     final generatedDescription = _firstNonEmpty([extras?.summary?.paragraph]);
     final isGenerated =
@@ -925,7 +919,7 @@ class PublicDataBuilder {
       listing: listing,
       description: copiedDescription ?? generatedDescription,
       descriptionHtml: usablePost?.html ??
-          ownSection ??
+          descriptionSection ??
           plainTextAsHtml(copiedDescription ?? generatedDescription),
       descriptionIsGenerated: isGenerated,
       aiDescription: generatedDescription,

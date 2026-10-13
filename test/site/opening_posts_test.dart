@@ -258,7 +258,7 @@ void main() {
       expect(valkyrians.descriptionIsGenerated, isTrue);
     });
 
-    test('a mod on a thread of its own still gets the whole post', () {
+    test('a summary from the second post keeps the full description', () {
       final data = builder.build(
         mods: [
           ScrapedMod(
@@ -305,8 +305,12 @@ void main() {
       );
 
       final nex = data.details.values.single;
-      expect(nex.description, contains('Adds diplomacy, invasions'),
-          reason: 'a single-mod thread publishes its first post, anchors or no');
+      expect(nex.description, contains('Adds diplomacy, invasions'));
+      expect(nex.description, isNot(contains('Adds four lore-rich corporations')));
+      expect(nex.listing.summary, startsWith('Adds four lore-rich corporations'));
+      expect(nex.listing.summaryIsGenerated, isFalse);
+      expect(nex.descriptionIsGenerated, isFalse);
+      expect(nex.aiDescription, 'An AI paragraph about Nexerelin.');
     });
   });
 }

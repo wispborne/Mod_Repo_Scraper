@@ -208,7 +208,16 @@ String describe(LlmStoreEntry? entry) {
     final version = mod.extras?.version;
     if (version != null) b.write('\n      version: $version');
     final extras = mod.extras;
+    final anchors = mod.descriptionAnchors;
+    if (anchors != null) {
+      b.write('\n      description: "${anchors.startsWith}" ... '
+          '"${anchors.endsWith}"');
+    }
     if (extras != null) {
+      if (extras.summary != null) {
+        b.write('\n      summary: "${extras.summary?.sentence}" / '
+            '"${extras.summary?.paragraph}"');
+      }
       for (final (label, answer, words) in [
         ('adding', extras.canAdd, extras.saveCompatibility),
         for (final note in extras.updateNotes ?? const <LlmUpdateNote>[])

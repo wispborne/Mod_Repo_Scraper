@@ -9,6 +9,7 @@ import 'package:mod_repo_scraper/bot/scraper/qb/models/post_extraction.dart';
 import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 import 'package:mod_repo_scraper/site/mod_id_store.dart';
 import 'package:mod_repo_scraper/site/models/public_mod.dart';
+import 'package:mod_repo_scraper/site/post_html.dart';
 import 'package:mod_repo_scraper/site/public_data_builder.dart';
 import 'package:mod_repo_scraper/site/release_state_store.dart';
 import 'package:path/path.dart' as p;
@@ -103,6 +104,104 @@ void main() {
         contentHtml: contentHtml,
         images: images,
       );
+
+  group('clipped author summaries', () {
+    const opening = 'Lets you pour credits, materials and story points';
+    const ending = 'slot rare augments with effects of their own';
+    const firstSentence = 'Lets you pour credits, materials and story points '
+        'into the ships you love, until they are as overpowered as you can afford.';
+    const aiSentence = 'Upgrades player ships using credits, materials and story points.';
+    const aiParagraph = 'Upgrades player ships using credits, materials and story points. '
+        'Friendly spaceports offer upgrade bays, hull improvements and rare augments.';
+
+    test('Extra Systems keeps its full description and both summaries', () {
+      final post = QbModDetailMapper.fromJson(
+          File('test/llm_live/posts/36143.json').readAsStringSync());
+      final data = builder.build(
+        mods: [
+          forumMod(
+            name: 'Extra Systems Reloaded',
+            topicId: 36143,
+            summary: 'An old announcement.',
+            description: 'An old description.',
+          ),
+        ],
+        bundle: bundleOf(
+          index: [
+            thread(topicId: 36143, llmMods: [
+              LlmMod(
+                name: 'Extra Systems Reloaded',
+                descriptionAnchors: LlmDescriptionAnchors(
+                    startsWith: opening, endsWith: ending),
+                extras: LlmModExtras(
+                  summary: LlmModSummary(
+                    sentence: aiSentence,
+                    paragraph: aiParagraph,
+                  ),
+                ),
+              ),
+            ]),
+          ],
+          details: {'36143': post},
+        ),
+      );
+      final detail = data.details.values.single;
+      expect(detail.description, contains(firstSentence));
+      expect(detail.description, contains(ending));
+      expect(detail.description, contains('WHAT DOES THIS MOD DO?'));
+      expect(detail.description, contains('Requires LunaLib'));
+      expect(detail.description, contains('FAQ'));
+      expect(detail.description, contains('Credits'));
+      expect(detail.descriptionHtml, cleanPostHtml(post.contentHtml));
+      expect(detail.description, plainWordsOf(detail.descriptionHtml));
+      expect(detail.descriptionIsGenerated, isFalse);
+      expect(detail.aiDescription, aiParagraph);
+      expect(detail.listing.summary, firstSentence);
+      expect(detail.listing.summaryIsGenerated, isFalse);
+      expect(detail.listing.aiSummary, aiSentence);
+    });
+
+    for (final anchors in [
+      null,
+      LlmDescriptionAnchors(
+        startsWith: 'Words nobody wrote here',
+        endsWith: 'Another invented ending',
+      ),
+    ]) {
+      test(
+          'keeps the full single-mod post with '
+          '${anchors == null ? 'no' : 'invalid'} anchors', () {
+        final data = builder.build(
+          mods: [forumMod(summary: null)],
+          bundle: bundleOf(
+            index: [
+              thread(llmMods: [
+                LlmMod(
+                  name: 'Nexerelin',
+                  descriptionAnchors: anchors,
+                  extras: LlmModExtras(
+                    summary: LlmModSummary(
+                      sentence: 'Adds diplomacy.',
+                      paragraph: 'Adds diplomacy and invasions.',
+                    ),
+                  ),
+                ),
+              ]),
+            ],
+            details: {'9175': postOf('<p>The complete author post.</p>')},
+          ),
+        );
+        final detail = data.details.values.single;
+        expect(detail.description, 'The complete author post.');
+        expect(detail.descriptionHtml, '<p>The complete author post.</p>');
+        expect(detail.descriptionIsGenerated, isFalse);
+        expect(detail.aiDescription, 'Adds diplomacy and invasions.');
+        expect(detail.listing.summary, 'Adds diplomacy.');
+        expect(detail.listing.aiSummary, 'Adds diplomacy.');
+        expect(detail.listing.summaryIsGenerated, isTrue);
+      });
+    }
+  });
 
   test('the name a reader sees has the thread-title noise taken off it', () {
     final data = builder.build(

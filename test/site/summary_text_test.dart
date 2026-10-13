@@ -6,6 +6,34 @@ import 'package:test/test.dart';
 /// name in bold, or a line of requirements. Those are dropped so the AI
 /// sentence can take their place, labelled as AI.
 void main() {
+  group('the first sentence of an author excerpt', () {
+    test('copies a sentence and removes its bullet marker', () {
+      expect(
+          summaryOfExcerpt(
+              '- Lets you upgrade your ships. Only yours.\nMore features.'),
+          'Lets you upgrade your ships.');
+    });
+
+    test('a version number does not end the sentence', () {
+      expect(summaryOfExcerpt('Adds ships for 0.98a. Includes weapons.'),
+          'Adds ships for 0.98a.');
+    });
+
+    test('uses the first line when there is no sentence ending', () {
+      expect(summaryOfExcerpt('Adds new ships\nAnd new weapons'),
+          'Adds new ships');
+    });
+
+    test('keeps non-English sentence endings', () {
+      expect(summaryOfExcerpt('添加新的舰船。还有武器。'), '添加新的舰船。');
+    });
+
+    test('an empty excerpt has no summary', () {
+      expect(summaryOfExcerpt(null), isNull);
+      expect(summaryOfExcerpt('  '), isNull);
+    });
+  });
+
   test('keeps a real description', () {
     expect(usableSummary('Adds diplomacy, invasions and a 4X layer.'),
         'Adds diplomacy, invasions and a 4X layer.');

@@ -4,6 +4,8 @@ library;
 
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/extraction_store.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/post_extraction.dart';
+import 'package:mod_repo_scraper/site/description_slice.dart';
+import 'package:mod_repo_scraper/site/post_html.dart';
 import 'package:test/test.dart';
 
 import 'live_llm.dart';
@@ -31,6 +33,43 @@ void main() {
   }
 
   group('a thread that is one mod', () {
+    for (final summaries in [true, false]) {
+      test(
+          'Extra Systems (36143) extracts its introduction with summaries '
+          '${summaries ? 'on' : 'off'}',
+          () async {
+        final off = await whyLiveLlmIsOff();
+        if (off != null) {
+          markTestSkipped('No live model: $off');
+          return;
+        }
+        final answer = await readWithTheModel(36143, summaries: summaries);
+        final why = describe(answer);
+        expect(answer, isNotNull, reason: why);
+        expect(answer!.mods, hasLength(1), reason: why);
+        final mod = answer.mods.single;
+        final anchors = mod.descriptionAnchors;
+        expect(anchors, isNotNull, reason: why);
+        final excerpt = sliceDescriptionHtml(
+            cleanPostHtml(loadPost(36143).contentHtml),
+            anchors!.startsWith, anchors.endsWith);
+        final words = plainWordsOf(excerpt);
+        expect(words, isNotNull, reason: why);
+        expect(flatten(words!), contains('creditsmaterialsandstorypoints'),
+            reason: why);
+        expect(flatten(words), contains('extrasystemsbay'), reason: why);
+        expect(words, isNot(contains('WHAT DOES THIS MOD DO?')), reason: why);
+        expect(words, isNot(contains('Requires LunaLib')), reason: why);
+        expect(words, isNot(contains('FAQ')), reason: why);
+        if (summaries) {
+          expect(mod.extras?.summary?.sentence, isNotEmpty, reason: why);
+          expect(mod.extras?.summary?.paragraph, isNotEmpty, reason: why);
+        } else {
+          expect(mod.extras?.summary, isNull, reason: why);
+        }
+      });
+    }
+
     test('Nexerelin (9175) is one mod, with its own version and needs',
         () async {
       final answer = await read(9175);

@@ -7,7 +7,7 @@
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 22;
+  static const int promptVersion = 23;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -55,8 +55,13 @@ class ExtractionPrompt {
             'shaders to Starsector." It names the mod and says "is a mod".\n'
             '  - Also bad: "Adds a suite of shader effects for enhanced graphics '
             'in Starsector." Drop "in Starsector" and end at "graphics".\n'
-            '  Leave a summary field null only when the post says too little to '
-            'write it.'
+            '  The generated summary and descriptionAnchors are independent: '
+            'return both when the post supports them. The anchors select the '
+            'author\'s words; the summary describes the mod in your own words '
+            'rather than copying that passage. Null anchors do not prevent a '
+            'generated summary when the post contains enough facts. Leave a '
+            'summary field null only '
+            'when the post says too little to write it.'
         : '';
 
     return '''
@@ -353,11 +358,17 @@ Guidance:
     the game itself or a Java version.
   - Leave it as an empty list when the post names no requirement. Do not guess a
     library from what the mod appears to do.
-- "descriptionAnchors" points at the author's own words about ONE mod. You do
-  not write a description — you say where the author's already is:
-  - Use it when a thread carries several mods and the author writes about each
-    one separately, for example a paragraph per mod under or above its name. That
-    paragraph is that mod's description.
+- "descriptionAnchors" is optional and points at the author's own words about
+  ONE mod. You do not write a description — you say where the author's already is:
+  - Use it when a suitable description exists, on single-mod threads as well
+    as threads carrying several mods.
+    On a single-mod thread, select a focused introduction explaining what the
+    mod does, such as the paragraph under "WHAT DOES THIS MOD DO?". This supplies
+    an author-written listing summary; the full post remains the description.
+    Keep installation steps, requirements, credits, FAQs and changelogs outside
+    that introduction. On a collection thread, select the author's description
+    of this mod, for example the passage under or above its name, without taking
+    in another mod's words.
   - "startsWith" is the first few words of that run of text, copied exactly.
     "endsWith" is the last few words of the SAME run, copied exactly. Five to
     ten words each is right. Copy them letter for letter — they are looked up in
@@ -369,8 +380,10 @@ Guidance:
     link if you can start after them — the description is what the mod does.
     Never let an anchor take in a "[link: ...]" marker; it is our note, so it is
     not in the author's text and the anchor will be thrown away.
-  - Leave it null when the thread is about a single mod, when the author does
-    not describe this mod separately, or whenever you are unsure.
+  - Leave it null when the author does not give this mod a suitable continuous
+    description, or whenever you are unsure. A name, download link, requirements
+    or installation instructions alone are not a description of what the mod
+    does. Return null rather than pointing at unrelated text just to fill it.
 - Leave any field null/empty when the post does not state it. Do not guess.$summaryGuidance
 ''';
   }

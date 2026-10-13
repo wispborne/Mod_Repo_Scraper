@@ -1,0 +1,42 @@
+{
+  "topicId": 36143,
+  "title": "[0.98a] - Extra Systems Reloaded - Oddisz Rewrite",
+  "gameVersion": "0.98a",
+  "author": "oddisz",
+  "authorTitle": "Commander",
+  "authorPostCount": 108,
+  "authorAvatarPath": "https://fractalsoftworks.com/forum/index.php?action=dlattach;attach=15979;type=avatar",
+  "postDate": "October 10, 2026, 09:32:37 AM",
+  "lastEditDate": "October 10, 2026, 11:41:28 AM by oddisz",
+  "contentHtml": "<div align=\"center\"><img src=\"https://github.com/andrzejsokolowski/starsector-extra-system-reloaded-oddisz/blob/main/ExtraSystemReloadedIconBig.png?raw=true\" alt=\"\" width=\"220\" class=\"bbc_img resized\"><br><span style=\"font-size: 28pt;\" class=\"bbc_size\"><a href=\"https://github.com/andrzejsokolowski/starsector-extra-system-reloaded-oddisz/releases/latest\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><strong>Extra System Reloaded - Oddisz Edition</strong></a></span><br><a href=\"https://github.com/andrzejsokolowski/starsector-extra-system-reloaded-oddisz/releases/latest\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/github/downloads/andrzejsokolowski/starsector-extra-system-reloaded-oddisz/total?style=for-the-badge&amp;label=download\" alt=\"\" class=\"bbc_img\"></a>&nbsp; <a href=\"https://github.com/andrzejsokolowski/starsector-extra-system-reloaded-oddisz\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/github/v/release/andrzejsokolowski/starsector-extra-system-reloaded-oddisz?display_name=tag&amp;sort=semver&amp;style=for-the-badge&amp;label=source\" alt=\"\" class=\"bbc_img\"></a><br></div><div align=\"center\"><strong><br>This mod was made for a person who contacted me directly here asking me to remake the old mod.&nbsp; <br><br>Nothing from the original is reused except for the idea.&nbsp; <br><br><br>WHAT DOES THIS MOD DO?<br>- Lets you pour credits, materials and story points into the ships you love, until they are as overpowered as you can afford.<br>- Only your ships. Enemy fleets never get any of it.<br><br><br>Every friendly market with a spaceport gets an Extra Systems bay. Pick a ship, buy upgrade levels, raise its hull quality at shipyards, and slot rare augments with effects of their own.<br><br>A from-scratch remake of Extra System Reloaded for 0.98a. The code is fully open source. You don't have to credit me. Claude Code built this anyway.<br><span style=\"color: red;\" class=\"bbc_color\">Requires <strong>LunaLib</strong>.</span><br></strong></div><div align=\"center\"><hr><div align=\"center\"><span style=\"font-size: 12pt;\" class=\"bbc_size\"><strong>Upgrades</strong></span></div><hr><ul class=\"bbc_list\"><li>13 upgrades with 10 levels each: Durability, Weapons, Targeting, Magazines, Flux Grid, Defenses (shields or phase), Engines, Ship System, Hangars, Logistics, Cargo Holds, Sensors and Conditioning.</li><li>Past level 10, overclock up to 5 more levels for a story point each.</li><li>Hover over any upgrade in the bay to see exactly what the next level does and what it costs.</li><li>Changed your mind? Remove a level for half of what you paid, or undo anything you bought on this visit in full.</li></ul><hr><div align=\"center\"><span style=\"font-size: 12pt;\" class=\"bbc_size\"><strong>Hull quality</strong></span></div><hr><ul class=\"bbc_list\"><li>Every hull rolls a quality between 80% and 120%. It multiplies every upgrade on that ship.</li><li>Heavy Industry and Orbital Works (and modded shipyards) can raise it, up to 200%. Each step costs more than the last.</li></ul><hr><div align=\"center\"><span style=\"font-size: 12pt;\" class=\"bbc_size\"><strong>Augments</strong></span></div><hr><ul class=\"bbc_list\"><li>Ten rare devices, found in salvage or fabricated at Orbital Works: Overload Damper, Nanolattice Regenerator, Cryo-Flux Exchanger, Temporal Capacitor, Phase Coil Tuner, Point Defense Integrator, Hangar Microforge, Missile Autoforge, Vent Thrusters and Fire Control Equalizer.</li><li>1 slot on frigates, 2 on destroyers and cruisers, 3 on capitals. Removing an augment gives it back.</li></ul><hr><div align=\"center\"><span style=\"font-size: 12pt;\" class=\"bbc_size\"><strong>Paying</strong></span></div><hr><ul class=\"bbc_list\"><li>Credits, materials from your cargo and storage, or Industrial Evolution ship and relic components if you play with IndEvo.</li><li>Shipyards and your own colonies give discounts.</li></ul><hr><div align=\"center\"><span style=\"font-size: 12pt;\" class=\"bbc_size\"><strong>Settings</strong></span></div><hr><ul class=\"bbc_list\"><li>In LunaLib's settings menu (<strong>Shift+F2</strong> in the campaign): maximum level, overclocking, upgrade strength, hull quality range, augment slots and every price.</li></ul></div><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">FAQ</div><div class=\"sp-body folded\"><strong>Can I add it to an existing save?</strong><br>Yes.<br><strong>Can I remove it from a save?</strong><br>Not once a ship has been upgraded: upgraded ships carry its hidden hull mod.<br><strong>Does it work with Exotica Technologies?</strong><br>Yes. They do not share anything.<br><div class=\"sp-foot\">[close]</div></div></div><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Credits</div><div class=\"sp-body folded\">The idea comes from <strong>Extra System</strong> by Originem and <strong>Extra System Reloaded</strong> by Iridescens and President Matt Damon. This is a new mod written from scratch; none of their code or art is used.<br><div class=\"sp-foot\">[close]</div></div></div>",
+  "images": [
+    {
+      "originalUrl": "https://github.com/andrzejsokolowski/starsector-extra-system-reloaded-oddisz/blob/main/ExtraSystemReloadedIconBig.png?raw=true",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://img.shields.io/github/downloads/andrzejsokolowski/starsector-extra-system-reloaded-oddisz/total?style=for-the-badge&amp;label=download",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://img.shields.io/github/v/release/andrzejsokolowski/starsector-extra-system-reloaded-oddisz?display_name=tag&amp;sort=semver&amp;style=for-the-badge&amp;label=source",
+      "alt": ""
+    }
+  ],
+  "links": [
+    {
+      "url": "https://github.com/andrzejsokolowski/starsector-extra-system-reloaded-oddisz/releases/latest",
+      "text": "Extra System Reloaded - Oddisz Edition",
+      "isExternal": true,
+      "isDownloadable": false
+    },
+    {
+      "url": "https://github.com/andrzejsokolowski/starsector-extra-system-reloaded-oddisz",
+      "text": "",
+      "isExternal": true,
+      "isDownloadable": false
+    }
+  ],
+  "extraPosts": [],
+  "isPlaceholderDetail": false
+}

@@ -1,6 +1,7 @@
 /// Decides whether a copied summary is worth showing.
 ///
-/// The summary on a card is copied from whichever source the merge liked best.
+/// A verified author excerpt supplies the summary on a card when available.
+/// Otherwise it is copied from whichever source the merge liked best.
 /// A lot of those are not descriptions: a bare download link, the mod's own
 /// name in bold, or the line of requirements from the top of a Discord post.
 /// Showing one of those on a card is worse than showing the AI's sentence,
@@ -31,6 +32,22 @@ final RegExp _spaces = RegExp(r'\s+');
 
 /// Anything that is not a letter or a number.
 final RegExp _notWordy = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
+
+/// The first sentence or line of a verified author excerpt, for a listing.
+/// Keep the author's words rather than asking the model to shorten them.
+String? summaryOfExcerpt(String? excerpt) {
+  if (excerpt == null) return null;
+  final firstLine = excerpt.trim().split('\n').first.trim();
+  final sentenceEnd = RegExp(r'[.!?](?:\s|$)|[。！？]').firstMatch(firstLine);
+  final sentence = sentenceEnd == null
+      ? firstLine
+      : firstLine.substring(0, sentenceEnd.start + 1);
+  final copied = sentence
+      .replaceFirst(RegExp(r'^[-•]\s+'), '')
+      .replaceAll(_spaces, ' ')
+      .trim();
+  return copied.isEmpty ? null : copied;
+}
 
 /// [summary] tidied, or null when it is not a description at all.
 String? usableSummary(String? summary) {

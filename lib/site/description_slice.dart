@@ -1,8 +1,7 @@
-/// Cutting one mod's own description out of a post that describes several.
+/// Cutting a focused description of one mod out of a forum post.
 ///
-/// Some forum threads hold several mods, and the author writes a paragraph
-/// about each one. Those paragraphs are the mods' descriptions, but nothing in
-/// the post says where one stops and the next begins, so the model is asked to
+/// An introduction can sit among downloads, instructions and credits, or
+/// beside descriptions of other mods. The model is asked to
 /// point: it copies the first few words and the last few words of the stretch
 /// of text about one mod, and the words in between are cut out of the post
 /// here. The model never writes the description — it only says where it is.
