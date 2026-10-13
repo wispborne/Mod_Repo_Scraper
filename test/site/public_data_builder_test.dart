@@ -133,7 +133,7 @@ void main() {
                 name: 'Extra Systems Reloaded',
                 descriptionAnchors: LlmDescriptionAnchors(
                     startsWith: opening, endsWith: ending),
-                extras: LlmModExtras(
+                extras: LlmExtras(
                   summary: LlmModSummary(
                     sentence: aiSentence,
                     paragraph: aiParagraph,
@@ -179,7 +179,7 @@ void main() {
                 LlmMod(
                   name: 'Nexerelin',
                   descriptionAnchors: anchors,
-                  extras: LlmModExtras(
+                  extras: LlmExtras(
                     summary: LlmModSummary(
                       sentence: 'Adds diplomacy.',
                       paragraph: 'Adds diplomacy and invasions.',
