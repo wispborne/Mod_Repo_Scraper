@@ -1654,3 +1654,44 @@ body.picture-open { overflow: hidden; }
   .pager-size-label { margin-left: 0; }
   .footer-note { margin-left: 0; }
 }
+
+/* --- Cut corners, like Starsector's own buttons ---
+   The game has no rounded corners anywhere. Its buttons are cut straight
+   across at two opposite corners, top-left and bottom-right, the way the refit
+   screen's buttons and the tabs along the bottom of the screen are. So every
+   corner the rules above round is cut instead, and its border follows the
+   cut; the top-right and bottom-left corners are left square. A pair of
+   buttons joined into one control (Cards / Rows, a download and its "open the
+   page" button) only had its outer corners rounded, so it comes out as one
+   shape with the same two cuts.
+
+   The game cuts a button by about a third of its height; the sizes below
+   follow that where "round" meant a pill or a circle, since a pill cut that
+   deep comes to a point.
+
+   A browser that cannot cut corners keeps the rounded ones it always had. */
+@supports (corner-shape: bevel) {
+  *, *::before, *::after {
+    corner-shape: bevel;
+    border-top-right-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+  }
+
+  .btn { border-radius: 10px; }
+  .btn-big { border-radius: 14px; }
+  .badge, .card-when { border-radius: 7px; }
+  .nav-count, .search-help-mark { border-radius: 6px; }
+  .fav-toggle { border-radius: 9px; }
+  .mod-tab { border-radius: 10px; }
+  .support-links a { border-radius: 9px; }
+  .mod-card { border-radius: 12px; }
+  .download-actions > .download-btn { border-radius: 10px 0 0 10px; }
+  .original-page-btn { border-radius: 0 10px 10px 0; }
+  .view-toggle > .btn { border-radius: 0; }
+  .view-toggle > .btn:first-child { border-radius: 10px 0 0 10px; }
+  .view-toggle > .btn:last-child { border-radius: 0 10px 10px 0; }
+
+  /* Real circles stay round: the play mark on a video and the loading spinner. */
+  .prose a.video-link:not(.as-words)::after,
+  .big-picture-middle.is-loading::after { corner-shape: round; border-radius: 50% !important; }
+}
