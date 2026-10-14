@@ -1,5 +1,6 @@
 import 'display_name.dart';
 import 'models/public_mod.dart';
+import 'models/public_mod_detail.dart';
 
 /// A mod's own page, at `mods/<id>/index.html`.
 ///
@@ -31,13 +32,29 @@ import 'models/public_mod.dart';
 const String modPageHeadStart = '<!--page-head-->';
 const String modPageHeadEnd = '<!--/page-head-->';
 
+/// The two marks inside `<main>` around what the page shows before its script
+/// has run. A mod's page puts the mod's own words there, so a search engine
+/// that reads the file without running the script still finds them. The
+/// script empties `<main>` as it starts, so a reader only ever sees the page
+/// the script draws.
+const String modPageBodyStart = '<!--page-body-->';
+const String modPageBodyEnd = '<!--/page-body-->';
+
 /// The page for [mod], built out of [shell] — the text of `site/index.html`.
 ///
 /// With no shell, or one that has lost its marks, this falls back to a small
 /// page that sends the reader to the site's hash address for the same mod. That
 /// still works and still carries the preview tags; the only thing lost is the
 /// address bar keeping the mod's own address.
-String buildModPageHtml(PublicMod mod, {String? shell}) {
+///
+/// With [detail], the mod's name, summary, links and forum post are also
+/// written into the page's body, between the body marks. A shell without
+/// those marks still gets its head swapped; only the body is left alone.
+String buildModPageHtml(
+  PublicMod mod, {
+  String? shell,
+  PublicModDetail? detail,
+}) {
   final name = mod.displayName ?? displayName(mod.name);
   final about = _describe(mod, name);
   final picture = _webPicture(mod.imageUrl);
@@ -51,7 +68,134 @@ String buildModPageHtml(PublicMod mod, {String? shell}) {
     return _redirectingPage(mod, name, about, picture);
   }
 
-  return shell.replaceRange(start, end + modPageHeadEnd.length, head);
+  final page = shell.replaceRange(start, end + modPageHeadEnd.length, head);
+  if (detail == null) return page;
+
+  final bodyStart = page.indexOf(modPageBodyStart);
+  final bodyEnd = page.indexOf(modPageBodyEnd);
+  if (bodyStart < 0 || bodyEnd < bodyStart) return page;
+  return page.replaceRange(
+    bodyStart + modPageBodyStart.length,
+    bodyEnd,
+    _bodyText(mod, detail, name),
+  );
+}
+
+/// What the page holds before its script runs: the mod's name, who made it,
+/// the author's own summary, the links that get it, what it needs, and the
+/// start of the author's forum post.
+///
+/// Only the author's own words go in. An AI summary or paragraph is left out,
+/// because a reader who chose "Never" for AI summaries must not see one, even
+/// for the moment before the script takes over. The post goes in as plain
+/// text, so it carries no pictures: a picture in the file starts downloading
+/// at once, and a reader who turned pictures off was promised nothing would be
+/// fetched.
+///
+/// Every address here is relative to the page's `<base>`, which is the site
+/// itself, so a link to another mod is `mods/<id>/`.
+String _bodyText(PublicMod mod, PublicModDetail detail, String name) {
+  final out = StringBuffer()..write('<article class="stack page-text">');
+  out.write('<h1>${_escape(name)}</h1>');
+
+  final facts = <String>[
+    if (mod.authors.isNotEmpty)
+      'A Starsector mod by ${_escape(mod.authors.join(', '))}.'
+    else
+      'A Starsector mod.',
+    if (mod.gameVersion != null) 'For Starsector ${_escape(mod.gameVersion!)}.',
+    if (mod.modVersion != null) 'Version ${_escape(mod.modVersion!)}.',
+  ];
+  out.write('<p>${facts.join(' ')}</p>');
+
+  final summary = mod.summary?.trim();
+  if (summary != null && summary.isNotEmpty && !mod.summaryIsGenerated) {
+    out.write('<p>${_escape(summary)}</p>');
+  }
+
+  final links = <String?>[
+    if (mod.bestDownload != null)
+      _link(mod.bestDownload!.url, _downloadWords(mod.bestDownload!)),
+    if (detail.forumUrl != null) _link(detail.forumUrl!, 'Forum thread'),
+    if (detail.discordUrl != null) _link(detail.discordUrl!, 'Discord post'),
+    if (detail.nexusUrl != null) _link(detail.nexusUrl!, 'Nexus Mods page'),
+    if (detail.sourceCodeUrl != null)
+      _link(detail.sourceCodeUrl!, 'Source code'),
+  ].whereType<String>().toList();
+  if (links.isNotEmpty) out.write('<p>${links.join(' · ')}</p>');
+
+  if (mod.needs.isNotEmpty) {
+    out.write('<h2>Requires</h2><ul>');
+    for (final needed in mod.needs) {
+      final words = _escape(needed.name);
+      out.write(needed.id == null
+          ? '<li>$words</li>'
+          : '<li><a href="mods/${Uri.encodeComponent(needed.id!)}/">'
+              '$words</a></li>');
+    }
+    out.write('</ul>');
+  }
+
+  final post = detail.descriptionIsGenerated ? null : detail.description;
+  final opening = post == null ? const <String>[] : postOpening(post);
+  if (opening.isNotEmpty) {
+    final heading =
+        detail.descriptionIsForumPost ? 'Forum post' : 'About this mod';
+    out.write('<h2>$heading</h2>');
+    for (final paragraph in opening) {
+      out.write('<p>${_escape(paragraph).replaceAll('\n', '<br>')}</p>');
+    }
+  }
+
+  out.write('</article>');
+  return out.toString();
+}
+
+/// The words for the mod's first download, matching what its button says.
+String _downloadWords(PublicBestDownload download) {
+  if (download.kind == 'trios') return 'Install with TriOS';
+  return download.needsAnotherStep ? 'Download page' : 'Download';
+}
+
+/// A link out, or null when the address is not a web address.
+String? _link(String url, String words) {
+  final address = _webPicture(url);
+  if (address == null) return null;
+  return '<a href="${_attribute(address)}" rel="nofollow noopener">'
+      '${_escape(words)}</a>';
+}
+
+/// How much of the post a mod's page file carries, in characters. Enough for
+/// the author's opening description, which is where the words people search
+/// for usually are. The whole post is on the page the script draws.
+const int postOpeningLength = 500;
+
+/// The first paragraphs of [post], the plain-text post, up to
+/// [postOpeningLength] characters. Whole paragraphs only, except when the
+/// first one is already too long: then it is cut at the last space before the
+/// limit and ends with "…".
+List<String> postOpening(String post) {
+  final paragraphs = post
+      .split(RegExp(r'\n\s*\n'))
+      .map((paragraph) => paragraph.trim())
+      .where((paragraph) => paragraph.isNotEmpty);
+
+  final kept = <String>[];
+  var length = 0;
+  for (final paragraph in paragraphs) {
+    if (length + paragraph.length <= postOpeningLength) {
+      kept.add(paragraph);
+      length += paragraph.length;
+      continue;
+    }
+    if (kept.isEmpty) {
+      final cut = paragraph.lastIndexOf(' ', postOpeningLength);
+      final end = cut > 0 ? cut : postOpeningLength;
+      kept.add('${paragraph.substring(0, end).trimRight()}…');
+    }
+    break;
+  }
+  return kept;
 }
 
 /// The head region this mod's page carries in place of the site's own.

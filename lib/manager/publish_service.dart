@@ -52,6 +52,8 @@ class PublishService implements JobRunner {
     'mods.json',
     'updates.json',
     'updates.xml',
+    'sitemap.xml',
+    'robots.txt',
   ];
 
   @override

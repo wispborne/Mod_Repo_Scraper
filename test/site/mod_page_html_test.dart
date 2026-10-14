@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:mod_repo_scraper/site/mod_page_html.dart';
 import 'package:mod_repo_scraper/site/models/public_mod.dart';
+import 'package:mod_repo_scraper/site/models/public_mod_detail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -25,7 +26,7 @@ void main() {
 </head>
 <body>
   <header class="site-header">Starmodder</header>
-  <main id="app"></main>
+  <main id="app"><!--page-body--><div class="loading">Loading…</div><!--/page-body--></main>
   <script type="module" src="app.js"></script>
 </body>
 </html>
@@ -63,7 +64,7 @@ void main() {
       final html = buildModPageHtml(modOf(), shell: shell);
 
       expect(html, contains('<header class="site-header">Starmodder</header>'));
-      expect(html, contains('<main id="app"></main>'));
+      expect(html, contains('<main id="app">'));
       expect(html, contains('<script type="module" src="app.js"></script>'));
       expect(html, contains('<link rel="stylesheet" href="style.css">'));
     });
@@ -142,6 +143,126 @@ void main() {
     });
   });
 
+  group('the mod\'s words are in the page before its script runs', () {
+    // A search engine that reads the file without running the script would
+    // otherwise find nothing but "Loading…".
+    PublicModDetail detailOf(
+      PublicMod mod, {
+      String? description = 'Diplomacy and invasions.',
+      bool descriptionIsGenerated = false,
+    }) =>
+        PublicModDetail(
+          generatedAt: DateTime.utc(2026, 10, 13),
+          listing: mod,
+          description: description,
+          descriptionIsGenerated: descriptionIsGenerated,
+          descriptionIsForumPost: true,
+          forumUrl: 'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+        );
+
+    String bodyOf(String html) => html.substring(
+        html.indexOf(modPageBodyStart), html.indexOf(modPageBodyEnd));
+
+    test('the name, the authors, the summary and the post are written in', () {
+      final mod = modOf();
+      final body =
+          bodyOf(buildModPageHtml(mod, shell: shell, detail: detailOf(mod)));
+
+      expect(body, contains('<h1>Nexerelin</h1>'));
+      expect(body, contains('A Starsector mod by Histidine.'));
+      expect(body, contains('For Starsector 0.98a.'));
+      expect(body, contains('Adds diplomacy, invasions and a 4X layer.'));
+      expect(body, contains('<p>Diplomacy and invasions.</p>'));
+      expect(body, contains('topic=9175.0'));
+      expect(body, isNot(contains('Loading…')));
+    });
+
+    test('a mod it needs links to that mod\'s page', () {
+      final mod = PublicMod(
+        id: 'nexerelin',
+        name: 'Nexerelin',
+        needs: [
+          PublicNeededMod(name: 'LazyLib', id: 'lazylib'),
+          PublicNeededMod(name: 'Some Other Lib'),
+        ],
+      );
+      final body =
+          bodyOf(buildModPageHtml(mod, shell: shell, detail: detailOf(mod)));
+
+      expect(body, contains('<a href="mods/lazylib/">LazyLib</a>'));
+      expect(body, contains('<li>Some Other Lib</li>'));
+    });
+
+    test('no AI words, even for the moment before the script runs', () {
+      // A reader who chose "Never" must not see them at all.
+      final mod = PublicMod(
+        id: 'x',
+        name: 'X',
+        summary: 'An AI summary.',
+        summaryIsGenerated: true,
+      );
+      final body = bodyOf(buildModPageHtml(mod,
+          shell: shell,
+          detail: detailOf(mod,
+              description: 'An AI paragraph.', descriptionIsGenerated: true)));
+
+      expect(body, isNot(contains('An AI summary.')));
+      expect(body, isNot(contains('An AI paragraph.')));
+    });
+
+    test('only the start of the post goes in, in whole paragraphs', () {
+      // The whole post is on the page the script draws; the file only needs
+      // the author's opening words.
+      final first = 'a' * 300;
+      final second = 'b' * 150;
+      final third = 'c' * 100;
+      final mod = modOf();
+      final body = bodyOf(buildModPageHtml(mod,
+          shell: shell,
+          detail: detailOf(mod,
+              description: '$first\n\n$second\nline two\n\n$third')));
+
+      expect(body, contains('<p>$first</p>'));
+      expect(body, contains('<p>$second<br>line two</p>'));
+      expect(body, isNot(contains(third)));
+    });
+
+    test('a first paragraph that is too long is cut at a space', () {
+      final words = List.filled(200, 'word').join(' ');
+      final opening = postOpening(words);
+
+      expect(opening, hasLength(1));
+      expect(opening.single, endsWith('word…'));
+      expect(opening.single.length, lessThanOrEqualTo(postOpeningLength + 1));
+    });
+
+    test('the post goes in as plain text, so it carries no pictures', () {
+      // A reader who turned pictures off was promised nothing is fetched.
+      final mod = modOf();
+      final body = bodyOf(buildModPageHtml(mod,
+          shell: shell, detail: detailOf(mod, description: 'A <b> & <img>')));
+
+      expect(body, contains('A &lt;b&gt; &amp; &lt;img&gt;'));
+      expect(body, isNot(contains('<img')));
+    });
+
+    test('without the mod\'s detail, the body is left as it was', () {
+      expect(bodyOf(buildModPageHtml(modOf(), shell: shell)),
+          contains('Loading…'));
+    });
+
+    test('a document with no body marks still gets its head swapped', () {
+      final mod = modOf();
+      final html = buildModPageHtml(mod,
+          shell: shell
+              .replaceAll(modPageBodyStart, '')
+              .replaceAll(modPageBodyEnd, ''),
+          detail: detailOf(mod));
+      expect(html, contains('<title>Nexerelin | Starmodder</title>'));
+      expect(html, isNot(contains('<h1>')));
+    });
+  });
+
   group('with no document to build from', () {
     // The site's own files are copied in beside the data; a copy that is
     // missing or has lost its marks is a log line, not a failed run. Each mod
@@ -177,6 +298,10 @@ void main() {
     expect(real, contains(modPageHeadEnd));
     expect(
         real.indexOf(modPageHeadStart), lessThan(real.indexOf(modPageHeadEnd)));
+    expect(
+        real.indexOf(modPageBodyStart), lessThan(real.indexOf(modPageBodyEnd)));
+    expect(real.indexOf('<main id="app"'),
+        lessThan(real.indexOf(modPageBodyStart)));
 
     // The base lands where the first mark is, and a base has to come before the
     // first relative address on the page.

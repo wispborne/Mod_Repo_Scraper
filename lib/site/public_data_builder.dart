@@ -30,6 +30,7 @@ import 'update_note.dart';
 import 'post_html.dart';
 import 'public_categories.dart';
 import 'release_feed_xml.dart';
+import 'sitemap.dart';
 import 'release_state_store.dart';
 import 'summary_text.dart';
 
@@ -196,6 +197,12 @@ class PublicDataBuilder {
   String get updatesXmlFilePath => p.join(siteDir, 'updates.xml');
 
   String get modsDir => p.join(siteDir, 'mods');
+
+  /// Every page's whole address, for search engines.
+  String get sitemapFilePath => p.join(siteDir, 'sitemap.xml');
+
+  /// Tells search engines they may read every page, and where the sitemap is.
+  String get robotsFilePath => p.join(siteDir, 'robots.txt');
 
   /// Turns the merged mods and the bundle into the three files' contents.
   ///
@@ -624,7 +631,8 @@ class PublicDataBuilder {
       if (owner == null) continue;
       final extras =
           _mainLlmMod(owner.mod, threads['${release.topicId}'])?.extras;
-      final currentVersion = _firstNonEmpty([extras?.version, owner.mod.modVersion]);
+      final currentVersion =
+          _firstNonEmpty([extras?.version, owner.mod.modVersion]);
       final note = updateNoteFor(
         extras?.updateNotes,
         version: release.newVersion,
@@ -694,6 +702,8 @@ class PublicDataBuilder {
         .writeAsString(encoder.convert(data.feed.toMap()));
     await File(updatesXmlFilePath)
         .writeAsString(buildReleaseFeedXml(data.feed));
+    await File(sitemapFilePath).writeAsString(buildSitemapXml(data.list));
+    await File(robotsFilePath).writeAsString(buildRobotsTxt());
 
     // Read once for the whole run: every mod's page is this same document.
     final shell = _readShell();
@@ -707,8 +717,9 @@ class PublicDataBuilder {
       // page per mod rather than one page for all of them.
       final folder = Directory(p.join(modsDir, entry.key));
       if (!folder.existsSync()) folder.createSync(recursive: true);
-      await File(p.join(folder.path, 'index.html'))
-          .writeAsString(buildModPageHtml(entry.value.listing, shell: shell));
+      await File(p.join(folder.path, 'index.html')).writeAsString(
+          buildModPageHtml(entry.value.listing,
+              shell: shell, detail: entry.value));
     }
 
     var dropped = 0;
@@ -760,7 +771,8 @@ class PublicDataBuilder {
     final discordUrl = _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]);
     final copiedSummary = summaryOfExcerpt(plainWordsOf(ownSection)) ??
         usableSummary(mod.summary) ??
-        summaryOfDiscordPost(discordUrl == null ? null : discordPosts[discordUrl]);
+        summaryOfDiscordPost(
+            discordUrl == null ? null : discordPosts[discordUrl]);
     final generatedSummary = usableSummary(extras?.summary?.sentence);
     final pictures = _picturesFor(mod, chosen, authorAvatarPath);
 
@@ -913,9 +925,10 @@ class PublicDataBuilder {
     // description is only that same post again, it is not shown twice.
     final discordUrl = _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]);
     final discordPost = discordUrl == null ? null : discordPosts[discordUrl];
-    final mergedDescription = !fromForum && sameWords(mod.description, discordPost)
-        ? null
-        : _firstNonEmpty([mod.description]);
+    final mergedDescription =
+        !fromForum && sameWords(mod.description, discordPost)
+            ? null
+            : _firstNonEmpty([mod.description]);
 
     final copiedDescription = usablePost?.words ??
         plainWordsOf(descriptionSection) ??
@@ -965,7 +978,8 @@ class PublicDataBuilder {
       // did.
       supportLinks: (extras?.supportLinks ?? const [])
           .where((l) => !SupportLinkType.isNeverSupport(l.url))
-          .map((l) => PublicSupportLink(url: l.url, type: l.type, label: l.label))
+          .map((l) =>
+              PublicSupportLink(url: l.url, type: l.type, label: l.label))
           .toList(),
       forumUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Forum]]),
       discordUrl: discordUrl,
@@ -1088,7 +1102,8 @@ class PublicDataBuilder {
       return sortedDownloads(chosen.downloads.map(_fromLlmDownload).toList());
     }
     if (threadDownloads.isNotEmpty) {
-      return sortedDownloads(threadDownloads.map(_fromAssumedDownload).toList());
+      return sortedDownloads(
+          threadDownloads.map(_fromAssumedDownload).toList());
     }
     final announced = discordDownloadFor(mod.getUrls());
     return announced == null ? const [] : [announced];
