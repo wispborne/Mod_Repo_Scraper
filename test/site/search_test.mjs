@@ -991,6 +991,48 @@ describe('asking about one field', () => {
       (mod) => (mod.sources || []).includes('forum') && !(mod.sources || []).includes('discord')));
   });
 
+  test('from is the same as source', () => {
+    for (const where of ['forum', 'discord', 'nexus']) {
+      assert.deepEqual(ids(`from:${where}`), ids(`source:${where}`), where);
+    }
+  });
+
+  test('has and is ask yes-or-no questions', () => {
+    // The fixture predates these fields, so the questions are put to a few
+    // records made up for the purpose.
+    const mods = [
+      { id: 'open', name: 'Open Ships', sourceIsPublic: true, hasDirectDownload: true },
+      { id: 'closed', name: 'Closed Ships', hasDirectDownload: true, saveCompatible: true },
+      { id: 'unfinished', name: 'Unfinished Ships', isWorkInProgress: true, sourceIsPublic: true },
+      { id: 'manager', name: 'Mod Manager', isTool: true },
+    ];
+    const found = (text) => searchMods(mods, text).map((mod) => mod.id).sort();
+    assert.deepEqual(found('has:source'), ['open', 'unfinished']);
+    assert.deepEqual(found('is:source'), ['open', 'unfinished']);
+    assert.deepEqual(found('has:code'), ['open', 'unfinished']);
+    assert.deepEqual(found('-has:source'), ['closed', 'manager']);
+    assert.deepEqual(found('has:download'), ['closed', 'open']);
+    assert.deepEqual(found('is:addable'), ['closed']);
+    assert.deepEqual(found('is:safe'), ['closed']);
+    assert.deepEqual(found('is:wip'), ['unfinished']);
+    assert.deepEqual(found('-is:wip'), ['closed', 'manager', 'open']);
+    assert.deepEqual(found('is:tool'), ['manager']);
+    assert.deepEqual(found('ships has:source -is:wip'), ['open']);
+    assert.deepEqual(found('is:tool, has:download'), ['closed', 'manager', 'open']);
+    assert.deepEqual(found('HAS:Source'), ['open', 'unfinished']);
+  });
+
+  test('a flag does not change the order the words give', () => {
+    assert.deepEqual(
+      ids('magic'),
+      searchMods(fixture.map((mod) => ({ ...mod, sourceIsPublic: true })), 'magic has:source')
+        .map((mod) => mod.id));
+  });
+
+  test('an unknown has: question is just words', () => {
+    assert.deepEqual(ids('has:pirates'), ids('has pirates'));
+  });
+
   test('url', () => {
     const urls = (mod) => [mod.forumUrl, mod.discordUrl, mod.bestDownload && mod.bestDownload.url];
     exactly('url:github', idsWhere((mod) => urls(mod).some((u) => normalize(u).includes('github'))));
