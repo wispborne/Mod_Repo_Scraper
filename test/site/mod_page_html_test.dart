@@ -174,7 +174,8 @@ void main() {
       expect(body, contains('Adds diplomacy, invasions and a 4X layer.'));
       expect(body, contains('<p>Diplomacy and invasions.</p>'));
       expect(body, contains('topic=9175.0'));
-      expect(body, isNot(contains('Loading…')));
+      // Shown instead of the words wherever scripts run.
+      expect(body, contains('</article><div class="loading">Loading…</div>'));
     });
 
     test('a mod it needs links to that mod\'s page', () {

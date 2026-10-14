@@ -147,7 +147,9 @@ String _bodyText(PublicMod mod, PublicModDetail detail, String name) {
     }
   }
 
-  out.write('</article>');
+  // Where scripts run, the stylesheet hides the words above and shows this
+  // until the script has drawn the page.
+  out.write('</article><div class="loading">Loading…</div>');
   return out.toString();
 }
 
