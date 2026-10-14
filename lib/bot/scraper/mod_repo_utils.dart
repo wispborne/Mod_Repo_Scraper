@@ -65,6 +65,7 @@ class ModRepoUtils {
     ["astarat.", "Astarat", "Astarat and PureTilt"],
     ["Yogurt Fox", "YogurtFox", "Mycophobia"],
     ["Belt", "woetothee"],
+    ["DeCell", ".7556"],
   ];
 
   /// Splits an author credit like "Ed, Nick XR & Foo and Bar" into the
