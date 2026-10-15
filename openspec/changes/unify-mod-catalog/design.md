@@ -1,108 +1,226 @@
 ## Context
 
-Today two pipelines each produce a file, and three places merge them:
+The current catalog is assembled in three places:
 
-1. `ModMerger` merges forum board and index listings (`ForumScraper`), Discord threads and Nexus pages into `ModRepo.json`. It groups by forum topic id first, so one forum topic is at most one mod.
-2. `PublicDataBuilder` reads `ModRepo.json` and `forum-data-bundle.json`, finds each mod's topic by pulling `topic=<id>` out of its forum URL, and then decides by name which LLM mod on that topic is which merged mod (`_mainLlmMod`). It invents a stand-in mod for every grounded LLM main mod nothing accounts for (`_threadOnlyMods`). Since the save-notes change, `_releasesByMod` also calls `_mainLlmMod`.
-3. TriOS does its own version of step 2 (`withSynthesizedAddonEntries`, `_isTheCatalogEntry`).
+1. `ModMerger` combines `ForumScraper`, Discord and Nexus results into `ModRepo.json`. Grouping by forum topic limits a topic to one mod.
+2. `PublicDataBuilder` joins that catalog to `forum-data-bundle.json`. It extracts topic ids from URLs, matches LLM mods by name (`_mainLlmMod`) and adds unmatched grounded main mods (`_threadOnlyMods`). Release notes and display names also depend on those matches through `_releasesByMod` and `_shownNameFor`.
+3. TriOS repeats the matching and synthesis through `withSynthesizedAddonEntries` and `_isTheCatalogEntry`.
 
-The forum is scraped twice. `ForumScraper` reads the mod index and the newest board pages and keeps only a name, author, game version, URL and category. QB reads the same pages and then every topic, but keeps only "topic → category" from the index. Measured on current data: the mod index has 1,245 lines over 545 topics, and 19 topics have more than one name (mostly spellings of one mod; three or four real splits such as topic 21968). The QB store has 1,025 kept topics, against the 737 forum topics in `ModRepo.json`.
+The two forum scrapers retain different data. `ForumScraper` reads the mod index and recent board pages for names, authors, versions, URLs and categories. QB also reads each topic, but retains only its category from the mod index.
 
-Terms used here are defined in `CONTEXT.md`: source post, opening run, mod index, listing, mod, Collection, add-on, variant, permanent id.
+The Discord reader stores the first message as a description and selects one download and one forum link from the author's messages. The LLM reads none of them. `PublicSiteStep.afterMerge` writes that first message to `discord-posts.json`, keyed by URL, for the site's post panel.
+
+Current data provides the migration baseline:
+
+| Data | Size |
+| --- | --- |
+| Mod index | 1,245 lines across 545 topics |
+| Topics with several index names | 19; mostly alternate names, with three or four real splits such as topic 21968 |
+| Topics kept by QB | 1,025 |
+| Forum topics in `ModRepo.json` | 737 |
+| Discord posts | 624; median 620 characters, maximum 3,954 |
+| Discord-only mods in `ModRepo.json` | 199 |
+
+The Nexus reader retains page descriptions, but no Nexus mods appear in the current output; that source is not running.
+
+Use the terms in `CONTEXT.md`: source post, opening run, mod index, listing, mod, Collection, add-on, variant and permanent id.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- One merge, over listings from every source, whose result the site and TriOS read without matching anything by name.
-- One forum scraper.
-- Every permanent id that exists today keeps its address.
-- With the LLM off, the catalog is still complete.
+
+- Merge listings once, then let the site and TriOS retrieve facts by explicit references.
+- Give Discord-only mods the same LLM extraction as forum mods.
+- Use one forum scraper.
+- Preserve every existing permanent address.
+- Keep a complete catalog with the LLM off.
 
 **Non-Goals:**
-- Discord threads holding several mods. Discord still gives one listing per thread. The listing model leaves room for it later.
-- Any change to Nexus.
-- Publishing Discord message text.
-- Giving releases on a shared topic to the right mod. Release tracking stays per forum topic (`ThreadVersionState` by `topicId`), as today.
-- Keeping old TriOS copies up to date. Their two files are frozen.
+
+- New Nexus extraction. The source post model can support a Nexus builder later; there is no current production data to validate it.
+- Discord message text in the bundle. The site continues to show the local Discord post panel.
+- Discord-only releases in the feed. Their versions can appear on mod pages, but the release detector still uses forum `ThreadVersionState` keyed by `topicId`.
+- Per-mod releases on shared topics. Release tracking remains per forum topic.
+- Updates for old TriOS installs. Their files are frozen.
 
 ## Decisions
 
-### The LLM reads each source post before the merge, not the merged groups after it
+### Extract source posts before merging
 
-The LLM's answer for a topic is turned into listings, and those go into the one merge with everything else.
+Each source post's LLM result becomes listings. Those listings join the rules listings in one merge.
 
-*Alternative considered:* merge first by rules, then give the LLM each merged group (the mod plus all its forum and Discord posts) and let it enrich and split. Rejected for two reasons. First, when the LLM splits a group into several mods, those new mods have to be matched against Discord and Nexus again, which needs a second merge — today's `_threadOnlyMods` under another name. Second, the LLM cache is keyed per topic on the post's text. A merged group changes whenever the merge pulls a Discord post in or out, so keying on groups would make the model read topics again for no new information, and that costs money.
+Merging first and asking the LLM to enrich or split each merged group would require another merge after a split. It would recreate the site's current synthesis step. It would also invalidate cached extraction whenever a group gained or lost a source post, even if no post text changed. Per-source extraction avoids both problems and lets Discord use the existing cache model.
 
-### One rules listing per forum topic; the LLM does the splitting
+### Use one extractor for forum and Discord
 
-The mod index names more than one mod for 19 topics, but most of those are spellings of one mod ("Exalted" / "The Exalted"), and no rule can tell them from a real split ("Red" / "Blue"). So the rules give one listing per topic, and the other index names are kept as other names on it. That matches today's `ModRepo.json`, because `ModMerger` already groups by topic.
+`PostExtractor` will accept a `SourcePost` instead of `QbModDetail`. The model contains a source kind and id, title, author, link and opening run. Each post has HTML, links, images and a date.
 
-*Alternative considered:* one listing per different index name. Rejected because it would split spellings of one mod into separate mods with separate permanent ids.
+The forum adapter uses `QbModDetail.title`, `openingPosts`, `allLinks` and `allImages`. It must produce the same prompt as today.
 
-### How a topic's listings combine
+The Discord adapter supplies:
 
-This is the rule from the `mod-catalog` spec (no main mods: rules listing alone; one: they are one listing; two or more: the rules listing joins the one whose name matches, otherwise the topic is a Collection). It is today's site and TriOS behaviour moved to before the merge, so what it decides does not change, only where.
+| Field | Value |
+| --- | --- |
+| Title | Thread name |
+| Author | First message's author |
+| Opening run | First message with text, then consecutive messages by that author. Stop at the first other author or ten messages. |
+| HTML and links | Convert each message through `discordMarkdownAsHtml` in `lib/site/discord_markdown.dart`, then `cleanPostHtml`. |
+| Images | Message image attachments |
 
-Grounding is the existing check: the name must appear in the opening run, and a download must be tied to it. Matching uses `modNamesMatch`, never `ModIdStore.cleanName` (see CLAUDE.md, "Matching is `mod_name_match.dart`, not `cleanName`").
+Discord updates often follow the announcement, so the opening run can supply a changelog. `PostReducer` retains links beside their text as `[link: <url>]`. Grounding checks names, nicknames, URLs and quoted text against that same opening run.
 
-The new code lives in one place, a `ForumListings` step that takes a `QbModSummary` (with its index lines and LLM answer) and the topic's detail, and returns listings. `ModMerger` is given listings and does not know where they came from.
+A separate Discord extractor would duplicate the prompt. Fixes for support links, tools, nicknames and save compatibility answers would then need to be made in both extractors.
 
-### What a listing is in code
+### Cache Discord results separately without invalidating forum results
 
-A listing is a `ScrapedMod` plus a `SourcePostRef` saying where it came from (`kind`: forum / discord / nexus, `id`, and for an LLM listing `llmModName`) and how it was found (`rules` / `llm`). Keeping `ScrapedMod` as the body means `ModMerger`'s grouping, matching, author tidying and category tidying all keep working unchanged. A merged mod keeps the refs of every listing that went into it.
+Use the existing `llm-extraction-cache.json`. Forum keys remain bare topic ids; Discord keys are `discord:<thread id>`. Freshness still depends on the post fingerprint, prompt version and field set.
 
-*Alternative considered:* a new listing model from scratch. Rejected for this change: it would mean rewriting `ModMerger` at the same time as changing what goes into it, and the comparison step could not tell which change caused a difference.
+Keep the system prompt unchanged when adding Discord. It already describes a thread, title and posts. Add a user-prompt header identifying a Discord announcement thread and its title.
 
-### Permanent ids are found by source post, not by name
+Discord uses `ExtractionPrompt.discordPromptVersion`, starting at 1. Changing its header bumps only that version. Changing the shared system prompt or field set bumps both forum and Discord versions. A shared version would make a Discord wording fix reprocess about 1,000 forum topics as well as 620 short Discord posts.
 
-`ModIdStore` moves out of the site build and into the merge. Each entry in `mod-ids.json` gains a list of source post refs. To find a mod's id, the merge looks through the mod's refs for one that already has an id; only if none does is the id worked out from the name, as today. If a mod's refs point at two different ids, the older id wins and the clash is logged — that is two pages becoming one, and someone should look at it.
+### Save Discord opening runs during scraping
 
-*Alternative considered:* keep looking ids up by name and make the new merge choose names exactly as the old one did. Rejected because the new merge will choose names differently (index names and LLM names are now in play), and it would tie every future change to the merge to "don't change which name wins".
+The Discord scrape owns `discord-posts.json`. It writes the file with `discord_cache.json` only after a successful scrape, under the same all-or-nothing rules. The file is keyed by thread id and contains each thread's source post: title, author, link and opening run.
 
-A one-time command (`bin/link_mod_ids.dart`) fills in the refs for every existing id from the current published site data (`outputs/site/mods/<id>.json` already holds each mod's forum URL, Discord URL and, for thread-only mods, its LLM name). It is safe to run again.
+`PublicSiteStep.afterMerge` stops writing the file. The site's panel retrieves the first message through the mod's Discord source reference. It can still read the old URL-keyed string format until the next scrape replaces it; that old format supplies no LLM input.
 
-### A Collection that had an id keeps a page
+Coverage and saved-data merges read this file without fetching Discord.
 
-When a topic becomes a Collection and its rules listing had an id, the id stays reserved and the site publishes a small page at that address that names the topic and links to each mod on it. It uses the same `index.html` head swap as mod pages (`mod_page_html.dart`). A Collection that never had an id gets no page.
+### Include Discord in the coverage pass
 
-*Alternatives considered:* let the page disappear (breaks shared links), or keep publishing the collection as a mod (it isn't one, and its download button would offer whichever mod came first).
+`ScraperService._llmCoveragePass` visits forum topics, then saved Discord threads. Both sources share `llm_max_topics` for live calls and `llm_max_concurrent_calls` for concurrency. Report coverage, live calls and missing answers separately for each source.
 
-### Two new files; the old ones are frozen
+ModRepo jobs continue to make no LLM calls. A thread fetched by `scrapeAndMerge` gets extraction in the next QB coverage pass, followed by a merge. Production already runs ModRepo before QB in one CLI invocation, so new Discord threads can be extracted in that run.
 
-`ModRepo-v2.json` holds one record per mod: its permanent id, the fields `ModRepo.json` holds, and its source post refs. Facts that live in the forum bundle (the post, downloads, LLM extras) are not copied in; readers look them up in `forum-data-bundle-v2.json` by topic id and LLM mod name. `forum-data-bundle-v2.json` starts as the same shape as today's bundle.
+Resolve both the Discord rules listing's download and LLM downloads through `QbDownloadResolver` and `DownloadableProbeCache`, using the forum's host rules. Cache Discord results under `discord:<thread id>`.
 
-Being new files, neither is tied to the value lists in old TriOS (`ModSource`, `ModUrlType`), which make old TriOS fail to read a file containing a value it doesn't know.
+### Build one rules listing per source post
 
-*Alternative considered:* add fields to `ModRepo.json` and keep writing it. Old TriOS skips unknown fields, so this would have worked, but it would tie the file to old TriOS's value lists for ever. The user chose a clean new file and a frozen old one.
+A forum topic gets one rules listing. Its other mod index names remain alternate names on that listing. Nineteen topics have several index names, but fixed rules cannot reliably distinguish an alternate spelling such as "Exalted" / "The Exalted" from two different mods such as "Red" / "Blue". Creating a listing for each name would assign different permanent ids to spellings of one mod.
 
-Freezing means old TriOS copies show the catalog as it was on the day of the switch, and get no later LLM fixes either. That is accepted.
+A Discord rules listing retains today's Discord `ScrapedMod` fields.
 
-### The merge runs after every job that changes listings
+### Prefer the current mod index
 
-`fullRun`, `rescrapeTopics`, `extractLlm`, `llmCoveragePass` and `rebuildBundle` end with: rebuild bundle → merge → site build. The merge reads the QB store and the Discord and Nexus caches, makes no network call and takes seconds. `mergeModRepo` and `scrapeAndMerge` stay as job kinds, minus the forum source.
+When the current index lists a topic, use only its current lines. Fall back to older index posts only for topics absent from the current index. This preserves `ForumScraper.parseModIndex`'s existing rule when that scraper is removed.
+
+Without this rule, the merge's highest-version selection lets an archived "[0.97a]" override the current "[-]" for TriOS, topic 29674.
+
+The QB board scraper keeps pinned topics listed in the current mod index. This is how TriOS itself enters the QB store, which becomes the only forum source.
+
+### Combine rules and LLM listings before the merge
+
+`SourcePostListings` takes a rules listing, the LLM result and the source post. It applies the same rule to forum and Discord:
+
+| Grounded LLM main mods | Result |
+| --- | --- |
+| None | Keep the rules listing. |
+| One | Combine it with the rules listing, even if their names differ. |
+| Two or more, with a name match | Create one listing per main mod; combine the rules listing with the matching mod. |
+| Two or more, with no name match | Create one listing per main mod; classify the source post as a Collection and drop the rules listing. |
+
+A grounded main mod has a name in the opening run and a download tied to it. Match names and grounded nicknames with `modNamesMatch`, including the rules listing's alternate names. Do not use `ModIdStore.cleanName` for matching; see CLAUDE.md. For example, topic 21968's index name "Pirate Collection" can match a mod whose post identifies it as a former name.
+
+For forum topics, this moves the site's and TriOS's existing combination rule before the merge. For Discord, it adds support for several mods in one thread.
+
+Each Discord LLM listing retains the thread's forum link. It can then enter the existing topic bucket, where `_namesLookRelated` distinguishes mods sharing a topic. Hartley's Discord threads already use this path to reach their individual mods on Collection topic 34161.
+
+### Retain ScrapedMod as the listing body
+
+A listing contains a `ScrapedMod`, a `SourcePostRef` and its origin (`rules` or `llm`). The ref holds `kind` (`forum`, `discord` or `nexus`), `id` and, for LLM listings, `llmModName`. The merged mod retains all contributing refs.
+
+This preserves the merge's grouping, matching, author cleanup and category cleanup. Replacing `ScrapedMod` too would add a second source of differences to the migration comparison. `ModMerger` receives listings without needing to know how they were extracted.
+
+### Choose facts by source precedence
+
+For each field, prefer the forum LLM result. Discord fills fields the forum leaves empty. The forum usually holds the full write-up; Discord usually holds a short announcement.
+
+Downloads are one field, selected in this order:
+
+1. Forum LLM downloads, if present.
+2. Discord LLM downloads, if present.
+3. The existing Discord rules-link fallback in `discord_download.dart`.
+
+The mod version is an exception: choose the higher version using TriOS's `compareVersions`, since Discord may announce a release before the forum is updated. When two results come from the same source kind, prefer the newer source post.
+
+### Assign permanent ids in the merge
+
+Move `ModIdStore` from the site build into the merge. Add source post refs to `mod-ids.json`. Look up a mod's refs first; use name-based assignment only when none has an id. If refs point to two ids, retain the older id and log the conflict for review.
+
+Keeping name-based lookup would make every naming improvement risk a changed address. Source references let index and LLM names change while the id stays fixed.
+
+Before removing the site's matching code, run `bin/link_mod_ids.dart` to link existing ids using `outputs/site/mods/<id>.json`. Those files contain forum and Discord URLs and the LLM names of thread-only mods. For a merged mod on a topic with several LLM main mods, use today's `_mainLlmMod` result to include its LLM name in the ref.
+
+That name distinguishes mods sharing a topic: Hartley's three Discord mods would otherwise all receive bare topic 34161 refs. The linking command is safe to repeat.
+
+### Preserve existing Collection addresses
+
+A Collection whose rules listing had an id keeps that id reserved. Publish a page at its existing address, naming the source post and linking to its mods. Use `mod_page_html.dart` to replace the page template's HTML head, as mod pages do. A Collection without an existing id gets no page.
+
+The current example is topic 34457, published as `derelict-start-remnant-start-omega-start-threat-start`, which contains four start-option mods. Dropping the page would break shared links. Keeping it as a mod would give it an arbitrary member's download button.
+
+### Write v2 files and freeze the old files
+
+| File | Contents |
+| --- | --- |
+| `ModRepo-v2.json` | Permanent id, existing catalog fields and source post refs for each mod. Bundle facts are looked up by ref rather than copied here. |
+| `forum-data-bundle-v2.json` | Existing forum bundle shape plus `discordThreads`: thread id, link, title and LLM mods with downloads and extras. No Discord message text. |
+
+Keep the name "Forum Data Bundle" for reader familiarity. A separate Discord bundle would require readers to fetch and join another file for the same source-ref lookup.
+
+Old TriOS ignores unknown fields but fails on unknown `ModSource` or `ModUrlType` enum values. New filenames remove that compatibility constraint. After the switch, no code writes `ModRepo.json` or `forum-data-bundle.json`. Old TriOS installs retain their last catalog and receive no later LLM fixes; this is accepted.
+
+### Merge after jobs that change listings
+
+`fullRun`, `rescrapeTopics`, `extractLlm`, `llmCoveragePass` and `rebuildBundle` finish with:
+
+`rebuild bundle → merge → build site`
+
+The merge reads the QB store, `discord-posts.json`, LLM store and Discord/Nexus caches. It takes seconds and makes no network calls. Keep `mergeModRepo` and `scrapeAndMerge`, removing their forum scraping source.
+
+### Read display names from listings
+
+Today `_shownNameFor` uses an LLM name only when it agrees with the topic title. This helps with titles such as "Sea of Stars 0.5.1 - Go Beyond the Persean Sector", while keeping "Red" from becoming "Red - the Oculian Armada".
+
+After this change, the site reads that name from the mod's LLM listing instead of calling `_mainLlmMod`. Keep the title-agreement check, including for Discord thread names.
 
 ## Risks / Trade-offs
 
-- [An existing id disappears or moves] → The one-time id linking, plus the switch-over comparison that refuses to switch while any existing id disappears other than the expected Collections.
-- [The LLM wrongly calls a topic a Collection and drops a real mod's rules listing] → Only grounded main mods count, and it takes two of them with no name match. The comparison lists every new Collection for a person to check before the switch. The patch-file prompt rule (`b5d5e86`) already cuts the commonest fake mods.
-- [About 290 more forum topics become mods, some of which are not mods] → They already appear on the site through `_threadOnlyMods`, so the site's count barely moves. The comparison lists every new mod.
-- [Comparison runs on a mix of LLM answers] → The prompt is at version 18 and every topic is being read again. Run the comparison after that pass finishes, or on a frozen copy.
-- [Old TriOS copies drift out of date] → Accepted. New TriOS reads the v2 files.
-- [`ModRepo-v2.json` merges a Discord listing to the wrong one of several mods on a topic] → The same risk the merge has today for any two mods with similar names. Merge debug now records which listing came from which source post, so it can be seen in the viewer.
+| Risk | Response |
+| --- | --- |
+| An existing id disappears or changes address | Link ids first. Block the switch if comparison loses an existing mod id, except ids becoming Collection pages. |
+| The LLM classifies a real mod as a Collection | Require two grounded main mods and no name match. Review every new Collection. The patch-file prompt rule in `b5d5e86` already prevents a common source of false mods. |
+| Forum-tested prompts perform poorly on Discord | Add saved Discord threads to live-model tests. Review every Discord Collection and thread producing several listings. |
+| Discord replaces a better forum fact | Only fill empty forum fields, except version, which takes the higher value. |
+| About 290 more forum topics become mods, including some that may not be mods | Their LLM mods already appear through `_threadOnlyMods`, so the site count should change little. Compare every new mod. |
+| Comparison uses mixed extraction versions | Finish the forum version-23 pass and first Discord pass, or compare a frozen copy. |
+| Old TriOS installs become stale | Accepted; updated TriOS reads v2 files. |
+| A Discord listing joins the wrong mod on a shared topic | Existing similar-name matching risk remains. Include listing origins in merge debug so the viewer exposes these matches. |
 
 ## Migration Plan
 
-1. Store mod index lines on `QbModSummary` and re-run a QB scrape so every topic has them.
-2. Build the listing model and the forum listing step. Feed `ModMerger` from the QB store and the existing Discord and Nexus caches. Keep writing `ModRepo.json` the old way side by side during development only, so the two can be compared.
-3. Run `bin/link_mod_ids.dart` on a copy of `qb_data`.
-4. Move id assignment into the merge, write `ModRepo-v2.json` and `forum-data-bundle-v2.json`, and point the site builder at them. Remove `_threadOnlyMods`, `_mainLlmMod` and the topic-id guessing.
-5. Run the switch-over comparison on a copy of the real data. Fix and repeat until no existing id disappears other than the expected Collections.
-6. Switch production: stop writing the old files, delete `ForumScraper` and its config keys, run the linking step on the real `qb_data`, then the first real run.
-7. Separately, in the TriOS repo: read the v2 files and drop `withSynthesizedAddonEntries` and `_isTheCatalogEntry`.
+1. Add mod index lines to `QbModSummary` and scrape QB again to populate them.
+2. Save Discord opening runs and run a Discord scrape.
+3. Adapt the extractor to `SourcePost`, add Discord coverage and run until every Discord thread has an answer.
+4. Build listings and feed them to `ModMerger` from QB, Discord/Nexus caches and LLM results. During development only, keep the old pipeline writing `ModRepo.json` alongside it for comparison.
+5. Run `bin/link_mod_ids.dart` on a copy of `qb_data`.
+6. Move id assignment into the merge, write v2 files and switch the site builder. Remove `_threadOnlyMods`, `_mainLlmMod` and topic-id guessing.
+7. Compare copied real data against the published site. Fix differences and repeat until every existing mod id survives, except ids becoming Collection pages.
+8. Switch production:
+   - Stop writing the old files.
+   - Delete `ForumScraper` and its config keys.
+   - Update `tool/update-mod-repo.sh` to check and name the v2 files.
+   - Run id linking on real `qb_data`, then run the new pipeline.
+9. In a separate TriOS change, read v2 files and remove `withSynthesizedAddonEntries` and `_isTheCatalogEntry`.
 
-Rollback before step 6 is free: production still runs the old code. After step 6, rolling back means restoring `mod-ids.json` from before the linking step and reverting the commit. The frozen old files are still in the target repo, untouched.
+The cron script deletes local `outputs/` before each run. After the switch, the frozen files therefore exist only in the publish repo. The script copies new files into that repo without deleting old ones, so the frozen files remain.
+
+Steps 2 and 3 can reach production early. They add cached Discord answers that no consumer uses until step 6, allowing coverage to finish before comparison.
+
+Before step 8, rollback needs no migration: production still uses the old code. After step 8, restore `mod-ids.json` from before linking and revert the implementation commit. The frozen output files remain in the publish repo.
 
 ## Open Questions
 
-- Is the first index line always the best name for a topic? Index order is the forum staff's, not ours. The comparison will show how often this picks a worse name than today; if it is often, prefer the line whose name best matches the topic title.
-- Does any real Discord thread link to a Collection topic rather than to one of its mods? If so, its listing has no single mod to join. Proposed: it joins nothing by topic and goes through the ordinary name matching. Check on real data during step 5.
+- Does the first mod index line provide a good name? Compare its choices with today's names. If it often chooses poorly, prefer the line matching the topic title. Topic 21968 is a likely case: its first line may name the whole Yunru pack "Midline Expansion".
+- Should Discord-only mods enter the release feed? That requires version tracking per source post instead of per forum topic and belongs in a later change.
