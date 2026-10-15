@@ -1716,7 +1716,7 @@ export function versionStandingNote(standing) {
 /// What the version badge beside a mod's name means. The game version badge
 /// next to it explains itself, so this one should too.
 export const MOD_VERSION_NOTE =
-  "The mod version reported by the author.";
+  "Mod version";
 
 // --- Dates ---
 

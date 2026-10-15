@@ -671,8 +671,14 @@ function downloads(detail) {
 }
 
 function downloadRow(download) {
+  // The file's name where we know it, then the link's own words from the post
+  // (or the name the AI gave it). The words after that are ours, and
+  // "Download" is only used where the link gets you the file.
   const label = download.kind === 'trios' ? 'Install with TriOS'
-    : download.fileName || (download.kind === 'mirror' ? 'Mirror' : 'Download');
+    : download.fileName || download.label
+      || (download.needsAnotherStep ? 'Download page'
+        : download.kind === 'mirror' ? 'Mirror' : 'Download');
+  const where = download.url ? `${download.url}` : "...something";
   return el('div', { class: 'download' }, [
     el('a', {
       class: 'download-name',
@@ -681,7 +687,7 @@ function downloadRow(download) {
       target: '_blank',
       text: label,
       title: download.needsAnotherStep
-        ? "Opens the download page rather than the file."
+        ? `Opens ${where}`
         : (download.kind === 'mirror' ? 'A mirror of the main download.' : null),
     }),
     download.host ? el('span', { class: 'badge', text: download.host }) : null,

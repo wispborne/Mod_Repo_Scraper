@@ -11,7 +11,7 @@ One thing a source published that might describe mods: a forum topic, a Discord 
 _Avoid_: Document, thread (when the source isn't the forum), topic (when the source isn't the forum)
 
 **Opening run**:
-The part of a source post that counts as the author's own words: the first post, plus each post straight after it by the same author, stopping at the first reply by anyone else.
+The part of a source post that counts as the author's own words: the first post (or, on Discord, the first message), plus each one straight after it by the same author, stopping at the first reply by anyone else.
 _Avoid_: First post (when the later posts are meant too)
 
 **Mod index**:

@@ -138,6 +138,20 @@ function rememberFilters(hash) {
   }
 }
 
+/// Drops the saved search text, keeping every other filter. The "Browse mods"
+/// entry at the top calls this, so pressing it opens Browse with an empty
+/// search box, as a fresh visit would.
+export function forgetSearch() {
+  try {
+    const saved = new URLSearchParams(localStorage.getItem(FILTERS_KEY) || '');
+    saved.delete('q');
+    if (saved.get('sort') === 'relevance') saved.delete('sort');
+    localStorage.setItem(FILTERS_KEY, saved.toString());
+  } catch {
+    // Without storage nothing was saved, so there is nothing to forget.
+  }
+}
+
 export async function render(root, parts) {
   const list = await modList();
   const mods = list.mods || [];

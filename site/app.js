@@ -84,6 +84,11 @@ function renderNav(viewId) {
       stopWatchingList = watchFavorites(draw);
       link.append(count);
     }
+    // Opens Browse with the search box empty. The other filters are kept.
+    // Runs before the site's own link handling, which listens on the page.
+    if (item.route === 'browse') {
+      link.addEventListener('click', () => browse.forgetSearch());
+    }
     nav.append(link);
   }
 }
