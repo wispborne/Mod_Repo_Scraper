@@ -214,14 +214,14 @@ export function describeJob(request) {
       return 'Run LLM extraction for stored topics with missing or outdated results, '
         + 'up to the per-run call limit. Uses saved posts. LLM calls may cost money.';
     case 'rebuildBundle':
-      return 'Rebuild forum-data-bundle.json from saved data. No network or LLM calls.';
+      return 'Rebuild forum-data-bundle-v2.json from saved data. No network or LLM calls.';
     case 'llmTest':
       return 'Test the LLM prompt on a few topics and save a report. '
         + 'Other data stays unchanged. LLM calls may cost money.';
     case 'mergeModRepo':
-      return 'Merge saved sources into ModRepo.json. No network or LLM calls.';
+      return 'Merge saved sources into ModRepo-v2.json. No network or LLM calls.';
     case 'scrapeAndMerge':
-      return `Fetch ${listSources(request.modSources)}, then merge into ModRepo.json. `
+      return `Fetch ${listSources(request.modSources)}, then merge into ModRepo-v2.json. `
         + 'This makes network requests. No LLM calls.';
     case 'publishOutputs':
       return 'Publish the current outputs and website to the GitHub repo TriOS reads. '

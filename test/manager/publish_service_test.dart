@@ -45,8 +45,8 @@ void main() {
             .trim());
 
     void writeOutputs(String modRepo, String bundle) {
-      File(p.join(outputs, 'ModRepo.json')).writeAsStringSync(modRepo);
-      File(p.join(outputs, 'forum-data-bundle.json')).writeAsStringSync(bundle);
+      File(p.join(outputs, 'ModRepo-v2.json')).writeAsStringSync(modRepo);
+      File(p.join(outputs, 'forum-data-bundle-v2.json')).writeAsStringSync(bundle);
     }
 
     setUp(() {
@@ -64,8 +64,11 @@ void main() {
       _git(['init', '--bare', '--initial-branch=main', remote]);
       final seed = p.join(tmp.path, 'seed');
       _git(['clone', remote, seed]);
-      File(p.join(seed, 'ModRepo.json')).writeAsStringSync('old repo');
-      File(p.join(seed, 'forum-data-bundle.json')).writeAsStringSync('old bundle');
+      File(p.join(seed, 'ModRepo-v2.json')).writeAsStringSync('old repo');
+      File(p.join(seed, 'forum-data-bundle-v2.json')).writeAsStringSync('old bundle');
+      // The frozen files, which old TriOS installs read.
+      File(p.join(seed, 'ModRepo.json')).writeAsStringSync('frozen repo');
+      File(p.join(seed, 'forum-data-bundle.json')).writeAsStringSync('frozen bundle');
       _git(['add', '-A'], cwd: seed);
       _git(['-c', 'user.email=t@t', '-c', 'user.name=Test', 'commit', '-m',
         'seed'], cwd: seed);
@@ -116,8 +119,21 @@ void main() {
       expect(outcome.cancelled, isFalse);
       expect(outcome.itemsDone, 2);
       expect(remoteCommitCount(), before + 1);
-      expect(remoteContent('ModRepo.json'), 'new repo');
-      expect(remoteContent('forum-data-bundle.json'), 'new bundle');
+      expect(remoteContent('ModRepo-v2.json'), 'new repo');
+      expect(remoteContent('forum-data-bundle-v2.json'), 'new bundle');
+    }, skip: _gitIsThere() ? false : 'git is not installed');
+
+    test('the frozen ModRepo.json and forum-data-bundle.json are left as they were', () async {
+      writeOutputs('new repo', 'new bundle');
+      // Even a local copy of an old file is never carried across.
+      File(p.join(outputs, 'ModRepo.json')).writeAsStringSync('stale local repo');
+      File(p.join(outputs, 'forum-data-bundle.json')).writeAsStringSync('stale local bundle');
+
+      await service.runJob(JobRequest.publishOutputs(), reporter: reporter);
+
+      expect(remoteContent('ModRepo-v2.json'), 'new repo');
+      expect(remoteContent('ModRepo.json'), 'frozen repo');
+      expect(remoteContent('forum-data-bundle.json'), 'frozen bundle');
     }, skip: _gitIsThere() ? false : 'git is not installed');
 
     test('nothing changed means no commit and no push', () async {
@@ -163,7 +179,7 @@ void main() {
 
       expect(outcome.cancelled, isTrue);
       expect(remoteCommitCount(), before);
-      expect(remoteContent('ModRepo.json'), 'old repo');
+      expect(remoteContent('ModRepo-v2.json'), 'old repo');
       expect(reporter.logs.any((l) => l.contains('left as it was')), isTrue);
     }, skip: _gitIsThere() ? false : 'git is not installed');
 
@@ -176,8 +192,8 @@ void main() {
 
       // One commit, and everything in it.
       expect(remoteCommitCount(), before + 1);
-      expect(remoteContent('ModRepo.json'), 'new repo');
-      expect(remoteContent('forum-data-bundle.json'), 'new bundle');
+      expect(remoteContent('ModRepo-v2.json'), 'new repo');
+      expect(remoteContent('forum-data-bundle-v2.json'), 'new bundle');
       expect(remoteContent('mods.json'), '{"mods": []}');
       expect(remoteContent('updates.json'), '{"releases": []}');
       expect(remoteContent('mods/nexerelin.json'), '{"id": "nexerelin"}');
@@ -213,8 +229,8 @@ void main() {
 
       expect(outcome.cancelled, isFalse);
       expect(remoteCommitCount(), before + 1);
-      expect(remoteContent('ModRepo.json'), 'new repo');
-      expect(remoteContent('forum-data-bundle.json'), 'new bundle');
+      expect(remoteContent('ModRepo-v2.json'), 'new repo');
+      expect(remoteContent('forum-data-bundle-v2.json'), 'new bundle');
       expect(inRemote('mods.json'), isFalse);
       expect(
           reporter.logs.any((l) => l.contains('website files were not there')),

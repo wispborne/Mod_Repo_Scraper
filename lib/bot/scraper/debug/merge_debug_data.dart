@@ -1,3 +1,4 @@
+import '../../../catalog/listing.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
 import '../scraped_mod.dart';
@@ -72,10 +73,16 @@ class DebugModGroup with DebugModGroupMappable {
   final List<ScrapedMod> members;
   final List<GroupMatchEntry> matchEntries;
 
+  /// Which source post each member came from, in the same order as [members],
+  /// and whether the rules or the LLM found it. Null in merges saved before
+  /// listings existed.
+  final List<List<CatalogSourcePost>>? memberSourcePosts;
+
   DebugModGroup({
     required this.groupIndex,
     required this.members,
     required this.matchEntries,
+    this.memberSourcePosts,
   });
 }
 
@@ -164,6 +171,10 @@ class MergeDebugData with MergeDebugDataMappable {
   final List<ValidationRemoval> validationRemovalEntries;
   final List<ScrapedMod> finalOutput;
 
+  /// Which source posts each mod in [finalOutput] came from, in the same
+  /// order. Empty in merges saved before listings existed.
+  final List<List<CatalogSourcePost>> finalSourcePosts;
+
   MergeDebugData({
     this.inputCount = 0,
     this.afterPreDedupCount = 0,
@@ -176,7 +187,9 @@ class MergeDebugData with MergeDebugDataMappable {
     List<MergeDecision>? mergeDecisions,
     List<ValidationRemoval>? validationRemovalEntries,
     List<ScrapedMod>? finalOutput,
-  })  : timings = timings ?? [],
+    List<List<CatalogSourcePost>>? finalSourcePosts,
+  })  : finalSourcePosts = finalSourcePosts ?? [],
+        timings = timings ?? [],
         preDedupEntries = preDedupEntries ?? [],
         groups = groups ?? [],
         sameSourceDedupEntries = sameSourceDedupEntries ?? [],

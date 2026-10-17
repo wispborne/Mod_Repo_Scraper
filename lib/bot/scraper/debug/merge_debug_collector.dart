@@ -1,3 +1,4 @@
+import '../../../catalog/listing.dart';
 import '../scraped_mod.dart';
 import 'merge_debug_data.dart';
 
@@ -33,8 +34,10 @@ class MergeDebugCollector {
   void recordValidationRemoval(ValidationRemoval removal) =>
       data.validationRemovalEntries.add(removal);
 
-  void setFinalOutput(List<ScrapedMod> mods) {
+  void setFinalOutput(List<ScrapedMod> mods, {List<List<CatalogSourcePost>>? sourcePosts}) {
     data.finalOutput.clear();
     data.finalOutput.addAll(mods);
+    data.finalSourcePosts.clear();
+    if (sourcePosts != null) data.finalSourcePosts.addAll(sourcePosts);
   }
 }

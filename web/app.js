@@ -7,6 +7,7 @@ import * as topic from './views/topic.js';
 import * as llmTest from './views/llm_test.js';
 import * as merge from './views/merge.js';
 import * as modrepo from './views/modrepo.js';
+import * as discord from './views/discord.js';
 import * as bundle from './views/bundle.js';
 import * as files from './views/files.js';
 import * as log from './views/log.js';
@@ -64,6 +65,7 @@ const ROUTES = {
   'llm-test': (root, parts) => llmTest.render(root, parts),
   merge: (root, parts) => merge.render(root, parts),
   modrepo: (root, parts) => modrepo.render(root, parts),
+  discord: (root, parts) => discord.render(root, parts),
   bundle: (root, parts) => bundle.render(root, parts),
   files: (root, parts) => files.render(root, parts),
   log: (root, parts) => log.render(root, parts),

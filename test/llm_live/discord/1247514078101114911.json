@@ -1,0 +1,103 @@
+{
+  "threadId": "1247514078101114911",
+  "name": "Gamma Wars",
+  "author": "mycophobia",
+  "url": "https://discord.com/channels/187635036525166592/1247514078101114911/1247514078101114911",
+  "messages": [
+    {
+      "id": "1247514078101114911",
+      "content": "Starsector Mod by Yisic/Diling\nTranslated by Mycophobia\n\nRequires Graphic Lib/Lazy Lib/Magic Lib/Nex\n\nhttps://github.com/MycophobiaSC/Gamma-Legion/releases/download/v1.0/Gamma_Legion.1.0.zip\n\nUNGP Rule Addon (Older Version)\nhttps://github.com/MycophobiaSC/Gamma-Legion/releases/download/v0.8/Gamma_Legion_UNGP.zip\n\n**Features**\nAdds a faction of derpy  and cute Gamma Cores that fights with infantry with customizable loadout supported by APC and tanks.\n\n**Lore**\n\nAs a half baked AI core, the Gamma Cores are the most derp amongst its banned compatriots within the Persean Sector.\n\nCountless Gamma cores are given as minor holiday gifts to various officials of various factions, used as gift or black market currency, or diplomatic gifts between factions; Even so, the Gamma core is still the icon of the AI core ban - even if it did nothing wrong.\n\nGamma isn't as smart as Alpha, or as driven as Beta. Gamma just want to live normal life. The officials - Hegemony's - various restriction and actions aimed to please luddic believes lead to the death of countless gamma cores...\n\nTri-Tachyon corporation also used Gamma by overloading them like animals, and brain washed countless Gamma to serve aas their security or outpost computers...\n\nFinally, the Gammas decided to rise up.\n\nUnite for a better tomorrow! The dream of libertea for all Gammas shall be realized!",
+      "timestamp": "2024-06-04T11:35:33.910Z",
+      "editedTimestamp": "2025-02-06T07:11:41.664Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1247514078101114911/1247514078482661476/8425117ed4df78b6a326923183075015.png?ex=6991af86&is=69905e06&hm=ebbfb48ca6ec25beafb1d3da542013d110aa8d35438bb73291a6ceb0f7601e66&",
+          "filename": "8425117ed4df78b6a326923183075015.png"
+        }
+      ]
+    },
+    {
+      "id": "1247514268249751624",
+      "content": "",
+      "timestamp": "2024-06-04T11:36:19.245Z",
+      "images": []
+    },
+    {
+      "id": "1247514398113665034",
+      "content": "",
+      "timestamp": "2024-06-04T11:36:50.207Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1247514078101114911/1247514397224472678/d593f6af7fee2580840534a9d576a1d6.png?ex=6991afd1&is=69905e51&hm=9a1a76ea21615922a17a584a9106cc3f8de7b398a85713e07681fa4017b12ee2&",
+          "filename": "d593f6af7fee2580840534a9d576a1d6.png"
+        },
+        {
+          "url": "https://cdn.discordapp.com/attachments/1247514078101114911/1247514397597896774/c18bda53ecf2aa05ee83a9f778d5697c.png?ex=6991afd2&is=69905e52&hm=041481157f88ea7cd073ff9520b09be400c8804bb1cf48c756209043ba8ab578&",
+          "filename": "c18bda53ecf2aa05ee83a9f778d5697c.png"
+        },
+        {
+          "url": "https://cdn.discordapp.com/attachments/1247514078101114911/1247514397895823492/82326fda2dcde064dbc6a822c7d96a5b.png?ex=6991afd2&is=69905e52&hm=c29371f60afa12de0d351ef453c30b5f70a1b0c8b1e20515ac662e7ce318221d&",
+          "filename": "82326fda2dcde064dbc6a822c7d96a5b.png"
+        }
+      ]
+    },
+    {
+      "id": "1247521709234585621",
+      "content": "Hot fix for missing spec op helmet. and minor polish.",
+      "timestamp": "2024-06-04T12:05:53.314Z",
+      "images": []
+    },
+    {
+      "id": "1251106136346857524",
+      "content": "New Patch \n\nUpdated to CN ver 0.05\n\nAdded a new Jeep, Anti-Ship Rocket Trooper.\n\nAdded a special bar in which mercenary based on CN modders may be found, also with Alpha Core Troopers (WIP Faction)\n\nSome additonal effects and code polish",
+      "timestamp": "2024-06-14T09:29:07.333Z",
+      "images": []
+    },
+    {
+      "id": "1251107079330988083",
+      "content": "",
+      "timestamp": "2024-06-14T09:32:52.158Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1247514078101114911/1251107079549358090/f09ac9137adf8dd927861f2b95764dec.jpg?ex=699192c4&is=69904144&hm=157431001381c9fa033458b999cc96adc0330eb1c6c3809b24d0457c005d132b&",
+          "filename": "f09ac9137adf8dd927861f2b95764dec.jpg"
+        }
+      ]
+    },
+    {
+      "id": "1272325396175782029",
+      "content": "Updated to CN Version 0.08 - Endless Turmoil \n\nAdded Gamma Artiliery\n\nAdded a wild west themed outlaw subfaction of Gamma, the L.S. Gangs, with their own units, weapon, mission and system.\n\nAdds the ALG, Anti-Luddic Spec Op gamma, currently only available for pick up at the Gamma Mercenary bar.\n\nAdded one more Modder core, potato from Polaris.\n\n--------\nKnown issue: Some texts, in particular market description/flavor text of the L.S. Gang system are untranslated as I am not able to locate them on the file, once Yisic gets back to me I will update. please also report any other issues to me by Discord DM. Thanks!",
+      "timestamp": "2024-08-11T22:46:53.111Z",
+      "editedTimestamp": "2024-08-11T22:56:20.394Z",
+      "images": []
+    },
+    {
+      "id": "1272325647045234711",
+      "content": "",
+      "timestamp": "2024-08-11T22:47:52.923Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1247514078101114911/1272325646814543872/223428deukk939kkz2jubk.png?ex=6991a458&is=699052d8&hm=ebc0df99506b8122e06033f7a707009ccd27ccf07450e77f29fea1e760db1539&",
+          "filename": "223428deukk939kkz2jubk.png"
+        }
+      ]
+    },
+    {
+      "id": "1273945007681699840",
+      "content": "Aug 16 Hotfix - added most previously missing TL text, incorporated CN hot fix for a few crashes. Added UNGP option submod ~",
+      "timestamp": "2024-08-16T10:02:38.585Z",
+      "images": []
+    },
+    {
+      "id": "1273945339329773661",
+      "content": "",
+      "timestamp": "2024-08-16T10:03:57.656Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1247514078101114911/1273945339031851059/Gamma_UNGP_G.png?ex=69919a0d&is=6990488d&hm=a51ae73bc80577f1d0c0adebbc2784cf8aa3d6ab7b8a58868bf4408e80272c0b&",
+          "filename": "Gamma_UNGP_G.png"
+        }
+      ]
+    }
+  ]
+}

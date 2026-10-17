@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../catalog/source_post.dart';
+import 'mod_name_match.dart';
+
 /// Hands out each mod's permanent id, and remembers every one it has given.
 ///
 /// A mod's web address is built from its id, so the id can never be worked out
@@ -32,6 +35,25 @@ class ModIdStore {
 
   /// True when [idFor] handed out something new since the last [save].
   bool _changed = false;
+
+  /// Each id's entry under every source post it is linked to, keyed by
+  /// [SourcePostRef.key] — `forum:34161#Useful.Tithes` names one mod on a
+  /// shared topic, `forum:9175` a whole topic.
+  final Map<String, _Entry> _byPost = {};
+
+  /// The same entries keyed by the post alone, without the LLM's name.
+  final Map<String, List<_Entry>> _byPostOnly = {};
+
+  /// Entries a mod has already been given in this run, so two mods never share
+  /// one id.
+  final Set<_Entry> _givenThisRun = {};
+
+  /// Entries held back for a Collection's page, never given to a mod.
+  final Set<_Entry> _reserved = {};
+
+  /// Every listing's [SourcePostRef.key] in this run, as the catalog gave them
+  /// to [beginRun]. This is what says an old name has gone from its post.
+  final Set<String> _keysThisRun = {};
 
   ModIdStore(this.dataPath, {DateTime Function()? now})
       : _now = now ?? DateTime.now;
@@ -89,13 +111,314 @@ class ModIdStore {
       }
 
       if (id == null || id.isEmpty) return;
-      _entries[name] = _Entry(
+      final entry = _Entry(
         id: id,
         firstSeen: (firstSeen?.isEmpty ?? true) ? null : firstSeen,
         mark: stored is Map ? stored['mark'] as String? : null,
       );
+      _entries[name] = entry;
       _idsTaken.add(id);
+      // Older entries have no posts yet; `bin/link_mod_ids.dart` fills them in.
+      final posts = stored is Map ? stored['posts'] : null;
+      if (posts is List) {
+        for (final post in posts) {
+          if (post is String && post.isNotEmpty) _linkKey(entry, post);
+        }
+      }
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ids found by source post
+  // ---------------------------------------------------------------------------
+
+  /// Starts a new catalog build: no id has been handed out in it yet, and no
+  /// Collection is held back yet. A store kept between builds (a long-lived
+  /// server) would otherwise treat every id as already taken.
+  ///
+  /// [refsThisRun] is every listing's ref in this build. Only with it can a
+  /// mod the LLM renamed on a shared post keep its id (see [_renamedEntry]);
+  /// without it nothing is re-linked.
+  void beginRun({Iterable<SourcePostRef> refsThisRun = const []}) {
+    _givenThisRun.clear();
+    _reserved.clear();
+    _keysThisRun
+      ..clear()
+      ..addAll([for (final ref in refsThisRun) if (ref.id.isNotEmpty) ref.key]);
+  }
+
+  /// The id for a mod made of [refs], found through its source posts first.
+  ///
+  /// A name changes — a better index line, an LLM name for a Discord
+  /// announcement, a thread retitled for a release — and a post does not. So
+  /// the posts are asked first, and the name only when none of them has an id
+  /// yet; a brand-new mod gets a new id from its name, numbered when that is
+  /// taken. Either way every one of [refs] is linked to the id from then on.
+  ///
+  /// When the posts point at two different ids, two pages are being joined
+  /// into one. The older id wins, [onClash] is told, and the other id is left
+  /// where it is — never handed to another mod.
+  ///
+  /// [onRenamed] is told when a post's id was found under the LLM's old name
+  /// for the mod.
+  String idForPosts(
+    String modName, {
+    String? mark,
+    required List<SourcePostRef> refs,
+    void Function(String message)? onClash,
+    void Function(String message)? onRenamed,
+  }) {
+    final found = <_Entry>[];
+    for (final ref in refs) {
+      final entry = _entryForRef(ref);
+      if (entry != null && !found.contains(entry)) found.add(entry);
+      if (entry != null && onRenamed != null && ref.llmModName != null && _byPost[ref.key] != entry) {
+        final old = _oldNamesOn(entry, ref.post.key);
+        if (old.isNotEmpty) {
+          onRenamed('"${ref.llmModName}" on ${ref.post.key} keeps the id "${entry.id}", which it had as '
+              '${old.map((n) => '"$n"').join(' and ')}: the LLM named it differently this time.');
+        }
+      }
+    }
+
+    _Entry? chosen;
+    if (found.isNotEmpty) {
+      found.sort(_olderFirst);
+      chosen = found.first;
+      if (found.length > 1) {
+        onClash?.call('"$modName" comes from posts that had different ids '
+            '(${found.map((e) => e.id).join(', ')}); it keeps the oldest, '
+            '"${chosen.id}". Two pages are being joined into one; check it.');
+      }
+    } else {
+      final existing = _entryFor(modName, mark, claim: false);
+      if (existing == null) {
+        chosen = _entryFor(modName, mark, claim: true);
+      } else if (_givenThisRun.contains(existing) ||
+          _reserved.contains(existing) ||
+          _ownedByOtherPosts(existing, refs)) {
+        // The name's id already belongs to a different mod — one given out this
+        // run, a Collection's page, or a mod from other posts. A new id, so no
+        // id ever leads to two mods.
+        final wanted = (mark ?? '').trim().toLowerCase();
+        chosen = _claim(_freeKey(cleanName(modName), wanted), wanted, slugFrom: cleanName(modName));
+      } else {
+        // Claimed by name the way it always was, which also fills in the mark
+        // of an entry written before marks were kept.
+        chosen = _entryFor(modName, mark, claim: true);
+      }
+    }
+
+    _givenThisRun.add(chosen!);
+    for (final ref in refs) {
+      if (ref.id.isEmpty) continue;
+      _link(chosen, ref);
+    }
+    return chosen.id;
+  }
+
+  /// The id [ref] is already linked to, or null. Hands nothing out. The merge
+  /// asks this to keep together the posts that already share an id.
+  String? idLinkedTo(SourcePostRef ref) => _entryForRef(ref)?.id;
+
+  /// Holds back the id a Collection's post already had, so its page stays at
+  /// that address and no mod is ever given it. Returns the id, or null when the
+  /// Collection never had one — it then gets no id and no page.
+  String? reserveCollection(String collectionName, {String? mark, required SourcePostRef ref}) {
+    final entry = _byPost[ref.post.key] ??
+        _uniqueOrNull(_byPostOnly[ref.post.key]) ??
+        _entryFor(collectionName, mark, claim: false);
+    if (entry == null) return null;
+    _reserved.add(entry);
+    _link(entry, ref.post);
+    return entry.id;
+  }
+
+  /// The day the mod with this id was first seen, or null.
+  String? firstSeenOfId(String id) {
+    for (final entry in _entries.values) {
+      if (entry.id == id) return entry.firstSeen;
+    }
+    return null;
+  }
+
+  /// The source post keys linked to [id], for checks and tests.
+  List<String> postsOfId(String id) {
+    for (final entry in _entries.values) {
+      if (entry.id == id) return List.unmodifiable(entry.posts);
+    }
+    return const [];
+  }
+
+  /// Links [ref] to the entry that has [id]. For the one-time linking step,
+  /// which knows each id's posts from the published site.
+  void linkIdToPost(String id, SourcePostRef ref) {
+    for (final entry in _entries.values) {
+      if (entry.id == id) {
+        _link(entry, ref);
+        return;
+      }
+    }
+    throw ArgumentError('No mod has the id "$id".');
+  }
+
+  _Entry? _entryForRef(SourcePostRef ref) {
+    if (ref.id.isEmpty) return null;
+    final exact = _byPost[ref.key];
+    if (_usable(exact)) return exact;
+    if (ref.llmModName != null) {
+      // Linked before the LLM named this mod: the whole post's entry, when the
+      // post has just the one.
+      final whole = _byPost[ref.post.key];
+      if (_usable(whole) && (_byPostOnly[ref.post.key]?.length ?? 0) <= 1) return whole;
+      return _renamedEntry(ref);
+    }
+    // Asked about a whole post: its entry when there is exactly one.
+    final candidates = [for (final e in _byPostOnly[ref.post.key] ?? const <_Entry>[]) if (_usable(e)) e];
+    return candidates.length == 1 ? candidates.single : null;
+  }
+
+  bool _usable(_Entry? entry) =>
+      entry != null && !_reserved.contains(entry) && !_givenThisRun.contains(entry);
+
+  /// The id a mod had on a shared post under the LLM's old name for it, or
+  /// null.
+  ///
+  /// The LLM reads a post again whenever the post or the prompt changes, and
+  /// does not always spell a mod the same way: topic 12535's "BSP Peenemunde"
+  /// came back as "Peenemunde Mobile Battlestation". On a post with one mod the
+  /// whole post's id covers that. On a post with several, a new name finds
+  /// nothing, and the mod would get a new id and lose its address.
+  ///
+  /// So an old name is looked for, carefully, because giving one mod's address
+  /// to another is worse than a new address. All of these must hold:
+  ///
+  /// - The old name is gone from the post this run, and the new name is new.
+  /// - The two names mean the same mod by [modNamesMatch], or they share a word
+  ///   that no other name on the post uses, old or new, and that at most two
+  ///   names in the whole id file use. That last part keeps out words like
+  ///   "start" and "ships", which name a dozen different mods.
+  /// - Exactly one old name fits the new name, and no other new name on the
+  ///   post fits that old name.
+  ///
+  /// Being the one name left over on each side is never enough: topic 34161
+  /// lost "Corrupt.Officials" and gained "Useful.Tithes" in the same run, and
+  /// those are two mods.
+  _Entry? _renamedEntry(SourcePostRef ref) {
+    if (!_keysThisRun.contains(ref.key)) return null;
+    final post = ref.post.key;
+    final gone = [
+      for (final entry in _byPostOnly[post] ?? const <_Entry>[])
+        if (_usable(entry) && _goneFrom(entry, post) && _oldNamesOn(entry, post).isNotEmpty) entry,
+    ];
+    if (gone.isEmpty) return null;
+
+    final fits = [for (final entry in gone) if (_couldBeRenamed(ref.llmModName!, entry, post, gone)) entry];
+    if (fits.length != 1) return null;
+    final match = fits.single;
+
+    final otherNewNames = [
+      for (final key in _keysThisRun)
+        if (key != ref.key && _postOnlyKey(key) == post && key.length > post.length && !_byPost.containsKey(key))
+          key.substring(post.length + 1),
+    ];
+    if (otherNewNames.any((name) => _couldBeRenamed(name, match, post, gone))) return null;
+    return match;
+  }
+
+  /// True when none of [entry]'s keys on [post] is a listing in this run.
+  bool _goneFrom(_Entry entry, String post) =>
+      !entry.posts.any((key) => _postOnlyKey(key) == post && _keysThisRun.contains(key));
+
+  /// The LLM's names [entry] was linked under on [post].
+  static List<String> _oldNamesOn(_Entry entry, String post) => [
+        for (final key in entry.posts)
+          if (key.length > post.length && key.startsWith('$post#')) key.substring(post.length + 1),
+      ];
+
+  bool _couldBeRenamed(String newName, _Entry entry, String post, List<_Entry> gone) {
+    final oldNames = _oldNamesOn(entry, post);
+    if (oldNames.any((old) => modNamesMatch(old, newName))) return true;
+
+    final oldWords = {for (final old in oldNames) ..._words(old)};
+    final otherWords = {
+      for (final key in _keysThisRun)
+        if (_postOnlyKey(key) == post && key.length > post.length && key.substring(post.length + 1) != newName)
+          ..._words(key.substring(post.length + 1)),
+      for (final other in gone)
+        if (other != entry)
+          for (final old in _oldNamesOn(other, post)) ..._words(old),
+    };
+    return _words(newName).any(
+        (word) => oldWords.contains(word) && !otherWords.contains(word) && _namesUsing(word) <= 2);
+  }
+
+  /// How many names in the id file use [word].
+  int _namesUsing(String word) {
+    var count = 0;
+    for (final key in _entries.keys) {
+      final at = key.indexOf('#');
+      if (_words(at < 0 ? key : key.substring(0, at)).contains(word)) count++;
+    }
+    return count;
+  }
+
+  /// A name's words of four letters or more, lower case. Shorter words ("the",
+  /// "bsp", "mod") say too little to tie two names together.
+  static Set<String> _words(String name) => {
+        for (final word in name.toLowerCase().split(_notWordy))
+          if (word.length >= 4 && word.contains(_letter)) word,
+      };
+
+  static final RegExp _letter = RegExp('[a-z]');
+
+  /// True when [entry] is linked to posts and none of them is one of [refs]:
+  /// it is some other mod's id, and only shares this one's name.
+  bool _ownedByOtherPosts(_Entry entry, List<SourcePostRef> refs) {
+    if (entry.posts.isEmpty) return false;
+    final mine = {for (final ref in refs) ref.post.key};
+    return !entry.posts.any((key) => mine.contains(_postOnlyKey(key)));
+  }
+
+  static _Entry? _uniqueOrNull(List<_Entry>? entries) =>
+      entries != null && entries.length == 1 ? entries.single : null;
+
+  static int _olderFirst(_Entry a, _Entry b) {
+    // No day at all means it was here before days were kept: oldest of all.
+    final left = a.firstSeen ?? '';
+    final right = b.firstSeen ?? '';
+    final byDay = left.compareTo(right);
+    return byDay != 0 ? byDay : a.id.compareTo(b.id);
+  }
+
+  void _link(_Entry entry, SourcePostRef ref) {
+    if (entry.posts.contains(ref.key)) return;
+    _linkKey(entry, ref.key);
+    _changed = true;
+  }
+
+  void _linkKey(_Entry entry, String key) {
+    if (!entry.posts.contains(key)) entry.posts.add(key);
+    _byPost.putIfAbsent(key, () => entry);
+    final postOnly = _postOnlyKey(key);
+    final list = _byPostOnly.putIfAbsent(postOnly, () => []);
+    if (!list.contains(entry)) list.add(entry);
+  }
+
+  /// `forum:34161#Useful.Tithes` without the name: `forum:34161`.
+  static String _postOnlyKey(String key) {
+    final at = key.indexOf('#');
+    return at < 0 ? key : key.substring(0, at);
+  }
+
+  /// A key no entry has yet, for a new mod whose name and mark are taken.
+  String _freeKey(String base, String mark) {
+    final first = '$base#$mark';
+    if (!_entries.containsKey(first)) return first;
+    for (var n = 2;; n++) {
+      final candidate = '$first#$n';
+      if (!_entries.containsKey(candidate)) return candidate;
+    }
   }
 
   /// The id for [modName], handing out a new one the first time a mod is seen.
@@ -211,6 +534,8 @@ class ModIdStore {
           if (_entries[name]!.firstSeen != null)
             'firstSeen': _entries[name]!.firstSeen,
           if (_entries[name]!.mark != null) 'mark': _entries[name]!.mark,
+          if (_entries[name]!.posts.isNotEmpty)
+            'posts': ([..._entries[name]!.posts]..sort()),
         },
     };
     File(filePath).writeAsStringSync(
@@ -323,6 +648,10 @@ class _Entry {
   /// id, or its author. Null for a line written before this was kept, which is
   /// filled in the next time that mod is seen.
   String? mark;
+
+  /// The source posts this mod came from, as [SourcePostRef.key]s. Empty for a
+  /// line written before posts were kept.
+  final List<String> posts = [];
 
   _Entry({required this.id, this.firstSeen, this.mark});
 }

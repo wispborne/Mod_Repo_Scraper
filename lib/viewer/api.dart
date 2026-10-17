@@ -5,6 +5,7 @@ import 'package:shelf_router/shelf_router.dart';
 
 import '../bot/scraper/qb/models/forum_date.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
+import '../catalog/discord_posts.dart';
 import 'bundle_views.dart';
 import 'data_access.dart';
 import 'merge_views.dart';
@@ -39,6 +40,7 @@ class ViewerApi {
 
     r.get('/modrepo', _modRepo);
     r.get('/modrepo/<index>', _modRepoDetail);
+    r.get('/discord/<threadId>', _discordThread);
 
     r.get('/bundle/meta', _bundleMeta);
     r.get('/bundle/mods', _bundleMods);
@@ -741,7 +743,54 @@ class ViewerApi {
     if (i == null || i < 0 || i >= items.length) {
       return _notFound('No mod at index $index.');
     }
-    return _json(items[i]);
+    final mod = items[i];
+    // The catalog records which Discord thread the mod came from; a record
+    // without source posts falls back to reading it off the link.
+    String? threadId;
+    for (final post in (mod['sourcePosts'] as List?) ?? const []) {
+      if (post is Map && post['kind'] == 'discord') {
+        threadId = post['id'] as String?;
+        break;
+      }
+    }
+    if (threadId == null) {
+      final urls = mod['urls'];
+      final discordUrl = urls is Map ? urls['Discord'] as String? : null;
+      final threads = data.discordPosts?.threads ?? const {};
+      threadId = discordThreadIdOf(discordUrl,
+          knownThreadIds: {...threads.keys, ...?data.discordLlmCache?.keys});
+    }
+    return _json({
+      ...Map<String, dynamic>.from(mod),
+      // Where the page can open the LLM's answer for the mod's Discord thread.
+      if (threadId != null) 'discordThreadId': threadId,
+    });
+  }
+
+  /// One saved Discord thread: the author's opening messages as the scrape
+  /// saved them, the download rules' answer, and the LLM's answer.
+  Response _discordThread(Request req, String threadId) {
+    final thread = data.discordPosts?.threads[threadId];
+    final llm = data.discordLlmCache?[threadId];
+    if (thread == null && llm == null) {
+      return _notFound('No saved Discord thread or LLM answer for $threadId.');
+    }
+    return _json({
+      'threadId': threadId,
+      if (thread != null) 'thread': thread.toMap(),
+      'ruleDownloads': [
+        for (final c in data.discordAssumedDownloads?[threadId] ?? const [])
+          c.toJson(),
+      ],
+      if (llm != null)
+        'llm': {
+          'isMod': llm.isMod,
+          'promptVersion': llm.promptVersion,
+          'model': llm.model,
+          'endpoint': llm.endpoint,
+          'mods': [for (final m in llm.mods) m.toMap()],
+        },
+    });
   }
 
   // --- Bundle browser ---

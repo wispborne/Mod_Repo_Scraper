@@ -261,7 +261,7 @@ function scrapeCard() {
     el('button', {
       class: 'btn',
       text: 'Rebuild bundle',
-      title: 'Rebuild forum-data-bundle.json from saved data.',
+      title: 'Rebuild forum-data-bundle-v2.json from saved data.',
       onclick: () => start({ kind: 'rebuildBundle' }),
     }),
   ]));
@@ -283,7 +283,7 @@ function mergeCard() {
   const keepVersionsBox = el('input', { type: 'checkbox' });
 
   const card = el('div', { class: 'job-card' });
-  card.append(el('h3', { text: 'Merge into ModRepo.json' }));
+  card.append(el('h3', { text: 'Merge into ModRepo-v2.json' }));
   card.append(el('p', {
     class: 'run-when',
     text: 'Each merge saves a snapshot for comparison in ModRepo diff.',
@@ -318,7 +318,7 @@ function mergeCard() {
     el('button', {
       class: 'btn',
       text: 'Scrape then merge',
-      title: 'Fetch selected sources, then merge into ModRepo.json.',
+      title: 'Fetch selected sources, then merge into ModRepo-v2.json.',
       onclick: () => start({
         kind: 'scrapeAndMerge',
         modSources: sourceBoxes.filter((s) => s.box.checked).map((s) => s.value),

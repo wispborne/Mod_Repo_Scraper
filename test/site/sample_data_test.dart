@@ -39,6 +39,8 @@ void main() {
         .listSync()
         .whereType<File>()
         .where((f) => f.path.endsWith('.json'))
+        // A Collection's page file is not a mod's; it has its own test below.
+        .where((f) => !(jsonDecode(f.readAsStringSync()) as Map).containsKey('collection'))
         .toList();
     expect(files, hasLength(5));
 
@@ -85,12 +87,17 @@ void main() {
     expect(full.changelog, isNotEmpty);
     expect(full.downloads, isNotEmpty);
 
+    // A Discord-only mod, read by the LLM like a forum mod: its facts come
+    // from its Discord thread's answer.
     final discordOnly = PublicModDetailMapper.fromMap(
         readJson('site/sample-data/mods/quality-captains.json'));
     expect(discordOnly.forumUrl, isNull);
     expect(discordOnly.discordUrl, isNotNull);
-    expect(discordOnly.changelog, isEmpty);
-    expect(discordOnly.listing.saveCompatible, isNull);
+    expect(discordOnly.changelog, isNotEmpty);
+    expect(discordOnly.listing.needs, isNotEmpty);
+    expect(discordOnly.listing.saveCompatible, isTrue);
+    expect(discordOnly.saveCompatibilityText, isNotNull);
+    expect(discordOnly.license, isNotNull);
 
     final withAddons = PublicModDetailMapper.fromMap(
         readJson('site/sample-data/mods/industrial-evolution.json'));
@@ -163,6 +170,23 @@ void main() {
           readJson('site/sample-data/mods/${mod.id}.json'));
       expect(detail.listing.toMap(), equals(mod.toMap()),
           reason: '${mod.id} is written two different ways');
+    }
+  });
+
+  test("the samples cover a Collection's page, listing mods the list has", () {
+    // A post that turned out to hold several mods keeps the address it had,
+    // as a page of its mods. The sample assumes this one had a page before.
+    final raw = readJson('site/sample-data/mods/hartleys-miscellaneous-mods.json');
+    final collection = raw['collection'] as Map<String, dynamic>;
+    expect(collection['name'], "Hartley's Miscellaneous Mods");
+    expect(collection['forumUrl'], contains('topic=34161'));
+
+    final list = PublicModListMapper.fromMap(readJson('site/sample-data/mods.json'));
+    final listed = {for (final mod in list.mods) mod.id: mod.toMap()};
+    for (final mod in collection['mods'] as List) {
+      final record = PublicModMapper.fromMap(mod as Map<String, dynamic>);
+      expect(listed[record.id], equals(record.toMap()),
+          reason: '${record.id} is written differently on the Collection page');
     }
   });
 }

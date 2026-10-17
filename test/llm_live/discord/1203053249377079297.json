@@ -1,0 +1,26 @@
+{
+  "threadId": "1203053249377079297",
+  "name": "Example Mod 1.0.0 - [Optional Title] (and Tag Descriptions)",
+  "author": "sirhartley",
+  "url": "https://discord.com/channels/187635036525166592/1203053249377079297/1203053249377079297",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php",
+  "messages": [
+    {
+      "id": "1203053249377079297",
+      "content": "Write a short example text about what this mod does. This shows up in the preview, so keep it short and concise.\n\nYou can add whatever info you want in the following paragraph here, there is no word count or restriction. \n\n[The download should always be near the **bottom of the post** for standardized ease of access. The shorter the post, the higher the chance it will be portrayed in its entirety. This includes images, so be mindful of posting giant ones. Image size is up to you.]\n\n```Changelog:\n1.0.0\nAdded - Mod\nAdjusted - No longer crashes\nFixed - All the bugs```\n```Save Compatibility Notice```\nDownload: https://DownloadThisMod.com\nForum Thread: https://fractalsoftworks.com/forum/index.php",
+      "timestamp": "2024-02-02T19:04:06.300Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1203053249377079297/1203053250232979486/example.png?ex=69916fe6&is=69901e66&hm=d0891cdf55deb5e2e52db329d977254f3325086b34fd2fb5a3bcd896ce576418&",
+          "filename": "example.png"
+        }
+      ]
+    },
+    {
+      "id": "1203053568467271690",
+      "content": "Tags:\n**Mod Manager **- External aplication for managing mods\n**Library **- Used by other mods\n**Utility **- Safe to remove midgame simply by disabling the mod\n**Megamod** - If you have to ask, your mod isn't a megamod\n**Faction **- Adds faction(s) to the campaign\n**Ship Pack **- Adds ship(s) to the game, not attached to a faction\n**Weapon/Fighter Pack** - Adds weapon(s) to the game, not attached to a faction\n**Modular Hullmods **- Adds modular hullmods to the game, not attached to a faction\n**Quests and Bars** - Adds narrative content, or anything you'd find at your local space bar (not that one)\n**Colonies **- Adds content for colonies\n**Exploration **- Adds exploration content\n**Misc. Campaign Mods** - Campaign content that doesn't fit into the above categories\n**Officers **- Adds or affects officer mechanics\n**Skill Change/Rework** - Adds or affects skill mechanics\n**Quality of Life** - Improves life quality\n**Audio/Visual **- Makes your game look ✨ pretty ✨ and sound 🫦\n**Portrait / Flag Pack **- For all your degenerate aesthetic needs. Try to make sure a child can draw those flags\n**Other/Miscellaneous** - Where everything else goes\n**Total Conversion** - If you have to ask, your mod is probably a total conversion",
+      "timestamp": "2024-02-02T19:05:22.377Z",
+      "images": []
+    }
+  ]
+}

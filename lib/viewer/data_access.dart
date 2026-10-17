@@ -7,6 +7,7 @@ import '../bot/scraper/qb/download_resolver.dart';
 import '../bot/scraper/qb/llm/extraction_store.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
+import '../catalog/discord_posts.dart';
 import '../manager/bundle_snapshot_store.dart';
 import '../manager/merge_snapshot_store.dart';
 import 'working_bundle.dart';
@@ -61,12 +62,14 @@ class DataAccess {
   late final File _llmTestFile = File(p.join(dataDir, 'llm-test-output.json'));
   late final File _assumedFile =
       File(p.join(dataDir, 'assumed-downloads-cache.json'));
-  late final File _modRepoFile = File(p.join(outputsDir, 'ModRepo.json'));
+  late final File _modRepoFile = File(p.join(outputsDir, 'ModRepo-v2.json'));
   late final File _bundleFile =
-      File(p.join(outputsDir, 'forum-data-bundle.json'));
+      File(p.join(outputsDir, 'forum-data-bundle-v2.json'));
   late final File _mergeDebugFile = File(p.join(rootDir, 'merge-debug.json'));
   late final File _logFile = File(p.join(rootDir, 'ModRepo.log'));
   late final Directory _modsDir = Directory(p.join(dataDir, 'mods'));
+  late final File _discordPostsFile =
+      File(p.join(dataDir, DiscordPostsFile.fileName));
 
   late final _MtimeCache<List<QbModSummary>> _indexCache = _MtimeCache(
     _indexFile,
@@ -87,6 +90,40 @@ class DataAccess {
       }
       return out;
     },
+  );
+
+  /// The Discord threads' LLM answers, keyed by thread id. They sit in the
+  /// same file as the forum's, under `discord:<thread id>`.
+  late final _MtimeCache<Map<String, LlmStoreEntry>> _discordLlmCache =
+      _MtimeCache(
+    _llmCacheFile,
+    (s) => {
+      for (final e in (jsonDecode(s) as Map<String, dynamic>).entries)
+        if (e.key.startsWith('discord:'))
+          e.key.substring('discord:'.length):
+              LlmStoreEntry.fromJson(e.value as Map<String, dynamic>),
+    },
+  );
+
+  /// The download rules' answers for Discord threads, keyed by thread id.
+  late final _MtimeCache<Map<String, List<DownloadCandidate>>>
+      _discordAssumedCache = _MtimeCache(
+    _assumedFile,
+    (s) => {
+      for (final e in (jsonDecode(s) as Map<String, dynamic>).entries)
+        if (e.key.startsWith('discord:'))
+          e.key.substring('discord:'.length): [
+            for (final c in ((e.value as Map<String, dynamic>)['candidates']
+                    as List<dynamic>? ??
+                const []))
+              DownloadCandidate.fromJson(c as Map<String, dynamic>),
+          ],
+    },
+  );
+
+  late final _MtimeCache<DiscordPostsFile> _discordPostsCache = _MtimeCache(
+    _discordPostsFile,
+    (_) => DiscordPostsFile.read(_discordPostsFile),
   );
 
   late final _MtimeCache<Map<int, List<DownloadCandidate>>> _assumedCache =
@@ -143,6 +180,8 @@ class DataAccess {
     AllowlistEntry('merge-debug', _mergeDebugFile,
         'Run the scraper with modrepo_merge_debug enabled.'),
     AllowlistEntry('log', _logFile, 'Run the scraper.'),
+    AllowlistEntry('discord-posts', _discordPostsFile,
+        'Run a ModRepo scrape that includes Discord.'),
   ];
 
   AllowlistEntry? allowlistById(String id) {
@@ -162,6 +201,17 @@ class DataAccess {
       _assumedCache.get();
 
   Map<String, dynamic>? get modRepo => _modRepoCache.get();
+
+  /// The Discord threads the last Discord scrape saved, or null when there is
+  /// no such file yet.
+  DiscordPostsFile? get discordPosts => _discordPostsCache.get();
+
+  /// The LLM's answers for Discord threads, keyed by thread id.
+  Map<String, LlmStoreEntry>? get discordLlmCache => _discordLlmCache.get();
+
+  /// The download rules' answers for Discord threads, keyed by thread id.
+  Map<String, List<DownloadCandidate>>? get discordAssumedDownloads =>
+      _discordAssumedCache.get();
 
   Map<String, dynamic>? get bundle => _bundleCache.get();
 

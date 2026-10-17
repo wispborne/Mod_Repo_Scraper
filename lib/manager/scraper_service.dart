@@ -18,6 +18,8 @@ import '../bot/scraper/qb/models/forum_data_bundle.dart';
 import '../bot/scraper/qb/models/scrape_job.dart';
 import '../bot/scraper/qb/scraper_engine.dart';
 import '../bot/scraper/qb/throttled_client.dart';
+import '../catalog/catalog_step.dart';
+import '../catalog/discord_posts.dart';
 import '../site/public_site_step.dart';
 import '../utilities/caching_http_client.dart';
 import 'bundle_snapshot_store.dart';
@@ -103,6 +105,11 @@ class ScraperService implements JobRunner {
   /// Works out which mods released, and rebuilds the public website's files.
   final PublicSiteStep siteStep;
 
+  /// Merges every source post's listings into `ModRepo-v2.json`. Run after the
+  /// bundle and before the website, so a job that changed the listings shows up
+  /// in the catalog and on the site when it finishes.
+  final CatalogStep catalogStep;
+
   final http.Client _linkClient;
 
   /// Makes the client used to reach the forum. Swapped out in tests.
@@ -148,6 +155,11 @@ class ScraperService implements JobRunner {
         outputPath: environment.outputPath,
         sitePath: environment.sitePath,
       ),
+      catalogStep: CatalogStep(
+        qbDataPath: environment.dataPath,
+        sourceCachePath: environment.sourceCachePath,
+        outputPath: environment.outputPath,
+      ),
       linkClient: links,
       createNetworkClient: createNetworkClient ?? http.Client.new,
       createLlmClient: createLlmClient,
@@ -163,6 +175,7 @@ class ScraperService implements JobRunner {
     required this.llmStore,
     required this.bundleSnapshots,
     required this.siteStep,
+    required this.catalogStep,
     required http.Client linkClient,
     required http.Client Function() createNetworkClient,
     LlmClient Function()? createLlmClient,
@@ -748,8 +761,93 @@ class ScraperService implements JobRunner {
       reporter.log('LLM: $withoutResults topic(s) still have no LLM results.');
     }
 
+    final discord = await _discordCoverage(extractor, reporter, cancel);
+
     return _CoverageTally(
-        seen: seen, total: index.length, withoutResults: withoutResults);
+      seen: seen + discord.seen,
+      total: index.length + discord.total,
+      withoutResults: withoutResults + discord.withoutResults,
+    );
+  }
+
+  /// The Discord half of the coverage pass: every thread saved in
+  /// `discord-posts.json` is read the same way a forum topic is, through the
+  /// same extractor. Nothing is fetched from Discord — the threads were saved
+  /// by the last Discord scrape. They share the forum's per-run call limit and
+  /// its limit on calls at once, because it is the same extractor.
+  ///
+  /// A thread's links go through the same download rules a forum topic's do,
+  /// and the answers are cached under `discord:<thread id>`.
+  Future<_CoverageTally> _discordCoverage(
+    PostExtractor extractor,
+    RunReporter reporter,
+    CancelToken? cancel,
+  ) async {
+    final file = io.File(p.join(environment.dataPath, DiscordPostsFile.fileName));
+    DiscordPostsFile saved;
+    try {
+      saved = DiscordPostsFile.read(file);
+    } catch (e) {
+      reporter.log('Could not read ${file.path}, so no Discord thread was '
+          'sent to the LLM: $e');
+      return _CoverageTally(seen: 0, total: 0, withoutResults: 0);
+    }
+    final threads = saved.threads.values.toList()
+      ..sort((a, b) => a.threadId.compareTo(b.threadId));
+    if (threads.isEmpty) {
+      if (saved.legacyTexts.isNotEmpty) {
+        reporter.log('LLM coverage: the saved Discord posts are in the old '
+            'format, which the LLM does not read. The next Discord scrape '
+            'replaces them.');
+      }
+      return _CoverageTally(seen: 0, total: 0, withoutResults: 0);
+    }
+
+    reporter.phase('LLM coverage (Discord)');
+    var seen = 0;
+    var alreadyHadResults = 0;
+    var passCalls = 0;
+    var withoutResults = 0;
+    String? stopReason;
+
+    await _fewAtATime(threads, guardrails.llmMaxConcurrentCalls,
+        () => cancel?.isCancelled ?? false, (thread) async {
+      final source = thread.toSourcePost();
+      if (llmStore!.getDiscord(thread.threadId) != null) alreadyHadResults++;
+
+      stopReason ??= _llmStopReason(extractor);
+      if (stopReason == null) {
+        final candidates =
+            await resolver.resolveForDiscordThread(thread.threadId, source.allLinks);
+        final spentACall = await extractor.extractFor(source, candidates);
+        if (spentACall) passCalls++;
+      }
+
+      if (llmStore!.getDiscord(thread.threadId) == null) withoutResults++;
+
+      seen++;
+      reporter.progress(seen, threads.length,
+          item: thread.name, llmCalls: extractor.liveCallCount);
+      if (seen % 50 == 0) {
+        reporter.log('LLM: covered $seen/${threads.length} Discord threads '
+            '($passCalls sent to the LLM so far)...');
+      }
+    });
+
+    reporter.log('LLM coverage (Discord): ${threads.length} saved threads, '
+        '$alreadyHadResults already had results, $passCalls sent to the LLM by '
+        'this pass.');
+    if (stopReason != null) {
+      reporter.log('LLM: stopped early because $stopReason. $withoutResults '
+          'Discord thread(s) still have no LLM results; run again to carry on '
+          'where this run stopped.');
+    } else {
+      reporter.log('LLM: $withoutResults Discord thread(s) still have no LLM '
+          'results.');
+    }
+
+    return _CoverageTally(
+        seen: seen, total: threads.length, withoutResults: withoutResults);
   }
 
   /// Publishes the bundle, and saves a snapshot of what went out so this run
@@ -770,6 +868,12 @@ class ScraperService implements JobRunner {
     final bundle = await publisher.createBundle(scrapeResult: scrapeResult);
     await publisher.writeLocal(bundle);
     await _saveBundleSnapshot(bundle, runId, reporter);
+
+    // The bundle may have changed what a post holds — a topic the LLM has just
+    // found four mods on is four listings now — so the catalog is merged again
+    // before the website is built from it. Saved files only; no network.
+    reporter?.phase('Catalog');
+    await catalogStep.run(log: reporter?.log);
 
     // The bundle is half of what the public website is built from, and the only
     // thing a mod's version can be read from. This is the one place a release

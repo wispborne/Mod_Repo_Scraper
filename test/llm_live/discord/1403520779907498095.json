@@ -1,0 +1,71 @@
+{
+  "threadId": "1403520779907498095",
+  "name": "Wide Horizons (Basic) - Expanding the Universe",
+  "author": "taiwendo",
+  "url": "https://discord.com/channels/187635036525166592/1403520779907498095/1403520779907498095",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=33348.0",
+  "messages": [
+    {
+      "id": "1403520779907498095",
+      "content": "🌌 **Wide Horizons - Expanding the Universe**\n\n**Mod: Wide Horizons • Version: 1.3.0g • Game: 0.98a**\nAuthor: Taiwendo • Requires: LunaLib, GraphicsLib and Particle Engine\nDownload: [Wide Horizons v1.3.0g](https://github.com/Taiwendo/WideHorizons/releases/download/v1.3.0g/Wide.Horizons.v1.3.0g.zip)\nForum: [Detailed information about the mod in the forum](https://fractalsoftworks.com/forum/index.php?topic=33348.0)\n\n    ⚠️ Important: v1.3.x is Not Save-Compatible with older version 1.2.x ⚠️\n\nWhat it does\nExpand the sector up to 300% with vanilla-friendly balance and smarter system placement.\n\n**Key Features**\nBigger Galaxy (scalable): *Expand the sector up to 125-300% and tweak density right from the Settings.*\nRealistic systems: *Efforts are made to generate systems that are as realistic as possible.\nFuel scaling: *This allows you to better adjust consumption for users who find it too difficult to reach distant locations.*\nMission timer adjustment: *This scales the mission timer based on the size of the galaxy, giving you more time to reach distant locations.*\nStrange Hyperspace: regions that change storms, visibility, and travel.*\nDiscovery Gameplay: *Some systems start hidden; uncover them over time, earn small XP, and get clear messages. Can be turned on & off.*\nMore Variety, Vanilla-friendly: *More ruins, remnants, salvage and points of interest kept close to the vanilla feel.*\nHuge Mod Support: *Fixed placement for 60+ popular mods so their systems land in sensible spots.*\nDark Star Content (WIP): *Void & Pulse stars with unique hazards, pulses, and probes to find.*\nStoryline (WIP):* Follow the new storyline surrounding the AI faction \"EidolON\".*\nCustom Start (WIP): *\"Black Project\" start with a brief introduction and a survival-focused opening with a continuing story.*\n\n**Mod: Wide Horizons Basic • Version: 1.0.0c • Game: 0.98a**\nAuthor: Taiwendo • Requires: LunaLib, GraphicsLib\nDownload: [Wide Horizons Basic v1.0.0c](https://github.com/Taiwendo/WideHorizons/releases/download/Basic_v1.0.0c/Wide.Horizons.Basic.v1.0.0c.zip)\nForum: [Detailed information about the mod in the forum](https://fractalsoftworks.com/forum/index.php?topic=33348.0)\n\n    ⚠️ Important: Not compatible with the normal version ⚠️\n\nWhat it does\nExpand the sector up to 300% with vanilla-friendly balance and smarter system placement.\n\n**Key Features**\nBigger Galaxy (scalable): *Expand the sector up to 125-300% and tweak density right from the Settings.*\nRealistic systems: *Efforts are made to generate systems that are as realistic as possible.\nFuel scaling: *This allows you to better adjust consumption for users who find it too difficult to reach distant locations.*\nMission timer adjustment: *This scales the mission timer based on the size of the galaxy, giving you more time to reach distant locations.*\nDiscovery Gameplay: *Some systems start hidden; uncover them over time, earn small XP, and get clear messages. Can be turned on & off.*\nMore Variety, Vanilla-friendly: *More ruins, remnants, salvage and points of interest kept close to the vanilla feel.*\nHuge Mod Support: *Fixed placement for 60+ popular mods so their systems land in sensible spots.*\n\n**Supports Customizable Star Systems (CSS)**\nReads \"customStarSystems.json\" and registers systems for correct scaling/placement\nMatch by system name (first star) or setLocation coordinates\nSystems without both name and coordinates can’t be matched\n\n**For Modders**\n[Wide Horizons - Scaling API Developer Guide](https://github.com/Taiwendo/WideHorizons/blob/main/Modders.md)",
+      "timestamp": "2025-08-08T23:30:30.085Z",
+      "editedTimestamp": "2026-02-10T13:21:07.249Z",
+      "images": []
+    },
+    {
+      "id": "1403847401378156727",
+      "content": "**Patchnotes**\n\n*Version 1.2.2 (August 2025)\n\nDiscovery & Stability Update\n    New option - Hide uninhabited systems: When enabled, only uninhabited (incl. modded/non-procgen) systems are hidden until you discover them.\n        Inhabited/core systems remain on the map.\n    Crash fixes: Resolved errors from missing LunaLib settings and rare star-type issues during world gen.\n\nNew:\n    Disable Hyperspace Storms option.\n    Turns off storm penalties & lightning strikes and hides storm visuals/sounds.\n    Regular deep hyperspace clouds still render (for navigation vibes).\n    Only the storm effects and VFX/SFX are removed.\n\nPerformance:\n    Clean implementation without per-frame overhead - no FPS drops.\n    Toggle-friendly: Can be switched mid-save. (If another mod also edits hyperspace visuals, results may vary.)\n\nFixed a rare crash during new-game generation caused by certain modded star types (e.g. “Helia”, “black_hole_secret”).\n    Systems with unsupported star types are now safely skipped during expansion instead of causing a crash.\n    Improved stability when adding extra planets/moons to vanilla systems.\n    Removed a step that could conflict with some star specs, reducing edge-case errors.\n    Added graceful fallback: if expansion fails, the game retries with fewer bodies instead of erroring out.\n    No visual changes to modded stars; their systems remain as intended by their mods.\n    Existing saves are unaffected. Start a new game to see the expansion with this fix.*",
+      "timestamp": "2025-08-09T21:08:22.712Z",
+      "images": []
+    },
+    {
+      "id": "1403852476687581244",
+      "content": "Wide Horizons - Expanding the Universe v1.2.2",
+      "timestamp": "2025-08-09T21:28:32.760Z",
+      "images": []
+    },
+    {
+      "id": "1404123846625198151",
+      "content": "Wide Horizons - Expanding the Universe v1.2.3fix",
+      "timestamp": "2025-08-10T15:26:52.395Z",
+      "images": []
+    },
+    {
+      "id": "1404124216315351123",
+      "content": "**Patchnotes**\n\n*Version 1.2.3fix (August 2025)\n\nHotfix:\n    Hotfix for save game issues and lunalib settings error\n\nVersion 1.2.3 (August 2025)\n\nSlipstream Fix\n    Safe re-enable: Turning slipstreams back On restores exactly one vanilla manager with a gentle start (no burst spawns).\n    Savegame cleanup: Existing saves get a one-time migration that deduplicates managers/terrains and aligns them to your toggle.\n\n    No more duplicates: Fixed an issue where multiple managers could run at once, causing 2–3 more slipstreams.\n    Performance/stability: No per-frame overhead; cleaner hyperspace state.\n    (If another mod hard-overrides slipstreams, behavior may vary)*",
+      "timestamp": "2025-08-10T15:28:20.536Z",
+      "images": []
+    },
+    {
+      "id": "1404198328996073574",
+      "content": "Wide Horizons - Expanding the Universe v1.2.4",
+      "timestamp": "2025-08-10T20:22:50.376Z",
+      "images": []
+    },
+    {
+      "id": "1404198762296905859",
+      "content": "**Version 1.2.4 (August 2025)**\n\n*Patch Notes (Discovery & Anomalies)\n    Fixes\n        Resolved a rare crash during exploration checks (ConcurrentModificationException).\n        Discovered systems now stay discovered across reloads and setting changes.\n        \"Discovery Mode: Off\" now behaves like pure vanilla (no auto-reveal, nothing gets hidden).\n\n    Improvements\n        Added a safety pass that re-validates discovered jump anchors when loading a save.\n        Tuned default discovery settings for better performance (slower checks, vanilla visibility range).\n        Warning beacons can still add intel entries (optional setting).\n\n    Anomalies\n        Void Star: sensor-disruption message now only appears in the same location and is throttled to prevent spam;\n        sensor penalty is cleaned up when leaving range/area.\n        Pulse Star: pulses start with a short random delay after entering the system, burst interval is randomized,\n        messages are throttled, and states reset cleanly after save/load.\n\n    Compatibility\n        Safe to install mid-save.\n        If some jump points look odd: toggle \"Hide Procgen Systems\" Off - On once to refresh visibility.*",
+      "timestamp": "2025-08-10T20:24:33.683Z",
+      "editedTimestamp": "2025-08-10T20:25:14.157Z",
+      "images": []
+    },
+    {
+      "id": "1404538198008270999",
+      "content": "**Version 1.2.5 (August 2025)**\n\n*Added two new scaling settings for galaxy generation\n    Constellation Scaling Exponent - adjusts constellation count relative to sector size.\n    POI Scaling Exponent - adjusts amount of points of interest (Remnants, Ruins, Cryosleepers, etc.) relative to sector size.\n\nSystem Expansion Fixes & Improvements\n    Improved constellation relocation: Randomly generated mod constellations are now detected and correctly moved to their intended positions.\n    Better compatibility: Fixed an issue where certain constellations (e.g., Magellan, HMI systems) were not being shifted as expected.\n    Consistent hyperspace clearing: Clearing around registered constellations now works the same way as for fixed systems.*",
+      "timestamp": "2025-08-11T18:53:21.463Z",
+      "images": []
+    },
+    {
+      "id": "1404538275104030861",
+      "content": "Wide Horizons - Expanding the Universe v1.2.5",
+      "timestamp": "2025-08-11T18:53:39.844Z",
+      "images": []
+    },
+    {
+      "id": "1405273698742829208",
+      "content": "Wide Horizons - Expanding the Universe v1.2.6",
+      "timestamp": "2025-08-13T19:35:58.503Z",
+      "images": []
+    }
+  ]
+}

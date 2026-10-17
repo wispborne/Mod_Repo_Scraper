@@ -81,6 +81,66 @@ String buildModPageHtml(
   );
 }
 
+/// The page at a Collection's old address, built out of [shell] the same way a
+/// mod's page is: the head swapped for the Collection's name and preview tags,
+/// and the body listing its mods, each linked to its own page.
+String buildCollectionPageHtml({
+  required String id,
+  required String name,
+  required List<PublicMod> mods,
+  String? threadUrl,
+  String? shell,
+}) {
+  final names = [for (final mod in mods) mod.displayName ?? displayName(mod.name)];
+  final about = names.isEmpty
+      ? 'A post that held several Starsector mods.'
+      : '${names.length} Starsector mods posted together: ${names.join(', ')}.';
+  String? picture;
+  for (final mod in mods) {
+    picture ??= _webPicture(mod.imageUrl);
+  }
+
+  final redirect = '../../#/mods/${Uri.encodeComponent(id)}';
+  final head = _head(name: name, about: about, picture: picture);
+  final start = shell?.indexOf(modPageHeadStart) ?? -1;
+  final end = shell?.indexOf(modPageHeadEnd) ?? -1;
+  if (shell == null || start < 0 || end < start) {
+    return '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${_escape(name)} | Starmodder</title>
+<meta name="description" content="${_attribute(about)}">
+</head>
+<body>
+<h1>${_escape(name)}</h1>
+<p>${_escape(about)}</p>
+<p><a href="$redirect">Open it on Starmodder</a></p>
+<script>location.replace('$redirect');</script>
+</body>
+</html>
+''';
+  }
+
+  final page = shell.replaceRange(start, end + modPageHeadEnd.length, head);
+  final bodyStart = page.indexOf(modPageBodyStart);
+  final bodyEnd = page.indexOf(modPageBodyEnd);
+  if (bodyStart < 0 || bodyEnd < bodyStart) return page;
+
+  final out = StringBuffer()..write('<article class="stack page-text">');
+  out.write('<h1>${_escape(name)}</h1>');
+  out.write('<p>${_escape(about)}</p><ul>');
+  for (final (index, mod) in mods.indexed) {
+    out.write('<li><a href="mods/${Uri.encodeComponent(mod.id)}/">${_escape(names[index])}</a></li>');
+  }
+  out.write('</ul>');
+  final link = threadUrl == null ? null : _link(threadUrl, 'Forum thread');
+  if (link != null) out.write('<p>$link</p>');
+  out.write('</article><div class="loading">Loading…</div>');
+  return page.replaceRange(bodyStart + modPageBodyStart.length, bodyEnd, out.toString());
+}
+
 /// What the page holds before its script runs: the mod's name, who made it,
 /// the author's own summary, the links that get it, what it needs, and the
 /// start of the author's forum post.

@@ -1,0 +1,58 @@
+{
+  "threadId": "1271590391065477143",
+  "name": "ATTD+ - All the Domain Drones+",
+  "author": "nathan_the_grudge_bearer",
+  "url": "https://discord.com/channels/187635036525166592/1271590391065477143/1271590391065477143",
+  "messages": [
+    {
+      "id": "1271590391065477143",
+      "content": "All the Domain Drones (ATDD+)  <:fac_derelicts:644273854486806544> \nA collection of mods which adds/buffs/modifies the Derelict Drones found out in the wild of Starsector. These mods should be 100% compatible with all other mods excluding major overhauls that aren't normally compatible with any other mods.\n\nChangelog:\nNew Drones+\nVanilla+\n\nI only updated the version for Vanilla+ and New Drones+. Did some light testing and it worked. Dunno about submods, I haven't touched them since... I think 0.96? 🤷 \n\n\nMods available:\nAll the Domain Drones+ Vanilla\nRecommended new save. I cannot guarantee this mod will work on an existing save (Motherships won't make drone fleets on existing games).\nThis mod modifies Vanilla drones, increasing their stats. It also upgrades the Domain Faction and allows Motherships and Survey Ships to spawn Derelict fleets as if they were [REDACTED] Battlestations. \n\nDownload Link:  https://www.dropbox.com/s/lxqxz8w8j4zemrx/Domain%20Drones%2B%20Vanilla.rar?dl=1\n\nAll the Domain Drones+ New Drones\nShould work on existing saves for newly generated Domain fleets/garrisons.\nThis mod adds new Domain Drones. Capital ships, Cruisers, Destroyers, fuel ships, cargo ships, frigates, wings, mining ships, carriers and a new buildable Derelict Station (with three Tiers) to colonies. Also adds proper survey ships and probes to those explorable. Overhauls the Mothership into a more threatening station. Derelict stations can also appear as Pirate stations, these send Derelict raids (you can also buy ships from them, don't ask why). \n\nDownload Link: https://www.dropbox.com/s/xxdaflon17jhg2k/All%20the%20Domain%20Drones%2B%20New%20Drones.rar?dl=1",
+      "timestamp": "2024-08-09T22:06:14.237Z",
+      "editedTimestamp": "2024-08-09T22:06:58.234Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1271590391065477143/1271590391379923084/Dreadnought.png?ex=69919a96&is=69904916&hm=9414cab54ff2f0d38b3b76fd488cf6b58d10df819dd6d74fc9f06f09e4f6eb87&",
+          "filename": "Dreadnought.png"
+        }
+      ]
+    },
+    {
+      "id": "1272237943125184582",
+      "content": "Very small patch for Vanilla+.\n\nTurns out, if you go into the mod, then into the jar file, there is another jar file, with another jar file, with another...\n\nSo basically, the mod had multiple duplicates of itself inside. This meant it sorta messed up the mod manager when it tried to install the mod (as it then detected all these versions)\n\nSo this patch just removes the duplicates. Works with existing saves and has no negatives as far as I can tell.\n\nEdit: Nevermind, I broke something, give me a minute to fix it",
+      "timestamp": "2024-08-11T16:59:22.679Z",
+      "editedTimestamp": "2024-08-11T17:00:49.633Z",
+      "images": []
+    },
+    {
+      "id": "1272240511033278585",
+      "content": "*Now* it is fixed.",
+      "timestamp": "2024-08-11T17:09:34.916Z",
+      "images": []
+    },
+    {
+      "id": "1274825307643449364",
+      "content": "Small update, the Linebreaker centre module has gotten 3 small ballistic turrets at the front. Works with existing saves.",
+      "timestamp": "2024-08-18T20:20:38.451Z",
+      "editedTimestamp": "2024-08-18T20:21:13.213Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1271590391065477143/1274825307303579719/Linebreaker.png?ex=699181d6&is=69903056&hm=4ec5f6bdd3ca2357374cf29ad4a65b7f3f487366e94c44b18cf85da825137081&",
+          "filename": "Linebreaker.png"
+        }
+      ]
+    },
+    {
+      "id": "1276124708856791091",
+      "content": "Posted a wee update that should fix the issue mentioned here (an issue that arises with DEX):\nhttps://discord.com/channels/187635036525166592/1274926275793911900/1275902996638732308",
+      "timestamp": "2024-08-22T10:23:59.842Z",
+      "editedTimestamp": "2024-08-22T10:24:56.263Z",
+      "images": []
+    },
+    {
+      "id": "1276124903711703172",
+      "content": "Presumed not save compatible (though you are welcome to try it). \nThe Mothership station should now spawn as a separate entity allowing the vanilla one to spawn.",
+      "timestamp": "2024-08-22T10:24:46.299Z",
+      "images": []
+    }
+  ]
+}

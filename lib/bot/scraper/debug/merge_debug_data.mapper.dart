@@ -694,6 +694,7 @@ class DebugModGroupMapper extends ClassMapperBase<DebugModGroup> {
       MapperContainer.globals.use(_instance = DebugModGroupMapper._());
       ScrapedModMapper.ensureInitialized();
       GroupMatchEntryMapper.ensureInitialized();
+      CatalogSourcePostMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -715,12 +716,21 @@ class DebugModGroupMapper extends ClassMapperBase<DebugModGroup> {
       v.matchEntries;
   static const Field<DebugModGroup, List<GroupMatchEntry>> _f$matchEntries =
       Field('matchEntries', _$matchEntries);
+  static List<List<CatalogSourcePost>>? _$memberSourcePosts(DebugModGroup v) =>
+      v.memberSourcePosts;
+  static const Field<DebugModGroup, List<List<CatalogSourcePost>>>
+  _f$memberSourcePosts = Field(
+    'memberSourcePosts',
+    _$memberSourcePosts,
+    opt: true,
+  );
 
   @override
   final MappableFields<DebugModGroup> fields = const {
     #groupIndex: _f$groupIndex,
     #members: _f$members,
     #matchEntries: _f$matchEntries,
+    #memberSourcePosts: _f$memberSourcePosts,
   };
 
   static DebugModGroup _instantiate(DecodingData data) {
@@ -728,6 +738,7 @@ class DebugModGroupMapper extends ClassMapperBase<DebugModGroup> {
       groupIndex: data.dec(_f$groupIndex),
       members: data.dec(_f$members),
       matchEntries: data.dec(_f$matchEntries),
+      memberSourcePosts: data.dec(_f$memberSourcePosts),
     );
   }
 
@@ -801,10 +812,17 @@ abstract class DebugModGroupCopyWith<$R, $In extends DebugModGroup, $Out>
     GroupMatchEntryCopyWith<$R, GroupMatchEntry, GroupMatchEntry>
   >
   get matchEntries;
+  ListCopyWith<
+    $R,
+    List<CatalogSourcePost>,
+    ObjectCopyWith<$R, List<CatalogSourcePost>, List<CatalogSourcePost>>
+  >?
+  get memberSourcePosts;
   $R call({
     int? groupIndex,
     List<ScrapedMod>? members,
     List<GroupMatchEntry>? matchEntries,
+    List<List<CatalogSourcePost>>? memberSourcePosts,
   });
   DebugModGroupCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -836,15 +854,30 @@ class _DebugModGroupCopyWithImpl<$R, $Out>
     (v) => call(matchEntries: v),
   );
   @override
+  ListCopyWith<
+    $R,
+    List<CatalogSourcePost>,
+    ObjectCopyWith<$R, List<CatalogSourcePost>, List<CatalogSourcePost>>
+  >?
+  get memberSourcePosts => $value.memberSourcePosts != null
+      ? ListCopyWith(
+          $value.memberSourcePosts!,
+          (v, t) => ObjectCopyWith(v, $identity, t),
+          (v) => call(memberSourcePosts: v),
+        )
+      : null;
+  @override
   $R call({
     int? groupIndex,
     List<ScrapedMod>? members,
     List<GroupMatchEntry>? matchEntries,
+    Object? memberSourcePosts = $none,
   }) => $apply(
     FieldCopyWithData({
       if (groupIndex != null) #groupIndex: groupIndex,
       if (members != null) #members: members,
       if (matchEntries != null) #matchEntries: matchEntries,
+      if (memberSourcePosts != $none) #memberSourcePosts: memberSourcePosts,
     }),
   );
   @override
@@ -852,6 +885,10 @@ class _DebugModGroupCopyWithImpl<$R, $Out>
     groupIndex: data.get(#groupIndex, or: $value.groupIndex),
     members: data.get(#members, or: $value.members),
     matchEntries: data.get(#matchEntries, or: $value.matchEntries),
+    memberSourcePosts: data.get(
+      #memberSourcePosts,
+      or: $value.memberSourcePosts,
+    ),
   );
 
   @override
@@ -1622,6 +1659,7 @@ class MergeDebugDataMapper extends ClassMapperBase<MergeDebugData> {
       MergeDecisionMapper.ensureInitialized();
       ValidationRemovalMapper.ensureInitialized();
       ScrapedModMapper.ensureInitialized();
+      CatalogSourcePostMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -1700,6 +1738,14 @@ class MergeDebugDataMapper extends ClassMapperBase<MergeDebugData> {
     _$finalOutput,
     opt: true,
   );
+  static List<List<CatalogSourcePost>> _$finalSourcePosts(MergeDebugData v) =>
+      v.finalSourcePosts;
+  static const Field<MergeDebugData, List<List<CatalogSourcePost>>>
+  _f$finalSourcePosts = Field(
+    'finalSourcePosts',
+    _$finalSourcePosts,
+    opt: true,
+  );
 
   @override
   final MappableFields<MergeDebugData> fields = const {
@@ -1714,6 +1760,7 @@ class MergeDebugDataMapper extends ClassMapperBase<MergeDebugData> {
     #mergeDecisions: _f$mergeDecisions,
     #validationRemovalEntries: _f$validationRemovalEntries,
     #finalOutput: _f$finalOutput,
+    #finalSourcePosts: _f$finalSourcePosts,
   };
 
   static MergeDebugData _instantiate(DecodingData data) {
@@ -1729,6 +1776,7 @@ class MergeDebugDataMapper extends ClassMapperBase<MergeDebugData> {
       mergeDecisions: data.dec(_f$mergeDecisions),
       validationRemovalEntries: data.dec(_f$validationRemovalEntries),
       finalOutput: data.dec(_f$finalOutput),
+      finalSourcePosts: data.dec(_f$finalSourcePosts),
     );
   }
 
@@ -1832,6 +1880,12 @@ abstract class MergeDebugDataCopyWith<$R, $In extends MergeDebugData, $Out>
   get validationRemovalEntries;
   ListCopyWith<$R, ScrapedMod, ScrapedModCopyWith<$R, ScrapedMod, ScrapedMod>>
   get finalOutput;
+  ListCopyWith<
+    $R,
+    List<CatalogSourcePost>,
+    ObjectCopyWith<$R, List<CatalogSourcePost>, List<CatalogSourcePost>>
+  >
+  get finalSourcePosts;
   $R call({
     int? inputCount,
     int? afterPreDedupCount,
@@ -1844,6 +1898,7 @@ abstract class MergeDebugDataCopyWith<$R, $In extends MergeDebugData, $Out>
     List<MergeDecision>? mergeDecisions,
     List<ValidationRemoval>? validationRemovalEntries,
     List<ScrapedMod>? finalOutput,
+    List<List<CatalogSourcePost>>? finalSourcePosts,
   });
   MergeDebugDataCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1932,6 +1987,17 @@ class _MergeDebugDataCopyWithImpl<$R, $Out>
     (v) => call(finalOutput: v),
   );
   @override
+  ListCopyWith<
+    $R,
+    List<CatalogSourcePost>,
+    ObjectCopyWith<$R, List<CatalogSourcePost>, List<CatalogSourcePost>>
+  >
+  get finalSourcePosts => ListCopyWith(
+    $value.finalSourcePosts,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(finalSourcePosts: v),
+  );
+  @override
   $R call({
     int? inputCount,
     int? afterPreDedupCount,
@@ -1944,6 +2010,7 @@ class _MergeDebugDataCopyWithImpl<$R, $Out>
     Object? mergeDecisions = $none,
     Object? validationRemovalEntries = $none,
     Object? finalOutput = $none,
+    Object? finalSourcePosts = $none,
   }) => $apply(
     FieldCopyWithData({
       if (inputCount != null) #inputCount: inputCount,
@@ -1959,6 +2026,7 @@ class _MergeDebugDataCopyWithImpl<$R, $Out>
       if (validationRemovalEntries != $none)
         #validationRemovalEntries: validationRemovalEntries,
       if (finalOutput != $none) #finalOutput: finalOutput,
+      if (finalSourcePosts != $none) #finalSourcePosts: finalSourcePosts,
     }),
   );
   @override
@@ -1983,6 +2051,7 @@ class _MergeDebugDataCopyWithImpl<$R, $Out>
       or: $value.validationRemovalEntries,
     ),
     finalOutput: data.get(#finalOutput, or: $value.finalOutput),
+    finalSourcePosts: data.get(#finalSourcePosts, or: $value.finalSourcePosts),
   );
 
   @override

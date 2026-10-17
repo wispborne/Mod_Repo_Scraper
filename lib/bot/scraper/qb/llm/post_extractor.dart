@@ -10,6 +10,7 @@ import '../download_resolver.dart';
 import '../html_processor.dart';
 import '../models/assumed_download.dart';
 import '../models/mod_detail.dart';
+import '../../../../catalog/source_post.dart';
 import '../models/post_extraction.dart';
 import '../url_normalizer.dart';
 import '../../../../site/description_slice.dart';
@@ -112,9 +113,9 @@ class _ReadPosts {
 
   _ReadPosts(this.posts, this.combined);
 
-  factory _ReadPosts.of(QbModDetail detail) {
+  factory _ReadPosts.of(SourcePost source) {
     final posts = [
-      for (final post in detail.openingPosts)
+      for (final post in source.posts)
         PostReducer.reduce(post.contentHtml),
     ];
 
@@ -303,24 +304,35 @@ class PostExtractor {
   Future<bool> extractForTopic(
     QbModDetail detail,
     List<DownloadCandidate> ruleCandidates,
+  ) =>
+      extractFor(SourcePost.fromForumDetail(detail), ruleCandidates);
+
+  /// [extractForTopic] for any source post: a forum topic or a Discord
+  /// thread. Both go through the same prompt and the same checks; a Discord
+  /// thread's answer is filed under `discord:<thread id>` and counted against
+  /// [ExtractionPrompt.discordPromptVersion].
+  Future<bool> extractFor(
+    SourcePost source,
+    List<DownloadCandidate> ruleCandidates,
   ) async {
     // Never spend a call on a stub post.
-    if (detail.isPlaceholderDetail) {
-      _log.fine('Skipping placeholder topic ${detail.topicId}');
+    if (source.isPlaceholder) {
+      _log.fine('Skipping placeholder ${source.label}');
       return false;
     }
 
     if (testMode) {
-      await _extractTestMode(detail, ruleCandidates);
+      await _extractTestMode(source, ruleCandidates);
       return false;
     }
 
-    final read = _ReadPosts.of(detail);
-    final userPrompt = _buildUserPrompt(detail, read, ruleCandidates);
+    final read = _ReadPosts.of(source);
+    final userPrompt = _buildUserPrompt(source, read, ruleCandidates);
+    final promptVersion = ExtractionPrompt.promptVersionFor(source.kind);
 
     final fingerprint = LlmExtractionStore.computeFingerprint(
       userPrompt: userPrompt,
-      promptVersion: ExtractionPrompt.promptVersion,
+      promptVersion: promptVersion,
       fieldSet: _effectiveFieldSet,
     );
 
@@ -331,9 +343,8 @@ class PostExtractor {
     // really need a call. That is what lets a run over every stored topic pick
     // up where the last one stopped instead of re-chewing the same first few
     // topics every time.
-    if (_store.isFresh(
-        detail.topicId, fingerprint, ExtractionPrompt.promptVersion)) {
-      _log.fine('LLM store hit for topic ${detail.topicId}');
+    if (_store.isFreshKey(source.storeKey, fingerprint, promptVersion)) {
+      _log.fine('LLM store hit for ${source.label}');
       return false;
     }
 
@@ -345,7 +356,7 @@ class PostExtractor {
     try {
       // The run was cancelled while this read waited its turn.
       if (_stopAsked) {
-        _log.fine('Skipping topic ${detail.topicId} (asked to stop)');
+        _log.fine('Skipping ${source.label} (asked to stop)');
         return false;
       }
 
@@ -353,12 +364,13 @@ class PostExtractor {
       // the slot on purpose: budget is spent in the order calls are actually
       // made, not the order reads were started.
       if (!await _reserveSlot()) {
-        _log.fine('Skipping topic ${detail.topicId} '
+        _log.fine('Skipping ${source.label} '
             '(${_bailed ? 'LLM gave up' : 'limit reached'})');
         return false;
       }
 
-      await _callAndStore(detail, read, ruleCandidates, userPrompt, fingerprint);
+      await _callAndStore(
+          source, read, ruleCandidates, userPrompt, fingerprint, promptVersion);
       return true;
     } finally {
       _slots.release();
@@ -369,11 +381,12 @@ class PostExtractor {
   /// checked against the post and put in the store. Runs inside a
   /// [_CallSlots] slot, after the budget was spent on it.
   Future<void> _callAndStore(
-    QbModDetail detail,
+    SourcePost source,
     _ReadPosts read,
     List<DownloadCandidate> ruleCandidates,
     String userPrompt,
     String fingerprint,
+    int promptVersion,
   ) async {
     final request = LlmRequest(
       systemPrompt:
@@ -388,31 +401,31 @@ class PostExtractor {
           ExtractionPrompt.buildResponseSchema(includeSummary: generateSummaries),
     );
 
-    final attempt = await _callWithRetry(request, detail.topicId);
+    final attempt = await _callWithRetry(request, source.label);
     if (attempt == null) {
-      await _recordFailure(detail.topicId);
+      await _recordFailure();
       _log.warning(
-          'LLM extraction failed for topic ${detail.topicId}; using rule-based results instead');
+          'LLM extraction failed for ${source.label}; using rule-based results instead');
       return;
     }
     await _recordSuccess();
-    _log.info('LLM ok for topic ${detail.topicId} '
+    _log.info('LLM ok for ${source.label} '
         '(${attempt.response.usageSummary})');
 
-    final postUrls = _postUrls(detail, read.combined, ruleCandidates);
-    final postImages = _postImages(detail);
-    final postRepoUrls = _postRepoUrls(detail, read.combined, ruleCandidates);
-    final checked = _checkAgainstPost(detail.topicId, attempt.answer, read,
+    final postUrls = _postUrls(source, read.combined, ruleCandidates);
+    final postImages = _postImages(source);
+    final postRepoUrls = _postRepoUrls(source, read.combined, ruleCandidates);
+    final checked = _checkAgainstPost(source.label, attempt.answer, read,
         postUrls, postImages, postRepoUrls,
-        truncated: attempt.response.wasTruncated, postTitle: detail.title);
+        truncated: attempt.response.wasTruncated, postTitle: source.title);
     final mods = await _resolveMods(checked, ruleCandidates);
 
-    await _store.put(
-      detail.topicId,
+    await _store.putKey(
+      source.storeKey,
       LlmStoreEntry(
         fingerprint: fingerprint,
         schemaVersion: LlmExtractionStore.schemaVersion,
-        promptVersion: ExtractionPrompt.promptVersion,
+        promptVersion: promptVersion,
         mods: mods,
         isMod: attempt.answer.isMod,
         stats: attempt.response.stats,
@@ -427,7 +440,7 @@ class PostExtractor {
   // ---------------------------------------------------------------------------
 
   String _buildUserPrompt(
-    QbModDetail detail,
+    SourcePost source,
     _ReadPosts read,
     List<DownloadCandidate> ruleCandidates,
   ) {
@@ -435,7 +448,7 @@ class PostExtractor {
 
     // Flag reduced links the scraper already marked downloadable.
     final downloadable = <String, bool>{
-      for (final l in detail.allLinks)
+      for (final l in source.allLinks)
         PostReducer.normalizeForMatching(l.url): l.isDownloadable,
     };
     final links = reduced.links
@@ -470,7 +483,7 @@ class PostExtractor {
       final roomForFirst = cap - followUpLength;
       if (bodyText.length > roomForFirst) {
         _log.warning(
-            'The opening posts of topic ${detail.topicId} run to '
+            'The opening posts of ${source.label} run to '
             '${bodyText.length + followUpLength} chars; trimming the first '
             'post to ${roomForFirst < 0 ? 0 : roomForFirst} before sending to '
             'the LLM, and sending the author\'s other '
@@ -485,7 +498,7 @@ class PostExtractor {
     // offering one. The filter is the site's own (see gallery_filter.dart), so
     // the two can never disagree about what a donation button looks like.
     final images = [
-      for (final img in detail.allImages)
+      for (final img in source.allImages)
         if (!isBadgeOrDonationImage(img.originalUrl))
           (url: img.originalUrl, alt: img.alt),
     ];
@@ -495,10 +508,13 @@ class PostExtractor {
       links: links,
       ruleLinks: ruleLinks,
       images: images,
-      gameVersion: detail.gameVersion,
+      gameVersion: source.gameVersion,
       // The thread title helps the model name each mod, so it is always sent.
-      modTitle: detail.title,
+      modTitle: source.title,
       followUpTexts: followUpTexts,
+      // Only a Discord thread is told what it is; the forum prompt is left
+      // exactly as it was, so no forum answer is paid for again.
+      isDiscordThread: source.kind == SourceKind.discord,
     );
   }
 
@@ -515,7 +531,7 @@ class PostExtractor {
   /// compliant server can't return unparseable JSON.
   static const _parseRetryTemperature = 0.4;
 
-  Future<_Attempt?> _callWithRetry(LlmRequest request, int topicId) async {
+  Future<_Attempt?> _callWithRetry(LlmRequest request, String where) async {
     // Bumped only after a parse failure, so a network/server retry keeps the
     // original (deterministic) settings.
     var req = request;
@@ -526,12 +542,12 @@ class PostExtractor {
         return _Attempt(response, answer);
       } on LlmException catch (e) {
         // The call itself failed (network, bad status, timeout, empty answer).
-        _log.warning('LLM attempt $attempt failed for topic $topicId: $e');
+        _log.warning('LLM attempt $attempt failed for $where: $e');
         // A timeout means the request ran past a limit. Retrying with the
         // same limit would almost always time out again — just burning more
         // minutes — so stop now and fall back to the rule-based result.
         if (e.cause is TimeoutException) {
-          _log.warning('LLM timed out for topic $topicId; not retrying. If '
+          _log.warning('LLM timed out for $where; not retrying. If '
               'this is common, raise llm_idle_timeout_seconds (nothing new '
               'arrived) or llm_timeout_seconds (the whole call ran too long).');
           return null;
@@ -542,7 +558,7 @@ class PostExtractor {
         // The call returned, but the answer wasn't usable JSON. Retry at a
         // higher temperature so a deterministic model doesn't just repeat the
         // same broken output.
-        _log.warning('LLM answer for topic $topicId was not valid JSON on '
+        _log.warning('LLM answer for $where was not valid JSON on '
             'attempt $attempt ($e); retrying at a higher temperature.');
         if (attempt == maxAttempts) return null;
         req = request.copyWith(temperature: _parseRetryTemperature);
@@ -782,7 +798,7 @@ class PostExtractor {
   /// passed through (it is written, not copied). Mods with nothing left are
   /// dropped.
   List<_CheckedMod> _checkAgainstPost(
-    int topicId,
+    String where,
     _LlmAnswer answer,
     _ReadPosts read,
     Set<String> postUrls,
@@ -801,7 +817,7 @@ class PostExtractor {
 
     final checked = <_CheckedMod>[];
     for (final mod in answer.mods) {
-      final c = _checkMod(topicId, mod, postUrls, postImages, postRepoUrls,
+      final c = _checkMod(where, mod, postUrls, postImages, postRepoUrls,
           corpus, postTexts, authorWords,
           truncated: truncated);
       if (!c.isEmpty) checked.add(c);
@@ -810,7 +826,7 @@ class PostExtractor {
   }
 
   _CheckedMod _checkMod(
-    int topicId,
+    String where,
     _RawMod mod,
     Set<String> postUrls,
     Map<String, String> postImages,
@@ -827,7 +843,7 @@ class PostExtractor {
         downloads.add(d);
       } else {
         _log.warning(
-            'Dropped download URL not found in post (topic $topicId): ${d.url}');
+            'Dropped download URL not found in post ($where): ${d.url}');
       }
     }
 
@@ -837,10 +853,10 @@ class PostExtractor {
     for (final s in mod.supportLinks) {
       if (!_urlInPost(s.url, postUrls)) {
         _log.warning(
-            'Dropped support URL not found in post (topic $topicId): ${s.url}');
+            'Dropped support URL not found in post ($where): ${s.url}');
       } else if (SupportLinkType.isNeverSupport(s.url)) {
         _log.info('Dropped support URL that is a thread or a form '
-            '(topic $topicId): ${s.url}');
+            '($where): ${s.url}');
       } else {
         supportLinks.add(s);
       }
@@ -853,7 +869,7 @@ class PostExtractor {
         changelogLink = mod.changelogLink;
       } else {
         _log.warning(
-            'Dropped changelog link not found in post (topic $topicId): ${mod.changelogLink}');
+            'Dropped changelog link not found in post ($where): ${mod.changelogLink}');
       }
     }
 
@@ -864,13 +880,13 @@ class PostExtractor {
     if (mod.changelogEntries.isNotEmpty) {
       if (truncated) {
         _log.warning(
-            'Answer truncated (topic $topicId); dropping changelog entries');
+            'Answer truncated ($where); dropping changelog entries');
       } else {
         for (final e in mod.changelogEntries.entries) {
           changelogEntries[plainVersion(e.key)] = e.value;
           if (!_textInPost(e.value, corpus)) {
             _log.warning(
-                'Changelog entry "${e.key}" not found verbatim in post (topic $topicId); keeping anyway');
+                'Changelog entry "${e.key}" not found verbatim in post ($where); keeping anyway');
           }
         }
       }
@@ -882,7 +898,7 @@ class PostExtractor {
         version = plainVersion(mod.version!);
       } else {
         _log.warning(
-            'Dropped version not found in post (topic $topicId): ${mod.version}');
+            'Dropped version not found in post ($where): ${mod.version}');
       }
     }
     String? license;
@@ -895,16 +911,16 @@ class PostExtractor {
         // though the exact name isn't spelled out in the text.
         license = mod.license;
         _log.info(
-            'License "${mod.license}" confirmed via a license link (topic $topicId)');
+            'License "${mod.license}" confirmed via a license link ($where)');
       } else {
         _log.warning(
-            'Dropped license not found in post (topic $topicId): ${mod.license}');
+            'Dropped license not found in post ($where): ${mod.license}');
       }
     }
 
     final sourceCode = mod.sourceCode == null
         ? null
-        : _groundSourceCode(topicId, mod.sourceCode!, postUrls, postRepoUrls);
+        : _groundSourceCode(where, mod.sourceCode!, postUrls, postRepoUrls);
 
     // What the post says about saves: adding the mod, updating it, removing
     // it. Each is copied word-for-word, so it must be found in the post.
@@ -912,7 +928,7 @@ class PostExtractor {
       if (text == null) return null;
       if (_textInPost(text, corpus)) return text;
       _log.warning(
-          'Dropped $what text not found in post (topic $topicId): $text');
+          'Dropped $what text not found in post ($where): $text');
       return null;
     }
 
@@ -937,7 +953,7 @@ class PostExtractor {
       final version = note.version;
       if (version != null && !_textInPost(version, corpus)) {
         _log.warning('Dropped update note whose version is not in the post '
-            '(topic $topicId): $version — ${note.quote}');
+            '($where): $version — ${note.quote}');
         continue;
       }
       updateNotes.add(version == null
@@ -960,7 +976,7 @@ class PostExtractor {
         image = 'ext:$match';
       } else {
         _log.warning(
-            'Dropped image not found in post images (topic $topicId): ${mod.image}');
+            'Dropped image not found in post images ($where): ${mod.image}');
       }
     }
 
@@ -969,7 +985,7 @@ class PostExtractor {
       role: mod.role,
       isTool: mod.isTool,
       nicknames:
-          _groundNicknames(topicId, mod.nicknames, authorWords, mod.name),
+          _groundNicknames(where, mod.nicknames, authorWords, mod.name),
       requires: mod.requires,
       downloads: downloads,
       image: image,
@@ -987,9 +1003,9 @@ class PostExtractor {
       // Passed through as-is: the summary is written, not copied, so there is
       // nothing to find in the post.
       summary: mod.summary,
-      needs: _groundNeeds(topicId, mod.needs, corpus, mod.name),
+      needs: _groundNeeds(where, mod.needs, corpus, mod.name),
       descriptionAnchors:
-          _groundAnchors(topicId, mod.descriptionAnchors, postTexts, mod.name),
+          _groundAnchors(where, mod.descriptionAnchors, postTexts, mod.name),
     );
   }
 
@@ -1002,7 +1018,7 @@ class PostExtractor {
   /// guessed at. Anchors that straddle two posts are dropped for the same
   /// reason: text cut from two places was never one description.
   LlmDescriptionAnchors? _groundAnchors(
-    int topicId,
+    String where,
     LlmDescriptionAnchors? anchors,
     List<String> postTexts,
     String name,
@@ -1015,7 +1031,7 @@ class PostExtractor {
       }
     }
 
-    _log.warning('Dropped where "$name" is described (topic $topicId): the '
+    _log.warning('Dropped where "$name" is described ($where): the '
         'words are not in any one of the author\'s posts.');
     return null;
   }
@@ -1027,7 +1043,7 @@ class PostExtractor {
   /// whether the post did or not, and a wrong requirement sends a reader off to
   /// install something they do not need.
   List<String> _groundNeeds(
-    int topicId,
+    String where,
     List<String> names,
     String corpus,
     String ownName,
@@ -1044,7 +1060,7 @@ class PostExtractor {
         kept.add(name);
       } else {
         _log.warning('Dropped a needed mod not named in the post '
-            '(topic $topicId): $name');
+            '($where): $name');
       }
     }
     return kept;
@@ -1061,7 +1077,7 @@ class PostExtractor {
   /// the mod. The mod's own name, a name with no letters in it (a version),
   /// and repeats are left out too, and only the first [_maxNicknames] are kept.
   List<String> _groundNicknames(
-    int topicId,
+    String where,
     List<String> names,
     String authorWords,
     String ownName,
@@ -1080,7 +1096,7 @@ class PostExtractor {
         if (kept.length == _maxNicknames) break;
       } else {
         _log.warning('Dropped a nickname the post does not write '
-            '(topic $topicId): $name');
+            '($where): $name');
       }
     }
     return kept;
@@ -1113,7 +1129,7 @@ class PostExtractor {
   /// post's own spelling of that repository, cut out of the longer link, rather
   /// than the model's copy — the same rule the mod image follows.
   String? _groundSourceCode(
-    int topicId,
+    String where,
     String candidate,
     Set<String> postUrls,
     List<Uri> postRepoUrls,
@@ -1121,7 +1137,7 @@ class PostExtractor {
     // A file to download is never the answer, even when the post has it.
     if (_isDownloadLink(candidate)) {
       _log.warning('Dropped source-code link that is a download rather than a '
-          'repository (topic $topicId): $candidate');
+          'repository ($where): $candidate');
       return null;
     }
     // Spelled out in the post: kept as written, except for a clone link's
@@ -1155,13 +1171,13 @@ class PostExtractor {
           pathSegments: kept,
         ).toString();
         _log.info('Source code "$root" confirmed by a link inside that '
-            'repository (topic $topicId)');
+            'repository ($where)');
         return root;
       }
     }
 
     _log.warning(
-        'Dropped source-code link not found in post (topic $topicId): '
+        'Dropped source-code link not found in post ($where): '
         '$candidate');
     return null;
   }
@@ -1200,7 +1216,7 @@ class PostExtractor {
   /// The links to code-hosting sites the post really has, kept as written, so
   /// [_groundSourceCode] can tell which repository each one belongs to.
   List<Uri> _postRepoUrls(
-    QbModDetail detail,
+    SourcePost source,
     ReducedPost reduced,
     List<DownloadCandidate> ruleCandidates,
   ) {
@@ -1217,7 +1233,7 @@ class PostExtractor {
     // kept. The reducer's URL set is lowercased for matching, so it goes last:
     // it is the only place a URL written as bare text turns up, and a
     // lowercased repository link still works, but it is not what the post says.
-    for (final l in detail.allLinks) {
+    for (final l in source.allLinks) {
       add(l.url);
     }
     for (final l in reduced.links) {
@@ -1253,7 +1269,7 @@ class PostExtractor {
   /// check the model's answer against this fuller list, so we only drop URLs the
   /// model made up.
   Set<String> _postUrls(
-    QbModDetail detail,
+    SourcePost source,
     ReducedPost reduced,
     List<DownloadCandidate> ruleCandidates,
   ) {
@@ -1270,7 +1286,7 @@ class PostExtractor {
     for (final u in reduced.urlSet) {
       add(u);
     }
-    for (final l in detail.allLinks) {
+    for (final l in source.allLinks) {
       add(l.url);
     }
     for (final c in ruleCandidates) {
@@ -1283,9 +1299,9 @@ class PostExtractor {
   /// exact scraped URL. Used to ground the image the model picked for a mod and
   /// to store the scraped URL rather than the model's copy. Badges and spinners
   /// are left out — they are never offered to the model as a mod image.
-  Map<String, String> _postImages(QbModDetail detail) {
+  Map<String, String> _postImages(SourcePost source) {
     final images = <String, String>{};
-    for (final img in detail.allImages) {
+    for (final img in source.allImages) {
       final url = img.originalUrl.trim();
       if (url.isEmpty || isBadgeOrDonationImage(url)) continue;
       images[PostReducer.normalizeForMatching(
@@ -1497,7 +1513,7 @@ class PostExtractor {
         _consecutiveFailures = 0;
       });
 
-  Future<void> _recordFailure(int topicId) => _lock.synchronized(() {
+  Future<void> _recordFailure() => _lock.synchronized(() {
         _consecutiveFailures++;
         if (!_bailed && _consecutiveFailures >= maxConsecutiveFailures) {
           _bailed = true;
@@ -1513,19 +1529,20 @@ class PostExtractor {
   // ---------------------------------------------------------------------------
 
   Future<void> _extractTestMode(
-    QbModDetail detail,
+    SourcePost source,
     List<DownloadCandidate> ruleCandidates,
   ) async {
     // Selection: explicit topic IDs, else sample the hard posts.
     final targeted = testTopicIds != null
-        ? testTopicIds!.contains(detail.topicId)
+        ? source.kind == SourceKind.forum &&
+            testTopicIds!.contains(int.tryParse(source.id))
         : _isHardPost(ruleCandidates);
     if (!targeted) return;
 
     if (!await _reserveTestSlot()) return;
 
-    final read = _ReadPosts.of(detail);
-    final userPrompt = _buildUserPrompt(detail, read, ruleCandidates);
+    final read = _ReadPosts.of(source);
+    final userPrompt = _buildUserPrompt(source, read, ruleCandidates);
     final request = LlmRequest(
       systemPrompt:
           ExtractionPrompt.buildSystemPrompt(includeSummary: generateSummaries),
@@ -1547,12 +1564,15 @@ class PostExtractor {
       answer = _parseAnswer(rawAnswer);
     } catch (e) {
       error = e.toString();
-      _log.warning('Test-mode call failed for topic ${detail.topicId}: $e');
+      _log.warning('Test-mode call failed for ${source.label}: $e');
     }
 
     final record = <String, dynamic>{
-      'topicId': detail.topicId,
-      'title': detail.title,
+      if (source.kind == SourceKind.forum)
+        'topicId': int.tryParse(source.id) ?? source.id
+      else
+        'source': source.storeKey,
+      'title': source.title,
       'inputSent': userPrompt,
       'rawAnswer': rawAnswer,
       if (error != null) 'error': error,
@@ -1560,12 +1580,12 @@ class PostExtractor {
     };
 
     if (answer != null) {
-      final postUrls = _postUrls(detail, read.combined, ruleCandidates);
-      final postImages = _postImages(detail);
-      final postRepoUrls = _postRepoUrls(detail, read.combined, ruleCandidates);
+      final postUrls = _postUrls(source, read.combined, ruleCandidates);
+      final postImages = _postImages(source);
+      final postRepoUrls = _postRepoUrls(source, read.combined, ruleCandidates);
       final checked = _checkAgainstPost(
-          detail.topicId, answer, read, postUrls, postImages, postRepoUrls,
-          truncated: response?.wasTruncated ?? false, postTitle: detail.title);
+          source.label, answer, read, postUrls, postImages, postRepoUrls,
+          truncated: response?.wasTruncated ?? false, postTitle: source.title);
       final mods = await _resolveMods(checked, ruleCandidates);
       record['isMod'] = answer.isMod;
       record['parsedGrounded'] = {

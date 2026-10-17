@@ -1,0 +1,66 @@
+{
+  "threadId": "1359352557348065311",
+  "name": "Galactic Constellate",
+  "author": "mycophobia",
+  "url": "https://discord.com/channels/187635036525166592/1359352557348065311/1359352557348065311",
+  "messages": [
+    {
+      "id": "1359352557348065311",
+      "content": "Starsector Mod by \"Riptide (A.k.a When Can I Finish Pleiades）\"\n\nA mid-high tech ship pack with eastern anime/game style unique ships\nDependencies:\nLazy Lib/Magic Lib/Graphic Lib \n\n**1.13.7b update-> **NOT save compatible with all 1.13.6 versions, now require Lunalib\"\n\n0.98 Download:\nhttps://github.com/MycophobiaSC/Galactic-Constellate-TL/releases/download/v1.13.7b/Galactic_Constellate.1.13.7b.-.0.98.zip\n\n0.97 Download:\nhttps://github.com/MycophobiaSC/Galactic-Constellate-TL/releases/download/v1.13.7b/Galactic_Constellate.1.13.7b.-.0.97.zip\n\nSafe to add mid-save but cannot be removed. Unless specifically stated otherwise, update not save breaking. should work on 0.96 also with Mod Info edit\n\nBefore the great collapse, the Persean branch of Tri-Tachyon initiated an unprecedented project with the support of \"core member\" whose name are now unknown: By using the AI Core's ability to simulate and evolve, they seek to skip the trial and error process in the militarization of cutting edge technology, and instead create prototype that mounts the latest tech that can be deployed directly to the battlefield. This will close the gap between theoretical and applied science, allowing them to create the most 'competitive' space fleet......\n\nThe mod provides a list of High Value Bounty with unique ship rewards, explore and obtain unique ships with very unique combat style! Currently the white series focus on support drones and radical fighting style while the black series focus on steady pushes and ability to hold the line. Future update are planned to include further bonus that matches the gameplay style of each variants\n\nThis mod is inspired by the Chinese Mecha-Girl artist pixiv @Yato , all work referenced have been done with the approval of the author. \n\nMod currently adds 5 HVB Missions that becomes available between level 5-10, find them in the Bounty Board Screen under intel.\n\nOriginal Fossic Link:\nhttps://www.fossic.org/thread-10883-1-1.html?_dsign=49299ec3\n\nCredit:\nAuthor: \"Riptide (formally: When Can I Finish Pleiades)\" (Now that it is finished, their name may change and I will update accordingly  ;D)\n\nThanks to coding support from <@1222366010116669623> @Kaoruzhumobaole @zyx @Ajimu @YuYukoari!\n\nThanks to art support from @Chang Le !\n\nTranslation and Localization:\nMain Translation: Mycophobia\nThanks to Himemi for testing/coding question help\n\nDebugging Note: Mod's prefix in game file is gr_ given the mod's old eng name before translation. If the ship's drone does not properly spawn during test mission, please reset the mission.",
+      "timestamp": "2025-04-09T02:21:45.221Z",
+      "editedTimestamp": "2025-06-08T22:11:52.673Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1359352557348065311/1359352558065287229/223015l7c33z40o475ro3t.png?ex=6991d679&is=699084f9&hm=157ef874937af7e582c6f3ca1e894cc21139e1f02cf9a9b8e5057fe3c80fddf3&",
+          "filename": "223015l7c33z40o475ro3t.png"
+        }
+      ]
+    },
+    {
+      "id": "1359353152205492274",
+      "content": "Updated to Chinese Version 1.13.6a.1\nNOT Save Compatible\nCan work in 0.98 with mod_info swap, 0.98 ver included.\n\nMajor Changes\n\nWhite Jade / Black Jet ships have their design type buff simplified, now they get to enter Blitz/Caliberation mode on losing zero flux boost/closing shield for a burst of buff.\nWhite Jade drone coordination hullmod removed, now simplified to synchronization buff that trigger on mothership ship system activation\nSeveral capital are now removed from bounties and must instead be discovered through exploration.\nHyades and Nunki completely reworked\nConstellate Officer have max level/number of elite skill increased\nAI rework for constellate ships\nVarious Minor fixes, balances, and bug fixes.\nSee fossic post for minor stat adjustment and balance",
+      "timestamp": "2025-04-09T02:24:07.046Z",
+      "images": []
+    },
+    {
+      "id": "1359720191700762705",
+      "content": "Hot Fix April 9th\n- Fix crash with certain officer \n- Fixed picture used in officer pods\n- Cleaned up some untranslated text/wording polish\n- Added unlockable codex entry for builtin weapon for 0.98",
+      "timestamp": "2025-04-10T02:42:36.081Z",
+      "images": []
+    },
+    {
+      "id": "1360168838007754812",
+      "content": "Updated to CN version 1.13.6b\n-Fixed a bug that sometime prevented GC officer from having additional max level if the pods are opened during certain period (does not work if officer already generated) \n- Reworked bounty spawn to reduce the chance of multiple bounty cluster in same sytem, slightly reworked fleet composition \n\nThe following were added already in the prev eng hotfix.\n- Pleiades Officer pod will spawn next to Pleiades for pick up (new save required)\n- 0.98 Codex unlock function for GC weapons.",
+      "timestamp": "2025-04-11T08:25:21.696Z",
+      "images": []
+    },
+    {
+      "id": "1360496903237668884",
+      "content": "**Updated to CN v1.13.6c**\nFixed crash caused by using the GC Pleaides officer on Pleaides with elite skill\nFixed the White Ship's Blitz/ Darkship's Primed mode effect displaying regardless of player ship when those effect triggers. (Thanks to ava for catching the bug)\n\nReworded TL of some ship systems to clarify and correct some errors.\nFixed some more missing TL",
+      "timestamp": "2025-04-12T06:08:58.542Z",
+      "images": []
+    },
+    {
+      "id": "1361954049242693662",
+      "content": "**updated to cn version v1.13.6d**\nFixed a possible crash caused by Pleiades in battle\nFixed an issue causing the derelict GC ships to spawn in colonized blackhole systems\nFixed a bug causing player to receive multiple Pleiades officer pod from salvage\n\nPolished translation of some hullmods and weapons",
+      "timestamp": "2025-04-16T06:39:09.222Z",
+      "images": []
+    },
+    {
+      "id": "1381395579128516748",
+      "content": "**Updated to Chinese Mod Version v.1.13.7b (as well as earlier v.1.13.7a)**\n**NOT SAVE COMPATIBLE **with v.1.13.6d or all earlier version\n\n**Main Changes**\nAdding a new elite stealth destroyer, which is obtained through either a new bounty, or a special nexrelin custom start.\nAdded Lunalib setting to change the portrait style of the Constellate Officers. (Also require lunalib now)\n\nKitalpha - Name Changed to Tejat (Stat increased across the board slightly, system reduce shield damage taken and increase shield deployment speed.)\n-Aldebaran - Charge up time for system reduced, increase the rate shield unfolds after system ends.\n\n-Sadalsuud - Increase the rate shield unfolds after system ends. Special mote does not fire at once, but in rapid succession after system ends.\n\nSpica - System Cooldown 6s -4s, charge rate 3%/sec -> 4% sec.\nSpica - Builtin Weapon fire rate increased, turn rate slightly increased.\nSadalmelik - Speed buff from ship system increased.\n**Other**\n\nFlux dissipation required to spawn a basic mote reduced from 10% to 5%, max mote number increased 8-10 for capital ships.\nFlux dissipation required to spawn a basic mote reduced from 10% to 7%, max mote number increased 5-7 for cruiser.\nWhite jade ship have brighter venting and engine length increased\nFixed Issue with builtin Safety Override on bounty ship\nReduced defender fleet for the derelict prototypes\nVarious bug fixes",
+      "timestamp": "2025-06-08T22:12:51.153Z",
+      "editedTimestamp": "2025-06-08T22:12:55.795Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1359352557348065311/1381395577886998588/225320qhk0j9homsgmm0xj.png?ex=69919c22&is=69904aa2&hm=129d200b0f71063cdeccb580e66025d54754c87978c92b84647673c6a7b3e496&",
+          "filename": "225320qhk0j9homsgmm0xj.png"
+        },
+        {
+          "url": "https://cdn.discordapp.com/attachments/1359352557348065311/1381395578893897758/230243nyys67bg33wg6gz6.png?ex=69919c23&is=69904aa3&hm=05a591762300d5e48e822fb94adfc969a4bd66c826986468a83f5234ba14a383&",
+          "filename": "230243nyys67bg33wg6gz6.png"
+        }
+      ]
+    }
+  ]
+}

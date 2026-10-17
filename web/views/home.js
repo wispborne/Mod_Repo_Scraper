@@ -137,9 +137,9 @@ function drawActions(node, status) {
     actionBtn('Start full run', 'Scrape new or changed topics on the main and libraries '
       + 'boards and run LLM extraction.',
       { kind: 'fullRun', scope: 'newData', boards: ['main', 'libraries'], runLlm: true, replayAllowed: false }, true),
-    actionBtn('Merge saved sources', 'Merge saved sources into ModRepo.json. No network requests.',
+    actionBtn('Merge saved sources', 'Merge saved sources into ModRepo-v2.json. No network requests.',
       { kind: 'mergeModRepo', collectMergeDebug: true }),
-    actionBtn('Rebuild bundle', 'Rebuild forum-data-bundle.json from saved data.',
+    actionBtn('Rebuild bundle', 'Rebuild forum-data-bundle-v2.json from saved data.',
       { kind: 'rebuildBundle' }),
     actionBtn('LLM coverage pass', 'Extract missing or outdated LLM results from saved posts.',
       { kind: 'llmCoveragePass', runLlm: true }),

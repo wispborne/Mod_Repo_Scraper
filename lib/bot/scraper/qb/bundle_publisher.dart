@@ -15,9 +15,15 @@ import 'models/mod_detail.dart';
 import 'models/post_extraction.dart';
 import 'models/scrape_job.dart';
 import 'mod_thread_filter.dart';
+import '../../../catalog/discord_posts.dart';
 
 class BundlePublisher {
+  /// The old bundle, which old TriOS installs read. Written without the
+  /// Discord answers until the switch to the catalog, then frozen.
   static const String _bundleFileName = 'forum-data-bundle.json';
+
+  /// The bundle new readers use: the old bundle plus the Discord answers.
+  static const String bundleV2FileName = 'forum-data-bundle-v2.json';
 
   final JsonDataStore _store;
   final QbDownloadResolver _resolver;
@@ -79,7 +85,9 @@ class BundlePublisher {
     final droppedLines = <String>[];
     final index = indexWithLlm.where((s) {
       if (keepThreadInBundle(
-          title: s.title, llmSaidMod: llmIsModByTopic[s.topicId])) {
+          title: s.title,
+          llmSaidMod: llmIsModByTopic[s.topicId],
+          inModIndex: s.inModIndex)) {
         return true;
       }
       droppedTopicIds.add(s.topicId);
@@ -186,12 +194,15 @@ class BundlePublisher {
       errors: scrapeResult?.errors,
     );
 
+    final discordThreads = _discordThreads();
+
     final bundle = ForumDataBundle(
       updatedAt: updatedAt,
       meta: meta,
       index: index,
       details: details,
       assumedDownloads: assumedDownloads,
+      discordThreads: discordThreads,
     );
 
     if (droppedTopicIds.isNotEmpty) {
@@ -213,12 +224,69 @@ class BundlePublisher {
     return bundle;
   }
 
-  /// Writes the bundle JSON to the local data path.
+  /// The LLM's answers for the Discord threads the last Discord scrape saved,
+  /// in thread id order. A thread with no answer, or an answer with no mods,
+  /// is left out. Only the thread's id, link and name go with it — never the
+  /// text of its messages.
+  List<DiscordThreadAnswer> _discordThreads() {
+    final store = _llmStore;
+    if (store == null) return const [];
+    DiscordPostsFile saved;
+    try {
+      saved = DiscordPostsFile.read(File(p.join(_store.basePath, DiscordPostsFile.fileName)));
+    } catch (e) {
+      _log.warning('Could not read the saved Discord threads; their answers '
+          'go out without names or links: $e');
+      saved = const DiscordPostsFile();
+    }
+    final answers = <DiscordThreadAnswer>[];
+    final ids = store.discordEntries.keys.toList()..sort();
+    for (final id in ids) {
+      final mods = store.discordEntries[id]!.mods;
+      if (mods.isEmpty) continue;
+      final thread = saved.threads[id];
+      answers.add(DiscordThreadAnswer(
+        threadId: id,
+        url: thread?.url ?? '',
+        name: thread?.name ?? '',
+        mods: mods,
+      ));
+    }
+    return answers;
+  }
+
+  /// One Discord answer as it is written out: the download confidence the
+  /// resolver guessed is taken off, since a Discord entry carries no scores.
+  static Map<String, dynamic> discordThreadForPublishing(DiscordThreadAnswer thread) {
+    final map = thread.toMap();
+    for (final mod in (map['mods'] as List?) ?? const []) {
+      for (final download in ((mod as Map)['downloads'] as List?) ?? const []) {
+        (download as Map).remove('confidence');
+      }
+    }
+    return map;
+  }
+
+  /// Writes the bundle JSON to the local data path: the old bundle without the
+  /// Discord answers, and `forum-data-bundle-v2.json` with them.
   Future<void> writeLocal(ForumDataBundle bundle) async {
     await Directory(_outputPath).create(recursive: true);
+    final encoder = const JsonEncoder.withIndent('  ');
+
     final path = p.join(_outputPath, _bundleFileName);
-    final json = const JsonEncoder.withIndent('  ').convert(bundle.toMap());
-    await File(path).writeAsString(json);
+    final old = bundle.toMap()..remove('discordThreads');
+    await File(path).writeAsString(encoder.convert(old));
     _log.info('Bundle written to $path');
+
+    final v2Path = p.join(_outputPath, bundleV2FileName);
+    await File(v2Path).writeAsString(encoder.convert({
+      ...bundle.toMap(),
+      'discordThreads': [
+        for (final thread in bundle.discordThreads ?? const <DiscordThreadAnswer>[])
+          discordThreadForPublishing(thread),
+      ],
+    }));
+    _log.info('Bundle written to $v2Path '
+        '(${bundle.discordThreads?.length ?? 0} Discord threads)');
   }
 }

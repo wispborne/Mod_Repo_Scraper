@@ -9,6 +9,8 @@ final List<ComparedField> bundleFields = [
   const ComparedField('lastPostDate', label: 'last post'),
   const ComparedField('isWip', label: 'work in progress'),
   const ComparedField('inModIndex', label: 'in the mod index'),
+  const ComparedField('indexLines',
+      label: 'mod index lines', itemsOf: _indexLineItems),
   const ComparedField('sourceBoard', label: 'board'),
   const ComparedField('thumbnailPath', label: 'thumbnail'),
   const ComparedField('contentFingerprint',
@@ -20,6 +22,21 @@ final List<ComparedField> bundleFields = [
   const ComparedField('extraPosts',
       label: 'the author\'s other posts', itemsOf: _extraPostItems),
 ];
+
+/// One mod index line as a reader would name it: "Name by Author [0.98a] in Faction Mods".
+List<Map<String, dynamic>> _indexLineItems(Object? before, Object? after) {
+  List<String> named(Object? value) => [
+        for (final line in value is List ? value : const [])
+          if (line is Map)
+            [
+              line['name'],
+              if ('${line['author'] ?? ''}'.isNotEmpty) 'by ${line['author']}',
+              if (line['gameVersion'] != null) '[${line['gameVersion']}]',
+              'in ${line['category']}',
+            ].join(' '),
+      ];
+  return listItems(named(before), named(after));
+}
 
 /// Snapshots retain a fingerprint, so text changes have no before/after values.
 String _describePostChange(Object? before, Object? after) {
@@ -126,6 +143,7 @@ Map<String, dynamic> _topicRow(
     'lastPostDate': row['lastPostDate'],
     'isWip': row['isWip'],
     'inModIndex': row['inModIndex'],
+    'indexLines': row['indexLines'],
     'sourceBoard': row['sourceBoard'],
     'thumbnailPath': row['thumbnailPath'],
     'llm': row['llm'],

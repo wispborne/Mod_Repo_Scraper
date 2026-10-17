@@ -8,6 +8,167 @@
 
 part of 'mod_summary.dart';
 
+class QbIndexLineMapper extends ClassMapperBase<QbIndexLine> {
+  QbIndexLineMapper._();
+
+  static QbIndexLineMapper? _instance;
+  static QbIndexLineMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = QbIndexLineMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'QbIndexLine';
+
+  static String _$name(QbIndexLine v) => v.name;
+  static const Field<QbIndexLine, String> _f$name = Field('name', _$name);
+  static String _$author(QbIndexLine v) => v.author;
+  static const Field<QbIndexLine, String> _f$author = Field(
+    'author',
+    _$author,
+    opt: true,
+    def: '',
+  );
+  static String? _$gameVersion(QbIndexLine v) => v.gameVersion;
+  static const Field<QbIndexLine, String> _f$gameVersion = Field(
+    'gameVersion',
+    _$gameVersion,
+    opt: true,
+  );
+  static String _$category(QbIndexLine v) => v.category;
+  static const Field<QbIndexLine, String> _f$category = Field(
+    'category',
+    _$category,
+    opt: true,
+    def: 'uncategorized',
+  );
+
+  @override
+  final MappableFields<QbIndexLine> fields = const {
+    #name: _f$name,
+    #author: _f$author,
+    #gameVersion: _f$gameVersion,
+    #category: _f$category,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static QbIndexLine _instantiate(DecodingData data) {
+    return QbIndexLine(
+      name: data.dec(_f$name),
+      author: data.dec(_f$author),
+      gameVersion: data.dec(_f$gameVersion),
+      category: data.dec(_f$category),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static QbIndexLine fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<QbIndexLine>(map);
+  }
+
+  static QbIndexLine fromJson(String json) {
+    return ensureInitialized().decodeJson<QbIndexLine>(json);
+  }
+}
+
+mixin QbIndexLineMappable {
+  String toJson() {
+    return QbIndexLineMapper.ensureInitialized().encodeJson<QbIndexLine>(
+      this as QbIndexLine,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return QbIndexLineMapper.ensureInitialized().encodeMap<QbIndexLine>(
+      this as QbIndexLine,
+    );
+  }
+
+  QbIndexLineCopyWith<QbIndexLine, QbIndexLine, QbIndexLine> get copyWith =>
+      _QbIndexLineCopyWithImpl<QbIndexLine, QbIndexLine>(
+        this as QbIndexLine,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return QbIndexLineMapper.ensureInitialized().stringifyValue(
+      this as QbIndexLine,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return QbIndexLineMapper.ensureInitialized().equalsValue(
+      this as QbIndexLine,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return QbIndexLineMapper.ensureInitialized().hashValue(this as QbIndexLine);
+  }
+}
+
+extension QbIndexLineValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, QbIndexLine, $Out> {
+  QbIndexLineCopyWith<$R, QbIndexLine, $Out> get $asQbIndexLine =>
+      $base.as((v, t, t2) => _QbIndexLineCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class QbIndexLineCopyWith<$R, $In extends QbIndexLine, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({
+    String? name,
+    String? author,
+    String? gameVersion,
+    String? category,
+  });
+  QbIndexLineCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _QbIndexLineCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, QbIndexLine, $Out>
+    implements QbIndexLineCopyWith<$R, QbIndexLine, $Out> {
+  _QbIndexLineCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<QbIndexLine> $mapper =
+      QbIndexLineMapper.ensureInitialized();
+  @override
+  $R call({
+    String? name,
+    String? author,
+    Object? gameVersion = $none,
+    String? category,
+  }) => $apply(
+    FieldCopyWithData({
+      if (name != null) #name: name,
+      if (author != null) #author: author,
+      if (gameVersion != $none) #gameVersion: gameVersion,
+      if (category != null) #category: category,
+    }),
+  );
+  @override
+  QbIndexLine $make(CopyWithData data) => QbIndexLine(
+    name: data.get(#name, or: $value.name),
+    author: data.get(#author, or: $value.author),
+    gameVersion: data.get(#gameVersion, or: $value.gameVersion),
+    category: data.get(#category, or: $value.category),
+  );
+
+  @override
+  QbIndexLineCopyWith<$R2, QbIndexLine, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _QbIndexLineCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class QbModSummaryMapper extends ClassMapperBase<QbModSummary> {
   QbModSummaryMapper._();
 
@@ -15,6 +176,7 @@ class QbModSummaryMapper extends ClassMapperBase<QbModSummary> {
   static QbModSummaryMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = QbModSummaryMapper._());
+      QbIndexLineMapper.ensureInitialized();
       LlmThreadDataMapper.ensureInitialized();
     }
     return _instance!;
@@ -133,6 +295,12 @@ class QbModSummaryMapper extends ClassMapperBase<QbModSummary> {
     _$sourceBoard,
     opt: true,
   );
+  static List<QbIndexLine>? _$indexLines(QbModSummary v) => v.indexLines;
+  static const Field<QbModSummary, List<QbIndexLine>> _f$indexLines = Field(
+    'indexLines',
+    _$indexLines,
+    opt: true,
+  );
   static LlmThreadData? _$llm(QbModSummary v) => v.llm;
   static const Field<QbModSummary, LlmThreadData> _f$llm = Field(
     'llm',
@@ -159,6 +327,7 @@ class QbModSummaryMapper extends ClassMapperBase<QbModSummary> {
     #scrapedAt: _f$scrapedAt,
     #isWip: _f$isWip,
     #sourceBoard: _f$sourceBoard,
+    #indexLines: _f$indexLines,
     #llm: _f$llm,
   };
   @override
@@ -183,6 +352,7 @@ class QbModSummaryMapper extends ClassMapperBase<QbModSummary> {
       scrapedAt: data.dec(_f$scrapedAt),
       isWip: data.dec(_f$isWip),
       sourceBoard: data.dec(_f$sourceBoard),
+      indexLines: data.dec(_f$indexLines),
       llm: data.dec(_f$llm),
     );
   }
@@ -249,6 +419,12 @@ extension QbModSummaryValueCopy<$R, $Out>
 
 abstract class QbModSummaryCopyWith<$R, $In extends QbModSummary, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<
+    $R,
+    QbIndexLine,
+    QbIndexLineCopyWith<$R, QbIndexLine, QbIndexLine>
+  >?
+  get indexLines;
   LlmThreadDataCopyWith<$R, LlmThreadData, LlmThreadData>? get llm;
   $R call({
     int? topicId,
@@ -268,6 +444,7 @@ abstract class QbModSummaryCopyWith<$R, $In extends QbModSummary, $Out>
     DateTime? scrapedAt,
     bool? isWip,
     int? sourceBoard,
+    List<QbIndexLine>? indexLines,
     LlmThreadData? llm,
   });
   QbModSummaryCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
@@ -281,6 +458,19 @@ class _QbModSummaryCopyWithImpl<$R, $Out>
   @override
   late final ClassMapperBase<QbModSummary> $mapper =
       QbModSummaryMapper.ensureInitialized();
+  @override
+  ListCopyWith<
+    $R,
+    QbIndexLine,
+    QbIndexLineCopyWith<$R, QbIndexLine, QbIndexLine>
+  >?
+  get indexLines => $value.indexLines != null
+      ? ListCopyWith(
+          $value.indexLines!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(indexLines: v),
+        )
+      : null;
   @override
   LlmThreadDataCopyWith<$R, LlmThreadData, LlmThreadData>? get llm =>
       $value.llm?.copyWith.$chain((v) => call(llm: v));
@@ -303,6 +493,7 @@ class _QbModSummaryCopyWithImpl<$R, $Out>
     Object? scrapedAt = $none,
     bool? isWip,
     Object? sourceBoard = $none,
+    Object? indexLines = $none,
     Object? llm = $none,
   }) => $apply(
     FieldCopyWithData({
@@ -323,6 +514,7 @@ class _QbModSummaryCopyWithImpl<$R, $Out>
       if (scrapedAt != $none) #scrapedAt: scrapedAt,
       if (isWip != null) #isWip: isWip,
       if (sourceBoard != $none) #sourceBoard: sourceBoard,
+      if (indexLines != $none) #indexLines: indexLines,
       if (llm != $none) #llm: llm,
     }),
   );
@@ -348,6 +540,7 @@ class _QbModSummaryCopyWithImpl<$R, $Out>
     scrapedAt: data.get(#scrapedAt, or: $value.scrapedAt),
     isWip: data.get(#isWip, or: $value.isWip),
     sourceBoard: data.get(#sourceBoard, or: $value.sourceBoard),
+    indexLines: data.get(#indexLines, or: $value.indexLines),
     llm: data.get(#llm, or: $value.llm),
   );
 

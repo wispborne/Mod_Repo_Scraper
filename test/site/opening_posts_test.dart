@@ -6,6 +6,12 @@ import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_detail.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_summary.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/post_extraction.dart';
 import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
+import 'package:mod_repo_scraper/catalog/catalog_inputs.dart';
+import 'package:mod_repo_scraper/catalog/forum_listing.dart';
+import 'package:mod_repo_scraper/catalog/listing.dart';
+import 'package:mod_repo_scraper/catalog/mod_catalog.dart';
+import 'package:mod_repo_scraper/catalog/source_post.dart';
+import 'package:mod_repo_scraper/catalog/source_post_listings.dart';
 import 'package:mod_repo_scraper/site/mod_id_store.dart';
 import 'package:mod_repo_scraper/site/public_data_builder.dart';
 import 'package:path/path.dart' as p;
@@ -17,14 +23,40 @@ import 'package:test/test.dart';
 void main() {
   late Directory dir;
   late PublicDataBuilder builder;
+  late ModIdStore idStore;
 
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('opening_posts');
+    idStore = ModIdStore(p.join(dir.path, 'data'))..load();
     builder = PublicDataBuilder(
       outputPath: p.join(dir.path, 'outputs'),
-      idStore: ModIdStore(p.join(dir.path, 'data'))..load(),
+      idStore: idStore,
     );
   });
+
+  /// Builds the site the way a run does: each thread in [bundle] turned into
+  /// its listings, merged into a catalog with ids, and the pages built from it.
+  Future<PublicSiteData> buildViaCatalog(ForumDataBundle bundle) async {
+    final listings = <Listing>[];
+    final collections = <Listing>[];
+    for (final thread in bundle.index) {
+      final detail = bundle.details['${thread.topicId}'];
+      final result = SourcePostListings.combine(
+        rules: forumRulesListing(thread),
+        llmMods: thread.llm?.mods ?? const [],
+        postWords: SourcePostListings.openingRunWords(detail == null
+            ? SourcePost(kind: SourceKind.forum, id: '${thread.topicId}', title: thread.title)
+            : SourcePost.fromForumDetail(detail).copyWith(title: thread.title)),
+      );
+      listings.addAll(result.listings);
+      if (result.collection != null) collections.add(result.collection!);
+    }
+    final catalog = await ModCatalog.build(
+      inputs: CatalogListings(listings: listings, collections: collections),
+      ids: idStore,
+    );
+    return builder.build(mods: catalog.mods, collections: catalog.collections, bundle: bundle);
+  }
 
   tearDown(() async {
     if (await dir.exists()) await dir.delete(recursive: true);
@@ -109,10 +141,8 @@ void main() {
       );
 
   group('a thread whose downloads are in the author\'s second post', () {
-    test('each fork is published with the download tied to it', () {
-      final data = builder.build(
-        mods: [umbrellaMod()],
-        bundle: bundleWith(
+    test('each fork is published with the download tied to it', () async {
+      final data = await buildViaCatalog(bundleWith(
           threadWith([
             fork('Kwin\'s Sector Industry Compilation', 'kwin.zip'),
             fork('Farsight Drive', 'farsight.zip'),
@@ -134,13 +164,11 @@ void main() {
           reason: 'a mod made up from a thread says which thread');
     });
 
-    test('without the second post nothing is published for the forks', () {
+    test('without the second post nothing is published for the forks', () async {
       // What the site did before this change. The names are in the first post,
       // but the downloads are not, so the extractor grounded none of them and
       // every fork arrives here with an empty download list.
-      final data = builder.build(
-        mods: [umbrellaMod()],
-        bundle: bundleWith(
+      final data = await buildViaCatalog(bundleWith(
           threadWith([
             LlmMod(name: 'Kwin\'s Sector Industry Compilation'),
             LlmMod(name: 'Farsight Drive'),
@@ -154,10 +182,8 @@ void main() {
           reason: 'no download is no page');
     });
 
-    test('the umbrella mod keeps the first post as its description', () {
-      final data = builder.build(
-        mods: [umbrellaMod()],
-        bundle: bundleWith(
+    test('two forks make the thread a Collection, and the thread is no mod', () async {
+      final data = await buildViaCatalog(bundleWith(
           threadWith([
             fork('Kwin\'s Sector Industry Compilation', 'kwin.zip'),
             fork('Farsight Drive', 'farsight.zip'),
@@ -166,16 +192,16 @@ void main() {
         ),
       );
 
-      final umbrella = data.details.values
-          .firstWhere((d) => d.listing.name == 'Computica\'s Faction Forks');
-      expect(umbrella.descriptionHtml, isNot(contains('Adds four lore-rich')),
-          reason: 'the shared post is nobody\'s description');
+      final names = data.list.mods.map((m) => m.displayName ?? m.name).toList();
+      expect(names, unorderedEquals(['Kwin\'s Sector Industry Compilation', 'Farsight Drive']));
+      // The shared post is nobody's description.
+      for (final detail in data.details.values) {
+        expect(detail.descriptionHtml ?? '', isNot(contains('A rehabilitation project')));
+      }
     });
 
-    test('a screenshot in the second post reaches the gallery', () {
-      final data = builder.build(
-        mods: [umbrellaMod()],
-        bundle: bundleWith(
+    test('a screenshot in the second post reaches the gallery', () async {
+      final data = await buildViaCatalog(bundleWith(
           threadWith([fork('Kwin\'s Sector Industry Compilation', 'kwin.zip')]),
           QbModDetail(
             topicId: topicId,
@@ -202,9 +228,7 @@ void main() {
   });
 
   group('each fork\'s own description', () {
-    PublicSiteData buildWithAnchors() => builder.build(
-          mods: [umbrellaMod()],
-          bundle: bundleWith(
+    Future<PublicSiteData> buildWithAnchors() => buildViaCatalog(bundleWith(
             threadWith([
               fork(
                 'Kwin\'s Sector Industry Compilation',
@@ -224,8 +248,8 @@ void main() {
           ),
         );
 
-    test('is the author\'s own paragraph, not the AI\'s', () {
-      final data = buildWithAnchors();
+    test('is the author\'s own paragraph, not the AI\'s', () async {
+      final data = await buildWithAnchors();
 
       final kwin = data.details.values.firstWhere(
           (d) => d.listing.name == 'Kwin\'s Sector Industry Compilation');
@@ -236,8 +260,8 @@ void main() {
       expect(kwin.description, isNot(contains('An AI paragraph')));
     });
 
-    test('does not carry a sibling\'s words', () {
-      final data = buildWithAnchors();
+    test('does not carry a sibling\'s words', () async {
+      final data = await buildWithAnchors();
 
       final kwin = data.details.values.firstWhere(
           (d) => d.listing.name == 'Kwin\'s Sector Industry Compilation');
@@ -249,8 +273,8 @@ void main() {
       expect(farsight.description, isNot(contains('lore-rich corporations')));
     });
 
-    test('falls back to the AI paragraph when nothing was pointed at', () {
-      final data = buildWithAnchors();
+    test('falls back to the AI paragraph when nothing was pointed at', () async {
+      final data = await buildWithAnchors();
 
       final valkyrians = data.details.values
           .firstWhere((d) => d.listing.name == 'Valkyrians');
@@ -258,21 +282,8 @@ void main() {
       expect(valkyrians.descriptionIsGenerated, isTrue);
     });
 
-    test('a summary from the second post keeps the full description', () {
-      final data = builder.build(
-        mods: [
-          ScrapedMod(
-            name: 'Nexerelin',
-            gameVersionReq: '0.98a',
-            authorsList: const ['Histidine'],
-            sources: const [ModSource.Index],
-            urls: const {
-              ModUrlType.Forum:
-                  'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
-            },
-          ),
-        ],
-        bundle: ForumDataBundle(
+    test('a summary from the second post keeps the full description', () async {
+      final data = await buildViaCatalog(ForumDataBundle(
           updatedAt: DateTime.utc(2026, 8, 25),
           index: [
             QbModSummary(

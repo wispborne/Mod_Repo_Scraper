@@ -1,4 +1,4 @@
-// #/modrepo — ModRepo.json browser.
+// #/modrepo — ModRepo-v2.json browser.
 //   #/modrepo            searchable, paged mod table
 //   #/modrepo/<index>    one merged mod, with source provenance
 
@@ -93,7 +93,7 @@ async function detail(root, index) {
       el('button', {
         class: 'btn',
         text: 'Re-run merge',
-        title: 'Merge saved sources into ModRepo.json. No network requests.',
+        title: 'Merge saved sources into ModRepo-v2.json. No network requests.',
         onclick: async () => {
           try {
             const record = await manager.confirmAndSubmit({
@@ -111,6 +111,7 @@ async function detail(root, index) {
 
   const list = el('ul', { class: 'field-list' });
   const rows = [
+    ['Permanent id', mod.id],
     ['Authors', (mod.authorsList || []).join(', ')],
     ['Game version', mod.gameVersionReq],
     ['Mod version', mod.modVersion],
@@ -123,6 +124,27 @@ async function detail(root, index) {
   }
   root.append(list);
 
+  // Which posts this mod was built from, as the catalog recorded them. A forum
+  // topic opens its thread page; a Discord thread opens the LLM's answer.
+  if ((mod.sourcePosts || []).length) {
+    root.append(el('h3', { text: 'Source posts' }));
+    const posts = el('ul', { class: 'field-list' });
+    for (const post of mod.sourcePosts) {
+      if (!post.id) continue;
+      const where = post.kind === 'forum' ? `Forum topic ${post.id}`
+        : post.kind === 'discord' ? `Discord thread ${post.id}` : `Nexus page ${post.id}`;
+      const href = post.kind === 'forum' ? `#/topics/${encodeURIComponent(post.id)}`
+        : post.kind === 'discord' ? `#/discord/${encodeURIComponent(post.id)}` : null;
+      const by = post.foundBy === 'llm' ? 'found by the LLM'
+        : post.foundBy === 'rulesAndLlm' ? 'found by the rules, joined by the LLM' : 'found by the rules';
+      posts.append(el('li', {}, [
+        el('span', { class: 'field-label' }, href ? el('a', { href, text: where }) : where),
+        el('span', { class: 'field-value', text: post.llmModName ? `"${post.llmModName}" · ${by}` : by }),
+      ]));
+    }
+    root.append(posts);
+  }
+
   root.append(el('h3', { text: 'Contributing sources' }));
   root.append(el('div', { class: 'meta-chips' }, (mod.sources || []).map((s) => el('span', { class: 'badge badge-primary', text: s }))));
   if (!(mod.sources || []).length) root.append(el('p', { class: 'loading', text: 'No sources listed.' }));
@@ -134,6 +156,14 @@ async function detail(root, index) {
       ul.append(el('li', {}, [el('span', { class: 'field-label', text: type }), el('a', { class: 'field-value', href: url, target: '_blank', text: url })]));
     }
     root.append(ul);
+  }
+
+  if (mod.discordThreadId) {
+    root.append(el('p', {},
+      el('a', {
+        href: `#/discord/${encodeURIComponent(mod.discordThreadId)}`,
+        text: "Open the LLM's answer for this mod's Discord thread →",
+      })));
   }
 
   // Show the group link only when merge debug data is available.

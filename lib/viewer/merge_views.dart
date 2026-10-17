@@ -86,6 +86,7 @@ Map<String, dynamic> fieldsForGroup({
     ],
   });
 
+  final memberPosts = (group['memberSourcePosts'] as List?) ?? const [];
   return {
     'groupIndex': group['groupIndex'],
     'memberCount': members.length,
@@ -96,6 +97,7 @@ Map<String, dynamic> fieldsForGroup({
           'name': members[i]['name'],
           'authorsList': members[i]['authorsList'] ?? const [],
           'sources': members[i]['sources'] ?? const [],
+          if (i < memberPosts.length) 'sourcePosts': memberPosts[i],
         },
     ],
     'merged': merged,

@@ -5,11 +5,22 @@ import 'package:meta/meta.dart';
 
 import 'forum_constants.dart';
 import 'legacy_category_map.dart';
+import 'models/mod_summary.dart';
 import 'throttled_client.dart';
 
 class ModIndexCategoriesResult {
   Map<int, String> mainTopicCategoryMap = {};
   Map<int, String> archivedTopicCategoryMap = {};
+
+  /// Every index line that links to each topic, in index order. A topic today's
+  /// index lists only has today's lines; the older posts only fill in topics
+  /// today's index leaves out. Otherwise an old "[0.97a]" would sit beside
+  /// today's "[-]" (TriOS, topic 29674).
+  Map<int, List<QbIndexLine>> topicIndexLines = {};
+
+  /// Whether the index was read at all. A failed fetch gives an empty result,
+  /// and that must not be read as "the index lists nothing".
+  bool get isEmpty => mainTopicCategoryMap.isEmpty && archivedTopicCategoryMap.isEmpty;
   Set<String> mainCategories = {};
   Set<String> mainCategoriesLower = {};
   List<String> unknownLegacyCategories = [];
@@ -58,6 +69,34 @@ class QbModIndexScraper {
       result.mainTopicCategoryMap = mainMap;
       result.mainCategories = mainMap.values.toSet();
       result.mainCategoriesLower = result.mainCategories.map((v) => v.toLowerCase()).toSet();
+
+      for (final (topicId, line) in extractIndexLinesFromPost(allPosts[0])) {
+        _addLine(result.topicIndexLines, topicId, line);
+      }
+
+      // Older posts only add lines for topics today's index leaves out. They
+      // sit oldest first below today's, so they are read newest first: a topic
+      // that only an old post lists then leads with its most recent line.
+      for (var i = allPosts.length - 1; i >= 1; i--) {
+        try {
+          for (final (topicId, line) in extractIndexLinesFromPost(allPosts[i])) {
+            if (mainMap.containsKey(topicId)) continue;
+            final current = currentCategoryName(line.category, result.mainCategories);
+            _addLine(
+              result.topicIndexLines,
+              topicId,
+              QbIndexLine(
+                name: line.name,
+                author: line.author,
+                gameVersion: line.gameVersion,
+                category: current ?? ForumConstants.uncategorizedCategory,
+              ),
+            );
+          }
+        } catch (e) {
+          _log.warning('Failed to read index lines from post $i: $e');
+        }
+      }
 
       for (var i = 1; i < allPosts.length; i++) {
         Map<int, String> archivedMap;
@@ -113,6 +152,76 @@ class QbModIndexScraper {
       return ForumConstants.libraryCategory;
     }
     return cleaned;
+  }
+
+  /// Adds [line] to [topicId]'s lines unless a line with the same name and
+  /// heading is already there. The same name under two headings is kept twice.
+  static void _addLine(Map<int, List<QbIndexLine>> lines, int topicId, QbIndexLine line) {
+    final list = lines.putIfAbsent(topicId, () => []);
+    final repeated = list.any((l) =>
+        l.name.toLowerCase() == line.name.toLowerCase() &&
+        l.category.toLowerCase() == line.category.toLowerCase());
+    if (!repeated) list.add(line);
+  }
+
+  /// Every mod line in one index post, in the order the post lists them, paired
+  /// with the topic it links to. Headings are found the same way as
+  /// [extractTopicCategoriesFromPost]. A line is written by the forum as
+  /// `[<strong>0.98a</strong>] <strong><a>Name</a></strong> by <em><strong>Author</strong></em>`.
+  /// The category is the heading as written, tidied; mapping old names to
+  /// today's is left to the caller.
+  @visibleForTesting
+  static List<(int, QbIndexLine)> extractIndexLinesFromPost(Element postRoot) {
+    final lines = <(int, QbIndexLine)>[];
+    for (final categoryNode in postRoot.querySelectorAll('table.bbc_table > tbody > tr > td > strong')) {
+      final category = _normalizeCategory(categoryNode.text.trim().replaceAll(RegExp(r':+$'), '').trim());
+      if (category.isEmpty) continue;
+
+      final list = _listAfter(categoryNode);
+      if (list == null) continue;
+
+      for (final item in list.querySelectorAll('li')) {
+        final link = item.querySelector("a[href*='topic='], a[href*='topic,'], a[href*='topic/']");
+        final topicId = ForumConstants.tryExtractTopicId(link?.attributes['href']);
+        if (link == null || topicId == null) continue;
+        final name = _tidy(link.text);
+        if (name.isEmpty) continue;
+
+        lines.add((
+          topicId,
+          QbIndexLine(
+            name: name,
+            author: _tidy(item.querySelector('em strong')?.text ?? ''),
+            gameVersion: _gameVersionOf(item, link),
+            category: category,
+          ),
+        ));
+      }
+    }
+    return lines;
+  }
+
+  /// The bracketed game version at the front of a line: the first bold text
+  /// that comes before the link. TriOS's line writes "[-]" with no colour span,
+  /// so the bold text is read rather than a span inside it.
+  static String? _gameVersionOf(Element item, Element link) {
+    for (final node in item.children) {
+      if (node == link || node.contains(link)) break;
+      if (node.localName == 'strong') {
+        final text = _tidy(node.text);
+        return text.isEmpty ? null : text;
+      }
+    }
+    return null;
+  }
+
+  static String _tidy(String text) => text.trim().replaceAll(_spaceRegex, ' ');
+
+  static Element? _listAfter(Element heading) {
+    for (Element? node = heading.nextElementSibling; node != null; node = node.nextElementSibling) {
+      if (node.localName == 'ul' && node.classes.contains('bbc_list')) return node;
+    }
+    return null;
   }
 
   @visibleForTesting

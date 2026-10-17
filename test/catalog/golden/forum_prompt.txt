@@ -1,0 +1,27 @@
+=== MOD TITLE ===
+[0.98a] Computica's Faction Forks 1.2 (2026-01-01)
+
+=== POST TEXT (spoiler boxes included; "[link: <url>]" marks where a link sat) ===
+Computica's Faction Forks.
+ Requires LazyLib [link: https://fractalsoftworks.com/forum/index.php?topic=5444.0].
+ badge A screenshot
+
+=== FOLLOW-UP POST 1 BY THE SAME AUTHOR (same thread, read it with the post above) ===
+Kwin's Sector Industry Compilation
+Download [link: https://github.com/x/kwin/releases/download/1.2/kwin.zip]
+
+=== LINKS IN THE POST ===
+- https://fractalsoftworks.com/forum/index.php?topic=5444.0  "LazyLib"
+- https://github.com/x/kwin/releases/download/1.2/kwin.zip  "Download" [flagged downloadable]
+
+=== LINKS THE SCRAPER AUTO-DETECTED AS DOWNLOADS ===
+- https://github.com/x/kwin/releases/download/1.2/kwin.zip
+
+=== IMAGES IN THE POST (use only these URLs for "image") ===
+- https://i.imgur.com/shot.png  "A screenshot"
+
+=== GAME VERSION (do NOT report as the mod version) ===
+0.98a
+
+--- fingerprint ---
+e99f3f162994d9a94ee6495e2d0fd6c25acdbdeda7600023635b651aa36febb9

@@ -72,7 +72,32 @@ posts written to be easy.
 | 10982 | GraphicsLib. The author's donate link is a picture button with no words of its own and none around it, on a host no rule recognises. It must still be kept as a support link, and given a `label`, since that label is the only name the button will have. The check against Draconis must not cost this one. |
 | 34645 | A question thread. Not a mod release at all — `isMod` must be false. |
 
-To add one, copy `qb_data/mods/<id>/detail.json` into `posts/`, drop the
+## The saved Discord threads
+
+`discord/<thread id>.json` are real threads as `discord-posts.json` holds them:
+the name, the author, and the author's opening run of messages. They were read
+back from a recording of Discord's own answers, so they are what authors really
+post. Discord announcements are much shorter than forum posts, and the prompt
+was written against the forum, so these check it reads them too.
+
+| Thread | Why it is here |
+| --- | --- |
+| 1255421874075336824 | Adjustable S-Mods. One plain announcement: one mod, one download, a requirements line and "Not safe to remove". The Discord control. |
+| 1257247685723820112 | Retrofitted Bridge. The announcement, then two later messages by the author announcing v0.0.2 and what it changed. Those later messages are the mod's changelog and version. |
+| 1247514078101114911 | Gamma Wars. One faction mod and its "UNGP Rule Addon", each with its own download. The add-on must not become a second main mod. |
+| 1271590391065477143 | All the Domain Drones+. Two independent mods in one announcement, "Vanilla" and "New Drones", each with its own download. Both must be `main`, and each download must sit under its own mod. |
+| 1359352557348065311 | Galactic Constellate. One mod offered as two builds, one for 0.98 and one for 0.97. That is one main mod, not two. The post also says "Safe to add mid-save but cannot be removed", which is one answer for each of two save questions. |
+| 1447000749992312953 | Eridani Combine. The announcement links the BoxUtil build it needs. BoxUtil is a mod of its own, so it must be a requirement, not a second main mod, and its zip must not be offered as Eridani's download. |
+| 1403520779907498095 | Wide Horizons. The announcement was edited up to 1.3.0g, and the messages after it are older 1.2.2 patch notes. The version is 1.3.0g: the newest message is not the newest version. Also says 1.3.x is not save-compatible with 1.2.x. |
+| 1203417843732058202 | Hiver Swarm. The announcement, then one short message per release, ending with "v1.1.7 - Save compatible". The current version and the update note both come from that last message. Also keeps the author's Ko-fi link. |
+| 1355300468968001586 | TriOS. A launcher, so a tool, with a download for Windows, Linux and macOS. That is one entry with three downloads, not three mods. |
+| 1321884585096777840 | Library of Ruina Portrait Pack. One pack, plus an optional "Distortions" pack as a separate download, which must not be added to the main pack's downloads. |
+| 1203053249377079297 | The channel's pinned "Example Mod" template, with a made-up download. It is not a mod. The model currently says it is: on two runs it listed "Example Mod" with its fake download. The site's page for it comes from the Discord reader, not the LLM, so the real fix is for the reader to skip this thread. |
+
+To add one, take the thread's entry out of `qb_data/discord-posts.json` as it
+is. Pick threads that are hard in a way that matters.
+
+To add a forum post, copy `qb_data/mods/<id>/detail.json` into `posts/`, drop the
 `scrapedAt` field and any `localPath` on the images, and write a test that says
 what the post plainly says. Pick threads that are hard in a way that matters —
 one that already reads correctly proves nothing.

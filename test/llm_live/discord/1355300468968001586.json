@@ -1,0 +1,70 @@
+{
+  "threadId": "1355300468968001586",
+  "name": "TriOS: Launcher/Mod Manager/Toolkit",
+  "author": "wispborne",
+  "url": "https://discord.com/channels/187635036525166592/1355300468968001586/1355300468968001586",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=29674",
+  "messages": [
+    {
+      "id": "1355300468968001586",
+      "content": "All-in-one Starsector launcher replacement and toolkit.\n\nRoadmap: <https://github.com/users/wispborne/projects/5/views/1>\n\n## Download (Windows)\n<https://github.com/wispborne/TriOS/releases/latest/download/TriOS-Windows.zip>\n## Download (Linux)\n<https://github.com/wispborne/TriOS/releases/latest/download/TriOS-Linux.zip>\n## Download (MacOS)\n<https://github.com/wispborne/TriOS/releases/latest/download/TriOS-MacOS.zip>\n\nForum: https://fractalsoftworks.com/forum/index.php?topic=29674\nChangelog: <https://github.com/wispborne/TriOS/blob/main/changelog.md> (may include unreleased changes)\nDonate: <https://ko-fi.com/wispborne> or <https://patreon.com/wispborne>\nSource Code: <https://github.com/wispborne/TriOS>",
+      "timestamp": "2025-03-28T22:00:12.067Z",
+      "editedTimestamp": "2025-11-12T14:59:36.657Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1355300468968001586/1355300469232238662/image.png?ex=6991992c&is=699047ac&hm=9d5beb08044f56cad2b60f719e94d1a529271bb77c8529ef81ed44a9f9c92f10&",
+          "filename": "image.png"
+        }
+      ]
+    },
+    {
+      "id": "1355683922016600284",
+      "content": "TriOS: Launcher/Mod Manager/Toolkit",
+      "timestamp": "2025-03-29T23:23:54.398Z",
+      "images": []
+    },
+    {
+      "id": "1392619232772231178",
+      "content": "",
+      "timestamp": "2025-07-09T21:31:38.707Z",
+      "images": []
+    },
+    {
+      "id": "1392619234781036655",
+      "content": "hackfix WIP update for people running weird versions of linux",
+      "timestamp": "2025-07-09T21:31:39.186Z",
+      "images": []
+    },
+    {
+      "id": "1459307729595138155",
+      "content": "## 1.3.0\n- Added\n  - **Portrait Replacer**\n    - Enable \"Replace Mode\", then drag'n'drop to replace.\n    - A new TriOS Companion Mod is required to perform the replacements at runtime, and will be installed automatically if missing.\n      - The only thing the Companion Mod does is do any portrait replacements you've specified. It has no impact on anything else.\n  - **Import Mod Profiles** and Modlists (contributed by hihahahalol)\n    - Copy your mod profile or list to the clipboard and send it to someone else.\n    - Copy someone else's and import it.\n    - This will not automatically download mods.\n  - Report A Bug\n    - New icon (hidable) to submit a bug report, optionally with a full screenshot.\n  - Menu option: Delete Mod (all versions)\n    - Added to multi-select menu as well (hold Control or Shift to select multiple mods).\n  - Export data (mods, ships, weapons) to csv.\n  - You may now set custom paths for more game folders: executable, mods, saves, and game data (core).\n  - Ship Viewer now has three options for showing spoilers; none, \"show CODEX_UNLOCKABLE\", and show all spoilers including <redacted>.\n  - Weapon Viewer now shows OP.\n  - Added popup dialogs to Weapons and Ships that display full information.\n  - Option to have Favorited mods not pinned at the top of the mod list.\n  - If you use Fast Rendering, its custom vmparams file (`fr.vmparams`) is now modified when you change RAM from within TriOS.\n  - Warning if RAM settings are different across launcher config files (e.g. if you have 6gb for vanilla but only 4gb for Fast Rendering).\n  - Option to show only disabled mods on the Dashboard mod list.\n  - New fallback method of checking if game is running that uses `wmic` if the main method (which requires a system JDK (not JRE) fails.\n  - If \"Check If game is running\" has errors, they appear on Settings page.\n  - If `modNexusId` is present in a `.version` file but `modForumId` isn't, then the context menu `Open Forum Page` will use the Nexus page instead.",
+      "timestamp": "2026-01-09T22:07:55.362Z",
+      "images": []
+    },
+    {
+      "id": "1459307750181044235",
+      "content": "- Fixed\n  - Chinese and other non-DOS characters in file paths causing mods to not install fully or at all.\n  - Ship Viewer filters not working.\n  - Custom launcher files are no longer hardcoded to use the game folder as their working directory.\n    - This fixes launching Fast Rendering's .bat via TriOS.\n  - VRAM pie chart breaking after refreshing data.\n  - Theme selection menu is no longer a textbox.\n  - Mod icons that used vanilla icon paths weren't shown.\n  - Ship names are now based on ship_data.csv, not .ship files.\n  - When reading ships and weapons, column names are now trimmed of whitespace.\n    - Fixes Mayasuran Navy ships not having the correct names due to the name column being ` name` instead of `name`.",
+      "timestamp": "2026-01-09T22:08:00.270Z",
+      "editedTimestamp": "2026-01-10T14:32:38.979Z",
+      "images": []
+    },
+    {
+      "id": "1459307766228451338",
+      "content": "- Changed\n  - Cleaned up search bar positioning on Ships and Weapons Viewer pages.\n  - CODEX_UNLOCKABLE ships are now hidden by default on the Ship Viewer.\n  - Cleaned up the Filter UI (icon in top-left) on the Ships and Weapons Viewer pages.\n  - Mac version now requires MacOS 13 (Ventura, released 2022).\n  - Log now waits to load until after mods are loaded to hasten startup.\n  - Some parts of the Ship and Weapon Viewer UI is persisted across restarts (buttons).\n  - Sorting by mod name now uses an \"intuitive\" sort (e.g. 'a', ' x', 'Z') instead of Starsector's sort (e.g. '   x', 'Z', 'a').\n    - Added a new column to the mod list to sort by mod load order.\n  - Context menus (right-click menu) is now slightly prettier.\n  - Cleaned up the \"Clean up mods\" dialog on Settings that lets you remove old versions of mods.\n    - Defaults to not removing currently-enabled mods now.\n  - More warnings around Direct Launch and how it might cause invisible ships on some PCs.\n  - Ships, weapons, and portraits no longer automatically refresh in the background when mods are swapped/updated.\n    - This is for performance reasons. Instead, each page has a manual Refresh button.\n    - In the future, I plan to have the page refresh if needed when it's displayed.",
+      "timestamp": "2026-01-09T22:08:04.096Z",
+      "images": []
+    },
+    {
+      "id": "1459308050132504627",
+      "content": "",
+      "timestamp": "2026-01-09T22:09:11.784Z",
+      "images": []
+    },
+    {
+      "id": "1470515305561456776",
+      "content": "Forum Mods appear in the TriOS Catalog again! \n\nty to Alex for poking a hole in the anti-bot moat",
+      "timestamp": "2026-02-09T20:22:49.699Z",
+      "images": []
+    }
+  ]
+}

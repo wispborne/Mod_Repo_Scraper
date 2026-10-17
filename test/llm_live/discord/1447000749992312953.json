@@ -1,0 +1,91 @@
+{
+  "threadId": "1447000749992312953",
+  "name": "Eridani Combine",
+  "author": "mycophobia",
+  "url": "https://discord.com/channels/187635036525166592/1447000749992312953/1447000749992312953",
+  "messages": [
+    {
+      "id": "1447000749992312953",
+      "content": "Mod by Yogurt Fox, Translated by Myco\nRequire Lazylib/Graphiclib/Magiclib\n\nDownload Link:\nhttps://github.com/MycophobiaSC/Eridani_Combine/releases/download/1.0.3.6/EridaniCombine1.0.3.6.zip\n\nv.1.0.3.6 also requires latest ver of BoxUtil  (1.4.9)\nhttps://github.com/MycophobiaSC/BoxUtill_Temp/releases/download/0.98-1.4.9/BoxUtil.zip\n\nA small faction mod adding a high tech faction \n\nPreviously part of the Eridani-Utopia Terraforming Corporation. Fed up with the EUTC leadership's inability to address pirate raids and hostile competition and takeover from Tri-Tachyon Corporation,some departments of the EUTC formally split from its parent corporation after the  Warlord Leonis' invasion of Kapteyn Starworks. These departments absorbed some disparate remenant of the Ko-Combine and formally renamed itself the Eridani Comine. Following the Combine's formation, it kept a low profile under the cover of the first AI War - its diplomatic influence diminished, and its area of control carefully limited. All this is to cover for the extraction and analysis of precious UAC and Domain Era relics.\n\nSituation changed after the first AI war, the Eridani Combine, having developed its own self-sufficient industry and shipbuilding industry, proposed a collaboration with the weakened Persean League. While hiding the domain tech under its control, the Eridani Combine is able to use those tech to project enough power and maintain enough defensive fleet and stations to ensure that it cannot be exploited by Persean League 'membership'. In exchange, the Combine provides survey, transport, escort, and research support to obtain the league's support against hostile competition from Tri-Tachyon and Hegemony tech-inspection. At least the name of the Persean League will cause any potential belligerent to reconsider any rash actions.\n\nRumor suggest that the Eridani Combine's break with its parent corporation was in of itself a set up by certain trans-sector mega corporation (such as the Tri-Tachyon Corp).  The breakdown of the EUTC under hostile takeover and vicious competition was always part of the plan. Nevertheless, the Eridani Combine, reborn from the ashes of EUTC was not only able survive in the violent sector politics after the collapse, but to thrive with the help of the relic tech under their control.\n\nThe Combine's fleet features fairly high quality high-tech ships with clearly defined roles. It relies on small amount of faction weapon and vanilla high-tech weapons to fulfill their fleet roles. Some hullmod of the faction support fighting with high flux and comes with a unique time-flow support frigate, allowing the fleet to also be capable of incredible burst damages - but it is up to you to decide to how command them.",
+      "timestamp": "2025-12-06T23:04:22.772Z",
+      "editedTimestamp": "2026-01-04T23:10:37.052Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1447000749992312953/1447000751393214645/102952fkakovz66aax6v2y.png?ex=6991a837&is=699056b7&hm=9c360649c642976bf9bc4694514a667688f004567feb8121a0dee7f98c70f365&",
+          "filename": "102952fkakovz66aax6v2y.png"
+        },
+        {
+          "url": "https://cdn.discordapp.com/attachments/1447000749992312953/1447000752647045280/110926gmec7cqso7lssssf.png?ex=6991a837&is=699056b7&hm=ec26e197decda355293d6c14f2a3dd18138f4bf6a1c85dc87e4a927136ce43f6&",
+          "filename": "110926gmec7cqso7lssssf.png"
+        }
+      ]
+    },
+    {
+      "id": "1447000827821686855",
+      "content": "Previews",
+      "timestamp": "2025-12-06T23:04:41.328Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1447000749992312953/1447000826827636937/121448wq8rpcqx2na98u2a.png?ex=6991a849&is=699056c9&hm=ef57dc26d7e05cb82fde5bb4b3e278be704384f9e847454b32f0b0244d063144&",
+          "filename": "121448wq8rpcqx2na98u2a.png"
+        },
+        {
+          "url": "https://cdn.discordapp.com/attachments/1447000749992312953/1447000827490472026/121446smmrvbbx76ymzyrp.png?ex=6991a849&is=699056c9&hm=f7e3142787206788ad18fcf21b5cdaffda8dc5abe9de6724c5cbad7737fd9544&",
+          "filename": "121446smmrvbbx76ymzyrp.png"
+        }
+      ]
+    },
+    {
+      "id": "1447008129039732747",
+      "content": "prob should put this here too",
+      "timestamp": "2025-12-06T23:33:42.074Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1447000749992312953/1447008128792133854/image.png?ex=6991af16&is=69905d96&hm=5138c1e23777f7e0821612f6eae34a4f270646c31461895ce76a6db9fbcb3d14&",
+          "filename": "image.png"
+        }
+      ]
+    },
+    {
+      "id": "1447515206056939632",
+      "content": "Heads up that there seem to be issue with downloading this mod with tri-os, am trying a fix but given it does need to change bunch of file I may not get to it today, you can always download directly from my GitHub and it works fine.\n\nAlso it is known the faction’s fleet name isn’t translated <:soggytoast:1442587396943380500> I’ll fix it together with the tri-os issue",
+      "timestamp": "2025-12-08T09:08:38.656Z",
+      "images": []
+    },
+    {
+      "id": "1447829984403263598",
+      "content": "Hotfix update, should fix the untranslated fleet name, hopefully should also address the issue with installation with Tri-OS, if there are still issues, please let me know.\n\nAs its a minor hotfix, download link same as before, just re-downlaod",
+      "timestamp": "2025-12-09T05:59:27.662Z",
+      "images": []
+    },
+    {
+      "id": "1457511272118620343",
+      "content": "New Update up~\n\nVer 1.0.3.6 update\n\n**NOT-SAVE COMPATIBLE**\n\nComplete rework of faction hullmods, based around limited amount of system redundancy poionts only able to support a limited amount of powerful hullmods.\n\nAdded 6 new ships, 4 of which are currently limited by their rarity until proper questline can be implemented for their acquisition.\n\nAdded 3 series of new weapons available for all 3 mount size for 9 weapons total, 1 new LPC.\n\nVarious balance changes and fixes.",
+      "timestamp": "2026-01-04T23:09:26.523Z",
+      "images": []
+    },
+    {
+      "id": "1457511742207955086",
+      "content": "",
+      "timestamp": "2026-01-04T23:11:18.601Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1447000749992312953/1457511741943451720/a5eb78ab0604c9e8a094ea3ed4655a3d.png?ex=6991a9d6&is=69905856&hm=20d7957124812eea725b37da9706c0f5402ee75e81cd8291ff859185561ab1ce&",
+          "filename": "a5eb78ab0604c9e8a094ea3ed4655a3d.png"
+        }
+      ]
+    },
+    {
+      "id": "1457517694101487698",
+      "content": "Very quick hotfix update fixing a few missing strings of translation, same download link as 1.0.3.6",
+      "timestamp": "2026-01-04T23:34:57.643Z",
+      "images": []
+    },
+    {
+      "id": "1457967248642670593",
+      "content": "For those of you getting ECE_FluxEMPHullMod error, I have uploaded a hotfix, please try it and if you still have the same issue, please send me your modlist.\n\nHopefully this fixes it. （the issue is utterly bizzare 😭 )",
+      "timestamp": "2026-01-06T05:21:19.798Z",
+      "images": []
+    }
+  ]
+}

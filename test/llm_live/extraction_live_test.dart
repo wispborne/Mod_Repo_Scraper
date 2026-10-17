@@ -382,6 +382,196 @@ void main() {
     });
   });
 
+  group('a Discord announcement thread', () {
+    /// [read] for a saved Discord thread.
+    Future<LlmStoreEntry?> readDiscord(String threadId) async {
+      final off = await whyLiveLlmIsOff();
+      if (off != null) {
+        markTestSkipped('No live model: $off');
+        return null;
+      }
+      return readDiscordWithTheModel(threadId);
+    }
+
+    test('Adjustable S-Mods (one announcement) is one mod with its download and needs', () async {
+      final answer = await readDiscord('1255421874075336824');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.isMod, isTrue, reason: why);
+      expect(answer.mods, hasLength(1), reason: why);
+      final mod = answer.mods.single;
+      expect(nameHolds(mod.name, 'Adjustable S-Mods'), isTrue, reason: why);
+      expect(mod.downloads.map((d) => d.url), contains(contains('AdjustableSMods-1.1.2.zip')),
+          reason: why);
+      expect((mod.extras?.needs ?? const []).map(flatten), contains('lunalib'), reason: why);
+      expect(mod.extras?.canRemove, SaveAnswer.no,
+          reason: 'the post says "Not safe to remove from an ongoing campaign".\n$why');
+    });
+
+    test("Retrofitted Bridge reads the author's update message as a changelog", () async {
+      final answer = await readDiscord('1257247685723820112');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.mods, hasLength(1), reason: why);
+      final mod = answer.mods.single;
+      expect(mod.extras?.version, '0.0.2',
+          reason: 'the later message announces v0.0.2.\n$why');
+      final entries = mod.extras?.changelog?.entries ?? const {};
+      expect(entries.keys, contains('0.0.2'), reason: '$entries\n$why');
+      expect(entries['0.0.2'], contains('UI improvements'), reason: why);
+    });
+
+    test('All the Domain Drones+ is two mods, each with its own download', () async {
+      // The one recorded thread announcing two independent mods: "Vanilla"
+      // changes the vanilla drones, "New Drones" adds new ones, and each is its
+      // own download. Neither needs the other.
+      final answer = await readDiscord('1271590391065477143');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mains = answer.mods.where((m) => m.role == LlmModRole.main).toList();
+      expect(mains, hasLength(2), reason: 'two mods that do not need each other are both main.\n$why');
+      final vanilla = mains.where((m) => nameHolds(m.name, 'Vanilla')).toList();
+      final newDrones = mains.where((m) => nameHolds(m.name, 'New Drones')).toList();
+      expect(vanilla, hasLength(1), reason: why);
+      expect(newDrones, hasLength(1), reason: why);
+      expect(vanilla.single.downloads.map((d) => d.url), everyElement(contains('Vanilla')),
+          reason: 'the wrong download under the wrong mod.\n$why');
+      expect(newDrones.single.downloads.map((d) => d.url), everyElement(contains('New%20Drones')),
+          reason: 'the wrong download under the wrong mod.\n$why');
+    });
+
+    test('Galactic Constellate is one mod offered as two builds, one per game version', () async {
+      final answer = await readDiscord('1359352557348065311');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mains = answer.mods.where((m) => m.role == LlmModRole.main).toList();
+      expect(mains, hasLength(1),
+          reason: 'a 0.98 build and a 0.97 build of one mod are not two mods.\n$why');
+      expect(allDownloadUrls(answer), containsAll([contains('0.98.zip'), contains('0.97.zip')]), reason: why);
+      final needs = (mains.single.extras?.needs ?? const []).map(flatten).toList();
+      expect(needs, containsAll(['lazylib', 'magiclib']), reason: why);
+      expect(mains.single.extras?.canAdd, SaveAnswer.yes,
+          reason: 'the post says "Safe to add mid-save".\n$why');
+      expect(mains.single.extras?.canRemove, SaveAnswer.no,
+          reason: 'the post says it "cannot be removed".\n$why');
+    });
+
+    test("Eridani Combine needs BoxUtil, and BoxUtil's download is not Eridani's", () async {
+      // The announcement links the BoxUtil build it needs. BoxUtil is a mod of
+      // its own with its own thread, so it must not become a second main mod
+      // here, and its zip must not be offered as Eridani Combine's download.
+      final answer = await readDiscord('1447000749992312953');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mains = answer.mods.where((m) => m.role == LlmModRole.main).toList();
+      expect(mains, hasLength(1), reason: why);
+      final eridani = mains.single;
+      expect(nameHolds(eridani.name, 'Eridani Combine'), isTrue, reason: why);
+      expect(eridani.downloads.map((d) => d.url), contains(contains('EridaniCombine1.0.3.6.zip')), reason: why);
+      expect(eridani.downloads.map((d) => d.url), isNot(contains(contains('BoxUtil.zip'))), reason: why);
+      expect((eridani.extras?.needs ?? const []).map(flatten), contains('boxutil'), reason: why);
+    });
+
+    test('Wide Horizons keeps the version its announcement gives, not an older patch note', () async {
+      // The announcement was edited up to 1.3.0g; the messages after it are the
+      // older 1.2.2 patch notes. "Newest message" is not the same as "newest
+      // version".
+      final answer = await readDiscord('1403520779907498095');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mains = answer.mods.where((m) => m.role == LlmModRole.main).toList();
+      expect(mains, hasLength(1), reason: why);
+      final mod = mains.single;
+      expect(mod.extras?.version, '1.3.0g', reason: why);
+      final needs = (mod.extras?.needs ?? const []).map(flatten).toList();
+      expect(needs, containsAll(['lunalib', 'graphicslib']), reason: why);
+      final notes = mod.extras?.updateNotes ?? const <LlmUpdateNote>[];
+      expect(notes.any((n) => n.answer == SaveAnswer.no), isTrue,
+          reason: 'the post says 1.3.x is not save-compatible with 1.2.x.\n$why');
+    });
+
+    test('Hiver Swarm reads its newest update message as the current version', () async {
+      // Nine messages: the announcement, then one per release, the last being
+      // "v1.1.7 - Save compatible" with its changes.
+      final answer = await readDiscord('1203417843732058202');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mains = answer.mods.where((m) => m.role == LlmModRole.main).toList();
+      expect(mains, hasLength(1), reason: why);
+      final mod = mains.single;
+      expect(mod.extras?.version, '1.1.7', reason: why);
+      final notes = mod.extras?.updateNotes ?? const <LlmUpdateNote>[];
+      expect(notes.where((n) => n.version == '1.1.7').map((n) => n.answer), contains(SaveAnswer.yes),
+          reason: 'the 1.1.7 message says "Save compatible".\n$why');
+      expect((mod.extras?.supportLinks ?? const []).map((l) => l.url), contains(contains('ko-fi.com')),
+          reason: why);
+    });
+
+    test('TriOS on Discord is one tool with a download for each system', () async {
+      final answer = await readDiscord('1355300468968001586');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.isMod, isTrue, reason: why);
+      expect(answer.mods, hasLength(1), reason: 'three builds of one program are one entry.\n$why');
+      final trios = answer.mods.single;
+      expect(trios.isTool, isTrue, reason: 'a launcher runs beside the game.\n$why');
+      expect(trios.downloads.map((d) => d.url),
+          containsAll([contains('TriOS-Windows.zip'), contains('TriOS-Linux.zip'), contains('TriOS-MacOS.zip')]),
+          reason: why);
+      expect(trios.extras?.sourceCode, contains('github.com/wispborne/TriOS'), reason: why);
+    });
+
+    test('the Library of Ruina pack keeps its optional extra pack off its own download', () async {
+      // One portrait pack, plus a "Distortions" pack offered as a separate
+      // download. The main pack's download must be its own zip only.
+      final answer = await readDiscord('1321884585096777840');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mains = answer.mods.where((m) => m.role == LlmModRole.main).toList();
+      final pack = mains.firstWhere((m) => m.downloads.any((d) => d.url.contains('LoR_portraits_1.1.0.zip')),
+          orElse: () => throw TestFailure('no mod carries the main pack\'s download.\n$why'));
+      expect(pack.downloads.map((d) => d.url), isNot(contains(contains('distortion'))), reason: why);
+      expect(pack.extras?.version, '1.1.0', reason: why);
+    });
+
+    test('the channel\'s example post is not a mod', () async {
+      // The pinned template the channel asks authors to copy: a made-up mod
+      // with a made-up download. Listing it would publish a page for nothing.
+      final answer = await readDiscord('1203053249377079297');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(!answer.isMod || answer.mods.every((m) => m.downloads.isEmpty), isTrue,
+          reason: 'this is a template for authors, not a release.\n$why');
+    });
+
+    test('Gamma Wars is one mod, with its UNGP rules as an add-on', () async {
+      // The recorded threads hold no announcement of two independent mods. This
+      // is the nearest shape: two downloads, one of which is an add-on.
+      final answer = await readDiscord('1247514078101114911');
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mains = answer.mods.where((m) => m.role == LlmModRole.main).toList();
+      expect(mains, hasLength(1), reason: why);
+      expect(mains.single.downloads.map((d) => d.url), contains(contains('Gamma_Legion.1.0.zip')),
+          reason: why);
+      final ungp = answer.mods.where((m) => m.downloads.any((d) => d.url.contains('UNGP'))).toList();
+      expect(ungp, hasLength(1), reason: why);
+      expect(ungp.single.role, isNot(LlmModRole.main),
+          reason: 'the UNGP rules need the faction mod, so they are its add-on.\n$why');
+    });
+  });
+
   group('a thread that is not a mod', () {
     test('a question thread (34645) is not a mod release', () async {
       final answer = await read(34645);

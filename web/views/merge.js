@@ -143,10 +143,13 @@ async function groupsList(body) {
         el('span', { class: 'badge badge-secondary', text: `${g.memberCount} members` }),
       ]));
       const inner = el('div', {});
-      for (const m of g.members) {
-        inner.append(el('div', { class: 'field-value', style: 'padding:2px 0;' },
-          `${m.name || '(empty)'} — ${(m.authorsList || []).join(', ')} [${(m.sources || []).join(', ')}] v${m.gameVersionReq || '?'}`));
-      }
+      const memberPosts = g.memberSourcePosts || [];
+      g.members.forEach((m, i) => {
+        inner.append(el('div', { class: 'field-value', style: 'padding:2px 0;' }, [
+          `${m.name || '(empty)'} — ${(m.authorsList || []).join(', ')} [${(m.sources || []).join(', ')}] v${m.gameVersionReq || '?'}`,
+          ...sourcePostLinks(memberPosts[i]),
+        ]));
+      });
       const matches = g.matchEntries || [];
       if (matches.length) {
         inner.append(el('h3', { text: 'Match reasons' }));
@@ -164,6 +167,28 @@ async function groupsList(body) {
       (size) => { groupsState.pageSize = size; groupsState.page = 0; load(); }));
   }
   load();
+}
+
+/// Which source post a listing came from, and who found it, as small links:
+/// a forum topic opens its thread page, a Discord thread the LLM's answer.
+/// Merges saved before listings existed have no posts and show nothing.
+export function sourcePostLinks(posts, { long = false } = {}) {
+  const nodes = [];
+  for (const post of posts || []) {
+    if (!post || !post.id) continue;
+    const where = post.kind === 'forum' ? `topic ${post.id}`
+      : post.kind === 'discord' ? `Discord thread ${post.id}`
+        : `${post.kind} ${post.id}`;
+    const href = post.kind === 'forum' ? `#/topics/${encodeURIComponent(post.id)}`
+      : post.kind === 'discord' ? `#/discord/${encodeURIComponent(post.id)}` : null;
+    const by = post.foundBy === 'llm' ? 'found by the LLM'
+      : post.foundBy === 'rulesAndLlm' ? 'rules, joined by the LLM' : 'found by the rules';
+    const label = post.llmModName ? `${where} · "${post.llmModName}"` : where;
+    nodes.push(' ');
+    nodes.push(href ? el('a', { class: 'chip', href, text: label, title: by }) : el('span', { class: 'chip', text: label, title: by }));
+    if (long) nodes.push(el('span', { class: 'loading', text: ` ${by}` }));
+  }
+  return nodes;
 }
 
 function matchReason(mm) {
@@ -209,12 +234,14 @@ async function groupDetail(body, id) {
   ]));
 
   body.append(el('h3', { text: 'Members' }));
-  for (const m of group.members || []) {
+  const memberPosts = group.memberSourcePosts || [];
+  (group.members || []).forEach((m, i) => {
     body.append(el('div', { class: 'panel', style: 'margin-bottom:6px;' }, [
       el('strong', { text: m.name || '(empty)' }),
       el('div', { class: 'field-value', text: `by ${(m.authorsList || []).join(', ')} · [${(m.sources || []).join(', ')}] · v${m.gameVersionReq || '?'}` }),
+      el('div', { class: 'field-value' }, sourcePostLinks(memberPosts[i], { long: true })),
     ]));
-  }
+  });
 
   if (decision && (decision.steps || []).length) {
     body.append(el('h3', { text: 'Merge decisions' }));

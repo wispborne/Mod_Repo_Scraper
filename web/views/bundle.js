@@ -1,4 +1,4 @@
-// #/bundle — forum-data-bundle.json browser and TriOS card preview.
+// #/bundle — forum-data-bundle-v2.json browser and TriOS card preview.
 //   #/bundle              bundle meta + searchable, paged entries
 //   #/bundle/<topicId>    working thread data and a card preview
 //   #/bundle/changes      what changed between two saved bundles
@@ -248,6 +248,11 @@ function renderEntry(root, entry) {
     ['Last post by', idx.lastPostBy],
     ['In mod index', idx.inModIndex == null ? null : (idx.inModIndex ? 'yes' : 'no')],
     ['Archived mod index', idx.isArchivedModIndex ? 'yes' : null],
+    ['Mod index lines', (idx.indexLines ?? []).length
+      ? idx.indexLines.map((l) => [l.name, l.author ? `by ${l.author}` : null,
+          l.gameVersion ? `[${l.gameVersion}]` : null, `in ${l.category}`]
+          .filter(Boolean).join(' ')).join('; ')
+      : null],
     ['Work in progress', idx.isWip ? 'yes' : null],
     ['Source board', idx.sourceBoard],
     ['Scraped at', stamp(idx.scrapedAt)],

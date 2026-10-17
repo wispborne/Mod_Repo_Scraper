@@ -22,9 +22,19 @@ import 'package:mod_repo_scraper/utilities/console_progress_bar.dart';
 import 'package:mod_repo_scraper/utilities/caching_http_client.dart';
 import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
+import '../../catalog/discord_posts.dart';
 import 'scraped_mod.dart';
 
 part 'discord_reader.mapper.dart';
+
+/// What one Discord scrape read: the mods the rules found, and each thread's
+/// opening run keyed by thread id, for `discord-posts.json`.
+class DiscordReadResult {
+  final List<ScrapedMod> mods;
+  final Map<String, DiscordThreadPost> threads;
+
+  const DiscordReadResult({this.mods = const [], this.threads = const {}});
+}
 
 class DiscordReadException implements Exception {
   final String message;
@@ -70,7 +80,12 @@ class DiscordReader {
   static const String noscrapeReaction = "🕸️";
   static int apiCallsLastRun = 0;
 
-  static Future<List<ScrapedMod>?> readAllMessages(BotConfig botConfig, {http.Client? httpClient}) async {
+  static Future<List<ScrapedMod>?> readAllMessages(BotConfig botConfig, {http.Client? httpClient}) async =>
+      (await readAll(botConfig, httpClient: httpClient))?.mods;
+
+  /// Reads every thread in the configured channels. Null when the config is
+  /// missing something it needs.
+  static Future<DiscordReadResult?> readAll(BotConfig botConfig, {http.Client? httpClient}) async {
     final client = httpClient ?? http.Client();
     apiCallsLastRun = 0;
     final discordStartTime = DateTime.now();
@@ -101,13 +116,14 @@ class DiscordReader {
     timber.i(message: () => "Scraping ${forumChannelIds.length} Discord #mod_updates channel(s)...");
 
     final allMods = <ScrapedMod>[];
+    final allThreads = <String, DiscordThreadPost>{};
 
     for (final entry in forumChannelIds.entries) {
       final channelId = entry.key;
       final gameVersion = entry.value;
       final channelStartTime = DateTime.now();
 
-      final channelMods = await _readAllThreadsFromForumChannelId(
+      final (channelMods, channelThreads) = await _readAllThreadsFromForumChannelId(
         serverId: serverId,
         forumChannelId: channelId,
         authToken: authToken,
@@ -123,6 +139,7 @@ class DiscordReader {
       allMods.addAll(channelMods.map((mod) => mod.copyWith(
             gameVersionReq: (mod.gameVersionReq?.isNotEmpty == true) ? mod.gameVersionReq : gameVersion,
           )));
+      allThreads.addAll(channelThreads);
     }
 
     timber.i(message: () => "Found ${allMods.length} Discord mods. API calls used: $apiCallsLastRun.");
@@ -130,10 +147,10 @@ class DiscordReader {
         message: () =>
             "Discord scraping total: ${allMods.length} mods in ${DateTime.now().difference(discordStartTime).inMilliseconds}ms.");
 
-    return allMods;
+    return DiscordReadResult(mods: allMods, threads: allThreads);
   }
 
-  static Future<List<ScrapedMod>> _readAllThreadsFromForumChannelId({
+  static Future<(List<ScrapedMod>, Map<String, DiscordThreadPost>)> _readAllThreadsFromForumChannelId({
     required String serverId,
     required String forumChannelId,
     required String authToken,
@@ -237,23 +254,78 @@ class DiscordReader {
         message: () => "Reaction checking completed in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
 
     stepStartTime = DateTime.now();
-    final mods = await filteredMessages.parallelMap((messages) async {
-      if (messages.length == 1 && !messages.first.isInThread()) {
-        return parseAsSingleMessage(serverId, forumChannelId, messages.first);
-      } else {
-        return parseAsThread(serverId, messages, categoriesLookup);
-      }
+    final parsed = await filteredMessages.parallelMap((messages) async {
+      final mod = (messages.length == 1 && !messages.first.isInThread())
+          ? await parseAsSingleMessage(serverId, forumChannelId, messages.first)
+          : await parseAsThread(serverId, messages, categoriesLookup);
+      if (mod == null) return null;
+      final cleaned = _cleanUpMod(mod);
+      if (cleaned.name.isEmpty) return null;
+      return (cleaned, openingRunOf(messages, mod: cleaned));
     });
 
-    final cleanedMods =
-        mods.whereType<ScrapedMod>().map((mod) => _cleanUpMod(mod)).where((mod) => mod.name.isNotEmpty).toList();
+    final cleanedMods = <ScrapedMod>[];
+    final threadPosts = <String, DiscordThreadPost>{};
+    for (final pair in parsed.whereType<(ScrapedMod, DiscordThreadPost?)>()) {
+      cleanedMods.add(pair.$1);
+      if (pair.$2 case final thread?) threadPosts[thread.threadId] = thread;
+    }
 
     timber.i(
         message: () =>
             "Message parsing completed (${cleanedMods.length} mods) in ${DateTime.now().difference(stepStartTime).inMilliseconds}ms.");
     timber.i(message: () => "Found ${cleanedMods.length} Discord mods in channel $forumChannelId.");
 
-    return cleanedMods;
+    return (cleanedMods, threadPosts);
+  }
+
+  /// The author's opening run of a thread: the first message with text, then
+  /// each message straight after it by the same author, stopping at the first
+  /// message by anybody else or after [DiscordThreadPost.maxMessages]. Null
+  /// when no message has text.
+  ///
+  /// [mod] is the mod the rules read from the same messages, for the link to
+  /// the post and the forum link found in it. A post that is not in a thread
+  /// is filed under its own message id.
+  @visibleForTesting
+  static DiscordThreadPost? openingRunOf(List<Message> messages, {ScrapedMod? mod}) {
+    final ordered = messages.toList()
+      ..sort((a, b) => (a.timestamp ?? DateTime(0)).compareTo(b.timestamp ?? DateTime(0)));
+    final start = ordered.indexWhere((m) => m.content?.trim().isNotEmpty == true);
+    if (start < 0) return null;
+
+    final first = ordered[start];
+    final authorId = first.author?.id;
+    final run = <Message>[first];
+    for (final next in ordered.skip(start + 1)) {
+      if (run.length >= DiscordThreadPost.maxMessages) break;
+      if (authorId == null || next.author?.id != authorId) break;
+      run.add(next);
+    }
+
+    final thread = first.parentThread;
+    final urls = mod?.getUrls() ?? const <ModUrlType, String>{};
+    return DiscordThreadPost(
+      threadId: thread?.id ?? first.id,
+      name: thread?.name ?? mod?.name ?? '',
+      author: first.author?.username ?? '',
+      url: urls[ModUrlType.Discord] ?? '',
+      forumUrl: urls[ModUrlType.Forum],
+      messages: [
+        for (final message in run)
+          DiscordOpeningMessage(
+            id: message.id,
+            content: message.content ?? '',
+            timestamp: message.timestamp,
+            editedTimestamp: message.editedTimestamp,
+            images: [
+              for (final a in message.attachments ?? const <Attachment>[])
+                if ((a.contentType?.startsWith('image/') ?? false) && a.url != null)
+                  DiscordImage(url: a.url!, filename: a.filename, description: a.description),
+            ],
+          ),
+      ],
+    );
   }
 
   @visibleForTesting

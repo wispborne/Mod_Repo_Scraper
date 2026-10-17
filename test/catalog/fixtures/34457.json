@@ -1,0 +1,68 @@
+{
+ "summary": {
+  "topicId": 34457,
+  "title": "[0.98a] [WIP] Derelict Start, Remnant Start, Omega Start & Threat Start",
+  "category": "uncategorized",
+  "inModIndex": false,
+  "isArchivedModIndex": false,
+  "gameVersion": "0.98a",
+  "author": "jason0320",
+  "replies": 16,
+  "views": 4118,
+  "createdDate": "November 10, 2025, 11:45:39 PM",
+  "lastPostDate": "October 01, 2026, 12:00:16 PM",
+  "lastPostBy": "snowi",
+  "topicUrl": "https://fractalsoftworks.com/forum/index.php?topic=34457.0",
+  "isWip": true,
+  "sourceBoard": 3
+ },
+ "posts": [
+  "Three mods that add Derelict custom start, Remnant custom start, Omega custom start &amp; Threat custom start and put the player under their commission<br>Allow player interaction with Domain Mothership, Remnant Station, Coronal Hypershunt or Threat fleet with Fabricator Unit as semi-working station<br>Also allow player to pilot automated ships and have fleetwide immunity to solar corona and similar hazards<br>By default Derelict, Remnant, Omega &amp; Threat are hostile to most factions but there's a LunaLib settings to turn them peaceful to all but Pirates and Pathers<br>Inspired from the mod Crabshack's Remnant custom start<br><br>Dependencies are <strong>MagicLib</strong>, <strong>Graphicslib</strong>, <strong>LunaLib </strong> &amp; <strong>Nexerelin</strong><br><br>Can work with most mods that add Derelict, Remnant or Omega ships<br>Starts with an Automation XO with <strong>Second-in-Command</strong><br>Semi-works with Ashes of The Domain <strong>Question of Loyalty</strong> commission<br><br><span style=\"font-size: 18pt;\" class=\"bbc_size\">Downloads:</span><br><a href=\"https://github.com/jason0320/Derelict-Start/releases\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">https://github.com/jason0320/Derelict-Start/releases</a><br><a href=\"https://github.com/jason0320/Remnant-Start/releases\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">https://github.com/jason0320/Remnant-Start/releases</a><br><a href=\"https://github.com/jason0320/Omega-Start/releases\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">https://github.com/jason0320/Omega-Start/releases</a><br><a href=\"https://github.com/jason0320/Threat-Start/releases\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">https://github.com/jason0320/Threat-Start/releases</a><br><br><span style=\"font-size: 18pt;\" class=\"bbc_size\">Gallery:</span><br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\"><a href=\"https://ibb.co/h1sgGm4Z\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/R42gXDsB/2025-11-11-15-15-27.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/xSBNBK2t\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/kgwtwVGs/2025-11-11-15-16-05.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/hR9Lk8WT\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/xSLXy5jr/2025-11-11-15-16-20.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://imgbb.com/\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/jcznVbY/2025-11-11-15-16-44.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/5hCN5Ph9\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/Dfmx7Zfb/2025-11-11-15-17-08.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/Y42N6GF0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/TDcwZ5xW/2025-11-11-15-17-25.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/STZc4y2\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/rPX3R0g/2025-11-11-15-17-38.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/G4DLrgmD\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/q38f2b68/2025-11-11-15-17-52.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/pBX4pgLL\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/kscqFpSS/2025-11-11-15-18-05.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/dsVj5rzk\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/MytZCs3P/2025-11-11-15-18-19.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/9H68rRwM\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/HT6FHmNJ/2025-11-11-15-18-40.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/Y4M7rymP\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/TDSBCb6Y/2025-11-11-15-18-51.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/LDWg2YC2\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/My413ZR3/2025-11-11-15-18-59.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/VpWKyQXF\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/QjF5BCsW/2025-11-11-15-19-31.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/FNfSMgs\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/5tzNyBY/2025-11-11-15-19-48.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/vC3MF6DX\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/bjsG0M7b/2025-11-11-15-20-13.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/RpN8fmSF\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/27SJxQ69/2025-11-11-15-22-26.png\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ibb.co/27583xMm\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://i.ibb.co/tM3Zpg2k/2025-11-11-15-25-03.png\" alt=\"\" class=\"bbc_img\"></a><div class=\"sp-foot\">[close]</div></div></div>"
+ ],
+ "llmMods": [
+  {
+   "name": "Derelict Start",
+   "role": "main",
+   "downloads": [
+    {
+     "url": "https://github.com/jason0320/Derelict-Start/releases",
+     "label": "https://github.com/jason0320/Derelict-Start/releases",
+     "kind": "direct"
+    }
+   ]
+  },
+  {
+   "name": "Remnant Start",
+   "role": "main",
+   "downloads": [
+    {
+     "url": "https://github.com/jason0320/Remnant-Start/releases",
+     "label": "https://github.com/jason0320/Remnant-Start/releases",
+     "kind": "direct"
+    }
+   ]
+  },
+  {
+   "name": "Omega Start",
+   "role": "main",
+   "downloads": [
+    {
+     "url": "https://github.com/jason0320/Omega-Start/releases",
+     "label": "https://github.com/jason0320/Omega-Start/releases",
+     "kind": "direct"
+    }
+   ]
+  },
+  {
+   "name": "Threat Start",
+   "role": "main",
+   "downloads": [
+    {
+     "url": "https://github.com/jason0320/Threat-Start/releases",
+     "label": "https://github.com/jason0320/Threat-Start/releases",
+     "kind": "direct"
+    }
+   ]
+  }
+ ]
+}

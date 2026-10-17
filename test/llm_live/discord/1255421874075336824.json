@@ -1,0 +1,20 @@
+{
+  "threadId": "1255421874075336824",
+  "name": "Adjustable S-Mods 1.1.2",
+  "author": "Deleted User",
+  "url": "https://discord.com/channels/187635036525166592/1255421874075336824/1255421874075336824",
+  "messages": [
+    {
+      "id": "1255421874075336824",
+      "content": "A mod for Starsector that allows the player to remove s-mods or to increase the max s-mod limit of a ship.\n\n**Requirements:** \n- Lunalib\n**Compatibility:** \n- Should be compatible with most mods\n- Not safe to remove from an ongoing campaign\n- Not save compatible with versions below 1.0.0\n\nFor mod changes check out the changelog link.\n\n**Download:** https://github.com/AudaxLudos/adjustable-s-mods/releases/download/1.1.2/AdjustableSMods-1.1.2.zip\n**Changelog:** https://raw.githubusercontent.com/AudaxLudos/adjustable-s-mods/main/CHANGELOG.txt\n**Old Versions:** https://github.com/AudaxLudos/adjustable-s-mods/releases",
+      "timestamp": "2024-06-26T07:18:19.390Z",
+      "editedTimestamp": "2024-06-26T07:34:48.873Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1255421874075336824/1255421874406424597/adjustable_s_mods_post.png?ex=6991733b&is=699021bb&hm=f5f19f790ce6a043d07d080960918bc207737432d180c3d5eb3a8044dff7b599&",
+          "filename": "adjustable_s_mods_post.png"
+        }
+      ]
+    }
+  ]
+}

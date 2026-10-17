@@ -266,6 +266,28 @@ class QbScraperEngine {
           modSummaries =
               _applyIncrementalFilter(modSummaries, indexMap);
         }
+
+        // Topics the mod index lists that no board page gave us and the store
+        // has never held. The index reaches back to topics on boards QB does
+        // not walk and far past the pages it does, and QB is the only forum
+        // scraper: without this, a mod known only from the index would never
+        // be read at all. Each is fetched once; after that it is in the store.
+        if (scope.boards.contains(ScrapeBoard.main)) {
+          final indexOnly = indexTopicsToFetch(
+            modIndex,
+            scraping: {for (final m in modSummaries) m.topicId},
+            stored: indexMap.keys.toSet(),
+          );
+          if (indexOnly.isNotEmpty) {
+            _log.info('Adding ${indexOnly.length} topic(s) the mod index lists '
+                'that no board gave us and the store does not have yet');
+            modSummaries = [
+              ...modSummaries,
+              for (final id in indexOnly)
+                QbModSummary(topicId: id, topicUrl: ForumConstants.topicUrl(id)),
+            ];
+          }
+        }
       }
 
       currentJob.totalTopics = modSummaries.length;
@@ -504,14 +526,38 @@ class QbScraperEngine {
     );
   }
 
+  /// The topics the mod index lists that neither this run's board pages nor
+  /// the store have, in topic id order.
+  static List<int> indexTopicsToFetch(
+    ModIndexCategoriesResult modIndex, {
+    required Set<int> scraping,
+    required Set<int> stored,
+  }) {
+    final listed = {
+      ...modIndex.mainTopicCategoryMap.keys,
+      ...modIndex.archivedTopicCategoryMap.keys,
+    };
+    return [
+      for (final id in listed)
+        if (id != 177 && !scraping.contains(id) && !stored.contains(id)) id,
+    ]..sort();
+  }
+
   static QbModSummary _applyCategoryFromModIndex(
       QbModSummary summary, ModIndexCategoriesResult categories) {
+    // A mod index that could not be read says nothing about any topic. Without
+    // this, one failed fetch would take every topic out of the index, and the
+    // merge would lose every index name with it.
+    if (categories.isEmpty) return summary;
+
+    final lines = categories.topicIndexLines[summary.topicId];
     final main = categories.mainTopicCategoryMap[summary.topicId];
     if (main != null) {
       return summary.copyWith(
         category: main,
         inModIndex: true,
         isArchivedModIndex: false,
+        indexLines: lines,
       );
     }
     final archived = categories.archivedTopicCategoryMap[summary.topicId];
@@ -520,12 +566,14 @@ class QbScraperEngine {
         category: archived,
         inModIndex: true,
         isArchivedModIndex: true,
+        indexLines: lines,
       );
     }
     return summary.copyWith(
       category: ForumConstants.uncategorizedCategory,
       inModIndex: false,
       isArchivedModIndex: false,
+      indexLines: null,
     );
   }
 

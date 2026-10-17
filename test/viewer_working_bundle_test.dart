@@ -149,7 +149,7 @@ void main() {
     // No game-version tag in the title, and the LLM says it is not a mod: the
     // publisher drops it, so the data-on-disk side must drop it too or it would
     // read as removed for as long as the run lasted.
-    final chatter = summary(3, title: 'What is everyone playing?');
+    final chatter = summary(3, title: 'What is everyone playing?').copyWith(inModIndex: false);
     await publish('20260701T100000Z-fullRun', [summary(1)], {1: detail(1)});
     writeWorking([summary(1), chatter], {1: detail(1), 3: detail(3)}, llm: {
       '3': {

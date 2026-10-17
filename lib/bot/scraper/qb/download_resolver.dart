@@ -112,6 +112,12 @@ class QbDownloadResolver {
   /// topicId → cache entry
   final Map<int, _CacheEntry> _cache = {};
 
+  /// Discord thread id → cache entry. Saved in the same file, under
+  /// `discord:<thread id>`, so a forum topic's entry keeps its bare topic id.
+  final Map<String, _CacheEntry> _discordCache = {};
+
+  static const String _discordKeyPrefix = 'discord:';
+
   static const _shortenerHosts = [
     'tinyurl.com',
     'bit.ly',
@@ -230,6 +236,26 @@ class QbDownloadResolver {
   Future<List<DownloadCandidate>> resolveForTopic(
     int topicId,
     List<LinkRef> links,
+  ) =>
+      _resolveInto(_cache, topicId, 'topic $topicId', links);
+
+  /// [resolveForTopic] for a Discord thread's opening run. The same host rules
+  /// apply; the answer is cached under `discord:<thread id>`.
+  Future<List<DownloadCandidate>> resolveForDiscordThread(
+    String threadId,
+    List<LinkRef> links,
+  ) =>
+      _resolveInto(_discordCache, threadId, 'Discord thread $threadId', links);
+
+  /// A Discord thread's cached candidates, or null if not cached.
+  List<DownloadCandidate>? getCachedDiscordCandidates(String threadId) =>
+      _discordCache[threadId]?.candidates;
+
+  Future<List<DownloadCandidate>> _resolveInto<K>(
+    Map<K, _CacheEntry> cache,
+    K key,
+    String label,
+    List<LinkRef> links,
   ) async {
     final externalLinks = links
         .where((l) =>
@@ -241,13 +267,13 @@ class QbDownloadResolver {
     final fingerprint = _computeFingerprint(externalLinks);
 
     // Check cache
-    final cached = _cache[topicId];
+    final cached = cache[key];
     if (cached != null && cached.fingerprint == fingerprint && cached.schemaVersion == _schemaVersion) {
-      _log.fine('Cache hit for topic $topicId');
+      _log.fine('Cache hit for $label');
       return cached.candidates;
     }
 
-    _log.info('Resolving downloads for topic $topicId '
+    _log.info('Resolving downloads for $label '
         '(${externalLinks.length} external links)');
 
     final results = await Future.wait(
@@ -280,7 +306,7 @@ class QbDownloadResolver {
     _dedup(candidates);
 
     // Cache result
-    _cache[topicId] = _CacheEntry(
+    cache[key] = _CacheEntry(
       fingerprint: fingerprint,
       schemaVersion: _schemaVersion,
       candidates: candidates,
@@ -344,6 +370,13 @@ class QbDownloadResolver {
     }
   }
 
+  /// [dropTopics] for Discord threads.
+  void dropDiscordThreads(Iterable<String> threadIds) {
+    for (final id in threadIds) {
+      _discordCache.remove(id);
+    }
+  }
+
   /// Imports externally-provided candidates with a sentinel fingerprint.
   void importCandidates(int topicId, List<DownloadCandidate> candidates) {
     _cache[topicId] = _CacheEntry(
@@ -366,7 +399,13 @@ class QbDownloadResolver {
       final json = await file.readAsString();
       final map = jsonDecode(json) as Map<String, dynamic>;
       _cache.clear();
+      _discordCache.clear();
       for (final entry in map.entries) {
+        if (entry.key.startsWith(_discordKeyPrefix)) {
+          _discordCache[entry.key.substring(_discordKeyPrefix.length)] =
+              _CacheEntry.fromJson(entry.value as Map<String, dynamic>);
+          continue;
+        }
         final topicId = int.tryParse(entry.key);
         if (topicId == null) continue;
         final cacheEntry = _CacheEntry.fromJson(entry.value as Map<String, dynamic>);
@@ -386,7 +425,11 @@ class QbDownloadResolver {
   Future<void> saveCache() async {
     await _writeLock.synchronized(() async {
       _unsaved = 0;
-      final map = _cache.map((k, v) => MapEntry(k.toString(), v.toJson()));
+      final map = {
+        for (final e in _cache.entries) e.key.toString(): e.value.toJson(),
+        for (final e in _discordCache.entries)
+          '$_discordKeyPrefix${e.key}': e.value.toJson(),
+      };
       final json = const JsonEncoder.withIndent('  ').convert(map);
       final file = File(p.join(_dataPath, _cacheFilename));
       await file.writeAsString(json);

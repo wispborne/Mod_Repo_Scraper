@@ -66,6 +66,7 @@ class ModRepoUtils {
     ["Yogurt Fox", "YogurtFox", "Mycophobia"],
     ["Belt", "woetothee"],
     ["DeCell", ".7556"],
+    ["TresDisco", "arjanvelly."],
   ];
 
   /// Splits an author credit like "Ed, Nick XR & Foo and Bar" into the

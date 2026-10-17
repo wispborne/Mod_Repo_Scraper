@@ -41,9 +41,13 @@ class PublishService implements JobRunner {
   /// The output files a publish copies across, in the order they are listed.
   /// These two must always be there — a publish with nothing to publish is an
   /// error, not a quiet no-op.
+  ///
+  /// Only the v2 files. `ModRepo.json` and `forum-data-bundle.json` are frozen:
+  /// old TriOS installs keep reading the copies already in the repo, and a
+  /// publish never writes, stages or deletes them.
   static const List<String> outputFiles = [
-    'ModRepo.json',
-    'forum-data-bundle.json',
+    'ModRepo-v2.json',
+    'forum-data-bundle-v2.json',
   ];
 
   /// The public website's data files, copied from `<outputs>/site/` when a run

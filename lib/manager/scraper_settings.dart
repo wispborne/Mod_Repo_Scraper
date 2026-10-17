@@ -81,21 +81,28 @@ class ScraperEnvironment {
   /// the one `publish_site_path` names.
   final String sitePath;
 
+  /// The folder holding the Discord and Nexus results (`discord_cache.json`,
+  /// `nexus_cache.json`), which the catalog merge at the end of a job reads.
+  /// The same folder the ModRepo side keeps them in.
+  final String sourceCachePath;
+
   const ScraperEnvironment({
     required this.dataPath,
     this.outputPath = 'outputs',
     this.llm,
     this.sitePath = 'site',
+    this.sourceCachePath = '.',
   });
 
   /// Reads only environment keys. `llm_enabled` is read here for the one thing
   /// it says about the environment — whether an LLM service is set up at all.
   /// Whether a given run should use it is a field on the job request.
   factory ScraperEnvironment.fromConfig(BotConfig config,
-          {String outputPath = 'outputs'}) =>
+          {String outputPath = 'outputs', String sourceCachePath = '.'}) =>
       ScraperEnvironment(
         dataPath: config.qbDataPath,
         outputPath: outputPath,
+        sourceCachePath: sourceCachePath,
         llm: config.enableLlm ? LlmSettings.fromConfig(config) : null,
         sitePath: config.publishSitePath,
       );

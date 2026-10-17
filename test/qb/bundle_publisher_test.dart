@@ -252,8 +252,10 @@ void main() {
   });
 
   group('non-mod drop filter', () {
-    QbModSummary summary(int id, String title) =>
-        QbModSummary(topicId: id, title: title, inModIndex: true);
+    // Not in the mod index: an indexed thread is always kept, whatever the LLM
+    // says (see the last test here).
+    QbModSummary summary(int id, String title, {bool inModIndex = false}) =>
+        QbModSummary(topicId: id, title: title, inModIndex: inModIndex);
     QbModDetail detail(int id, String title) =>
         QbModDetail(topicId: id, title: title);
 
@@ -288,6 +290,26 @@ void main() {
       expect(bundle.index.where((s) => s.topicId == 3000), isEmpty);
       expect(bundle.details.containsKey('3000'), isFalse);
       expect(bundle.assumedDownloads.containsKey('3000'), isFalse);
+    });
+
+    test('keeps a thread the mod index lists, even when the LLM calls it non-mod',
+        () async {
+      final store = await _seedStoreMany(
+        dataPath: tempDir.path,
+        summaries: [summary(3002, 'MOSS - a standalone mod organiser', inModIndex: true)],
+        details: [detail(3002, 'MOSS - a standalone mod organiser')],
+      );
+      final llmStore = LlmExtractionStore(tempDir.path);
+      await llmStore.put(3002, _llmEntry(isMod: false));
+
+      final publisher = await _makePublisherWith(
+        dataPath: tempDir.path,
+        store: store,
+        llmStore: llmStore,
+      );
+
+      final bundle = await publisher.createBundle();
+      expect(bundle.index.map((s) => s.topicId), contains(3002));
     });
 
     test('keeps a non-mod thread when its title has a game-version tag',

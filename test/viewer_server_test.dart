@@ -354,6 +354,6 @@ void _writeBundle(String outputsDir) {
       '100': [_assumedCandidate('high')],
     },
   };
-  File('$outputsDir/forum-data-bundle.json').writeAsStringSync(
+  File('$outputsDir/forum-data-bundle-v2.json').writeAsStringSync(
       jsonEncode(bundle));
 }

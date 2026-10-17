@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:mod_repo_scraper/catalog/discord_posts.dart';
 import 'package:mod_repo_scraper/manager/cancel_token.dart';
 import 'package:mod_repo_scraper/manager/job.dart';
 import 'package:mod_repo_scraper/manager/merge_snapshot_store.dart';
@@ -35,6 +37,27 @@ void main() {
         'urls': urls,
       };
 
+  /// The forum side of the catalog: the QB store, holding the same two forum
+  /// mods the forum cache does, each linked from one mod index line.
+  void writeQbStore(String qbDataPath) {
+    Directory(qbDataPath).createSync(recursive: true);
+    Map<String, dynamic> summary(int topicId, String name, String author) => {
+          'topicId': topicId,
+          'title': '[0.98a] $name',
+          'inModIndex': true,
+          'author': author,
+          'topicUrl': 'https://fractalsoftworks.com/forum/index.php?topic=$topicId.0',
+          'scrapedAt': '2026-01-01T00:00:00.000Z',
+          'indexLines': [
+            {'name': name, 'author': author, 'gameVersion': '0.98a', 'category': 'Faction Mods'},
+          ],
+        };
+    File(p.join(qbDataPath, 'mods-index.json')).writeAsStringSync(jsonEncode([
+      summary(1234, 'Test Mod', 'Author Aaa'),
+      summary(5678, 'Another Mod', 'Someone Else'),
+    ]));
+  }
+
   void writeSourceCaches() {
     File(p.join(workDir.path, 'forum_cache.json')).writeAsStringSync(jsonEncode({
       'items': [
@@ -58,6 +81,7 @@ void main() {
             {'Discord': 'https://discord.com/channels/1/2/3'}),
       ],
     }));
+    writeQbStore(p.join(workDir.path, 'qb_data'));
   }
 
   /// A recording of Discord's own answers, holding one mod that is nowhere in
@@ -237,6 +261,28 @@ void main() {
     expect(MergeSnapshotStore(p.join(workDir.path, 'qb_data')).list(), isEmpty);
   });
 
+  test('a merge cancelled while merging writes neither ModRepo.json nor ModRepo-v2.json', () async {
+    writeSourceCaches();
+    final repoFile = outputFile(p.join('outputs', 'ModRepo.json'));
+    final catalogFile = outputFile(p.join('outputs', 'ModRepo-v2.json'));
+    repoFile.parent.createSync(recursive: true);
+    repoFile.writeAsStringSync('{"totalCount": 99}');
+    catalogFile.writeAsStringSync('{"totalCount": 98}');
+
+    final cancel = CancelToken();
+    final outcome = await service.runJob(
+      JobRequest.mergeModRepo(),
+      reporter: _CancelOnPhase('Merge', cancel),
+      cancel: cancel,
+      runId: '20260722T120000Z-mergeModRepo',
+    );
+
+    expect(outcome.cancelled, isTrue);
+    expect(readJson(repoFile)['totalCount'], 99);
+    expect(readJson(catalogFile)['totalCount'], 98);
+    expect(MergeSnapshotStore(p.join(workDir.path, 'qb_data')).list(), isEmpty);
+  });
+
   test('a source asked for with no token set up is skipped, not failed',
       () async {
     writeSourceCaches();
@@ -284,10 +330,126 @@ void main() {
         ['Forum', 'Discord', 'Nexus', 'Merge', 'Save', 'Website files']);
   });
 
+  group('discord-posts.json', () {
+    const serverId = '1';
+    const channelId = '10';
+    const threadId = '1000';
+
+    /// Discord as the scrape sees it: one thread, the author's announcement and
+    /// one update, then a reply by somebody else. [failMessages] makes reading
+    /// the messages fail, as a dropped connection would.
+    http.Client discord({bool failMessages = false}) => MockClient((request) async {
+          final path = request.url.path;
+          Object? body;
+          if (path == '/api/channels/$channelId') {
+            body = {'id': channelId, 'name': 'mod_updates'};
+          } else if (path == '/api/guilds/$serverId/threads/active') {
+            body = {
+              'threads': [
+                {'id': threadId, 'name': 'Fresh Mod 1.2', 'parent_id': channelId},
+              ],
+            };
+          } else if (path == '/api/channels/$channelId/threads/archived/public') {
+            body = {'threads': <dynamic>[], 'has_more': false};
+          } else if (path == '/api/channels/$threadId') {
+            body = {'id': threadId, 'name': 'Fresh Mod 1.2', 'parent_id': channelId};
+          } else if (path == '/api/channels/$threadId/messages') {
+            if (failMessages) return http.Response('gone', 500);
+            body = [
+              {
+                'id': '2002',
+                'content': 'Nice mod!',
+                'timestamp': '2026-01-03T00:00:00.000Z',
+                'author': {'id': '4000', 'username': 'Fan'},
+              },
+              {
+                'id': '2001',
+                'content': 'Update 1.2: fixed a crash.',
+                'timestamp': '2026-01-02T00:00:00.000Z',
+                'author': {'id': '3000', 'username': 'Discord Author'},
+              },
+              {
+                'id': '2000',
+                'content': 'Fresh Mod\nDownload: https://github.com/a/b/releases/download/1.2/fresh.zip',
+                'timestamp': '2026-01-01T00:00:00.000Z',
+                'author': {'id': '3000', 'username': 'Discord Author'},
+              },
+            ];
+          }
+          if (body == null) return http.Response('unexpected ${request.url}', 404);
+          return http.Response(jsonEncode(body), 200);
+        });
+
+    ModRepoService serviceWith(http.Client client) => ModRepoService(
+          environment: ModRepoEnvironment(
+            workingPath: workDir.path,
+            outputPath: p.join(workDir.path, 'outputs'),
+            snapshotPath: p.join(workDir.path, 'qb_data'),
+            discordAuthToken: 'not-a-real-token',
+            discordServerId: serverId,
+            discordForumChannels: const {channelId: '0.98a'},
+          ),
+          createNetworkClient: () => client,
+        );
+
+    File postsFile() => File(p.join(workDir.path, 'qb_data', 'discord-posts.json'));
+
+    test("a Discord scrape saves each thread's opening run under its thread id", () async {
+      await serviceWith(discord()).runJob(
+        JobRequest.scrapeAndMerge(sources: {ModSourceKind.discord}),
+        reporter: reporter,
+      );
+
+      final saved = DiscordPostsFile.read(postsFile());
+      final thread = saved.threads[threadId]!;
+      expect(thread.name, 'Fresh Mod 1.2');
+      expect(thread.author, 'Discord Author');
+      expect(thread.messages.map((m) => m.id), ['2000', '2001'],
+          reason: 'the reply by somebody else ends the run');
+    });
+
+    test('a failed Discord scrape leaves the saved file alone', () async {
+      postsFile().parent.createSync(recursive: true);
+      postsFile().writeAsStringSync('{"old": "kept as it was"}');
+
+      final outcome = await serviceWith(discord(failMessages: true)).runJob(
+        JobRequest.scrapeAndMerge(sources: {ModSourceKind.discord}),
+        reporter: reporter,
+      );
+
+      expect(outcome.errors, 1);
+      expect(postsFile().readAsStringSync(), '{"old": "kept as it was"}');
+    });
+
+    test('a merge from saved files reads the file and never writes it', () async {
+      writeSourceCaches();
+      postsFile().parent.createSync(recursive: true);
+      postsFile().writeAsStringSync('{"old": "kept as it was"}');
+
+      await service.runJob(JobRequest.mergeModRepo(), reporter: reporter);
+
+      expect(postsFile().readAsStringSync(), '{"old": "kept as it was"}');
+    });
+  });
+
   test('the QB kinds are refused', () async {
     expect(
       () => service.runJob(JobRequest.rebuildBundle(), reporter: reporter),
       throwsA(isA<ArgumentError>()),
     );
   });
+}
+
+/// Asks the job to stop as soon as it reaches [phaseName].
+class _CancelOnPhase extends RecordingRunReporter {
+  final String phaseName;
+  final CancelToken cancel;
+
+  _CancelOnPhase(this.phaseName, this.cancel);
+
+  @override
+  void phase(String name) {
+    super.phase(name);
+    if (name == phaseName) cancel.cancel();
+  }
 }

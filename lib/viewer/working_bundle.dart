@@ -76,7 +76,8 @@ class WorkingBundle {
     final kept = <QbModSummary>[];
     for (final summary in sorted) {
       final entry = llm[summary.topicId];
-      if (!keepThreadInBundle(title: summary.title, llmSaidMod: entry?.isMod)) {
+      if (!keepThreadInBundle(
+          title: summary.title, llmSaidMod: entry?.isMod, inModIndex: summary.inModIndex)) {
         continue;
       }
       final thread = entry?.toThreadData();

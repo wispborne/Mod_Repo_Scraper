@@ -42,6 +42,27 @@ void main() {
         'urls': urls,
       };
 
+  /// The forum side of the catalog: the QB store, holding the same two forum
+  /// mods the forum cache does, each linked from one mod index line.
+  void writeQbStore(String qbDataPath) {
+    Directory(qbDataPath).createSync(recursive: true);
+    Map<String, dynamic> summary(int topicId, String name, String author) => {
+          'topicId': topicId,
+          'title': '[0.98a] $name',
+          'inModIndex': true,
+          'author': author,
+          'topicUrl': 'https://fractalsoftworks.com/forum/index.php?topic=$topicId.0',
+          'scrapedAt': '2026-01-01T00:00:00.000Z',
+          'indexLines': [
+            {'name': name, 'author': author, 'gameVersion': '0.98a', 'category': 'Faction Mods'},
+          ],
+        };
+    File(p.join(qbDataPath, 'mods-index.json')).writeAsStringSync(jsonEncode([
+      summary(1234, 'Test Mod', 'Author Aaa'),
+      summary(5678, 'Another Mod', 'Someone Else'),
+    ]));
+  }
+
   Future<void> writeSourceCaches() async {
     // Same mod, seen on the forum and on Nexus. These should merge into one.
     await File(p.join(workDir.path, 'forum_cache.json')).writeAsString(jsonEncode({
@@ -71,6 +92,7 @@ void main() {
         ),
       ],
     }));
+    writeQbStore(p.join(workDir.path, 'qb_data'));
   }
 
   Future<void> writeConfig({required bool mergeDebug}) async {

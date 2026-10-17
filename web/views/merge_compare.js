@@ -38,7 +38,11 @@ function memberName(members, index) {
 
 function memberHeading(member) {
   const sources = (member.sources || []).join(', ') || '?';
-  return `${member.name || '(no name)'} [${sources}]`;
+  const posts = (member.sourcePosts || [])
+    .filter((post) => post && post.id)
+    .map((post) => (post.kind === 'forum' ? `topic ${post.id}` : `${post.kind} ${post.id}`)
+      + (post.llmModName ? ` "${post.llmModName}"` : ''));
+  return `${member.name || '(no name)'} [${sources}]${posts.length ? ` — ${posts.join(', ')}` : ''}`;
 }
 
 export async function groupFields(body, id) {

@@ -11,6 +11,8 @@ import '../bot/scraper/forum_scraper.dart';
 import '../bot/scraper/mod_merger.dart';
 import '../bot/scraper/nexus_reader.dart';
 import '../bot/scraper/scraped_mod.dart';
+import '../catalog/catalog_step.dart';
+import '../catalog/discord_posts.dart';
 import '../site/public_site_step.dart';
 import '../utilities/caching_http_client.dart';
 import '../utilities/jsanity.dart';
@@ -37,6 +39,9 @@ class ModRepoService implements JobRunner {
   /// mods are half of what that site is built from.
   final PublicSiteStep siteStep;
 
+  /// Merges every source post's listings into `ModRepo-v2.json`.
+  final CatalogStep catalogStep;
+
   /// Makes the client used to reach Discord. Swapped out in tests.
   final http.Client Function() _createNetworkClient;
 
@@ -57,6 +62,11 @@ class ModRepoService implements JobRunner {
               outputPath: environment.outputPath,
               sitePath: environment.sitePath,
             ),
+        catalogStep = CatalogStep(
+          qbDataPath: environment.snapshotPath,
+          sourceCachePath: environment.workingPath,
+          outputPath: environment.outputPath,
+        ),
         _createNetworkClient = createNetworkClient ?? http.Client.new;
 
   @override
@@ -88,7 +98,7 @@ class ModRepoService implements JobRunner {
     required bool scrapeFirst,
   }) async {
     final mods = <ScrapedMod>[];
-    var discordMods = const <ScrapedMod>[];
+    final bySource = <ModSourceKind, List<ScrapedMod>>{};
     var errors = 0;
 
     for (final source in ModSourceKind.values) {
@@ -105,11 +115,18 @@ class ModRepoService implements JobRunner {
       final result = await _loadSource(source, request, reporter,
           scrapeFirst: scrapeFirst);
       mods.addAll(result.mods);
-      if (source == ModSourceKind.discord) discordMods = result.mods;
+      bySource[source] = result.mods;
       if (result.failed) errors++;
     }
 
     if (cancel?.isCancelled ?? false) return _stopped(reporter, mods.length);
+
+    // The catalog reads every source, asked for or not: a source this job did
+    // not scrape still has its saved results, and leaving them out would take
+    // its mods out of the catalog.
+    for (final source in [ModSourceKind.discord, ModSourceKind.nexus]) {
+      bySource[source] ??= await _loadSaved(source, reporter);
+    }
 
     reporter.phase('Merge');
     reporter.progress(0, mods.length, errors: errors);
@@ -117,19 +134,38 @@ class ModRepoService implements JobRunner {
 
     final collector = request.collectMergeDebug ? MergeDebugCollector() : null;
     final started = DateTime.now();
+    // The old ModRepo.json, kept until the switch. The merge debug data is
+    // the catalog's now, since that is the merge the Merge view explains.
     final merged = await ModMerger().merge(
       mods,
       keepAllGameVersionsFromSameSource: request.keepAllGameVersions,
-      debugCollector: collector,
     );
     reporter.log('Merge finished in '
         '${DateTime.now().difference(started).inMilliseconds}ms: '
         '${mods.length} in, ${merged.length} out.');
+
+    if (cancel?.isCancelled ?? false) {
+      reporter.log('Cancelled before saving. ModRepo.json and '
+          'ModRepo-v2.json were left as they were.');
+      return _stopped(reporter, mods.length, errors: errors);
+    }
+
+    // The catalog: every source post's listings, merged once, each mod given
+    // its permanent id through its source posts. Saved files only, and written
+    // here only if nobody has asked to stop.
+    final catalog = await catalogStep.run(
+      discordMods: bySource[ModSourceKind.discord] ?? const [],
+      nexusMods: bySource[ModSourceKind.nexus] ?? const [],
+      debugCollector: collector,
+      keepAllGameVersionsFromSameSource: request.keepAllGameVersions,
+      isCancelled: () => cancel?.isCancelled ?? false,
+      log: reporter.log,
+    );
     reporter.progress(mods.length, mods.length, errors: errors);
 
     // A merge that was stopped part-way leaves the old output alone: half a
     // merged repo is worse than yesterday's whole one.
-    if (cancel?.isCancelled ?? false) {
+    if (catalog == null || (cancel?.isCancelled ?? false)) {
       reporter.log('Cancelled before saving. ModRepo.json was left as it was.');
       return _stopped(reporter, mods.length, errors: errors);
     }
@@ -141,8 +177,7 @@ class ModRepoService implements JobRunner {
     }
 
     reporter.phase('Website files');
-    await siteStep.afterMerge(merged,
-        discordMods: discordMods, log: reporter.log);
+    await siteStep.afterMerge(catalog: catalog, log: reporter.log);
 
     return JobOutcome(
       itemsDone: merged.length,
@@ -191,10 +226,17 @@ class ModRepoService implements JobRunner {
 
     final started = DateTime.now();
     try {
-      final scraped = await _scrapeSource(source, request);
+      final (scraped, discordThreads) = await _scrapeSource(source, request);
       reporter.log('$name scraping finished (${scraped.length} mods) in '
           '${DateTime.now().difference(started).inMilliseconds}ms.');
-      if (scraped.isNotEmpty) await _writeCache(source, scraped, reporter);
+      if (scraped.isNotEmpty) {
+        await _writeCache(source, scraped, reporter);
+        // Saved with the cache file and under the same rule: only a scrape
+        // that worked replaces it.
+        if (discordThreads != null) {
+          await _writeDiscordPosts(discordThreads, reporter);
+        }
+      }
       return (mods: scraped, failed: false);
     } catch (e) {
       reporter.log('$name went wrong: $e');
@@ -233,21 +275,46 @@ class ModRepoService implements JobRunner {
     return cached ?? const [];
   }
 
-  Future<List<ScrapedMod>> _scrapeSource(
+  /// One source's scraped mods, and — for Discord — each thread's opening
+  /// run, keyed by thread id.
+  Future<(List<ScrapedMod>, Map<String, DiscordThreadPost>?)> _scrapeSource(
       ModSourceKind source, JobRequest request) async {
     switch (source) {
       case ModSourceKind.forum:
-        return await ForumScraper.run(
-              moddingForumPagesToScrape: request.moddingForumPages ?? 15,
-              modForumPagesToScrape: request.modForumPages ?? 12,
-            ).timeout(guardrails.sourceTimeout) ??
-            const [];
+        return (
+          await ForumScraper.run(
+                moddingForumPagesToScrape: request.moddingForumPages ?? 15,
+                modForumPagesToScrape: request.modForumPages ?? 12,
+              ).timeout(guardrails.sourceTimeout) ??
+              const <ScrapedMod>[],
+          null
+        );
       case ModSourceKind.nexus:
-        return await NexusReader.readAllMessages(environment.toReaderConfig())
-                .timeout(guardrails.sourceTimeout) ??
-            const [];
+        return (
+          await NexusReader.readAllMessages(environment.toReaderConfig())
+                  .timeout(guardrails.sourceTimeout) ??
+              const <ScrapedMod>[],
+          null
+        );
       case ModSourceKind.discord:
-        return _scrapeDiscord(request);
+        final result = await _scrapeDiscord(request);
+        return (result.mods, result.threads);
+    }
+  }
+
+  File get _discordPostsFile =>
+      File(p.join(environment.snapshotPath, DiscordPostsFile.fileName));
+
+  Future<void> _writeDiscordPosts(
+    Map<String, DiscordThreadPost> threads,
+    RunReporter reporter,
+  ) async {
+    try {
+      await DiscordPostsFile.write(_discordPostsFile, threads);
+      reporter.log('Saved the opening messages of ${threads.length} Discord '
+          'threads.');
+    } catch (e) {
+      reporter.log("Could not save the Discord threads' opening messages: $e");
     }
   }
 
@@ -256,7 +323,7 @@ class ModRepoService implements JobRunner {
 
   /// Discord goes through a caching HTTP client, so the raw API answers can be
   /// replayed later without asking Discord again.
-  Future<List<ScrapedMod>> _scrapeDiscord(JobRequest request) async {
+  Future<DiscordReadResult> _scrapeDiscord(JobRequest request) async {
     final cacheFile = _discordRawCacheFile;
     final http.Client client;
 
@@ -271,9 +338,9 @@ class ModRepoService implements JobRunner {
     }
 
     try {
-      return await DiscordReader.readAllMessages(environment.toReaderConfig(),
+      return await DiscordReader.readAll(environment.toReaderConfig(),
               httpClient: client) ??
-          const [];
+          const DiscordReadResult();
     } finally {
       if (client is CachingClient && !client.isReplaying) {
         await client.saveToFile(cacheFile.path);

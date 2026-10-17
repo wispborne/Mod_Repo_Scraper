@@ -11,6 +11,8 @@
  */
 
 import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
+import 'package:mod_repo_scraper/catalog/listing.dart';
+import 'package:mod_repo_scraper/catalog/source_post.dart';
 import 'package:mod_repo_scraper/utilities/console_progress_bar.dart';
 import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
@@ -22,7 +24,78 @@ import 'mod_repo_utils.dart';
 import 'scraped_mod.dart';
 import 'version.dart';
 
+/// One merged mod and every source post that went into it.
+class MergedMod {
+  final ScrapedMod mod;
+  final List<CatalogSourcePost> sourcePosts;
+
+  const MergedMod(this.mod, this.sourcePosts);
+}
+
 class ModMerger {
+  /// Which source posts each mod in flight came from. Every step that makes a
+  /// new [ScrapedMod] out of old ones hands their posts on, so the mods that
+  /// come out still know which posts they were built from. Keyed by the object
+  /// itself, not its value: two listings can describe the same mod in the same
+  /// words and still be two posts.
+  final Expando<List<CatalogSourcePost>> _posts = Expando('source posts');
+
+  /// Merges listings, keeping each one's source post on the mod it ends up in.
+  ///
+  /// [existingIdOf] says which permanent id a source post is already linked
+  /// to. Matches between listings that already share an id are joined first, so
+  /// a Discord announcement goes back to the forum thread it was published with
+  /// rather than to another thread of the same name the merge happens to meet
+  /// first, and pages do not trade posts from one run to the next.
+  Future<List<MergedMod>> mergeListings(
+    List<Listing> listings, {
+    bool keepAllGameVersionsFromSameSource = false,
+    MergeDebugCollector? debugCollector,
+    String? Function(CatalogSourcePost post)? existingIdOf,
+  }) async {
+    _existingIdOf = existingIdOf;
+    final mods = <ScrapedMod>[];
+    for (final listing in listings) {
+      // A copy of its own, so the post is filed against this listing alone.
+      final mod = listing.mod.copyWith();
+      _posts[mod] = [CatalogSourcePost.of(listing)];
+      mods.add(mod);
+    }
+    final merged = await merge(
+      mods,
+      keepAllGameVersionsFromSameSource: keepAllGameVersionsFromSameSource,
+      debugCollector: debugCollector,
+    );
+    return [for (final mod in merged) MergedMod(mod, _postsOf(mod))];
+  }
+
+  List<CatalogSourcePost> _postsOf(ScrapedMod mod) => _posts[mod] ?? const [];
+
+  String? Function(CatalogSourcePost post)? _existingIdOf;
+
+  /// The permanent ids [mod]'s posts are already linked to.
+  Set<String> _existingIdsOf(ScrapedMod mod) {
+    final lookup = _existingIdOf;
+    if (lookup == null) return const {};
+    return {for (final post in _postsOf(mod)) if (lookup(post) case final id?) id};
+  }
+
+  /// [to] came from [from]: it keeps every post [from] came from.
+  T _carry<T extends ScrapedMod>(ScrapedMod from, T to) {
+    if (identical(from, to)) return to;
+    _addPosts(to, _postsOf(from));
+    return to;
+  }
+
+  void _addPosts(ScrapedMod to, List<CatalogSourcePost> posts) {
+    if (posts.isEmpty) return;
+    final held = [..._postsOf(to)];
+    for (final post in posts) {
+      if (!held.contains(post)) held.add(post);
+    }
+    _posts[to] = held;
+  }
+
   Future<List<ScrapedMod>> merge(
     List<ScrapedMod> mods, {
     bool keepAllGameVersionsFromSameSource = false,
@@ -106,9 +179,34 @@ class ModMerger {
       return root;
     }
 
-    void joinGroups(int a, int b) {
-      groupOf[findGroup(a)] = findGroup(b);
+    // Every source post each group holds, so a join that would put two posts'
+    // mods together that must stay apart can be refused for the whole group,
+    // not just the two entries being compared. Empty for mods merged without
+    // listings, which then join exactly as they always did.
+    final groupPosts = <int, List<CatalogSourcePost>>{
+      for (var i = 0; i < dedupedInput.length; i++) i: _postsOf(dedupedInput[i]),
+    };
+
+    /// Joins the two groups unless they hold source posts that must stay
+    /// apart. True when they are one group afterwards.
+    bool joinGroups(int a, int b) {
+      final rootA = findGroup(a);
+      final rootB = findGroup(b);
+      if (rootA == rootB) return true;
+      final postsA = groupPosts[rootA] ?? const <CatalogSourcePost>[];
+      final postsB = groupPosts[rootB] ?? const <CatalogSourcePost>[];
+      if (_mustStayApart(postsA, postsB)) return false;
+      groupOf[rootA] = rootB;
+      groupPosts[rootB] = [...postsB, ...postsA];
+      groupPosts.remove(rootA);
+      return true;
     }
+
+    // Matches are gathered first and joined after: the ones through a forum
+    // link before the ones by name and author. A Discord announcement that
+    // links its own forum topic then joins that topic's mod, even when its name
+    // also matches an older thread of the same name that must stay apart.
+    final pendingJoins = <(int, int, bool, GroupMatchEntry?)>[];
 
     final authorNames = List<List<String>>.generate(
       dedupedInput.length,
@@ -226,8 +324,7 @@ class ModMerger {
         }
 
         if (isMatch) {
-          joinGroups(index, candidateIdx);
-
+          GroupMatchEntry? entry;
           if (debugPairEntries != null) {
             final reasons = <GroupMatchReason>{};
             if (doNameAndAuthorMatch) {
@@ -236,9 +333,7 @@ class ModMerger {
                   : GroupMatchReason.nameAndAuthor);
             }
             if (doForumLinksMatch) reasons.add(GroupMatchReason.forumUrl);
-            debugPairEntries.add((
-              index,
-              GroupMatchEntry(
+            entry = GroupMatchEntry(
                 outerMod: outerLoopMod,
                 innerMod: innerLoopMod,
                 reasons: reasons,
@@ -250,14 +345,44 @@ class ModMerger {
                 innerStrippedName: stripVersionNoise(innerLoopMod.name),
                 strippedNameScore: strippedNameResult?.isMatch == true ? strippedNameResult!.score : null,
                 strippedNameLengthRatio: strippedRatio,
-              )
-            ));
+              );
           }
+          pendingJoins.add((index, candidateIdx, doForumLinksMatch, entry));
         }
       }
     }
 
     groupingBar.finish();
+
+    // First the matches between mods whose posts already share an id, then
+    // the ones through a forum link, then the rest.
+    final existingIds = [for (final mod in dedupedInput) _existingIdsOf(mod)];
+    bool sharesAnId(int a, int b) =>
+        existingIds[a].isNotEmpty && existingIds[a].intersection(existingIds[b]).isNotEmpty;
+    var refusedJoins = 0;
+    final joined = <(int, int)>{};
+    for (final pass in [0, 1, 2]) {
+      for (final (a, b, viaForum, entry) in pendingJoins) {
+        if (joined.contains((a, b))) continue;
+        final belongsHere = switch (pass) {
+          0 => sharesAnId(a, b),
+          1 => viaForum,
+          _ => true,
+        };
+        if (!belongsHere) continue;
+        joined.add((a, b));
+        if (!joinGroups(a, b)) {
+          refusedJoins++;
+          continue;
+        }
+        if (entry != null) debugPairEntries!.add((a, entry));
+      }
+    }
+    if (refusedJoins > 0) {
+      timber.i(
+          message: () => "Kept $refusedJoins match(es) apart: they would have put two forum topics, or two "
+              "mods read off one post, into one mod.");
+    }
 
     // Collect the joined groups, keeping the input order.
     final memberIndexesByRoot = <int, List<int>>{};
@@ -282,6 +407,7 @@ class ModMerger {
           groupIndex: g,
           members: groupedMods[g],
           matchEntries: entriesByGroup[g] ?? [],
+          memberSourcePosts: [for (final member in groupedMods[g]) _postsOf(member)],
         ));
       }
     }
@@ -369,7 +495,8 @@ class ModMerger {
             "Total time to merge ${mods.length} mods: ${DateTime.now().difference(startTime).inMilliseconds}ms.");
 
     debugCollector?.setFinalCount(tidiedMods.length);
-    debugCollector?.setFinalOutput(tidiedMods);
+    debugCollector?.setFinalOutput(tidiedMods,
+        sourcePosts: [for (final mod in tidiedMods) _postsOf(mod)]);
     debugCollector?.addTiming('Total', DateTime.now().difference(startTime).inMilliseconds);
 
     return tidiedMods;
@@ -393,7 +520,7 @@ class ModMerger {
       timber.d(
           message: () => "Tidied the authors of '${mod.name}': "
               "'${before.join("', '")}' -> '${after.join("', '")}'.");
-      return mod.copyWith(authorsList: after);
+      return _carry(mod, mod.copyWith(authorsList: after));
     }).toList();
 
     timber.i(message: () => "Tidied the author names on $changedCount of ${mods.length} mods.");
@@ -417,7 +544,7 @@ class ModMerger {
       timber.d(
           message: () => "Tidied the categories of '${mod.name}': "
               "'${before.join("', '")}' -> '${after.join("', '")}'.");
-      return mod.copyWith(categories: after);
+      return _carry(mod, mod.copyWith(categories: after));
     }).toList();
 
     final allNames = <String>{for (final mod in result) ...mod.getCategories()}.toList()..sort();
@@ -440,6 +567,16 @@ class ModMerger {
   /// Merges two mods, determining priority, and returns the result along with
   /// the priority reason and direction.
   (ScrapedMod, MergePriorityReason, bool) _mergeTwoMods(ScrapedMod mergedMod, ScrapedMod modToFoldIn) {
+    final (result, reason, rightHasPriority) = _mergeTwoModsUntracked(mergedMod, modToFoldIn);
+    // The result is a new mod made of both: it came from every post either did.
+    // A copy, so a value-equal input is never mistaken for the result.
+    final tracked = identical(result, mergedMod) ? result.copyWith() : result;
+    _addPosts(tracked, _postsOf(mergedMod));
+    _addPosts(tracked, _postsOf(modToFoldIn));
+    return (tracked, reason, rightHasPriority);
+  }
+
+  (ScrapedMod, MergePriorityReason, bool) _mergeTwoModsUntracked(ScrapedMod mergedMod, ScrapedMod modToFoldIn) {
     if (mergedMod == modToFoldIn) return (mergedMod, MergePriorityReason.fallback, false);
 
     // Mods from the Index always have priority in case of conflicts.
@@ -662,6 +799,8 @@ class ModMerger {
             keptGameVersion: best.gameVersionReq,
             discardedGameVersion: mod.gameVersionReq,
           ));
+          // An older entry for the same mod: its post still belongs to it.
+          _addPosts(best, _postsOf(mod));
           modsToRemove.add(mod);
         }
       }
@@ -682,7 +821,7 @@ class ModMerger {
 
   List<ScrapedMod> _preprocessMods(List<ScrapedMod> mods) {
     return mods.map((mod) {
-      return ScrapedMod(
+      return _carry(mod, ScrapedMod(
         name: mod.name.trim(),
         summary: mod.summary?.trim(),
         description: mod.description?.trim(),
@@ -695,7 +834,7 @@ class ModMerger {
         images: mod.images,
         dateTimeCreated: mod.dateTimeCreated,
         dateTimeEdited: mod.dateTimeEdited,
-      );
+      ));
     }).toList();
   }
 
@@ -778,11 +917,14 @@ class ModMerger {
   /// "Bultach 'Of Humanity.'" keeps its link to "Bultach Coalition" (shared
   /// trigrams); "-Moci ship pack-" loses its link to "Box Util" (zero shared).
   Future<List<ScrapedMod>> _dropForumLinksToOtherMods(List<ScrapedMod> mods) async {
-    final threadsByTopicId = <String, ScrapedMod>{};
+    // Every forum mod on each topic, not just the first: a topic that holds
+    // four mods gives four forum listings, and a Discord announcement of the
+    // second one must not lose its forum link for not being the first.
+    final threadsByTopicId = <String, List<ScrapedMod>>{};
     for (final mod in mods) {
       if (!_isFromTheForum(mod)) continue;
       final topicId = extractForumTopicId(mod.getUrls()[ModUrlType.Forum]);
-      if (topicId != null) threadsByTopicId.putIfAbsent(topicId, () => mod);
+      if (topicId != null) threadsByTopicId.putIfAbsent(topicId, () => []).add(mod);
     }
     if (threadsByTopicId.isEmpty) return mods;
 
@@ -792,12 +934,22 @@ class ModMerger {
     for (final mod in mods) {
       final urls = mod.getUrls();
       final topicId = extractForumTopicId(urls[ModUrlType.Forum]);
-      final thread = topicId == null ? null : threadsByTopicId[topicId];
+      final threadMods = topicId == null ? null : threadsByTopicId[topicId];
 
-      if (_isFromTheForum(mod) || thread == null || await _couldBeTheSameMod(mod, thread)) {
+      var couldBeOne = false;
+      if (!_isFromTheForum(mod) && threadMods != null) {
+        for (final threadMod in threadMods) {
+          if (await _couldBeTheSameMod(mod, threadMod)) {
+            couldBeOne = true;
+            break;
+          }
+        }
+      }
+      if (_isFromTheForum(mod) || threadMods == null || couldBeOne) {
         kept.add(mod);
         continue;
       }
+      final thread = threadMods.first;
 
       // The download page is often just the forum link repeated.
       final trimmedUrls = Map<ModUrlType, String>.from(urls)..remove(ModUrlType.Forum);
@@ -810,7 +962,7 @@ class ModMerger {
           message: () => "Dropped the forum link on '${mod.name}' "
               "(${mod.getSources().map((s) => s.name).join(", ")}): topic $topicId is "
               "'${thread.name}', a different mod.");
-      kept.add(mod.copyWith(urls: trimmedUrls));
+      kept.add(_carry(mod, mod.copyWith(urls: trimmedUrls)));
     }
 
     if (droppedCount > 0) {
@@ -818,6 +970,33 @@ class ModMerger {
     }
 
     return kept;
+  }
+
+  /// True when two groups holding these source posts must not become one mod.
+  ///
+  /// Two forum topics are two mods. A mod's old thread and its new one, a fork
+  /// that kept the original's name, two people who picked one name: the site
+  /// gives each its own page and has each name the others, so a reader picks
+  /// the build they want. Joining them would take one page's address away.
+  ///
+  /// Two mods the LLM read off one post under different names are two mods
+  /// too. The topic rule would otherwise join "Derelict Start" and "Remnant
+  /// Start" back into one, for sharing topic 34457 and the word "start".
+  static bool _mustStayApart(List<CatalogSourcePost> a, List<CatalogSourcePost> b) {
+    final forumA = {for (final post in a) if (post.kind == SourceKind.forum && post.id.isNotEmpty) post.id};
+    final forumB = {for (final post in b) if (post.kind == SourceKind.forum && post.id.isNotEmpty) post.id};
+    if (forumA.isNotEmpty && forumB.isNotEmpty && forumA.intersection(forumB).isEmpty) return true;
+
+    for (final left in a) {
+      if (left.llmModName == null) continue;
+      for (final right in b) {
+        if (right.llmModName == null) continue;
+        if (left.kind == right.kind && left.id == right.id && left.llmModName != right.llmModName) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   static bool _isFromTheForum(ScrapedMod mod) =>
@@ -887,6 +1066,9 @@ class ModMerger {
       if (existing == null) {
         seen[key] = mod;
       } else {
+        // Two inputs for one mod: whichever is kept came from both posts.
+        _addPosts(existing, _postsOf(mod));
+        _addPosts(mod, _postsOf(existing));
         // Keep the one with more data, or higher game version as tiebreaker.
         final existingRichness = _dataRichness(existing);
         final modRichness = _dataRichness(mod);

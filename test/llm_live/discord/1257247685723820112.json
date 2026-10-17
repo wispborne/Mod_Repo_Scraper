@@ -1,0 +1,29 @@
+{
+  "threadId": "1257247685723820112",
+  "name": "Retrofitted Bridge v0.0.2",
+  "author": "hakureireimu6512",
+  "url": "https://discord.com/channels/187635036525166592/1257247685723820112/1257247685723820112",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=30215",
+  "messages": [
+    {
+      "id": "1257247685723820112",
+      "content": "Convert automated ships to crewed ships.\n\nThis mods does 2 things:\n* Allows you to salvage automated ships without the automated ships skill (but you still can't deploy them effectively because of the CR penalty).\n* You can instead, for a substantial credit cost, replace the automated ship hullmod with retrofitted bridge, which turns it into a crewed ship.\n\ndownload: https://drive.google.com/uc?export=download&id=1drtBQFx_O_mKyQpR0OIp1pt2B-eT2pjo\nforum: https://fractalsoftworks.com/forum/index.php?topic=30215",
+      "timestamp": "2024-07-01T08:13:26.809Z",
+      "editedTimestamp": "2025-03-18T07:32:20.982Z",
+      "images": []
+    },
+    {
+      "id": "1351458232429969440",
+      "content": "Retrofitted Bridge v0.0.2",
+      "timestamp": "2025-03-18T07:32:31.491Z",
+      "images": []
+    },
+    {
+      "id": "1351458497732018208",
+      "content": "v0.0.2 update\n- some UI improvements",
+      "timestamp": "2025-03-18T07:33:34.744Z",
+      "editedTimestamp": "2025-03-18T07:35:21.441Z",
+      "images": []
+    }
+  ]
+}

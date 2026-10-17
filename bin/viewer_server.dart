@@ -152,7 +152,8 @@ Future<_ManagerSetup> _buildManager({
   Common.bridgeLoggingToTimber();
 
   final service = ScraperService(
-    environment: ScraperEnvironment.fromConfig(config),
+    environment:
+        ScraperEnvironment.fromConfig(config, sourceCachePath: viewerRootDir),
     guardrails: ScraperGuardrails.fromConfig(config),
   );
   await service.load();

@@ -11,6 +11,8 @@ import 'package:mod_repo_scraper/bot/scraper/qb/llm/post_extractor.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_detail.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/post_extraction.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/throttled_client.dart';
+import 'package:mod_repo_scraper/catalog/discord_posts.dart';
+import 'package:mod_repo_scraper/catalog/source_post.dart';
 
 /// Where the model is and what it is called. Read from the environment first
 /// (`LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_TOKEN`), then from
@@ -127,6 +129,32 @@ Future<LlmStoreEntry?> readWithTheModel(
   int topicId, {
   bool summaries = true,
   int? maxTokens,
+}) =>
+    _readWithTheModel(SourcePost.fromForumDetail(loadPost(topicId)),
+        summaries: summaries, maxTokens: maxTokens);
+
+/// A saved Discord thread from `test/llm_live/discord/`: the opening run of a
+/// real thread, as `discord-posts.json` holds it.
+DiscordThreadPost loadDiscordThread(String threadId) {
+  final file = File('test/llm_live/discord/$threadId.json');
+  if (!file.existsSync()) {
+    throw StateError('No saved thread $threadId at ${file.path}');
+  }
+  return DiscordThreadPostMapper.fromJson(file.readAsStringSync());
+}
+
+/// [readWithTheModel] for a saved Discord thread.
+Future<LlmStoreEntry?> readDiscordWithTheModel(
+  String threadId, {
+  bool summaries = true,
+}) =>
+    _readWithTheModel(loadDiscordThread(threadId).toSourcePost(),
+        summaries: summaries);
+
+Future<LlmStoreEntry?> _readWithTheModel(
+  SourcePost source, {
+  bool summaries = true,
+  int? maxTokens,
 }) async {
   final settings = LiveLlmSettings.read();
   final tempDir = Directory.systemTemp.createTempSync('llm_live');
@@ -154,8 +182,8 @@ Future<LlmStoreEntry?> readWithTheModel(
       maxTokens: maxTokens,
       maxConcurrentCalls: 1,
     );
-    await extractor.extractForTopic(loadPost(topicId), []);
-    return store.get(topicId);
+    await extractor.extractFor(source, []);
+    return store.getKey(source.storeKey);
   } finally {
     httpClient.close();
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);

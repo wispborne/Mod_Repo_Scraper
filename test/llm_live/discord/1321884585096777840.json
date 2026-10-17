@@ -1,0 +1,40 @@
+{
+  "threadId": "1321884585096777840",
+  "name": "Library of Ruina Portrait Pack v1.1.0",
+  "author": "fluffytowels",
+  "url": "https://discord.com/channels/187635036525166592/1321884585096777840/1321884585096777840",
+  "forumUrl": "https://fractalsoftworks.com/forum/index.php?topic=31235.0",
+  "messages": [
+    {
+      "id": "1321884585096777840",
+      "content": "This mod adds portraits of most characters from the game Library of Ruina. Integrating some of them into the some of the vanilla factions.\n\nThe ones that are *too* out there for starsector are a separate download and are only in the player faction.\n\nDownload: https://github.com/FluffyTowels/Starsector-LoR_Portraits/releases/download/1.1.0/LoR_portraits_1.1.0.zip\nDownload Distortions: https://github.com/FluffyTowels/Starsector-LoR_Portraits_Distortion/releases/download/1.0.0/LoR_portraits_distortion_1.0.0.zip\nForum Thread: https://fractalsoftworks.com/forum/index.php?topic=31235.0",
+      "timestamp": "2024-12-26T16:57:24.515Z",
+      "editedTimestamp": "2025-01-05T14:41:49.278Z",
+      "images": [
+        {
+          "url": "https://cdn.discordapp.com/attachments/1321884585096777840/1321884585260486747/image.png?ex=6991faf4&is=6990a974&hm=a13544683b7d08886e9dd6180b61761d4ccf8cec83d004a94bfd7479316af949&",
+          "filename": "image.png"
+        }
+      ]
+    },
+    {
+      "id": "1322101242029146153",
+      "content": "Updated to 1.1.0\n```\nv1.1.0\nAdded masked Roland\nMade some of the vanilla factions use the portraits```",
+      "timestamp": "2024-12-27T07:18:19.553Z",
+      "images": []
+    },
+    {
+      "id": "1322101288506363996",
+      "content": "Library of Ruina Portrait Pack v1.1.0",
+      "timestamp": "2024-12-27T07:18:30.634Z",
+      "images": []
+    },
+    {
+      "id": "1325474396546273281",
+      "content": "Added a separate downlaod for EGOs, Distortions etc.\nIt's mostly the Ensemble and realisation sprites.\n(The typo stays)",
+      "timestamp": "2025-01-05T14:42:02.260Z",
+      "editedTimestamp": "2025-01-05T14:42:09.585Z",
+      "images": []
+    }
+  ]
+}

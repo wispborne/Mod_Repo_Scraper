@@ -1,6 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:mod_repo_scraper/bot/scraper/mod_merger.dart';
+import 'package:mod_repo_scraper/catalog/catalog_inputs.dart';
+import 'package:mod_repo_scraper/catalog/discord_posts.dart';
+import 'package:mod_repo_scraper/catalog/forum_listing.dart';
+import 'package:mod_repo_scraper/catalog/listing.dart';
+import 'package:mod_repo_scraper/catalog/mod_catalog.dart';
+import 'package:mod_repo_scraper/catalog/other_listings.dart';
+import 'package:mod_repo_scraper/catalog/source_post.dart';
+import 'package:mod_repo_scraper/catalog/source_post_listings.dart';
+import 'package:mod_repo_scraper/site/mod_name_match.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/assumed_download.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/forum_data_bundle.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_detail.dart';
@@ -12,6 +22,7 @@ import 'package:mod_repo_scraper/site/models/public_mod.dart';
 import 'package:mod_repo_scraper/site/post_html.dart';
 import 'package:mod_repo_scraper/site/public_data_builder.dart';
 import 'package:mod_repo_scraper/site/release_state_store.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -92,6 +103,106 @@ void main() {
         assumedDownloads: downloads,
       );
 
+  /// What the catalog makes of merged mods on threads of one mod each: the
+  /// mod's own id, and a forum link naming the LLM mod its facts are read
+  /// from — the one with its name, else the thread's only main mod, else its
+  /// only mod. The listing step's own rules are tested in
+  /// `test/catalog/source_post_listings_test.dart`; these tests are about what
+  /// a page shows once the catalog has said which mod is which.
+  List<CatalogMod> catalogOf(List<ScrapedMod> mods, {ForumDataBundle? bundle, ModIdStore? ids}) {
+    final store = ids ?? idStore;
+    final threads = {for (final t in bundle?.index ?? const <QbModSummary>[]) '${t.topicId}': t};
+    String? llmNameFor(ScrapedMod mod, QbModSummary? thread) {
+      final llmMods = thread?.llm?.mods ?? const <LlmMod>[];
+      for (final candidate in llmMods) {
+        if (modNamesMatch(candidate.name, mod.name)) return candidate.name;
+      }
+      final mains = [for (final m in llmMods) if (m.role == LlmModRole.main) m];
+      if (mains.length == 1) return mains.single.name;
+      if (mains.isEmpty && llmMods.length == 1) return llmMods.single.name;
+      return null;
+    }
+
+    return [
+      for (final mod in mods)
+        () {
+          final topicId = ModMerger.extractForumTopicId(mod.getUrls()[ModUrlType.Forum]);
+          final threadId = discordThreadIdOf(mod.getUrls()[ModUrlType.Discord]);
+          final nexusId = nexusIdOf(mod.getUrls()[ModUrlType.NexusMods]);
+          return CatalogMod(
+            id: store.idFor(mod.name, mark: PublicDataBuilder.markFor(mod, topicId)),
+            mod: mod,
+            sourcePosts: [
+              if (topicId != null)
+                CatalogSourcePost(
+                  kind: SourceKind.forum,
+                  id: topicId,
+                  llmModName: llmNameFor(mod, threads[topicId]),
+                ),
+              if (threadId != null) CatalogSourcePost(kind: SourceKind.discord, id: threadId),
+              if (nexusId != null) CatalogSourcePost(kind: SourceKind.nexus, id: nexusId),
+            ],
+          );
+        }(),
+    ];
+  }
+
+  /// [PublicDataBuilder.build] over [catalogOf] the given merged mods.
+  PublicSiteData buildFrom({
+    required List<ScrapedMod> mods,
+    ForumDataBundle? bundle,
+    List<ThreadRelease> threadReleases = const [],
+    DiscordPostsFile discordPosts = const DiscordPostsFile(),
+    DateTime? generatedAt,
+  }) =>
+      builder.build(
+        mods: catalogOf(mods, bundle: bundle),
+        bundle: bundle,
+        threadReleases: threadReleases,
+        discordPosts: discordPosts,
+        generatedAt: generatedAt,
+      );
+
+  /// Builds the site the way a real run does: each thread in [bundle] and each
+  /// of [discordMods] turned into listings, merged into a catalog with ids, and
+  /// the site built from that.
+  Future<PublicSiteData> buildThroughCatalog({
+    required ForumDataBundle bundle,
+    List<ScrapedMod> discordMods = const [],
+    List<ThreadRelease> threadReleases = const [],
+  }) async {
+    final listings = <Listing>[];
+    final collections = <Listing>[];
+    for (final thread in bundle.index) {
+      final detail = bundle.details['${thread.topicId}'];
+      final words = SourcePostListings.openingRunWords(
+        detail == null
+            ? SourcePost(kind: SourceKind.forum, id: '${thread.topicId}', title: thread.title)
+            : SourcePost.fromForumDetail(detail).copyWith(title: thread.title),
+      );
+      final result = SourcePostListings.combine(
+        rules: forumRulesListing(thread),
+        llmMods: thread.llm?.mods ?? const [],
+        postWords: words,
+      );
+      listings.addAll(result.listings);
+      if (result.collection != null) collections.add(result.collection!);
+    }
+    for (final mod in discordMods) {
+      listings.add(discordRulesListing(mod)!);
+    }
+    final catalog = await ModCatalog.build(
+      inputs: CatalogListings(listings: listings, collections: collections),
+      ids: idStore,
+    );
+    return builder.build(
+      mods: catalog.mods,
+      collections: catalog.collections,
+      bundle: bundle,
+      threadReleases: threadReleases,
+    );
+  }
+
   QbModDetail postOf(String contentHtml,
           {int topicId = 9175,
           List<ImageRef> images = const [],
@@ -117,7 +228,7 @@ void main() {
     test('Extra Systems keeps its full description and both summaries', () {
       final post = QbModDetailMapper.fromJson(
           File('test/llm_live/posts/36143.json').readAsStringSync());
-      final data = builder.build(
+      final data = buildFrom(
         mods: [
           forumMod(
             name: 'Extra Systems Reloaded',
@@ -173,7 +284,7 @@ void main() {
       test(
           'keeps the full single-mod post with '
           '${anchors == null ? 'no' : 'invalid'} anchors', () {
-        final data = builder.build(
+        final data = buildFrom(
           mods: [forumMod(summary: null)],
           bundle: bundleOf(
             index: [
@@ -206,7 +317,7 @@ void main() {
   });
 
   test('the name a reader sees has the thread-title noise taken off it', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(name: '[0.98a] Nexerelin v0.12.2')],
       bundle: bundleOf(),
     );
@@ -220,7 +331,7 @@ void main() {
 
   group('other names the post uses', () {
     test('are published for the search', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [forumMod()],
         bundle: bundleOf(index: [
           thread(llmMods: [
@@ -233,7 +344,7 @@ void main() {
     });
 
     test('leave out one that is only a name the mod already has', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [forumMod()],
         bundle: bundleOf(index: [
           thread(llmMods: [
@@ -246,7 +357,7 @@ void main() {
     });
 
     test('are left out entirely when there are none', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [forumMod()],
         bundle: bundleOf(index: [
           thread(llmMods: [LlmMod(name: 'Nexerelin')]),
@@ -263,7 +374,7 @@ void main() {
 
   group('a program run beside the game', () {
     test('is marked as a tool and shelved under Utilities', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [
           forumMod(name: 'MOSS').copyWith(categories: ['Faction Mods']),
         ],
@@ -281,7 +392,7 @@ void main() {
     });
 
     test('an ordinary mod carries no tool field at all', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [forumMod().copyWith(categories: ['Faction Mods'])],
         bundle: bundleOf(index: [
           thread(llmMods: [LlmMod(name: 'Nexerelin')]),
@@ -299,15 +410,14 @@ void main() {
 
   test('a name that needs no tidying is not published twice', () {
     final data =
-        builder.build(mods: [forumMod(name: 'Nexerelin')], bundle: bundleOf());
+        buildFrom(mods: [forumMod(name: 'Nexerelin')], bundle: bundleOf());
     expect(data.list.mods.single.displayName, isNull);
   });
 
   group("the LLM's name for the mod", () {
     const seaOfStars = 'Sea of Stars 0.5.1 - Go Beyond the Persean Sector';
 
-    PublicMod builtWith(String title, List<LlmMod> llmMods) => builder
-        .build(
+    PublicMod builtWith(String title, List<LlmMod> llmMods) => buildFrom(
           mods: [forumMod(name: title, topicId: 36134)],
           bundle: bundleOf(index: [
             thread(topicId: 36134, title: title, llmMods: llmMods),
@@ -348,7 +458,7 @@ void main() {
     });
 
     test('uses the shown name in Requires links', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [
           forumMod(name: seaOfStars, topicId: 36134),
           forumMod(name: 'Addon Mod', topicId: 2),
@@ -372,8 +482,53 @@ void main() {
     });
   });
 
+  group('a catalog newer than the bundle', () {
+    /// The warnings [run] logs.
+    List<String> warningsWhile(void Function() run) {
+      final warnings = <String>[];
+      final oldLevel = Logger.root.level;
+      Logger.root.level = Level.ALL;
+      final listening = Logger.root.onRecord.listen((r) {
+        if (r.level >= Level.WARNING) warnings.add(r.message);
+      });
+      try {
+        run();
+      } finally {
+        listening.cancel();
+        Logger.root.level = oldLevel;
+      }
+      return warnings;
+    }
+
+    List<String> buildNaming(String nameInCatalog, String nameInBundle) => warningsWhile(() {
+          final mod = forumMod(name: 'Peenemunde', topicId: 12535);
+          builder.build(
+            mods: [
+              CatalogMod(
+                id: 'peenemunde',
+                mod: mod,
+                sourcePosts: [CatalogSourcePost(kind: SourceKind.forum, id: '12535', llmModName: nameInCatalog)],
+              ),
+            ],
+            bundle: bundleOf(index: [
+              thread(topicId: 12535, title: 'Peenemunde', llmMods: [LlmMod(name: nameInBundle)]),
+            ]),
+          );
+        });
+
+    test('is said when a mod names an LLM answer the bundle does not have', () {
+      final warnings = buildNaming('Peenemunde Mobile Battlestation', 'BSP Peenemunde');
+      expect(warnings.where((w) => w.contains('forum:12535#Peenemunde Mobile Battlestation')), hasLength(1));
+    });
+
+    test('says nothing when the two agree', () {
+      final warnings = buildNaming('BSP Peenemunde', 'BSP Peenemunde');
+      expect(warnings.where((w) => w.contains('LLM answer')), isEmpty);
+    });
+  });
+
   test('the list is in order of the name a reader sees, not the raw title', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [
         forumMod(name: 'Zebra Mod', topicId: 1),
         forumMod(name: '- Starter Pack v1.1.3', topicId: 2),
@@ -387,7 +542,7 @@ void main() {
   });
 
   test('the release feed uses the tidied name too', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(name: '[0.98a] Nexerelin v0.12.2')],
       bundle: bundleOf(),
       threadReleases: [
@@ -404,7 +559,7 @@ void main() {
   });
 
   test('the description is the forum post, kept formatted and made safe', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [
         forumMod(
           name: 'Nexerelin',
@@ -435,7 +590,7 @@ void main() {
       urls: const {ModUrlType.Discord: 'https://discord.com/channels/1/2'},
     );
 
-    final detail = builder.build(
+    final detail = buildFrom(
         mods: [discordOnly], bundle: bundleOf()).details['quality-captains']!;
     expect(detail.description, 'Officers gain skills you choose.');
     expect(detail.descriptionHtml, '<p>Officers gain skills you choose.</p>');
@@ -455,15 +610,17 @@ void main() {
       },
     );
 
-    final detail = builder.build(
+    final detail = buildFrom(
       mods: [mod],
       bundle: bundleOf(
         index: [thread()],
         details: {'9175': postOf('<p>A campaign overhaul.</p>')},
       ),
-      discordPosts: const {
-        'https://discord.com/channels/1/2/3': '**4X** in Starsector.\n- Invade\n- Trade',
-      },
+      discordPosts: const DiscordPostsFile(threads: {
+        '2': DiscordThreadPost(threadId: '2', messages: [
+          DiscordOpeningMessage(id: '3', content: '**4X** in Starsector.\n- Invade\n- Trade'),
+        ]),
+      }),
     ).details['nexerelin']!;
 
     expect(detail.descriptionIsForumPost, isTrue);
@@ -481,12 +638,13 @@ void main() {
       urls: const {ModUrlType.Discord: 'https://discord.com/channels/1/2'},
     );
 
-    final detail = builder.build(
+    final detail = buildFrom(
       mods: [discordOnly],
       bundle: bundleOf(),
-      discordPosts: const {
+      // Still read from a file written the old way, filed under the link.
+      discordPosts: const DiscordPostsFile(legacyTexts: {
         'https://discord.com/channels/1/2': 'Officers gain  skills you choose.',
-      },
+      }),
     ).details['quality-captains']!;
 
     expect(detail.descriptionIsForumPost, isFalse);
@@ -509,7 +667,7 @@ void main() {
       },
     );
 
-    final built = builder.build(mods: [discordOnly], bundle: bundleOf());
+    final built = buildFrom(mods: [discordOnly], bundle: bundleOf());
     final listing = built.list.mods.firstWhere((m) => m.id == 'astartes-minipack');
 
     expect(listing.downloadCount, 1);
@@ -539,7 +697,7 @@ void main() {
       },
     );
 
-    final built = builder.build(mods: [discordOnly], bundle: bundleOf());
+    final built = buildFrom(mods: [discordOnly], bundle: bundleOf());
     final listing =
         built.list.mods.firstWhere((m) => m.id == 'aegis-combat-system');
 
@@ -563,7 +721,7 @@ void main() {
       },
     );
 
-    final built = builder.build(
+    final built = buildFrom(
       mods: [both],
       bundle: bundleOf(
         index: [thread()],
@@ -591,7 +749,7 @@ void main() {
         '<img src="https://i.imgur.com/tiny.png" width="88">'
         '<img src="https://fractalsoftworks.com/forum/Smileys/default/smiley.gif">';
 
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(name: 'Nexerelin')],
       bundle: bundleOf(index: [
         thread()
@@ -629,7 +787,7 @@ void main() {
     // picture is whatever was attached to an announcement. This is where the
     // site parts company with TriOS's catalog, which takes the merged picture
     // first — so both are published and the reader's setting picks.
-    final withBoth = builder.build(
+    final withBoth = buildFrom(
       mods: [
         forumMod(images: const {
           '1': Image(id: '1', url: 'https://i.imgur.com/merged.png'),
@@ -648,7 +806,7 @@ void main() {
 
     // One picture and no other: the announcement field is left out, because
     // the same address twice would only make mods.json bigger.
-    final withLlm = builder.build(
+    final withLlm = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread(
@@ -661,7 +819,7 @@ void main() {
     expect(withLlm.list.mods.single.announcementImageUrl, isNull);
 
     // Neither: the author's forum avatar stands in.
-    final withAvatar = builder.build(
+    final withAvatar = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread()
@@ -676,7 +834,7 @@ void main() {
 
   test('a picture in the post is not the card picture', () {
     // TriOS does not go looking through the post for one, so neither does this.
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread()
@@ -690,7 +848,7 @@ void main() {
 
   test('a summary that is only a download link gives way to the AI summary',
       () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(name: 'Nexerelin', summary: 'Download: https://x/y.zip')],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -710,7 +868,7 @@ void main() {
   });
 
   test('the mods a mod needs are published, pointed at their own pages', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [
         forumMod(name: 'Nexerelin', topicId: 9175),
         forumMod(name: 'LazyLib', topicId: 5444),
@@ -734,7 +892,7 @@ void main() {
   });
 
   test('a mod that names itself as a requirement is left alone', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(name: 'Nexerelin')],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -750,7 +908,7 @@ void main() {
   });
 
   test('a mod named twice is only needed once', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [
         forumMod(name: 'Nexerelin', topicId: 9175),
         forumMod(name: 'LazyLib', topicId: 5444)
@@ -771,7 +929,7 @@ void main() {
 
   test('the site has its own categories, and keeps the raw names on the page',
       () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [
         ScrapedMod(
           name: 'Nexerelin',
@@ -803,7 +961,7 @@ void main() {
   });
 
   test('the card carries one download, picked the same way TriOS picks it', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -848,7 +1006,7 @@ void main() {
 
   test('the card download is the resolved address, not the link as written',
       () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -871,7 +1029,7 @@ void main() {
   });
 
   test('a download that opens the host page says so', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -895,7 +1053,7 @@ void main() {
   });
 
   test('a mod with nothing to download carries no download at all', () {
-    final data = builder.build(mods: [forumMod()], bundle: bundleOf());
+    final data = buildFrom(mods: [forumMod()], bundle: bundleOf());
 
     final mod = data.list.mods.single;
     expect(mod.bestDownload, isNull,
@@ -908,7 +1066,7 @@ void main() {
   });
 
   test('a Discord-only mod carries its Discord post for the same reason', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [
         ScrapedMod(
           name: 'Quality Captains',
@@ -928,7 +1086,7 @@ void main() {
   });
 
   test('a Nexus-only mod carries its Nexus page for summary actions', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: const [
         ScrapedMod(
           name: 'Nexus Mod',
@@ -952,7 +1110,7 @@ void main() {
   });
 
   test('a category nobody has seen before is left off rather than guessed', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [
         ScrapedMod(
           name: 'Some Mod',
@@ -970,7 +1128,7 @@ void main() {
   });
 
   test('a mod is joined to its thread on the forum topic id', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -1044,7 +1202,7 @@ void main() {
       },
     );
 
-    final data = builder.build(mods: [discordOnly], bundle: bundleOf());
+    final data = buildFrom(mods: [discordOnly], bundle: bundleOf());
 
     final mod = data.list.mods.single;
     expect(mod.id, 'quality-captains');
@@ -1059,7 +1217,7 @@ void main() {
   });
 
   test('a multi-mod thread uses the main mod and lists the add-ons', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(name: 'Industrial.Evolution', topicId: 15380)],
       bundle: bundleOf(index: [
         thread(
@@ -1093,9 +1251,10 @@ void main() {
 
   group('a thread that is several mods at once', () {
     /// "Hartley's Miscellaneous Mods": four mods on one thread, three of which
-    /// the merge knew about because the author also posted them on Discord.
-    /// The merged names carry a version and the LLM's do not, which is the
-    /// whole difficulty.
+    /// the author also announced on Discord. The Discord names carry a version
+    /// and the LLM's do not, which is the whole difficulty. The catalog reads
+    /// the topic as a Collection of four and joins each announcement to its own
+    /// mod; these tests are about the pages that come out of that.
     List<LlmMod> hartleysMods() => [
           LlmMod(
             name: 'Useful.Tithes',
@@ -1121,42 +1280,45 @@ void main() {
           ),
         ];
 
-    List<ScrapedMod> mergedHartleyMods() => [
-          forumMod(name: 'Useful.Tithes 1.0.a', topicId: 34161, summary: null),
-          forumMod(
-              name: 'Big Pilum Energy 1.0.d', topicId: 34161, summary: null),
-          forumMod(
-              name: 'Disco.Balls 1.1.c - More Lamp Colour Options',
-              topicId: 34161,
-              summary: null),
+    ScrapedMod announced(String name, String threadId, {String? description}) => ScrapedMod(
+          name: name,
+          description: description,
+          gameVersionReq: '0.98a',
+          authorsList: const ['SirHartley'],
+          sources: const [ModSource.Discord],
+          urls: {
+            ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=34161.0',
+            ModUrlType.Discord: 'https://discord.com/channels/1/$threadId/$threadId',
+          },
+        );
+
+    List<ScrapedMod> hartleyOnDiscord() => [
+          announced('Useful.Tithes 1.0.a', '101'),
+          announced('Big Pilum Energy 1.0.d', '102'),
+          announced('Disco.Balls 1.1.c - More Lamp Colour Options', '103'),
         ];
 
-    QbModSummary hartleysThread() => thread(
+    QbModSummary hartleysThread({List<LlmMod>? llmMods}) => thread(
           topicId: 34161,
           title: "Hartley's Miscellaneous Mods",
-          llmMods: hartleysMods(),
+          author: 'SirHartley',
+          llmMods: llmMods ?? hartleysMods(),
         );
 
     /// The post names all four mods, which is what lets them be published.
-    QbModDetail hartleysPost() => postOf(
-          '<p>Useful.Tithes, Big Pilum Energy, Lost.Sector and Disco.Balls. '
-          'Four small mods in one thread.</p>',
-          topicId: 34161,
+    QbModDetail hartleysPost([String words = 'Useful.Tithes, Big Pilum Energy, Lost.Sector and Disco.Balls.']) =>
+        postOf('<p>$words Four small mods in one thread.</p>', topicId: 34161);
+
+    Future<PublicSiteData> buildHartleys({List<ScrapedMod>? discordMods}) => buildThroughCatalog(
+          bundle: bundleOf(index: [hartleysThread()], details: {'34161': hartleysPost()}),
+          discordMods: discordMods ?? hartleyOnDiscord(),
         );
 
-    PublicSiteData buildHartleys() => builder.build(
-          mods: mergedHartleyMods(),
-          bundle: bundleOf(
-            index: [hartleysThread()],
-            details: {'34161': hartleysPost()},
-          ),
-        );
+    test('every mod on the thread is published, and the thread itself is not a mod', () async {
+      final data = await buildHartleys();
 
-    test('the mod the merge never saw is published as a mod of its own', () {
-      final data = buildHartleys();
-
-      expect(data.list.mods, hasLength(4),
-          reason: 'three merged mods and the one only the thread knew about');
+      expect(data.list.mods, hasLength(4));
+      expect(data.list.mods.where((m) => m.name == "Hartley's Miscellaneous Mods"), isEmpty);
 
       final lost = data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
       expect(lost.partOfThreadTitle, "Hartley's Miscellaneous Mods");
@@ -1165,64 +1327,41 @@ void main() {
       expect(lost.gameVersion, '0.98a');
     });
 
-    test('a merged mod is not published a second time under the LLM name', () {
-      final data = buildHartleys();
+    test('a Discord announcement joins its own mod rather than making a second page', () async {
+      final data = await buildHartleys();
 
-      // The merge writes "Useful.Tithes 1.0.a" and the LLM writes
-      // "Useful.Tithes". Reading those as two mods would give one mod two
-      // pages, and the second id could never be taken back.
-      expect(data.list.mods.where((m) => m.name.startsWith('Useful.Tithes')),
-          hasLength(1));
-      expect(data.list.mods.where((m) => m.name.startsWith('Big Pilum')),
-          hasLength(1));
+      expect(data.list.mods.where((m) => m.name.startsWith('Useful.Tithes')), hasLength(1));
+      expect(data.list.mods.where((m) => m.name.startsWith('Big Pilum')), hasLength(1));
       // The version sits in the middle of this one, with a subtitle behind it.
-      expect(data.list.mods.where((m) => m.name.startsWith('Disco.Balls')),
-          hasLength(1));
-      expect(data.list.mods.where((m) => m.partOfThreadTitle != null),
-          hasLength(1));
+      expect(data.list.mods.where((m) => m.name.startsWith('Disco.Balls')), hasLength(1));
+
+      final tithes = data.list.mods.singleWhere((m) => m.name.startsWith('Useful.Tithes'));
+      expect(tithes.sources, containsAll(['forum', 'discord']));
+      expect(tithes.discordUrl, contains('/101/'));
     });
 
-    test('every mod on the thread gets its own facts, not a sibling\'s', () {
-      final data = buildHartleys();
-      String? downloadOf(String name) => data.list.mods
-          .singleWhere((m) => m.name.startsWith(name))
-          .bestDownload
-          ?.url;
+    test("every mod on the thread gets its own facts, not a sibling's", () async {
+      final data = await buildHartleys();
+      String? downloadOf(String name) =>
+          data.list.mods.singleWhere((m) => m.name.startsWith(name)).bestDownload?.url;
 
-      // Each one used to take the first main mod's download, so all four
-      // offered Useful.Tithes' file.
       expect(downloadOf('Useful.Tithes'), 'https://example.com/tithes.zip');
       expect(downloadOf('Big Pilum'), 'https://example.com/pilum.zip');
       expect(downloadOf('Disco.Balls'), 'https://example.com/disco.zip');
       expect(downloadOf('Lost.Sector'), 'https://example.com/lost.zip');
     });
 
-    test('the shared post is nobody\'s description', () {
-      final data = builder.build(
-        mods: [
-          // This one has its own Discord announcement; the others have none.
-          forumMod(
-            name: 'Useful.Tithes 1.0.a',
-            topicId: 34161,
-            summary: null,
-            description: 'A small mod making pather tithes more useful.',
-          ),
-          forumMod(
-              name: 'Big Pilum Energy 1.0.d', topicId: 34161, summary: null),
-        ],
-        bundle: bundleOf(
-          index: [hartleysThread()],
-          details: {'34161': hartleysPost()},
-        ),
-      );
+    test("the shared post is nobody's description", () async {
+      final data = await buildHartleys(discordMods: [
+        // This one's announcement has words of its own; the others have none.
+        announced('Useful.Tithes 1.0.a', '101', description: 'A small mod making pather tithes more useful.'),
+        announced('Big Pilum Energy 1.0.d', '102'),
+      ]);
 
-      String idOf(String name) =>
-          data.list.mods.singleWhere((m) => m.name.startsWith(name)).id;
+      String idOf(String name) => data.list.mods.singleWhere((m) => m.name.startsWith(name)).id;
 
-      // Its own words, not the post about all four.
       final tithes = data.details[idOf('Useful.Tithes')]!;
-      expect(
-          tithes.description, 'A small mod making pather tithes more useful.');
+      expect(tithes.description, 'A small mod making pather tithes more useful.');
       expect(tithes.descriptionIsGenerated, isFalse);
       expect(tithes.description, isNot(contains('Big Pilum')));
 
@@ -1238,125 +1377,92 @@ void main() {
       expect(lost.descriptionIsGenerated, isTrue);
     });
 
-    test('a mod named on the thread but never in the post is left out', () {
-      final data = builder.build(
-        mods: mergedHartleyMods(),
+    test('a mod named on the thread but never in the post gets no page', () async {
+      final data = await buildThroughCatalog(
         bundle: bundleOf(
           index: [hartleysThread()],
           // The post names three of the four. A model asked what a thread holds
           // will pad the list, and a made-up mod would get a permanent address.
-          details: {
-            '34161': postOf(
-              '<p>Useful.Tithes, Big Pilum Energy and Disco.Balls.</p>',
-              topicId: 34161,
-            ),
-          },
+          details: {'34161': hartleysPost('Useful.Tithes, Big Pilum Energy and Disco.Balls.')},
         ),
+        discordMods: hartleyOnDiscord(),
       );
 
       expect(data.list.mods, hasLength(3));
       expect(data.list.mods.where((m) => m.name == 'Lost.Sector'), isEmpty);
     });
 
-    test('a mod with no download is left out', () {
-      final withoutDownload = [
-        for (final llmMod in hartleysMods())
-          if (llmMod.name == 'Lost.Sector')
-            LlmMod(name: llmMod.name, downloads: const [])
-          else
-            llmMod,
-      ];
-
-      final data = builder.build(
-        mods: mergedHartleyMods(),
+    test('a mod with no download gets no page', () async {
+      final data = await buildThroughCatalog(
         bundle: bundleOf(
           index: [
-            thread(
-              topicId: 34161,
-              title: "Hartley's Miscellaneous Mods",
-              llmMods: withoutDownload,
-            ),
+            hartleysThread(llmMods: [
+              for (final llmMod in hartleysMods())
+                if (llmMod.name == 'Lost.Sector') LlmMod(name: llmMod.name, downloads: const []) else llmMod,
+            ]),
           ],
           details: {'34161': hartleysPost()},
         ),
+        discordMods: hartleyOnDiscord(),
       );
 
       expect(data.list.mods.where((m) => m.name == 'Lost.Sector'), isEmpty);
     });
 
-    test('an add-on stays an add-on, and sits on the mod it needs', () {
-      final data = builder.build(
-        mods: mergedHartleyMods(),
+    test('an add-on stays an add-on, and sits on the mod it needs', () async {
+      final data = await buildThroughCatalog(
         bundle: bundleOf(
           index: [
-            thread(
-              topicId: 34161,
-              title: "Hartley's Miscellaneous Mods",
-              llmMods: [
-                ...hartleysMods(),
-                LlmMod(
-                  name: 'Tithes Extra Icons',
-                  role: LlmModRole.addon,
-                  requires: 'Useful.Tithes',
-                  downloads: [
-                    LlmDownload(url: 'https://example.com/icons.zip')
-                  ],
-                ),
-              ],
-            ),
+            hartleysThread(llmMods: [
+              ...hartleysMods(),
+              LlmMod(
+                name: 'Tithes Extra Icons',
+                role: LlmModRole.addon,
+                requires: 'Useful.Tithes',
+                downloads: [LlmDownload(url: 'https://example.com/icons.zip')],
+              ),
+            ]),
           ],
           details: {
-            '34161': postOf(
-              '<p>Useful.Tithes, Big Pilum Energy, Lost.Sector, Disco.Balls '
-              'and Tithes Extra Icons.</p>',
-              topicId: 34161,
-            ),
+            '34161': hartleysPost('Useful.Tithes, Big Pilum Energy, Lost.Sector, Disco.Balls and Tithes Extra Icons.'),
           },
         ),
+        discordMods: hartleyOnDiscord(),
       );
 
-      // Not a mod of its own.
-      expect(
-          data.list.mods.where((m) => m.name == 'Tithes Extra Icons'), isEmpty);
+      expect(data.list.mods.where((m) => m.name == 'Tithes Extra Icons'), isEmpty);
 
-      String idOf(String name) =>
-          data.list.mods.singleWhere((m) => m.name.startsWith(name)).id;
+      String idOf(String name) => data.list.mods.singleWhere((m) => m.name.startsWith(name)).id;
 
-      // On the page of the mod it needs, and on no other — four mods sharing a
-      // thread would otherwise each list all of its add-ons.
-      expect(data.details[idOf('Useful.Tithes')]!.addons.map((a) => a.name),
-          ['Tithes Extra Icons']);
+      // On the page of the mod it needs, and on no other.
+      expect(data.details[idOf('Useful.Tithes')]!.addons.map((a) => a.name), ['Tithes Extra Icons']);
       expect(data.details[idOf('Big Pilum')]!.addons, isEmpty);
       expect(data.details[idOf('Lost.Sector')]!.addons, isEmpty);
     });
 
-    test('two mods whose names clean alike keep separate pages', () {
-      final data = builder.build(
-        mods: [
-          ...mergedHartleyMods(),
-          // Kissa_Mies's, a different mod on a thread of its own.
-          forumMod(name: 'LOST_SECTOR', topicId: 27556, summary: null),
-        ],
+    test('two mods whose names clean alike keep separate pages', () async {
+      final data = await buildThroughCatalog(
         bundle: bundleOf(
           index: [
             hartleysThread(),
-            thread(topicId: 27556, title: '[0.98a] LOST_SECTOR'),
+            // Kissa_Mies's, a different mod on a thread of its own.
+            thread(topicId: 27556, title: '[0.98a] LOST_SECTOR', author: 'Kissa_Mies'),
           ],
           details: {'34161': hartleysPost()},
         ),
+        discordMods: hartleyOnDiscord(),
       );
 
-      final hartleys =
-          data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
+      final hartleys = data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
       final kissas = data.list.mods.singleWhere((m) => m.name == 'LOST_SECTOR');
       expect(hartleys.id, isNot(kissas.id));
       expect(hartleys.partOfThreadTitle, "Hartley's Miscellaneous Mods");
       expect(kissas.partOfThreadTitle, isNull);
     });
 
-    test('the same bundle read again gives every mod the id it had', () {
-      final first = buildHartleys();
-      final second = buildHartleys();
+    test('the same data read again gives every mod the id it had', () async {
+      final first = await buildHartleys();
+      final second = await buildHartleys();
 
       expect(
         {for (final m in second.list.mods) m.name: m.id},
@@ -1364,13 +1470,10 @@ void main() {
       );
     });
 
-    test('the thread contributes nothing to the release feed', () {
-      final data = builder.build(
-        mods: mergedHartleyMods(),
-        bundle: bundleOf(
-          index: [hartleysThread()],
-          details: {'34161': hartleysPost()},
-        ),
+    test('the thread contributes nothing to the release feed', () async {
+      final data = await buildThroughCatalog(
+        bundle: bundleOf(index: [hartleysThread()], details: {'34161': hartleysPost()}),
+        discordMods: hartleyOnDiscord(),
         threadReleases: [
           const ThreadRelease(
             topicId: 34161,
@@ -1384,21 +1487,50 @@ void main() {
 
       // The detector believes one version for a whole thread and cannot say
       // which of four mods moved. Crediting one would announce a release that
-      // mod never made, and the feed used to give it to whichever came last.
+      // mod never made.
       expect(data.feed.releases, isEmpty);
       for (final mod in data.list.mods) {
         expect(data.details[mod.id]!.releases, isEmpty);
         expect(mod.lastReleaseDate, isNull);
       }
     });
+
+    test('a Collection that already had a page keeps it, listing its mods', () async {
+      // Topic 34457 was published as one mod before it was known to be four.
+      final startsThread = thread(
+        topicId: 34457,
+        title: '[0.98a] [WIP] Derelict Start, Remnant Start, Omega Start & Threat Start',
+        author: 'Someone',
+        llmMods: [
+          for (final name in ['Derelict Start', 'Remnant Start', 'Omega Start', 'Threat Start'])
+            LlmMod(name: name, downloads: [LlmDownload(url: 'https://example.com/${name.length}.zip')]),
+        ],
+      );
+      final oldId = idStore.idFor('Derelict Start, Remnant Start, Omega Start & Threat Start',
+          mark: 'topic:34457');
+      idStore.linkIdToPost(oldId, const SourcePostRef(kind: SourceKind.forum, id: '34457'));
+
+      final data = await buildThroughCatalog(bundle: bundleOf(index: [startsThread]));
+
+      expect(data.list.mods.map((m) => m.name),
+          containsAll(['Derelict Start', 'Remnant Start', 'Omega Start', 'Threat Start']));
+      expect(data.list.mods.map((m) => m.id), isNot(contains(oldId)));
+      final page = data.collections.single;
+      expect(page.id, oldId);
+      expect(page.mods.map((m) => m.name), hasLength(4));
+
+      await builder.write(data);
+      final file = File(p.join(builder.modsDir, '$oldId.json'));
+      expect((jsonDecode(file.readAsStringSync()) as Map)['collection'], isNotNull);
+      expect(File(p.join(builder.modsDir, oldId, 'index.html')).existsSync(), isTrue);
+    });
   });
 
-  group('a thread the merge never saw', () {
+  group('a thread only QB knows about', () {
     /// Topic 35651, "Computica's Faction Forks": a thread whose title carries
-    /// no bracketed game version, so the forum scraper drops it from the board
-    /// listing, whose author never posted it on Discord, and which the LLM has
-    /// read seven mods off. Nothing on the site pointed at it, so none of them
-    /// reached the site at all.
+    /// no bracketed game version, and whose author never posted the forks on
+    /// Discord. The old forum scraper dropped it. The catalog reads every
+    /// thread QB keeps, so it is a source post like any other.
     QbModSummary forksThread({List<LlmMod> llmMods = const []}) => thread(
           topicId: 35651,
           title: "Computica's Faction Forks",
@@ -1409,112 +1541,66 @@ void main() {
 
     LlmMod fork(String name) => LlmMod(
           name: name,
-          downloads: [
-            LlmDownload(url: 'https://example.com/${name.toLowerCase()}.zip'),
-          ],
+          downloads: [LlmDownload(url: 'https://example.com/${name.toLowerCase().replaceAll(' ', '-')}.zip')],
         );
 
-    test('one mod on a thread nothing points at is published', () {
-      final data = builder.build(
-        mods: [forumMod()],
+    test('a thread holding one mod is that mod, named from the thread', () async {
+      final data = await buildThroughCatalog(
         bundle: bundleOf(
-          index: [
-            thread(),
-            forksThread(llmMods: [fork('Kwin')]),
-          ],
-          details: {
-            '35651':
-                postOf('<p>Kwin, a fork kept up to date.</p>', topicId: 35651),
-          },
+          index: [thread(), forksThread(llmMods: [fork('Kwin')])],
+          details: {'35651': postOf('<p>Kwin, a fork kept up to date.</p>', topicId: 35651)},
         ),
       );
 
-      // The single-main-mod rule says one entry on a thread is the mod that
-      // thread is about. With no merged mod behind it there is nothing for it
-      // to be, so it is published.
-      final kwin = data.list.mods.singleWhere((m) => m.name == 'Kwin');
-      expect(kwin.id, isNotEmpty);
-      expect(kwin.partOfThreadTitle, isNull,
-          reason: 'a thread holding one mod is not a shared thread');
-      expect(kwin.sources, ['forum']);
-      expect(kwin.bestDownload?.url, 'https://example.com/kwin.zip');
-      expect(kwin.forumUrl, contains('topic=35651'));
+      // One main mod on a post is the mod the post is about, whatever either
+      // is called. The rules' name stays; the LLM's facts come with it.
+      final forks = data.list.mods.singleWhere((m) => m.forumUrl?.contains('topic=35651') ?? false);
+      expect(forks.name, "Computica's Faction Forks");
+      expect(forks.partOfThreadTitle, isNull, reason: 'a thread holding one mod is not a shared thread');
+      expect(forks.sources, ['forum']);
+      expect(forks.bestDownload?.url, 'https://example.com/kwin.zip');
     });
 
-    test('every main mod on such a thread is published', () {
-      final data = builder.build(
-        mods: [forumMod()],
+    test('every main mod on a thread of several is published', () async {
+      final data = await buildThroughCatalog(
         bundle: bundleOf(
           index: [
             thread(),
-            forksThread(llmMods: [
-              fork('Kwin'),
-              fork('Farsight Drive'),
-              fork('FSF Military Corporation'),
-            ]),
+            forksThread(llmMods: [fork('Kwin'), fork('Farsight Drive'), fork('FSF Military Corporation')]),
           ],
           details: {
-            '35651': postOf(
-              '<p>Kwin, Farsight Drive and FSF Military Corporation.</p>',
-              topicId: 35651,
-            ),
+            '35651': postOf('<p>Kwin, Farsight Drive and FSF Military Corporation.</p>', topicId: 35651),
           },
         ),
       );
 
       expect(
-        data.list.mods
-            .where((m) => m.partOfThreadTitle != null)
-            .map((m) => m.name),
+        data.list.mods.where((m) => m.partOfThreadTitle != null).map((m) => m.name),
         containsAll(['Kwin', 'Farsight Drive', 'FSF Military Corporation']),
       );
       expect(data.list.mods, hasLength(4));
     });
 
-    test('a thread with nothing grounded on it publishes nothing', () {
-      PublicSiteData buildWith({
-        required List<LlmMod> llmMods,
-        required String post,
-      }) =>
-          builder.build(
-            mods: [forumMod()],
+    test('a thread with nothing grounded on it is still its one rules listing', () async {
+      Future<PublicSiteData> buildWith({required List<LlmMod> llmMods, required String post}) =>
+          buildThroughCatalog(
             bundle: bundleOf(
               index: [thread(), forksThread(llmMods: llmMods)],
               details: {'35651': postOf(post, topicId: 35651)},
             ),
           );
 
-      // No main mod at all: a help thread, or one the model read nothing off.
-      expect(
-        buildWith(llmMods: const [], post: '<p>Does anybody know why?</p>')
-            .list
-            .mods,
-        hasLength(1),
-      );
-
-      // A name the post never writes. A model asked what a thread holds pads
-      // the list, and an id, once given, can never be taken back.
-      expect(
-        buildWith(
-          llmMods: [fork('Chinese Translation Pack')],
-          post: '<p>Nothing here says that name.</p>',
-        ).list.mods,
-        hasLength(1),
-      );
-
-      // Named, but with nothing to download.
-      expect(
-        buildWith(
-          llmMods: [LlmMod(name: 'Kwin', downloads: const [])],
-          post: '<p>Kwin is coming when it is ready.</p>',
-        ).list.mods,
-        hasLength(1),
-      );
+      for (final data in [
+        await buildWith(llmMods: const [], post: '<p>Does anybody know why?</p>'),
+        await buildWith(llmMods: [fork('Chinese Translation Pack')], post: '<p>Nothing here says that name.</p>'),
+        await buildWith(llmMods: [LlmMod(name: 'Kwin', downloads: const [])], post: '<p>Kwin is coming.</p>'),
+      ]) {
+        expect(data.list.mods.map((m) => m.name), unorderedEquals(['Nexerelin', "Computica's Faction Forks"]));
+      }
     });
 
-    test('an add-on or a variant on such a thread is not a mod of its own', () {
-      final data = builder.build(
-        mods: [forumMod()],
+    test('an add-on or a variant on such a thread is not a mod of its own', () async {
+      final data = await buildThroughCatalog(
         bundle: bundleOf(
           index: [
             thread(),
@@ -1532,52 +1618,35 @@ void main() {
               ),
             ]),
           ],
-          details: {
-            '35651': postOf('<p>Kwin Extra Portraits and Kwin Lite.</p>',
-                topicId: 35651),
-          },
+          details: {'35651': postOf('<p>Kwin Extra Portraits and Kwin Lite.</p>', topicId: 35651)},
         ),
       );
 
-      expect(data.list.mods, hasLength(1));
-      expect(data.list.mods.single.name, 'Nexerelin');
+      expect(data.list.mods.map((m) => m.name), unorderedEquals(['Nexerelin', "Computica's Faction Forks"]));
     });
 
-    test("a fork keeping the original's name gets a page of its own", () {
-      final data = builder.build(
-        mods: [
-          forumMod(
-            name: 'Junk Pirates',
-            topicId: 161,
-            summary: null,
-            authors: const ['mendonca'],
-          ),
-        ],
+    test("a fork keeping the original's name gets a page of its own", () async {
+      final original = thread(topicId: 161, title: '[0.98a] Junk Pirates', author: 'mendonca');
+      // The original was published first and has the plain address.
+      await buildThroughCatalog(bundle: bundleOf(index: [original]));
+
+      final data = await buildThroughCatalog(
         bundle: bundleOf(
-          index: [
-            thread(topicId: 161, title: '[0.98a] Junk Pirates'),
-            forksThread(llmMods: [fork('Junk Pirates')]),
-          ],
-          details: {
-            '35651': postOf('<p>Junk Pirates, forked and kept working.</p>',
-                topicId: 35651),
-          },
+          index: [original, forksThread(llmMods: [fork('Junk Pirates'), fork('Valkyrians')])],
+          details: {'35651': postOf('<p>Junk Pirates and Valkyrians, forked and kept working.</p>', topicId: 35651)},
         ),
       );
 
-      expect(data.list.mods, hasLength(2));
-      final merged = data.list.mods
-          .singleWhere((m) => m.forumUrl?.contains('topic=161') ?? false);
-      final forked = data.list.mods
-          .singleWhere((m) => m.forumUrl?.contains('topic=35651') ?? false);
+      final named = data.list.mods.where((m) => m.name == 'Junk Pirates').toList();
+      expect(named, hasLength(2));
+      final merged = named.singleWhere((m) => m.forumUrl?.contains('topic=161') ?? false);
+      final forked = named.singleWhere((m) => m.forumUrl?.contains('topic=35651') ?? false);
 
-      // The merged mod is walked first, so it keeps the plain address and the
-      // fork takes the numbered one. Nobody's existing link moves.
+      // Nobody's existing link moves: the original keeps the plain address.
       expect(merged.id, 'junk-pirates');
       expect(forked.id, 'junk-pirates-2');
 
-      // And each page names the other, because two pages called "Junk Pirates"
-      // with nothing to tell them apart is worse than one.
+      // And each page names the other.
       expect(data.details[merged.id]!.sameNameMods.single.id, forked.id);
       expect(data.details[forked.id]!.sameNameMods.single.id, merged.id);
     });
@@ -1585,7 +1654,7 @@ void main() {
 
   group('the day a thread was last posted on', () {
     test('is published when the forum gives a readable one', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [forumMod()],
         bundle: bundleOf(
           index: [thread(lastPostDate: 'August 12, 2026, 04:15:02 PM')],
@@ -1600,7 +1669,7 @@ void main() {
     test('is absent for a date that names no day', () {
       // The forum writes "Today at 03:12:22 PM" for a recent post, which says
       // nothing about which day it means.
-      final data = builder.build(
+      final data = buildFrom(
         mods: [forumMod()],
         bundle: bundleOf(index: [thread(lastPostDate: 'Today at 03:12:22 PM')]),
       );
@@ -1609,7 +1678,7 @@ void main() {
     });
 
     test('is absent for a mod with no forum thread', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: const [
           ScrapedMod(
             name: 'Quality Captains',
@@ -1626,7 +1695,7 @@ void main() {
 
   group('mods that share a name', () {
     test('each page names the others, newest thread first', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [
           forumMod(
             name: 'Scy',
@@ -1682,12 +1751,12 @@ void main() {
     });
 
     test('a name nothing else shares lists nothing', () {
-      final data = builder.build(mods: [forumMod()], bundle: bundleOf());
+      final data = buildFrom(mods: [forumMod()], bundle: bundleOf());
       expect(data.details[data.list.mods.single.id]!.sameNameMods, isEmpty);
     });
 
     test('the grouping reads two spellings of one name as one', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [
           forumMod(name: 'Useful.Tithes 1.0.a', topicId: 100, summary: null),
           forumMod(name: 'Useful Tithes', topicId: 200, summary: null),
@@ -1704,7 +1773,7 @@ void main() {
   });
 
   test('a thread about one mod keeps the post as its description', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(description: 'The merged text.')],
       bundle: bundleOf(
         index: [
@@ -1729,7 +1798,7 @@ void main() {
   test('a thread naming one mod is that mod, whatever the two are called', () {
     // "Red - the Oculian Armada" is the mod called "Red". No comparing of
     // names would say so; that the thread names one mod is what says it.
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(name: 'Red', topicId: 5000, summary: null)],
       bundle: bundleOf(index: [
         thread(
@@ -1753,7 +1822,7 @@ void main() {
   });
 
   test('a mod merged from Discord alone still has the forum as a source', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [
         ScrapedMod(
           name: 'Quality Captains',
@@ -1775,7 +1844,7 @@ void main() {
   });
 
   test('a mod with no thread at all is still Discord alone', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [
         ScrapedMod(
           name: 'Quality Captains',
@@ -1790,7 +1859,7 @@ void main() {
   });
 
   test('an LLM summary is marked as written, a copied one is not', () {
-    final generated = builder.build(
+    final generated = buildFrom(
       mods: [forumMod(summary: null)],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -1813,7 +1882,7 @@ void main() {
       outputPath: p.join(dir.path, 'outputs2'),
       idStore: ModIdStore(p.join(dir.path, 'data2'))..load(),
     ).build(
-      mods: [forumMod(summary: 'The author\'s own words.')],
+      mods: catalogOf([forumMod(summary: 'The author\'s own words.')], bundle: bundleOf(index: [thread()])),
       bundle: bundleOf(index: [thread()]),
     );
     expect(copied.list.mods.single.summary, "The author's own words.");
@@ -1824,7 +1893,7 @@ void main() {
     // The reader can ask for the AI words always, even on a mod whose author
     // wrote their own. That choice is made in the browser, so both blocks of
     // words have to be in the file for it to pick between.
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(summary: "The author's own words.")],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -1849,7 +1918,7 @@ void main() {
   });
 
   test('a mod the LLM said nothing about carries no AI words', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(summary: "The author's own words.")],
       bundle: bundleOf(index: [thread()]),
     );
@@ -1859,7 +1928,7 @@ void main() {
   });
 
   test('the rules-based downloads are used when the LLM found none', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(
         index: [thread()],
@@ -1894,7 +1963,7 @@ void main() {
       gameVersion: '0.98a',
     );
 
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [thread()]),
       threadReleases: [release],
@@ -1916,7 +1985,7 @@ void main() {
           newVersion: to,
         );
 
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -1960,7 +2029,7 @@ void main() {
 
   test('the feed reads newest first and drops releases with no mod behind them',
       () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
       bundle: bundleOf(),
       threadReleases: [
@@ -1986,7 +2055,7 @@ void main() {
   });
 
   test('a picture stored as ext:<url> is published as a plain URL', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -1998,7 +2067,7 @@ void main() {
   });
 
   test('a saved local image path is never published', () {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(index: [
         thread(llmMods: [
@@ -2024,8 +2093,7 @@ void main() {
   });
 
   test('the short answer about adding decides the badge', () {
-    PublicMod listingWith(LlmExtras extras) => builder
-        .build(
+    PublicMod listingWith(LlmExtras extras) => buildFrom(
           mods: [forumMod()],
           bundle: bundleOf(index: [
             thread(llmMods: [
@@ -2078,7 +2146,7 @@ void main() {
   });
 
   test('writing puts the files where the site asks for them', () async {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
       bundle: bundleOf(),
     );
@@ -2093,7 +2161,7 @@ void main() {
   });
 
   test('the release feed is written out beside the rest', () async {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(),
       threadReleases: [
@@ -2115,7 +2183,7 @@ void main() {
   });
 
   test('each mod gets a page of its own, which is also its address', () async {
-    await builder.write(builder.build(
+    await builder.write(buildFrom(
       mods: [forumMod(name: 'Nexerelin')],
       bundle: bundleOf(),
     ));
@@ -2144,7 +2212,7 @@ void main() {
       sitePath: p.join(dir.path, 'no-site-here'),
     );
     await without.write(without.build(
-      mods: [forumMod(name: 'Nexerelin')],
+      mods: catalogOf([forumMod(name: 'Nexerelin')], bundle: bundleOf()),
       bundle: bundleOf(),
     ));
 
@@ -2155,14 +2223,14 @@ void main() {
   });
 
   test('a mod that is gone loses its little page as well', () async {
-    await builder.write(builder.build(
+    await builder.write(buildFrom(
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
       bundle: bundleOf(),
     ));
     expect(
         Directory(p.join(builder.modsDir, 'second-mod')).existsSync(), isTrue);
 
-    await builder.write(builder.build(mods: [forumMod()], bundle: bundleOf()));
+    await builder.write(buildFrom(mods: [forumMod()], bundle: bundleOf()));
     expect(
         Directory(p.join(builder.modsDir, 'second-mod')).existsSync(), isFalse);
     expect(
@@ -2170,14 +2238,14 @@ void main() {
   });
 
   test('a mod that is gone loses its page on the next write', () async {
-    await builder.write(builder.build(
+    await builder.write(buildFrom(
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
       bundle: bundleOf(),
     ));
     expect(
         File(p.join(builder.modsDir, 'second-mod.json')).existsSync(), isTrue);
 
-    await builder.write(builder.build(mods: [forumMod()], bundle: bundleOf()));
+    await builder.write(buildFrom(mods: [forumMod()], bundle: bundleOf()));
     expect(
         File(p.join(builder.modsDir, 'nexerelin.json')).existsSync(), isTrue);
     expect(
@@ -2202,7 +2270,7 @@ void main() {
     );
 
     final record =
-        builder.build(mods: [mod], bundle: bundleOf()).list.mods.single;
+        buildFrom(mods: [mod], bundle: bundleOf()).list.mods.single;
 
     expect(record.otherAuthorNames.keys, ['Histidine']);
     expect(record.otherAuthorNames['Histidine'], contains('histidine_my'));
@@ -2248,7 +2316,7 @@ void main() {
 
     final trilink = 'https://trilink.wispborne.com/open.html?mod='
         '${'%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2F' * 4}';
-    final data = builder.build(
+    final data = buildFrom(
       mods: mods,
       bundle: bundleOf(index: [
         for (var i = 0; i < 1200; i++)
@@ -2295,7 +2363,7 @@ void main() {
   });
 
   test('nothing internal reaches the published files', () async {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod()],
       bundle: bundleOf(
         index: [
@@ -2359,7 +2427,7 @@ void main() {
   });
 
   test('every record in the list has a file, and the two agree', () async {
-    final data = builder.build(
+    final data = buildFrom(
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
       bundle: bundleOf(),
     );
@@ -2375,7 +2443,7 @@ void main() {
 
   group('the day a mod was added', () {
     test('is the day the forum thread was posted', () {
-      final data = builder.build(
+      final data = buildFrom(
         mods: [forumMod()],
         bundle: bundleOf(
           index: [thread(createdDate: 'May 04, 2014, 01:33:25 AM')],
@@ -2394,7 +2462,7 @@ void main() {
         dateTimeCreated: DateTime.utc(2026, 6, 22, 13, 32),
       );
 
-      final data = builder.build(mods: [discordOnly], bundle: bundleOf());
+      final data = buildFrom(mods: [discordOnly], bundle: bundleOf());
 
       expect(data.list.mods.single.addedOn, '2026-06-22');
     });
@@ -2412,7 +2480,7 @@ void main() {
         dateTimeCreated: DateTime.utc(2026, 6, 22),
       );
 
-      final data = builder.build(
+      final data = buildFrom(
         mods: [onBoth],
         bundle: bundleOf(
           index: [thread(createdDate: 'May 04, 2014, 01:33:25 AM')],
@@ -2425,7 +2493,7 @@ void main() {
     test('is nothing at all when every mod was given its id in one go', () {
       // The id file is written in one batch, so "first seen today" here means
       // "was already here". A day nobody can stand behind is worse than none.
-      final data = builder.build(
+      final data = buildFrom(
         mods: [forumMod()],
         bundle: bundleOf(index: [thread()]),
       );
@@ -2435,7 +2503,7 @@ void main() {
 
     test('falls back to the day we first saw a mod that came later', () {
       // A first run gives every mod an id on the same day.
-      builder.build(mods: [forumMod()], bundle: bundleOf(index: [thread()]));
+      buildFrom(mods: [forumMod()], bundle: bundleOf(index: [thread()]));
       idStore.save();
 
       // A mod that turns up a day later, with no date of its own anywhere.
@@ -2449,7 +2517,10 @@ void main() {
       );
 
       final data = laterBuilder.build(
-        mods: [forumMod(), forumMod(name: 'Second Wave Options', topicId: 20)],
+        // The catalog hands out the newcomer's id from the same file the site
+        // reads its first day from.
+        mods: catalogOf([forumMod(), forumMod(name: 'Second Wave Options', topicId: 20)],
+            bundle: bundleOf(index: [thread()]), ids: laterStore),
         bundle: bundleOf(index: [thread()]),
       );
 

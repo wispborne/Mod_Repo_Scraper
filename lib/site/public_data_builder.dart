@@ -13,6 +13,11 @@ import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
+import '../catalog/discord_posts.dart';
+import '../catalog/fact_choice.dart';
+import '../catalog/listing.dart';
+import '../catalog/mod_catalog.dart';
+import '../catalog/source_post.dart';
 import 'days.dart';
 import 'description_slice.dart';
 import 'discord_markdown.dart';
@@ -34,20 +39,29 @@ import 'sitemap.dart';
 import 'release_state_store.dart';
 import 'summary_text.dart';
 
-/// One mod with the id it was given and the forum thread it belongs to.
+/// One catalog mod with its forum thread and its facts looked up.
 class _JoinedMod {
   final ScrapedMod mod;
   final String id;
 
-  /// The forum topic id from the mod's forum link, or null when it has none.
+  /// The forum topic this mod was read from, from its saved source posts. Null
+  /// when it has no forum post.
   final String? topicId;
 
-  /// The shared thread this mod was read out of. Null when the thread holds
-  /// only this mod, and for a merged mod.
+  /// The thread this mod was read out of, when the LLM found it as one of the
+  /// mods on that thread rather than the thread being about it.
   final String? partOfThreadTitle;
 
   /// The name a reader sees. See [PublicDataBuilder._shownNameFor].
   final String shownName;
+
+  /// The mod's facts, put together from the LLM's answers for each of its
+  /// source posts. Null when none of them has one.
+  final LlmMod? facts;
+
+  /// The LLM's answer for the mod's Discord thread, when it has one. A
+  /// Discord-only mod's add-ons are read off it.
+  final DiscordThreadAnswer? discordAnswer;
 
   const _JoinedMod({
     required this.mod,
@@ -55,6 +69,8 @@ class _JoinedMod {
     required this.shownName,
     this.topicId,
     this.partOfThreadTitle,
+    this.facts,
+    this.discordAnswer,
   });
 }
 
@@ -142,22 +158,58 @@ class PublicSiteData {
   final Map<String, PublicModDetail> details;
   final ModReleaseFeed feed;
 
+  /// The Collections that keep an address from before they were known to be
+  /// one. Each gets a page at that address linking to the mods it holds.
+  final List<PublicCollection> collections;
+
   const PublicSiteData({
     required this.list,
     required this.details,
     required this.feed,
+    this.collections = const [],
   });
 }
 
+/// A Collection's page: the post's name and where it is, and the mods it holds.
+class PublicCollection {
+  final String id;
+  final String name;
+  final String? forumUrl;
+  final String? discordUrl;
+  final List<PublicMod> mods;
+
+  const PublicCollection({
+    required this.id,
+    required this.name,
+    this.forumUrl,
+    this.discordUrl,
+    this.mods = const [],
+  });
+
+  /// `mods/<id>.json` for a Collection. A mod's file has a `listing`; this has
+  /// a `collection`, which is how the page tells the two apart.
+  Map<String, dynamic> toMap() => {
+        'collection': {
+          'id': id,
+          'name': name,
+          if (forumUrl != null) 'forumUrl': forumUrl,
+          if (discordUrl != null) 'discordUrl': discordUrl,
+          'mods': [for (final mod in mods) mod.toMap()],
+        },
+      };
+}
+
 /// Builds the website's data files out of what the scraper already has: the
-/// merged mods from the ModRepo pipeline, and the forum data bundle from the QB
-/// pipeline. Neither of those is changed by this — they are read, and three new
-/// files are written beside them.
+/// catalog (`ModRepo-v2.json`) and the forum data bundle
+/// (`forum-data-bundle-v2.json`). Neither is changed by this — they are read,
+/// and the website's files are written beside them.
 ///
-/// The two halves are joined on the forum topic id: a merged mod's forum URL
-/// carries `topic=<id>`, which is the same id the bundle files a thread under. A
-/// mod with no forum thread — Discord or Nexus only — still gets a record and a
-/// page, with the bundle-only fields left out rather than guessed at.
+/// The two are joined through each mod's saved source posts: a forum topic id
+/// and the LLM's name for the mod on it, or a Discord thread id and the same.
+/// Nothing here decides by name which LLM mod belongs to which mod, and nothing
+/// adds a mod the catalog does not have — the catalog has done both. A mod
+/// with no forum thread still gets a record and a page, with the bundle-only
+/// fields left out rather than guessed at.
 ///
 /// Nothing from `config.properties` reaches these files. No token, no local
 /// path, no run id, no confidence score, and no flag that only means something
@@ -174,13 +226,15 @@ class PublicDataBuilder {
   /// `publish_site_path` names; both default to `site`.
   final String sitePath;
 
-  final ModIdStore idStore;
+  /// Read for the day a mod was first seen, the last fallback for when it was
+  /// added. Ids come from the catalog; nothing is handed out here.
+  final ModIdStore? idStore;
 
   final Logger _log;
 
   PublicDataBuilder({
     required this.outputPath,
-    required this.idStore,
+    this.idStore,
     this.sitePath = 'site',
     Logger? logger,
   }) : _log = logger ?? Logger('PublicDataBuilder');
@@ -204,18 +258,18 @@ class PublicDataBuilder {
   /// Tells search engines they may read every page, and where the sitemap is.
   String get robotsFilePath => p.join(siteDir, 'robots.txt');
 
-  /// Turns the merged mods and the bundle into the three files' contents.
+  /// Turns the catalog and the bundle into the website's files' contents.
   ///
   /// [threadReleases] is what the release detector worked out, filed against
-  /// forum topic ids. Joining them to mods is this builder's job, because the
-  /// topic-to-mod join is the one it already does. Pass an empty list when the
-  /// detector has not run — the feed file is still written, just with nothing in
-  /// it.
+  /// forum topic ids. Joining them to mods is this builder's job, through each
+  /// mod's forum post. Pass an empty list when the detector has not run — the
+  /// feed file is still written, just with nothing in it.
   PublicSiteData build({
-    required List<ScrapedMod> mods,
+    required List<CatalogMod> mods,
+    List<CatalogCollection> collections = const [],
     ForumDataBundle? bundle,
     List<ThreadRelease> threadReleases = const [],
-    Map<String, String> discordPosts = const {},
+    DiscordPostsFile discordPosts = const DiscordPostsFile(),
     DateTime? generatedAt,
   }) {
     final builtAt = (generatedAt ?? DateTime.now()).toUtc();
@@ -224,63 +278,66 @@ class PublicDataBuilder {
     for (final thread in bundle?.index ?? const <QbModSummary>[]) {
       threads['${thread.topicId}'] = thread;
     }
+    final discordAnswers = <String, DiscordThreadAnswer>{
+      for (final answer in bundle?.discordThreads ?? const <DiscordThreadAnswer>[]) answer.threadId: answer,
+    };
 
-    // Reading a thread's posts is the dear part of a build, and two things
-    // want the same reading: the check that a thread mod's name is really in
-    // the post, and the page of every mod on that thread. So each thread is
-    // read at most once, the first time somebody asks for it.
+    // Reading a thread's posts is the dear part of a build, and every mod on a
+    // thread wants the same reading. So each thread is read at most once, the
+    // first time somebody asks for it.
     final postsRead = <String, _ReadPost>{};
     _ReadPost postsOf(String? topicId) => topicId == null
         ? _ReadPost(null)
         : postsRead.putIfAbsent(
             topicId, () => _ReadPost(bundle?.details[topicId]));
 
-    // The mods a thread holds beyond the ones the merge knew about. Worked out
-    // before ids are handed out, so they go round the same loop as everything
-    // else and get an id, a record and a page the same way.
-    final threadOnly =
-        _threadOnlyMods(mods: mods, threads: threads, postsOf: postsOf);
-
-    // Work out every mod's id and thread first, so the releases — which are
-    // filed against a forum topic — can be handed to the right mod.
+    // Every mod's thread and facts first, so the releases — which are filed
+    // against a forum topic — can be handed to the right mod.
     final joined = <_JoinedMod>[];
     final takenIds = <String>{};
-    final everyMod = <({ScrapedMod mod, String? partOfThreadTitle})>[
-      for (final mod in mods) (mod: mod, partOfThreadTitle: null),
-      for (final standIn in threadOnly)
-        (mod: standIn.mod, partOfThreadTitle: standIn.partOfThreadTitle),
-    ];
-    for (final (
-          mod: mod,
-          partOfThreadTitle: partOfThreadTitle,
-        ) in everyMod) {
-      final topicId =
-          ModMerger.extractForumTopicId(mod.getUrls()[ModUrlType.Forum]);
-      final id = idStore.idFor(mod.name, mark: markFor(mod, topicId));
+    final missingFacts = <String>[];
+    for (final catalogMod in mods) {
+      final mod = catalogMod.mod;
+      final id = catalogMod.id;
       if (!takenIds.add(id)) {
-        // Two mods that clean to one name. The first one keeps the page; saying
-        // so is more use than quietly overwriting it.
-        //
-        // This is also the last catch for a stand-in built for a mod that is
-        // already published: it would have to have got past the name matching
-        // and then landed on the merged mod's id, which means the same cleaned
-        // name and the same topic mark. Then the merged mod keeps the page and
-        // the stand-in is dropped here. The warning is that net doing its job,
-        // not a fault to go looking for.
+        // The catalog never hands one id out twice. Saying so is more use than
+        // quietly overwriting a page.
         _log.warning('Two mods want the page "$id" — "${mod.name}" is the '
             'second, and has been left out.');
         continue;
       }
+      final forumPost = _forumPostOf(catalogMod);
+      final topicId = forumPost?.id;
+      final thread = topicId == null ? null : threads[topicId];
+      final discordPost = catalogMod.discordPost;
+      final facts = _factsFor(catalogMod, threads, discordAnswers,
+          onMissing: (post) => missingFacts.add('"$id" ($post)'));
       joined.add(_JoinedMod(
         mod: mod,
         id: id,
-        shownName: _shownNameFor(
-          mod,
-          _mainLlmMod(mod, topicId == null ? null : threads[topicId]),
-        ),
+        shownName: _shownNameFor(mod, facts),
         topicId: topicId,
-        partOfThreadTitle: partOfThreadTitle,
+        // A mod the LLM read off a thread that holds others: the thread is not
+        // about it, so its page says which thread it came from.
+        partOfThreadTitle: forumPost?.foundBy == ListingOrigin.llm ? thread?.title : null,
+        facts: facts,
+        discordAnswer: discordPost == null ? null : discordAnswers[discordPost.id],
       ));
+    }
+
+    // The catalog names each mod's LLM answer, and the bundle should hold every
+    // one of them: both are built from the same saved answers. One missing
+    // means the catalog was built from newer answers than the bundle — a run
+    // that saved LLM answers and died before publishing the bundle, then a
+    // merge. Those mods go out without the LLM's facts until the bundle is
+    // rebuilt, so it is said rather than left to be noticed on the site.
+    if (missingFacts.isNotEmpty) {
+      _log.warning('${missingFacts.length} mods name an LLM answer the bundle '
+          "does not have, so their pages are built without the LLM's facts "
+          '(downloads, version, save notes): '
+          '${missingFacts.take(5).join(', ')}${missingFacts.length > 5 ? ' and more' : ''}. '
+          'The catalog was built from newer LLM answers than the bundle; '
+          'rebuilding the bundle puts it right.');
     }
 
     // Which mod each name belongs to, so "Requires LazyLib" can be a link.
@@ -290,7 +347,7 @@ class PublicDataBuilder {
       modsByName.putIfAbsent(ModIdStore.cleanName(entry.mod.name), () => entry);
     }
 
-    final releasesByMod = _releasesByMod(threadReleases, joined, threads);
+    final releasesByMod = _releasesByMod(threadReleases, joined);
     final feed = _feedOrder(releasesByMod);
 
     final listRecords = <PublicMod>[];
@@ -310,8 +367,13 @@ class PublicDataBuilder {
 
       // Already read, if anything else on this thread has asked for it.
       final post = postsOf(topicId);
-      final chosen = _mainLlmMod(mod, thread);
+      final chosen = entry.facts;
       final ownSection = _sectionAbout(chosen, post);
+      // A Discord-only mod's add-ons are on its Discord thread's answer.
+      final addonSource = thread ??
+          (entry.discordAnswer == null
+              ? null
+              : QbModSummary(topicId: 0, llm: LlmThreadData(mods: entry.discordAnswer!.mods)));
 
       final record = _listRecord(
         id: id,
@@ -342,6 +404,7 @@ class PublicDataBuilder {
         threadDownloads: threadDownloads,
         releases: modReleases,
         discordPosts: discordPosts,
+        addonSource: addonSource,
       );
     }
 
@@ -360,7 +423,100 @@ class PublicDataBuilder {
       list: PublicModList(generatedAt: builtAt, mods: listRecords),
       details: details,
       feed: ModReleaseFeed(generatedAt: builtAt, releases: feed),
+      collections: _collectionPages(collections, listRecords, takenIds),
     );
+  }
+
+  /// The pages of Collections that keep an old address. A Collection whose id
+  /// some mod now has is skipped — that cannot happen, since the catalog holds
+  /// a Collection's id back, but a page must never stand on a mod's address.
+  List<PublicCollection> _collectionPages(
+    List<CatalogCollection> collections,
+    List<PublicMod> records,
+    Set<String> modIds,
+  ) {
+    final byId = {for (final record in records) record.id: record};
+    return [
+      for (final collection in collections)
+        if (!modIds.contains(collection.id))
+          PublicCollection(
+            id: collection.id,
+            name: collection.name,
+            forumUrl: collection.post.kind == SourceKind.forum
+                ? 'https://fractalsoftworks.com/forum/index.php?topic=${collection.post.id}.0'
+                : null,
+            discordUrl: collection.post.kind == SourceKind.discord
+                ? (byId.values
+                    .map((r) => r.discordUrl)
+                    .whereType<String>()
+                    .firstWhere((url) => url.contains('/${collection.post.id}/'), orElse: () => ''))
+                : null,
+            mods: [
+              for (final id in collection.modIds)
+                if (byId[id] case final record?) record,
+            ],
+          ),
+    ];
+  }
+
+  /// The mod's forum post: the one its forum link names, where it has several
+  /// (a mod's old thread and its new one), else the first.
+  static CatalogSourcePost? _forumPostOf(CatalogMod catalogMod) {
+    final forumPosts = [for (final post in catalogMod.sourcePosts) if (post.kind == SourceKind.forum) post];
+    if (forumPosts.isEmpty) return null;
+    final linked = ModMerger.extractForumTopicId(catalogMod.mod.getUrls()[ModUrlType.Forum]);
+    return forumPosts.firstWhere((post) => post.id == linked, orElse: () => forumPosts.first);
+  }
+
+  /// The mod's facts: the LLM's answer for each of its source posts, looked up
+  /// by the post's id and the LLM's name for the mod, and put together by
+  /// [chooseFacts] — the forum's answer first, Discord's filling its gaps.
+  static LlmMod? _factsFor(
+    CatalogMod catalogMod,
+    Map<String, QbModSummary> threads,
+    Map<String, DiscordThreadAnswer> discordAnswers, {
+    void Function(String post)? onMissing,
+  }) {
+    final sources = <FactSource>[];
+    for (final post in catalogMod.sourcePosts) {
+      final name = post.llmModName;
+      if (name == null) continue;
+      switch (post.kind) {
+        case SourceKind.forum:
+          final thread = threads[post.id];
+          final llmMod = _named(thread?.llm?.mods, name);
+          if (llmMod != null) {
+            sources.add(FactSource(llmMod, SourceKind.forum, postedAt: parseForumDate(thread?.lastPostDate)));
+          } else {
+            onMissing?.call(post.ref.key);
+          }
+        case SourceKind.discord:
+          final llmMod = _named(discordAnswers[post.id]?.mods, name);
+          if (llmMod != null) {
+            sources.add(FactSource(llmMod, SourceKind.discord));
+          } else {
+            onMissing?.call(post.ref.key);
+          }
+        case SourceKind.nexus:
+          break;
+      }
+    }
+    return chooseFacts(sources);
+  }
+
+  /// The LLM mod with exactly this name. The catalog wrote the name down from
+  /// the same answer, so it is the same string; capitals are forgiven in case
+  /// an answer was re-read with different ones.
+  static LlmMod? _named(List<LlmMod>? mods, String name) {
+    if (mods == null) return null;
+    final wanted = name.trim();
+    for (final mod in mods) {
+      if (mod.name.trim() == wanted) return mod;
+    }
+    for (final mod in mods) {
+      if (mod.name.trim().toLowerCase() == wanted.toLowerCase()) return mod;
+    }
+    return null;
   }
 
   /// Puts the other published mods of a name on each of their pages.
@@ -427,169 +583,6 @@ class PublicDataBuilder {
     return right.compareTo(left);
   }
 
-  /// The mods a thread holds that no published mod accounts for.
-  ///
-  /// Some threads are several mods at once. "Hartley's Miscellaneous Mods" is
-  /// four, and only the three the author also posted on Discord ever reached
-  /// the merge — so Lost.Sector, which has its own download and is sitting in
-  /// the bundle, was on the site nowhere at all. TriOS has built cards for
-  /// these all along (`withSynthesizedAddonEntries`); this is the same idea.
-  ///
-  /// Every thread in the bundle is read, whether or not a published mod points
-  /// at it. The merge only learns about a mod from the board listings or from
-  /// Discord, so a thread whose title carries no bracketed game version, or one
-  /// that has fallen behind the newest board pages, never reaches the merge —
-  /// and its mods reached the site nowhere at all. Topic 35651, "Computica's
-  /// Faction Forks", is seven mods that were scraped, read and then dropped for
-  /// exactly that reason.
-  ///
-  /// What keeps an unvetted thread safe is the grounding, not the merge: a
-  /// candidate has to be a `main` mod, have its name written in the author's
-  /// own opening run, and have a download tied to it. Those three are the whole
-  /// gate. The model's own mod-or-not answer is deliberately not used — over
-  /// the current data not one thread it calls a non-mod lists a `main` mod with
-  /// a download, so it would remove nothing, and it is wrong often enough
-  /// ("Iron Legion Faction Mod" is a no, a thread titled "Delete." is a yes)
-  /// that it is a poor gate.
-  List<({ScrapedMod mod, String? partOfThreadTitle})> _threadOnlyMods({
-    required List<ScrapedMod> mods,
-    required Map<String, QbModSummary> threads,
-    required _ReadPost Function(String? topicId) postsOf,
-  }) {
-    // Every published mod on each thread, not just one. A thread reached
-    // through Useful.Tithes also holds Big Pilum Energy and Disco.Balls, and
-    // comparing a candidate against only the mod we arrived by is what makes
-    // TriOS draw a second card for the other two.
-    final publishedByTopic = <String, List<ScrapedMod>>{};
-    for (final mod in mods) {
-      final topicId =
-          ModMerger.extractForumTopicId(mod.getUrls()[ModUrlType.Forum]);
-      if (topicId == null) continue;
-      publishedByTopic.putIfAbsent(topicId, () => []).add(mod);
-    }
-
-    final standIns = <({ScrapedMod mod, String? partOfThreadTitle})>[];
-    for (final entry in threads.entries) {
-      final topicId = entry.key;
-      final thread = entry.value;
-      final published = publishedByTopic[topicId] ?? const <ScrapedMod>[];
-
-      final mainMods = [
-        for (final llmMod in thread.llm?.mods ?? const <LlmMod>[])
-          if (llmMod.role == LlmModRole.main) llmMod,
-      ];
-      // One main mod is the mod the thread is about, whatever either of them is
-      // called — that is what a published mod pointing at this thread means.
-      // TriOS reads a single-main thread the same way, and it is what keeps a
-      // thread called "Red - the Oculian Armada" tied to the mod called "Red".
-      //
-      // With no published mod behind the thread there is nothing for that
-      // single entry to be, so the rule stands down. Most of the mods this
-      // change brings in are single-mod threads: ExtendedControls, Custom
-      // Start, Ship Editor, ThirstSector.
-      if (published.isNotEmpty && mainMods.length < 2) continue;
-      if (mainMods.isEmpty) continue;
-
-      final claimed = <String>[];
-
-      for (final llmMod in mainMods) {
-        final name = llmMod.name.trim();
-        if (name.isEmpty) continue;
-
-        // Already on the site under the name the merge gave it.
-        if (published.any((m) => modNamesMatch(m.name, name))) continue;
-        // The same mod named twice in one thread's reading.
-        if (claimed.any((taken) => modNamesMatch(taken, name))) continue;
-
-        // A model asked what a thread holds will pad the list out, and a mod
-        // invented here would get a permanent address nobody can take back. So
-        // the post has to name it, the way `_groundNeeds` makes the post name
-        // anything a mod is said to need.
-        // Every one of the author's opening posts. A thread that lists its
-        // mods in the first post and describes them in a second names them in
-        // both, and reading only the first would leave the second post's mods
-        // looking invented.
-        if (!_postNames(name, postsOf(topicId).allWords)) {
-          // Ordinary news, not a warning: every thread in the bundle comes
-          // through here, so this is hundreds of lines a run, and a run's log
-          // is read to see what was published.
-          _log.info('Left out "$name" (topic $topicId): the post never '
-              'names it.');
-          continue;
-        }
-        // No download is no page: the download is what a reader came for, and
-        // without one there is nothing here the thread does not already say.
-        if (llmMod.downloads.isEmpty) {
-          _log.info('Left out "$name" (topic $topicId): no download was tied '
-              'to it. If that is a real mod, its download was missed.');
-          continue;
-        }
-
-        claimed.add(name);
-        standIns.add((
-          mod: _standInFor(llmMod, thread, published),
-          partOfThreadTitle: mainMods.length > 1 ? thread.title : null,
-        ));
-        // Which kind of thread it came off, so a run's log tells the two apart:
-        // a thread the merge already knows, or one it has never heard of.
-        final kindOfThread = published.isEmpty
-            ? 'a thread no published mod points at'
-            : 'a thread a published mod already stands on';
-        _log.info('Publishing "$name" as a mod of its own, from topic '
-            '$topicId ("${thread.title}") — $kindOfThread.');
-      }
-    }
-    return standIns;
-  }
-
-  /// A mod the merge never saw, made to look enough like a merged one that the
-  /// rest of the builder needs to know nothing about it.
-  ///
-  /// It carries no summary and no description of its own: the only words a
-  /// thread mod has are the ones the LLM wrote, and those belong in the fields
-  /// that say so rather than passed off as the author's. Its game version falls
-  /// back to a mod already published from the same thread, because Browse hides
-  /// mods built for older releases and a mod with no version at all would be
-  /// hidden on the very page meant to show it. TriOS falls back the same way.
-  ScrapedMod _standInFor(
-    LlmMod llmMod,
-    QbModSummary thread,
-    List<ScrapedMod> published,
-  ) {
-    final author = thread.author.trim();
-    return ScrapedMod(
-      name: llmMod.name.trim(),
-      gameVersionReq: _firstNonEmpty([
-        thread.gameVersion,
-        for (final mod in published) mod.gameVersionReq,
-      ]),
-      modVersion: _firstNonEmpty([llmMod.extras?.version]),
-      authorsList: author.isEmpty ? const [] : [author],
-      urls: {ModUrlType.Forum: thread.topicUrl},
-      sources: const [ModSource.ModdingSubforum],
-    );
-  }
-
-  /// True when the post really writes this name.
-  ///
-  /// The same reading as the extractor's own check: `&nbsp;` in any of its
-  /// spellings counts as a space, capitals do not matter, and runs of space are
-  /// one space.
-  static bool _postNames(String name, String? postWords) {
-    if (postWords == null || postWords.isEmpty) return false;
-    String tidy(String s) => s
-        .replaceAll(_nbsp, ' ')
-        .toLowerCase()
-        .replaceAll(_spacesAnywhere, ' ')
-        .trim();
-    final wanted = tidy(name);
-    return wanted.isNotEmpty && tidy(postWords).contains(wanted);
-  }
-
-  static final RegExp _nbsp =
-      RegExp(r'&nbsp;|&#0*160;|&#x0*a0;', caseSensitive: false);
-  static final RegExp _spacesAnywhere = RegExp(r'\s+');
-
   /// Each mod's releases, newest first, joined from the detector's list on the
   /// forum topic id. A release for a thread with no merged mod behind it is left
   /// out — there is no page for it to point at.
@@ -600,7 +593,6 @@ class PublicDataBuilder {
   Map<String, List<ModRelease>> _releasesByMod(
     List<ThreadRelease> threadReleases,
     List<_JoinedMod> joined,
-    Map<String, QbModSummary> threads,
   ) {
     // A thread's releases belong to the one mod that thread is about. Where it
     // is about several, they belong to none of them: the detector believes one
@@ -629,8 +621,7 @@ class PublicDataBuilder {
     for (final release in threadReleases) {
       final owner = modsByTopic['${release.topicId}'];
       if (owner == null) continue;
-      final extras =
-          _mainLlmMod(owner.mod, threads['${release.topicId}'])?.extras;
+      final extras = owner.facts?.extras;
       final currentVersion =
           _firstNonEmpty([extras?.version, owner.mod.modVersion]);
       final note = updateNoteFor(
@@ -722,19 +713,37 @@ class PublicDataBuilder {
               shell: shell, detail: entry.value));
     }
 
+    // A Collection keeps the address it had, as a page listing its mods.
+    final collectionIds = <String>{};
+    for (final collection in data.collections) {
+      collectionIds.add(collection.id);
+      await File(p.join(modsDir, '${collection.id}.json'))
+          .writeAsString(encoder.convert(collection.toMap()));
+      final folder = Directory(p.join(modsDir, collection.id));
+      if (!folder.existsSync()) folder.createSync(recursive: true);
+      await File(p.join(folder.path, 'index.html')).writeAsString(
+          buildCollectionPageHtml(
+        id: collection.id,
+        name: collection.name,
+        mods: collection.mods,
+        threadUrl: collection.forumUrl,
+        shell: shell,
+      ));
+    }
+
     var dropped = 0;
     for (final fileOrFolder in mods.listSync()) {
       final name = p.basename(fileOrFolder.path);
       if (fileOrFolder is File) {
         if (!name.endsWith('.json')) continue;
         final id = name.substring(0, name.length - '.json'.length);
-        if (data.details.containsKey(id)) continue;
+        if (data.details.containsKey(id) || collectionIds.contains(id)) continue;
         fileOrFolder.deleteSync();
         dropped++;
       } else if (fileOrFolder is Directory) {
         // A mod's own little page. It is named for the mod, so a folder no mod
-        // answers to belongs to one that has gone.
-        if (data.details.containsKey(name)) continue;
+        // or Collection answers to belongs to one that has gone.
+        if (data.details.containsKey(name) || collectionIds.contains(name)) continue;
         fileOrFolder.deleteSync(recursive: true);
         dropped++;
       }
@@ -761,7 +770,7 @@ class PublicDataBuilder {
     required Map<String, _JoinedMod> modsByName,
     required String? partOfThreadTitle,
     required String shownName,
-    required Map<String, String> discordPosts,
+    required DiscordPostsFile discordPosts,
   }) {
     final extras = chosen?.extras;
     final downloads = _downloadsFor(mod, chosen, threadDownloads);
@@ -772,7 +781,7 @@ class PublicDataBuilder {
     final copiedSummary = summaryOfExcerpt(plainWordsOf(ownSection)) ??
         usableSummary(mod.summary) ??
         summaryOfDiscordPost(
-            discordUrl == null ? null : discordPosts[discordUrl]);
+            discordPosts.firstTextFor(discordUrl));
     final generatedSummary = usableSummary(extras?.summary?.sentence);
     final pictures = _picturesFor(mod, chosen, authorAvatarPath);
 
@@ -803,7 +812,7 @@ class PublicDataBuilder {
       isTool: isTool ? true : null,
       nicknames: _nicknamesFor(chosen, [mod.name, shownName]),
       lastReleaseDate: releases.isEmpty ? null : _lastReleaseDate(releases),
-      addedOn: _addedOn(mod, thread, postDate, topicId),
+      addedOn: _addedOn(mod, thread, postDate, id),
       threadLastPostOn: lastPost == null ? null : writeDay(lastPost),
       needs: _neededMods(extras?.needs, id, modsByName),
       partOfThreadTitle: partOfThreadTitle,
@@ -828,7 +837,7 @@ class PublicDataBuilder {
     ScrapedMod mod,
     QbModSummary? thread,
     String? postDate,
-    String? topicId,
+    String id,
   ) {
     final dates = <DateTime>[
       if (parseForumDate(thread?.createdDate) case final posted?) posted,
@@ -838,8 +847,10 @@ class PublicDataBuilder {
     if (dates.isEmpty) {
       // The day we first saw it, unless that is the day the id file was seeded
       // — every mod that already existed shares that one, so it says nothing.
-      final seen = idStore.firstSeenFor(mod.name, mark: markFor(mod, topicId));
-      return seen == idStore.seedDay ? null : seen;
+      final ids = idStore;
+      if (ids == null) return null;
+      final seen = ids.firstSeenOfId(id);
+      return seen == ids.seedDay ? null : seen;
     }
     dates.sort();
     return writeDay(dates.first);
@@ -904,7 +915,8 @@ class PublicDataBuilder {
     required String? ownSection,
     required List<AssumedDownloadCandidate> threadDownloads,
     required List<ModRelease> releases,
-    required Map<String, String> discordPosts,
+    required DiscordPostsFile discordPosts,
+    required QbModSummary? addonSource,
   }) {
     final extras = chosen?.extras;
 
@@ -924,7 +936,7 @@ class PublicDataBuilder {
     // The Discord post has a place of its own on the page. Where the merge's
     // description is only that same post again, it is not shown twice.
     final discordUrl = _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]);
-    final discordPost = discordUrl == null ? null : discordPosts[discordUrl];
+    final discordPost = discordPosts.firstTextFor(discordUrl);
     final mergedDescription =
         !fromForum && sameWords(mod.description, discordPost)
             ? null
@@ -988,7 +1000,7 @@ class PublicDataBuilder {
       threadLastPostOn: listing.threadLastPostOn,
       // Filled once every mod has a record — see [_fillSameNameMods].
       sameNameMods: const [],
-      addons: _addonsFor(chosen, thread),
+      addons: _addonsFor(chosen, addonSource),
       partOfThreadTitle: listing.partOfThreadTitle,
     );
   }
@@ -1012,25 +1024,6 @@ class PublicDataBuilder {
     if (written.isEmpty || !modNamesMatch(written, mod.name)) return fromRules;
     final fromLlm = displayName(written);
     return fromLlm.isEmpty ? fromRules : fromLlm;
-  }
-
-  /// Match by name, or use the sole main mod. Never borrow facts from an
-  /// unmatched mod on a collection thread.
-  LlmMod? _mainLlmMod(ScrapedMod mod, QbModSummary? thread) {
-    final llmMods = thread?.llm?.mods ?? const <LlmMod>[];
-    if (llmMods.isEmpty) return null;
-
-    for (final candidate in llmMods) {
-      if (modNamesMatch(candidate.name, mod.name)) return candidate;
-    }
-
-    final mainMods = [
-      for (final candidate in llmMods)
-        if (candidate.role == LlmModRole.main) candidate,
-    ];
-    if (mainMods.length == 1) return mainMods.first;
-    if (mainMods.isEmpty && llmMods.length == 1) return llmMods.first;
-    return null;
   }
 
   /// The other downloads on the same thread that are not mods of their own:
@@ -1062,7 +1055,7 @@ class PublicDataBuilder {
     }
 
     return llmMods
-        .where((m) => !identical(m, chosen))
+        .where((m) => chosen == null || m.name.trim() != chosen.name.trim())
         .where(
             (m) => m.role == LlmModRole.addon || m.role == LlmModRole.variant)
         .where(belongsHere)

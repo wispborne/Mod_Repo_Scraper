@@ -1,13 +1,25 @@
+import '../../../../catalog/source_post.dart';
+
 /// The prompt text and what we ask the model to return, kept in one place.
 /// [promptVersion] is part of the cache key (see [LlmExtractionStore]);
 /// bumping it re-runs every affected post.
 ///
 /// Bump [promptVersion] whenever the system prompt, the requested field set, or
 /// the user-message shape changes.
+///
+/// Discord threads have their own version, [discordPromptVersion]. A change to
+/// the Discord line in the user prompt bumps only that one, so fixing its
+/// wording does not pay for every forum topic again. A change to anything both
+/// share (the system prompt, the fields, the user-message shape) bumps both.
 class ExtractionPrompt {
   ExtractionPrompt._();
 
   static const int promptVersion = 23;
+  static const int discordPromptVersion = 1;
+
+  /// The version a post of [kind] is filed under. Nexus is not read yet.
+  static int promptVersionFor(SourceKind kind) =>
+      kind == SourceKind.discord ? discordPromptVersion : promptVersion;
 
   /// Fixed request settings live here too so a change to them also
   /// forces a re-run via [promptVersion].
@@ -558,8 +570,20 @@ Guidance:
     String? gameVersion,
     String? modTitle,
     List<String> followUpTexts = const [],
+    bool isDiscordThread = false,
   }) {
     final buffer = StringBuffer();
+
+    // Discord threads say what they are. The forum prompt has no such line,
+    // and must not gain one: every forum answer is filed under the exact text.
+    if (isDiscordThread) {
+      buffer.writeln('=== WHERE THIS IS FROM ===');
+      buffer.writeln('A Discord announcement thread. The title below is the '
+          "thread's name. The post is the author's announcement message, and "
+          'each follow-up post is a later message by the same author in the '
+          'same thread, often an update note.');
+      buffer.writeln();
+    }
 
     // Always sent — the title helps the model name each mod. It carries the
     // version, so a release changes the cache key and re-runs the topic.
