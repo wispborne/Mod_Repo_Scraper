@@ -31,6 +31,8 @@ class GroupMatchReasonMapper extends EnumMapper<GroupMatchReason> {
         return GroupMatchReason.nameAndAuthor;
       case r'strippedNameAndAuthor':
         return GroupMatchReason.strippedNameAndAuthor;
+      case r'nameAndDownload':
+        return GroupMatchReason.nameAndDownload;
       case r'forumUrl':
         return GroupMatchReason.forumUrl;
       default:
@@ -45,6 +47,8 @@ class GroupMatchReasonMapper extends EnumMapper<GroupMatchReason> {
         return r'nameAndAuthor';
       case GroupMatchReason.strippedNameAndAuthor:
         return r'strippedNameAndAuthor';
+      case GroupMatchReason.nameAndDownload:
+        return r'nameAndDownload';
       case GroupMatchReason.forumUrl:
         return r'forumUrl';
     }

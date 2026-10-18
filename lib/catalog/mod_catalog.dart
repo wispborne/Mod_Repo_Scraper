@@ -5,6 +5,7 @@ import '../bot/scraper/debug/merge_debug_collector.dart';
 import '../bot/scraper/mod_merger.dart';
 import '../bot/scraper/scraped_mod.dart';
 import '../site/mod_id_store.dart';
+import '../site/mod_name_match.dart';
 import 'catalog_inputs.dart';
 import 'listing.dart';
 import 'source_post.dart';
@@ -166,18 +167,43 @@ class ModCatalog {
       existingIdOf: (post) => post.id.isEmpty ? null : ids.idLinkedTo(post.ref),
     );
 
-    final mods = <CatalogMod>[];
-    for (final entry in merged) {
-      final posts = [for (final post in entry.sourcePosts) if (post.id.isNotEmpty) post];
-      final id = ids.idForPosts(
-        entry.mod.name,
-        mark: markFor(entry.mod),
-        refs: [for (final post in posts) post.ref],
+    // Who gets an old id when two mods' posts both lead to it. First a mod that
+    // still goes by the id's name: the old site sometimes joined a Discord
+    // announcement to whatever forum topic its message linked, and topic 29589
+    // turned out to be NebuLib while the page, "nitelib-update-i", was the
+    // Discord thread's NiteLib. Then a mod with a forum topic, so a topic has
+    // the next claim on its own old id (see ModIdStore.idForPosts). Then the
+    // rest. The mods keep their order in the file.
+    final postsOf = [
+      for (final entry in merged) [for (final post in entry.sourcePosts) if (post.id.isNotEmpty) post],
+    ];
+    int claimOrder(int i) {
+      final names = [merged[i].mod.name, for (final post in postsOf[i]) if (post.llmModName case final name?) name];
+      final idNames = ids.namesLinkedTo([for (final post in postsOf[i]) post.ref]);
+      if (idNames.any((idName) => names.any((name) => modNamesMatch(idName, name)))) return 0;
+      if (postsOf[i].any((post) => post.kind == SourceKind.forum)) return 1;
+      return 2;
+    }
+
+    final order = [for (var i = 0; i < merged.length; i++) (i, claimOrder(i))];
+    final idOf = List<String?>.filled(merged.length, null);
+    for (final i in [
+      for (final tier in [0, 1, 2])
+        for (final (i, t) in order)
+          if (t == tier) i,
+    ]) {
+      idOf[i] = ids.idForPosts(
+        merged[i].mod.name,
+        mark: markFor(merged[i].mod),
+        refs: [for (final post in postsOf[i]) post.ref],
         onClash: log,
         onRenamed: log,
       );
-      mods.add(CatalogMod(id: id, mod: entry.mod, sourcePosts: posts));
     }
+    final mods = [
+      for (var i = 0; i < merged.length; i++)
+        CatalogMod(id: idOf[i]!, mod: merged[i].mod, sourcePosts: postsOf[i]),
+    ];
 
     final collections = [
       for (final (id, collection) in reserved)

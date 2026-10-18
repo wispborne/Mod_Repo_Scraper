@@ -99,6 +99,13 @@ class ListingMapper extends ClassMapperBase<Listing> {
     _$postedAt,
     opt: true,
   );
+  static Set<String> _$downloadKeys(Listing v) => v.downloadKeys;
+  static const Field<Listing, Set<String>> _f$downloadKeys = Field(
+    'downloadKeys',
+    _$downloadKeys,
+    opt: true,
+    def: const {},
+  );
 
   @override
   final MappableFields<Listing> fields = const {
@@ -107,6 +114,7 @@ class ListingMapper extends ClassMapperBase<Listing> {
     #origin: _f$origin,
     #otherNames: _f$otherNames,
     #postedAt: _f$postedAt,
+    #downloadKeys: _f$downloadKeys,
   };
   @override
   final bool ignoreNull = true;
@@ -118,6 +126,7 @@ class ListingMapper extends ClassMapperBase<Listing> {
       origin: data.dec(_f$origin),
       otherNames: data.dec(_f$otherNames),
       postedAt: data.dec(_f$postedAt),
+      downloadKeys: data.dec(_f$downloadKeys),
     );
   }
 
@@ -187,6 +196,7 @@ abstract class ListingCopyWith<$R, $In extends Listing, $Out>
     ListingOrigin? origin,
     List<String>? otherNames,
     DateTime? postedAt,
+    Set<String>? downloadKeys,
   });
   ListingCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -219,6 +229,7 @@ class _ListingCopyWithImpl<$R, $Out>
     ListingOrigin? origin,
     List<String>? otherNames,
     Object? postedAt = $none,
+    Set<String>? downloadKeys,
   }) => $apply(
     FieldCopyWithData({
       if (mod != null) #mod: mod,
@@ -226,6 +237,7 @@ class _ListingCopyWithImpl<$R, $Out>
       if (origin != null) #origin: origin,
       if (otherNames != null) #otherNames: otherNames,
       if (postedAt != $none) #postedAt: postedAt,
+      if (downloadKeys != null) #downloadKeys: downloadKeys,
     }),
   );
   @override
@@ -235,6 +247,7 @@ class _ListingCopyWithImpl<$R, $Out>
     origin: data.get(#origin, or: $value.origin),
     otherNames: data.get(#otherNames, or: $value.otherNames),
     postedAt: data.get(#postedAt, or: $value.postedAt),
+    downloadKeys: data.get(#downloadKeys, or: $value.downloadKeys),
   );
 
   @override

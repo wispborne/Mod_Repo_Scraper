@@ -2,6 +2,7 @@ import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
 import '../site/mod_name_match.dart';
 import '../site/post_html.dart';
+import 'download_key.dart';
 import 'listing.dart';
 import 'source_post.dart';
 
@@ -84,8 +85,15 @@ class SourcePostListings {
 
   /// The LLM's `main` mods on a post that count: named in the author's own
   /// words, with a download tied to them, each name once.
+  ///
+  /// Two mods offering exactly the same downloads are one mod, and only the
+  /// first is kept: one file cannot be two mods. Discord thread
+  /// 1355071745366822950 offers one Emergent Threats zip, and the LLM listed it
+  /// as "Emergent Threats" and "ET: IX Revival", which made the thread a
+  /// Collection and moved the mod off its own address.
   static List<LlmMod> groundedMainMods(List<LlmMod> llmMods, String? postWords) {
     final kept = <LlmMod>[];
+    final keptDownloads = <Set<String>>[];
     for (final llmMod in llmMods) {
       if (llmMod.role != LlmModRole.main) continue;
       final name = llmMod.name.trim();
@@ -93,10 +101,15 @@ class SourcePostListings {
       if (llmMod.downloads.isEmpty) continue;
       if (!postNames(name, postWords)) continue;
       if (kept.any((other) => modNamesMatch(other.name, name))) continue;
+      final downloads = downloadKeysOf(llmMod);
+      if (downloads.isNotEmpty && keptDownloads.any((other) => _sameSet(other, downloads))) continue;
       kept.add(llmMod);
+      keptDownloads.add(downloads);
     }
     return kept;
   }
+
+  static bool _sameSet(Set<String> a, Set<String> b) => a.length == b.length && a.containsAll(b);
 
   /// The plain words of a source post's title and opening run, run together,
   /// for [combine]'s name check. The title counts because it is the author's
@@ -134,6 +147,7 @@ class SourcePostListings {
         ref: rules.ref.copyWith(llmModName: llmMod.name.trim()),
         origin: ListingOrigin.rulesAndLlm,
         otherNames: [...rules.otherNames, ...?llmMod.nicknames],
+        downloadKeys: downloadKeysOf(llmMod),
       );
 
   /// A listing for a mod only the LLM found on this post. It carries the post's
@@ -165,6 +179,7 @@ class SourcePostListings {
       origin: ListingOrigin.llm,
       otherNames: [...?llmMod.nicknames],
       postedAt: rules.postedAt,
+      downloadKeys: downloadKeysOf(llmMod),
     );
   }
 

@@ -55,6 +55,10 @@ class ModIdStore {
   /// to [beginRun]. This is what says an old name has gone from its post.
   final Set<String> _keysThisRun = {};
 
+  /// [_keysThisRun] without the LLM names: every post that gives a listing in
+  /// this build.
+  final Set<String> _postsThisRun = {};
+
   ModIdStore(this.dataPath, {DateTime Function()? now})
       : _now = now ?? DateTime.now;
 
@@ -145,6 +149,9 @@ class ModIdStore {
     _keysThisRun
       ..clear()
       ..addAll([for (final ref in refsThisRun) if (ref.id.isNotEmpty) ref.key]);
+    _postsThisRun
+      ..clear()
+      ..addAll([for (final ref in refsThisRun) if (ref.id.isNotEmpty) ref.post.key]);
   }
 
   /// The id for a mod made of [refs], found through its source posts first.
@@ -155,9 +162,22 @@ class ModIdStore {
   /// yet; a brand-new mod gets a new id from its name, numbered when that is
   /// taken. Either way every one of [refs] is linked to the id from then on.
   ///
-  /// When the posts point at two different ids, two pages are being joined
-  /// into one. The older id wins, [onClash] is told, and the other id is left
-  /// where it is — never handed to another mod.
+  /// An id that was a forum topic's own page stays with that topic. When this
+  /// mod has a forum topic of its own, and the id's topic gives a listing in
+  /// this build and is not one of [refs], the id is not taken here, even when
+  /// another of the mod's posts is linked to it. A Discord announcement can
+  /// join a different forum topic than the one the old site paired it with
+  /// (Exotica's Discord thread is Kaysaar's edition, topic 29538, where the old
+  /// site had it with topic 32811), and two forum topics are never one mod, so
+  /// the topic's id belongs with the topic. A mod with no forum topic may still
+  /// take it: `ModCatalog.build` hands ids to the mods with forum topics first,
+  /// so by then the topic has had its chance, and an id it left is better used
+  /// than lost (topic 30580 is now Xxarra's, and NEON's Discord threads keep
+  /// "neon-s-ship-pack").
+  ///
+  /// When the posts still point at two different ids, two pages are being
+  /// joined into one. The older id wins, [onClash] is told, and the other id is
+  /// left where it is — never handed to another mod.
   ///
   /// [onRenamed] is told when a post's id was found under the LLM's old name
   /// for the mod.
@@ -181,6 +201,10 @@ class ModIdStore {
       }
     }
 
+    final mine = {for (final ref in refs) ref.post.key};
+    final hasForumTopic = mine.any((key) => key.startsWith('forum:'));
+    if (hasForumTopic) found.removeWhere((entry) => _isOtherTopicsPage(entry, mine));
+
     _Entry? chosen;
     if (found.isNotEmpty) {
       found.sort(_olderFirst);
@@ -196,7 +220,8 @@ class ModIdStore {
         chosen = _entryFor(modName, mark, claim: true);
       } else if (_givenThisRun.contains(existing) ||
           _reserved.contains(existing) ||
-          _ownedByOtherPosts(existing, refs)) {
+          _ownedByOtherPosts(existing, refs) ||
+          (hasForumTopic && _isOtherTopicsPage(existing, mine))) {
         // The name's id already belongs to a different mod — one given out this
         // run, a Collection's page, or a mod from other posts. A new id, so no
         // id ever leads to two mods.
@@ -215,6 +240,29 @@ class ModIdStore {
       _link(chosen, ref);
     }
     return chosen.id;
+  }
+
+  /// True when [entry] was the page of a whole forum topic that is not one of
+  /// [mine] and still gives a listing in this build.
+  bool _isOtherTopicsPage(_Entry entry, Set<String> mine) => entry.posts.any(
+      (key) => key.startsWith('forum:') && !key.contains('#') && !mine.contains(key) && _postsThisRun.contains(key));
+
+  /// The names the mods were known by when they were given the ids [refs] are
+  /// already linked to, lower case, as the id file keys them. Hands nothing
+  /// out. `ModCatalog.build` asks this to let the mod that still goes by an
+  /// id's name claim it before anything else does.
+  List<String> namesLinkedTo(List<SourcePostRef> refs) {
+    final names = <String>[];
+    for (final ref in refs) {
+      final entry = _entryForRef(ref);
+      if (entry == null) continue;
+      for (final MapEntry(:key, :value) in _entries.entries) {
+        if (!identical(value, entry)) continue;
+        final at = key.indexOf('#');
+        names.add(at < 0 ? key : key.substring(0, at));
+      }
+    }
+    return names;
   }
 
   /// The id [ref] is already linked to, or null. Hands nothing out. The merge

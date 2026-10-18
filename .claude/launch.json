@@ -31,6 +31,17 @@
       "port": 8085
     },
     {
+      "name": "viewer-alt",
+      "runtimeExecutable": "dart",
+      "runtimeArgs": [
+        "run",
+        "bin/viewer_server.dart",
+        "--port",
+        "8087"
+      ],
+      "port": 8087
+    },
+    {
       "name": "viewer-readonly",
       "runtimeExecutable": "dart",
       "runtimeArgs": [

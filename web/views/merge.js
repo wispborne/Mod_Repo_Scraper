@@ -209,6 +209,10 @@ function matchReason(mm) {
     if (mm.strippedNameLengthRatio != null) parts.push(`ratio ${(mm.strippedNameLengthRatio * 100).toFixed(0)}% `);
     if (mm.authorScore != null) parts.push(`author ${mm.authorScore} `);
   }
+  if (reasons.includes('nameAndDownload')) {
+    parts.push(`<span class="badge badge-primary">Name+Same download</span> `);
+    if (mm.nameScore != null) parts.push(`name ${mm.nameScore} `);
+  }
   if (reasons.includes('forumUrl')) {
     parts.push(`<span class="badge badge-secondary">Forum URL</span> `);
     if (mm.matchedForumTopicId) parts.push(`topic ${esc(mm.matchedForumTopicId)} `);

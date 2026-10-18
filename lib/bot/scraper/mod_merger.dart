@@ -13,6 +13,7 @@
 import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:mod_repo_scraper/catalog/listing.dart';
 import 'package:mod_repo_scraper/catalog/source_post.dart';
+import 'package:mod_repo_scraper/site/mod_name_match.dart';
 import 'package:mod_repo_scraper/utilities/console_progress_bar.dart';
 import 'package:mod_repo_scraper/utilities/parallel_map.dart';
 
@@ -54,11 +55,16 @@ class ModMerger {
     String? Function(CatalogSourcePost post)? existingIdOf,
   }) async {
     _existingIdOf = existingIdOf;
+    _downloadKeysByPost.clear();
     final mods = <ScrapedMod>[];
     for (final listing in listings) {
       // A copy of its own, so the post is filed against this listing alone.
       final mod = listing.mod.copyWith();
-      _posts[mod] = [CatalogSourcePost.of(listing)];
+      final post = CatalogSourcePost.of(listing);
+      _posts[mod] = [post];
+      if (listing.downloadKeys.isNotEmpty) {
+        _downloadKeysByPost.putIfAbsent(post, () => {}).addAll(listing.downloadKeys);
+      }
       mods.add(mod);
     }
     final merged = await merge(
@@ -70,6 +76,14 @@ class ModMerger {
   }
 
   List<CatalogSourcePost> _postsOf(ScrapedMod mod) => _posts[mod] ?? const [];
+
+  /// The downloads the LLM tied to each listing, by its source post. Empty for
+  /// mods merged without listings, which then join exactly as they always did.
+  final Map<CatalogSourcePost, Set<String>> _downloadKeysByPost = {};
+
+  Set<String> _downloadKeysOf(ScrapedMod mod) => {
+        for (final post in _postsOf(mod)) ...?_downloadKeysByPost[post],
+      };
 
   String? Function(CatalogSourcePost post)? _existingIdOf;
 
@@ -212,6 +226,22 @@ class ModMerger {
       dedupedInput.length,
       (i) => _authorMatchNames(dedupedInput[i]),
     );
+    final downloadKeys = [for (final mod in dedupedInput) _downloadKeysOf(mod)];
+    // The LLM's name for each listing, read off the post. A post title is not a
+    // name, and the length check above turns away pairs like "Custom LPCs -
+    // Create your own wings!" and "Custom LPCs v1.2.0 - Prometheus (LP IED) Chip
+    // Edition", which the LLM calls "Custom LPCs" both times.
+    final llmNames = [
+      for (final mod in dedupedInput)
+        {for (final post in _postsOf(mod)) if (post.llmModName case final name?) name},
+    ];
+    final llmNameBuckets = <String, List<int>>{};
+    for (var i = 0; i < dedupedInput.length; i++) {
+      for (final name in llmNames[i]) {
+        final key = sameNameKey(name);
+        if (key.isNotEmpty) llmNameBuckets.putIfAbsent(key, () => []).add(i);
+      }
+    }
 
     // Matches found, remembered by their lower-index side for the debug view.
     final debugPairEntries = debugCollector != null ? <(int, GroupMatchEntry)>[] : null;
@@ -263,6 +293,11 @@ class ModMerger {
         }
       }
 
+      // Candidates the LLM calls by the same name.
+      for (final name in llmNames[index]) {
+        candidates.addAll(llmNameBuckets[sameNameKey(name)] ?? const []);
+      }
+
       // Each pair is checked once, from its lower-index side.
       candidates.removeWhere((idx) => idx <= index);
 
@@ -299,7 +334,9 @@ class ModMerger {
           strippedNamePasses = strippedNameResult.isMatch && strippedRatio >= 0.85;
         }
 
-        final nameMatchPasses = scrapedNamePasses || strippedNamePasses;
+        final llmNamesMatch = llmNames[index].any(
+            (a) => llmNames[candidateIdx].any((b) => modNamesMatch(a, b)));
+        final nameMatchPasses = scrapedNamePasses || strippedNamePasses || llmNamesMatch;
 
         final bestAuthorsResult = await ModRepoUtils.compareToFindBestMatch(
           leftList: authorNames[index],
@@ -313,10 +350,23 @@ class ModMerger {
 
         final doNameAndAuthorMatch = nameMatchPasses && bestAuthorsResult.isMatch;
 
-        final isMatch = doNameAndAuthorMatch || doForumLinksMatch;
+        // The same name offering the same file is the same mod, however the
+        // two sources spell the author: All the Domain Drones+ is
+        // "Dreadnought70" on the forum and "nathan_the_grudge_bearer" on
+        // Discord, and without this each Discord thread became a second copy.
+        final doNameAndDownloadMatch = nameMatchPasses &&
+            !doNameAndAuthorMatch &&
+            downloadKeys[index].isNotEmpty &&
+            downloadKeys[index].intersection(downloadKeys[candidateIdx]).isNotEmpty;
+
+        final isMatch = doNameAndAuthorMatch || doForumLinksMatch || doNameAndDownloadMatch;
 
         if (doNameAndAuthorMatch) {
           timber.d(message: () => "Matched names (${strippedNamePasses ? 'stripped' : 'scraped'}) and authors $bestAuthorsResult.");
+        }
+
+        if (doNameAndDownloadMatch) {
+          timber.d(message: () => "Matched names and a shared download for ${outerLoopMod.name} and ${innerLoopMod.name}.");
         }
 
         if (doForumLinksMatch) {
@@ -332,6 +382,7 @@ class ModMerger {
                   ? GroupMatchReason.strippedNameAndAuthor
                   : GroupMatchReason.nameAndAuthor);
             }
+            if (doNameAndDownloadMatch) reasons.add(GroupMatchReason.nameAndDownload);
             if (doForumLinksMatch) reasons.add(GroupMatchReason.forumUrl);
             entry = GroupMatchEntry(
                 outerMod: outerLoopMod,

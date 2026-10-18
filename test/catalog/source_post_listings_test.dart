@@ -140,7 +140,7 @@ void main() {
     LlmMod main(String name, {List<String>? nicknames, bool download = true}) => LlmMod(
           name: name,
           nicknames: nicknames,
-          downloads: download ? [LlmDownload(url: 'https://example.com/${name.length}.zip')] : const [],
+          downloads: download ? [LlmDownload(url: 'https://example.com/${Uri.encodeComponent(name)}.zip')] : const [],
         );
     const words = 'Useful.Tithes 1.0.a is here. Big Pilum Energy too. Disco.Balls and Lost.Sector. '
         'Formerly known as the Pirate Collection, now Yunru Pirates.';

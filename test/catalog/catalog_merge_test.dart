@@ -37,6 +37,7 @@ Future<void> _writeQbStore(String dir, {required bool llmOn}) async {
     QbModSummary(topicId: 3, title: 'Any mods with swappable modules?', author: 'Asker'),
   ];
   await store.saveIndex(summaries);
+  await store.saveDetail(QbModDetail(topicId: 1, title: summaries[1].title, contentHtml: '<p>Plain Mod. Download below.</p>'));
   await store.saveDetail(QbModDetail(
     topicId: hartley.topicId,
     title: hartley.title,

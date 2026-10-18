@@ -1,6 +1,7 @@
 import 'package:dart_mappable/dart_mappable.dart';
 
 import '../bot/scraper/scraped_mod.dart';
+import 'download_key.dart';
 import 'source_post.dart';
 
 part 'listing.mapper.dart';
@@ -33,12 +34,19 @@ class Listing with ListingMappable {
   /// newer of two posts of one kind first.
   final DateTime? postedAt;
 
+  /// The downloads the LLM tied to this mod, as [downloadKey]s. Empty for a
+  /// listing the LLM had no part in. The merge reads them to join two listings
+  /// with the same name that offer the same file, even when the two sources
+  /// spell the author differently.
+  final Set<String> downloadKeys;
+
   const Listing({
     required this.mod,
     required this.ref,
     this.origin = ListingOrigin.rules,
     this.otherNames = const [],
     this.postedAt,
+    this.downloadKeys = const {},
   });
 
   bool get fromLlm => origin != ListingOrigin.rules;

@@ -56,8 +56,11 @@ class ForumConstants {
   static final RegExp topicIdRegex =
       RegExp(r'(?:topic[=,/])(\d+)', caseSensitive: false);
 
+  /// A bracketed game version in a title. The digit before the
+  /// first dot may be missing: some authors write "[.98a]" for 0.98a (topic
+  /// 33782).
   static final RegExp gameVersionRegex =
-      RegExp(r'\[(\d+\.\d+[\w.\-]*)(?:[^\]]*)\]');
+      RegExp(r'\[(\d*\.\d+[\w.\-]*)(?:[^\]]*)\]');
 
   static int? tryExtractTopicId(String? href) {
     if (href == null || href.trim().isEmpty) return null;

@@ -2,7 +2,7 @@ import '../bot/scraper/qb/forum_constants.dart';
 import '../bot/scraper/qb/models/forum_date.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
 import '../bot/scraper/scraped_mod.dart';
-import '../site/mod_id_store.dart';
+import '../site/display_name.dart';
 import '../site/mod_name_match.dart';
 import 'listing.dart';
 import 'source_post.dart';
@@ -16,8 +16,11 @@ import 'source_post.dart';
 /// splitting them would give two spellings of one mod two permanent ids. It is
 /// the LLM's job to say when a topic really holds several mods.
 ///
-/// A topic the index does not list is named from its title, with the bracketed
-/// game version, the mod version and any date taken off.
+/// A topic the index does not list is named from its title the way the site
+/// names it ([displayName]): the bracketed game version, the mod version, any
+/// date, a leading dash and whatever a cut left dangling all come off. Taking
+/// off only the version left names like "Everything Recoverable (v" and
+/// "Companions of the Imperium - V", and TriOS shows this name as it is.
 Listing forumRulesListing(QbModSummary summary) {
   final lines = summary.indexLines ?? const <QbIndexLine>[];
   final ref = SourcePostRef(kind: SourceKind.forum, id: '${summary.topicId}');
@@ -52,7 +55,7 @@ Listing forumRulesListing(QbModSummary summary) {
   final author = summary.author.trim();
   return Listing(
     mod: ScrapedMod(
-      name: ModIdStore.stripReleaseParts(summary.title),
+      name: displayName(summary.title),
       gameVersionReq: summary.gameVersion ?? '',
       authorsList: author.isEmpty ? const [] : [author],
       urls: {ModUrlType.Forum: url},

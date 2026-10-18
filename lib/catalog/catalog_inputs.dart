@@ -71,6 +71,11 @@ class CatalogInputs {
           continue;
         }
         final detail = await store.loadDetail(summary.topicId);
+        // A topic whose post was never saved is only a title on a board page,
+        // and the bundle leaves it out for the same reason. The mod index is
+        // the exception: its line names the mod, its author and its version,
+        // and some indexed topics sit on boards only members can read.
+        if (detail == null && !summary.inModIndex) continue;
         final words = detail == null
             ? summary.title
             : SourcePostListings.openingRunWords(SourcePost.fromForumDetail(detail));

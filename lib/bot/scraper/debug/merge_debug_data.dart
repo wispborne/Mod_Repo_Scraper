@@ -34,7 +34,7 @@ class PreDedupEntry with PreDedupEntryMappable {
 
 /// Why two mods were matched during grouping.
 @MappableEnum()
-enum GroupMatchReason { nameAndAuthor, strippedNameAndAuthor, forumUrl }
+enum GroupMatchReason { nameAndAuthor, strippedNameAndAuthor, nameAndDownload, forumUrl }
 
 /// A single match decision within a group.
 @MappableClass()
