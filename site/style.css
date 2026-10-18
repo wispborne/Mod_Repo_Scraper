@@ -450,11 +450,11 @@ h3 { font-size: var(--type-big); line-height: 1.25; margin: 0 0 6px; }
 .ai-banner p { margin: 0; color: var(--text-dim); font-size: var(--type-small); }
 .ai-banner-hide {
   flex: none; cursor: pointer; font: inherit; font-size: var(--type-small);
-  padding: 2px 10px; border: 1px solid var(--border); border-radius: 6px;
-  background: none; color: var(--text-dim);
+  padding: 2px 10px; border: 1px solid var(--primary); border-radius: 6px;
+  background: none; color: var(--text);
   display: inline-flex; align-items: center; gap: 5px;
 }
-.ai-banner-hide:hover { border-color: var(--primary); color: var(--text); }
+.ai-banner-hide:hover { background: var(--primary-faint); }
 .ai-banner-hide-icon, .ai-banner-hide-icon svg { display: block; width: 1.1em; height: 1.1em; flex-shrink: 0; }
 .ai-banner-choices {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px;

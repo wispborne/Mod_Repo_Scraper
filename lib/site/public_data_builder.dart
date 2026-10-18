@@ -381,6 +381,7 @@ class PublicDataBuilder {
         topicId: topicId,
         thread: thread,
         postDate: detail?.postDate,
+        threadWasRead: detail != null,
         authorAvatarPath: detail?.authorAvatarPath,
         chosen: chosen,
         ownSection: ownSection,
@@ -762,6 +763,7 @@ class PublicDataBuilder {
     required String? topicId,
     required QbModSummary? thread,
     required String? postDate,
+    required bool threadWasRead,
     required String? authorAvatarPath,
     required LlmMod? chosen,
     required String? ownSection,
@@ -812,7 +814,8 @@ class PublicDataBuilder {
       isTool: isTool ? true : null,
       nicknames: _nicknamesFor(chosen, [mod.name, shownName]),
       lastReleaseDate: releases.isEmpty ? null : _lastReleaseDate(releases),
-      addedOn: _addedOn(mod, thread, postDate, id),
+      addedOn: _addedOn(mod, thread, postDate, id,
+          threadNeverRead: topicId != null && !threadWasRead),
       threadLastPostOn: lastPost == null ? null : writeDay(lastPost),
       needs: _neededMods(extras?.needs, id, modsByName),
       partOfThreadTitle: partOfThreadTitle,
@@ -833,18 +836,25 @@ class PublicDataBuilder {
   /// then only if it was not the day the id file was seeded — see
   /// [ModIdStore.seedDay]. A mod we know no date for is published with none,
   /// which keeps it out of "recently added" rather than putting it at the top.
+  ///
+  /// A forum thread we have never read gets no first-seen day either. The mod
+  /// index still lists old threads whose posts we never saved (theDragn's
+  /// 0.95a threads, topics 22704 and 19548), and the day we first listed one
+  /// is the day we started reading the index, not the day the mod came out.
   String? _addedOn(
     ScrapedMod mod,
     QbModSummary? thread,
     String? postDate,
-    String id,
-  ) {
+    String id, {
+    required bool threadNeverRead,
+  }) {
     final dates = <DateTime>[
       if (parseForumDate(thread?.createdDate) case final posted?) posted,
       if (parseForumDate(postDate) case final written?) written,
       if (mod.dateTimeCreated case final made?) made.toUtc(),
     ];
     if (dates.isEmpty) {
+      if (threadNeverRead) return null;
       // The day we first saw it, unless that is the day the id file was seeded
       // — every mod that already existed shares that one, so it says nothing.
       final ids = idStore;

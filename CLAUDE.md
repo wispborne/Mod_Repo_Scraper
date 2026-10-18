@@ -13,7 +13,7 @@ The old `outputs/ModRepo.json` and `outputs/forum-data-bundle.json` are still wr
 
 Both pipelines run from one entry point and are toggled independently in `config.properties`.
 
-It also builds a third set of files, for the public website in `site/` — see **The public website** below. Those are built from the two outputs above; neither of those outputs is changed by them, and TriOS keeps reading the bundle exactly as it did.
+It also builds a third set of files, for the public website in `site/`. The website is called **Starmodder** (`https://starmodder.wispborne.com/`). When the user says "Starmodder" or "the public site", they mean this website, not the results viewer in `web/`. See **The public website** below. Those are built from the two outputs above; neither of those outputs is changed by them, and TriOS keeps reading the bundle exactly as it did.
 
 ## Commands
 

@@ -2516,17 +2516,53 @@ void main() {
         idStore: laterStore,
       );
 
+      // Its thread was read, but the forum wrote the day as "Today", which
+      // names no day.
+      final laterBundle = bundleOf(
+        index: [thread()],
+        details: {
+          '20': QbModDetail(topicId: 20, postDate: 'Today at 09:52:56 AM'),
+        },
+      );
       final data = laterBuilder.build(
         // The catalog hands out the newcomer's id from the same file the site
         // reads its first day from.
         mods: catalogOf([forumMod(), forumMod(name: 'Second Wave Options', topicId: 20)],
-            bundle: bundleOf(index: [thread()]), ids: laterStore),
-        bundle: bundleOf(index: [thread()]),
+            bundle: laterBundle, ids: laterStore),
+        bundle: laterBundle,
       );
 
       final newcomer =
           data.list.mods.firstWhere((m) => m.name == 'Second Wave Options');
       expect(newcomer.addedOn, '2030-01-02');
+    });
+
+    test('is nothing for an old thread we never read, even one listed later', () {
+      // The mod index lists old threads whose posts were never saved. The day
+      // we first listed one says nothing about when the mod came out.
+      buildFrom(mods: [forumMod()], bundle: bundleOf(index: [thread()]));
+      idStore.save();
+
+      final laterStore = ModIdStore(
+        p.join(dir.path, 'data'),
+        now: () => DateTime.utc(2030, 1, 2),
+      )..load();
+      final laterBuilder = PublicDataBuilder(
+        outputPath: p.join(dir.path, 'outputs'),
+        idStore: laterStore,
+      );
+
+      final data = laterBuilder.build(
+        mods: catalogOf(
+            [forumMod(), forumMod(name: 'Apex Design Collective', topicId: 22704)],
+            bundle: bundleOf(index: [thread()]),
+            ids: laterStore),
+        bundle: bundleOf(index: [thread()]),
+      );
+
+      final oldThread =
+          data.list.mods.firstWhere((m) => m.name == 'Apex Design Collective');
+      expect(oldThread.addedOn, isNull);
     });
   });
 }
