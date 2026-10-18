@@ -42,16 +42,28 @@ a:hover { text-decoration: underline; }
 .sidebar {
   width: 200px; flex-shrink: 0;
   display: flex; flex-direction: column;
-  background: var(--surface-container);
+  background: linear-gradient(180deg, rgb(36, 47, 76) 0%, var(--surface-container) 220px);
   border-right: 1px solid var(--border);
   padding: 14px 0 12px;
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
 }
+/* The cyan-to-purple line across the top of the sidebar marks the 2.0 viewer. */
+.sidebar::before {
+  content: ''; display: block; height: 2px; margin: -14px 0 14px;
+  background: linear-gradient(90deg, var(--primary), var(--llm));
+}
 .brand {
-  display: block; padding: 0 16px 10px;
+  display: flex; align-items: center; gap: 8px; padding: 0 16px 14px;
   color: var(--primary); font-weight: 700; font-size: 1.05rem;
 }
 .brand:hover { text-decoration: none; }
+.brand-name { white-space: nowrap; }
+.brand-version {
+  padding: 1px 7px; border-radius: 4px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--surface);
+  background: linear-gradient(90deg, var(--primary), var(--llm));
+}
 #nav { display: flex; flex-direction: column; }
 .nav-section-title {
   padding: 16px 16px 4px;
@@ -128,6 +140,7 @@ main { flex: 1; min-width: 0; max-width: 1500px; margin: 0 auto; padding: 20px 2
     padding: 10px 14px;
   }
   .brand { padding: 0 10px 0 0; }
+  .sidebar::before { display: none; }
   #nav { flex-direction: row; flex-wrap: wrap; gap: 2px; }
   #nav a { border-left: none; border-radius: 6px; padding: 5px 10px; }
   .nav-section-title { display: none; }
@@ -582,3 +595,43 @@ dialog.ask-dialog p { margin: 0 0 10px; font-size: 0.9rem; line-height: 1.5; }
 .selection-hint { color: var(--text-dim); font-size: 0.8rem; }
 td.pick, th.pick { width: 34px; text-align: center; }
 .topic-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+
+/* Home page: the banner at the top, and a card for each output file inside it. */
+.home-hero {
+  position: relative; overflow: hidden;
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 24px 26px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(196, 148, 255, 0.16), transparent 55%),
+    radial-gradient(circle at 0% 100%, rgba(73, 252, 255, 0.12), transparent 55%),
+    var(--surface-container);
+}
+/* The banner is the biggest block on the page, so it gets more room under it
+   than the stack's usual gap. */
+.stack > .home-hero + * { margin-top: 22px; }
+.home-hero-title { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.home-hero-title h1 { margin: 0; }
+.home-hero-version {
+  font-size: 2.2rem; font-weight: 800; line-height: 1;
+  background: linear-gradient(90deg, var(--primary), var(--llm));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.home-hero-text { margin: 10px 0 0; color: var(--text-dim); font-size: 0.92rem; max-width: 760px; }
+.output-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px; margin-top: 20px;
+}
+.output-card {
+  display: flex; flex-direction: column; padding: 14px 16px; border-radius: 8px;
+  border: 1px solid var(--border); background: rgba(14, 22, 43, 0.6);
+  color: var(--text);
+}
+.output-card:hover { text-decoration: none; border-color: var(--primary); }
+.output-card-file { font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.85rem; color: var(--primary); }
+.output-card-what { color: var(--text-dim); font-size: 0.8rem; margin: 4px 0 12px; }
+/* The count sits at the foot of the card, so two cards whose descriptions wrap
+   differently still line their numbers up. */
+.output-card-count { margin-top: auto; font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
+.output-card-count small { font-size: 0.8rem; font-weight: 400; color: var(--text-dim); margin-left: 4px; }
+.output-card-when { margin-top: 4px; color: var(--text-dim); font-size: 0.78rem; }
+.output-card.missing-file .output-card-count { color: var(--warning); font-size: 1rem; }

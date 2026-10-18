@@ -1,6 +1,6 @@
 // #/home — search across data sources, common jobs, latest run and data health.
 
-import { api, el, clear, go, MissingFile, noticeDialog, breadcrumbs } from '../lib.js';
+import { api, el, clear, go, MissingFile, noticeDialog, breadcrumbs, fmtBytes } from '../lib.js';
 import * as manager from '../manager.js';
 import { addWhatChangedLink } from './run.js';
 
@@ -9,7 +9,8 @@ export async function render(root) {
   root.append(breadcrumbs([]));
 
   const page = el('div', { class: 'stack' });
-  page.append(el('h1', { text: 'Mod Repo Viewer' }));
+  const outputs = el('div', { class: 'output-cards' });
+  page.append(heroBlock(outputs));
   page.append(searchBlock());
 
   const actions = el('div', {});
@@ -20,8 +21,76 @@ export async function render(root) {
 
   const status = manager.status() || await manager.refresh();
   drawActions(actions, status);
+  loadOutputs(outputs);
   loadLastRun(lastRun);
   loadHealth(health);
+}
+
+// --- The banner, with a card for each output file ---
+
+function heroBlock(outputs) {
+  return el('div', { class: 'home-hero' }, [
+    el('div', { class: 'home-hero-title' }, [
+      el('h1', { text: 'Mod Repo Viewer' }),
+      el('span', { class: 'home-hero-version', text: '2.0' }),
+    ]),
+    el('p', {
+      class: 'home-hero-text',
+      text: 'Version 2 of the pipeline. Every source post is read into its '
+        + 'listings first, then one merge builds the catalog: each mod once, '
+        + 'with its permanent id and the posts it came from.',
+    }),
+    outputs,
+  ]);
+}
+
+const OUTPUTS = [
+  {
+    fileId: 'modrepo',
+    file: 'ModRepo-v2.json',
+    what: 'The catalog: every mod once, with its source posts.',
+    href: '#/modrepo',
+    count: () => api('modrepo', { pageSize: 1 }),
+    unit: 'mods',
+  },
+  {
+    fileId: 'forum-data-bundle',
+    file: 'forum-data-bundle-v2.json',
+    what: 'The facts behind each mod: downloads, pictures and LLM answers.',
+    href: '#/bundle',
+    count: () => api('bundle/mods', { pageSize: 1 }),
+    unit: 'topics',
+  },
+];
+
+async function loadOutputs(node) {
+  const [files, ...counts] = await Promise.all([
+    api('files').catch(() => null),
+    ...OUTPUTS.map((o) => o.count().catch(() => null)),
+  ]);
+  const fileRows = (files && files.items) || [];
+  clear(node);
+  OUTPUTS.forEach((o, i) => {
+    const file = fileRows.find((f) => f.id === o.fileId);
+    const count = counts[i];
+    const missing = !file || !file.exists || !count || count instanceof MissingFile;
+    node.append(el('a', { class: 'output-card' + (missing ? ' missing-file' : ''), href: o.href }, [
+      el('div', { class: 'output-card-file', text: o.file }),
+      el('div', { class: 'output-card-what', text: o.what }),
+      missing
+        ? el('div', { class: 'output-card-count', text: 'Not written yet' })
+        : el('div', { class: 'output-card-count' }, [
+          String(count.total),
+          el('small', { text: o.unit }),
+        ]),
+      file && file.exists
+        ? el('div', {
+          class: 'output-card-when',
+          text: `Written ${manager.fmtTime(file.mtime)} · ${fmtBytes(file.size)}`,
+        })
+        : null,
+    ]));
+  });
 }
 
 // --- Search across topics, the bundle, and merged mods ---
