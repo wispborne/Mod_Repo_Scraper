@@ -42,12 +42,12 @@ class PublishService implements JobRunner {
   /// These two must always be there — a publish with nothing to publish is an
   /// error, not a quiet no-op.
   ///
-  /// Only the v2 files. `ModRepo.json` and `forum-data-bundle.json` are frozen:
+  /// Only the catalog and the mod details. `ModRepo.json` and `forum-data-bundle.json` are frozen:
   /// old TriOS installs keep reading the copies already in the repo, and a
   /// publish never writes, stages or deletes them.
   static const List<String> outputFiles = [
-    'ModRepo-v2.json',
-    'forum-data-bundle-v2.json',
+    'mod-catalog.json',
+    'mod-catalog-details.json',
   ];
 
   /// The public website's data files, copied from `<outputs>/site/` when a run

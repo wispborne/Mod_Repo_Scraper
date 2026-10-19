@@ -87,7 +87,7 @@ When the topic's on-disk data is newer than the published bundle, or the topic i
 
 #### Scenario: The topic was re-scraped and not yet published
 - **WHEN** the topic's saved data is newer than the published bundle
-- **THEN** the log opens with an unpublished entry offering Rebuild bundle (manager on)
+- **THEN** the log opens with an unpublished entry offering Rebuild mod details (manager on)
 
 #### Scenario: Everything is published
 - **WHEN** the published bundle is up to date for this topic

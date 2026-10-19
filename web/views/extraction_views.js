@@ -424,11 +424,11 @@ export async function topicStaleness(topicId, index, detail) {
   });
 }
 
-/// The "Rebuild bundle" button, wherever unpublished changes are pointed out.
+/// The "Rebuild mod details" button, wherever unpublished changes are pointed out.
 export function rebuildBundleButton() {
   return el('button', {
     class: 'btn btn-primary',
-    text: 'Rebuild bundle',
+    text: 'Rebuild mod details',
     onclick: async () => {
       try {
         const record = await manager.confirmAndSubmit({ kind: 'rebuildBundle' });

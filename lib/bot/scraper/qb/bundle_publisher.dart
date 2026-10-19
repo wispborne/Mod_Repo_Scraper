@@ -22,8 +22,9 @@ class BundlePublisher {
   /// Discord answers until the switch to the catalog, then frozen.
   static const String _bundleFileName = 'forum-data-bundle.json';
 
-  /// The bundle new readers use: the old bundle plus the Discord answers.
-  static const String bundleV2FileName = 'forum-data-bundle-v2.json';
+  /// The mod details, which new readers use: the old bundle plus the Discord
+  /// answers.
+  static const String detailsFileName = 'mod-catalog-details.json';
 
   final JsonDataStore _store;
   final QbDownloadResolver _resolver;
@@ -268,7 +269,7 @@ class BundlePublisher {
   }
 
   /// Writes the bundle JSON to the local data path: the old bundle without the
-  /// Discord answers, and `forum-data-bundle-v2.json` with them.
+  /// Discord answers, and `mod-catalog-details.json` with them.
   Future<void> writeLocal(ForumDataBundle bundle) async {
     await Directory(_outputPath).create(recursive: true);
     final encoder = const JsonEncoder.withIndent('  ');
@@ -278,15 +279,15 @@ class BundlePublisher {
     await File(path).writeAsString(encoder.convert(old));
     _log.info('Bundle written to $path');
 
-    final v2Path = p.join(_outputPath, bundleV2FileName);
-    await File(v2Path).writeAsString(encoder.convert({
+    final detailsPath = p.join(_outputPath, detailsFileName);
+    await File(detailsPath).writeAsString(encoder.convert({
       ...bundle.toMap(),
       'discordThreads': [
         for (final thread in bundle.discordThreads ?? const <DiscordThreadAnswer>[])
           discordThreadForPublishing(thread),
       ],
     }));
-    _log.info('Bundle written to $v2Path '
+    _log.info('Mod details written to $detailsPath '
         '(${bundle.discordThreads?.length ?? 0} Discord threads)');
   }
 }

@@ -138,13 +138,13 @@ Topic 34457 shows why we need this. Its current address is `derelict-start-remna
 
 ### Write new files and have the site read them directly
 
-`ModRepo-v2.json` will have one record per mod: its permanent id, the fields in the current catalog and its source post references. Don't copy the bundle's detailed facts into it. The site and TriOS can use those references to find the facts in `forum-data-bundle-v2.json`.
+`mod-catalog.json` will have one record per mod: its permanent id, the fields in the current catalog and its source post references. Don't copy the bundle's detailed facts into it. The site and TriOS can use those references to find the facts in `mod-catalog-details.json`.
 
-The v2 bundle starts with the current forum bundle and adds `discordThreads`. Each entry has the thread id, link, title and the LLM's mods, with their downloads and extras. It has no Discord message text. We'll keep calling it the Forum Data Bundle because that's the name its readers already know. A separate file for Discord would mean fetching and joining another bundle for the same lookup.
+The mod details file starts with the current forum bundle and adds `discordThreads`. Each entry has the thread id, link, title and the LLM's mods, with their downloads and extras. It has no Discord message text. We'll keep calling it the Forum Data Bundle because that's the name its readers already know. A separate file for Discord would mean fetching and joining another bundle for the same lookup.
 
 Old TriOS ignores fields it doesn't know, but fails if it encounters an unknown `ModSource` or `ModUrlType` enum value. New filenames let us change those without breaking an installed copy. When we switch, stop writing `ModRepo.json` and `forum-data-bundle.json`. Old TriOS will keep reading their last contents and won't get later catalog updates or LLM corrections. That's the trade-off we've chosen.
 
-The jobs `fullRun`, `rescrapeTopics`, `extractLlm`, `llmCoveragePass` and `rebuildBundle` must finish in this order: rebuild the bundle, merge the catalog, then build the site. The site reads the ids and facts from the v2 files. Remove `_threadOnlyMods`, `_mainLlmMod` and topic-id guessing, including the lookups that `_releasesByMod` and `_shownNameFor` currently make through them.
+The jobs `fullRun`, `rescrapeTopics`, `extractLlm`, `llmCoveragePass` and `rebuildBundle` must finish in this order: rebuild the bundle, merge the catalog, then build the site. The site reads the ids and facts from the new files. Remove `_threadOnlyMods`, `_mainLlmMod` and topic-id guessing, including the lookups that `_releasesByMod` and `_shownNameFor` currently make through them.
 
 ## Risks / Trade-offs
 
@@ -172,17 +172,17 @@ The Discord saving and extraction changes can go to production before the rest. 
 
 Build the listings and feed the new merge from QB, the Discord and Nexus caches, and the LLM store. During development only, keep the old pipeline writing `ModRepo.json` as well, so we can compare them.
 
-Run `bin/link_mod_ids.dart` on a copy of `qb_data` while the old site matching code is still available. Move id assignment into the merge, write both v2 files, and have the site read them. Once the linking command can save the old matches, remove the site's code for making missing mods and guessing their matches.
+Run `bin/link_mod_ids.dart` on a copy of `qb_data` while the old site matching code is still available. Move id assignment into the merge, write both new files, and have the site read them. Once the linking command can save the old matches, remove the site's code for making missing mods and guessing their matches.
 
 Run `bin/compare_catalog.dart` on copied real data and compare with the published site. It needs to list missing ids, ids linked to different posts, new Collections, Discord threads with several listings and new mods. Fix the differences and repeat until every existing mod id survives, apart from the expected ids that become Collection pages.
 
 ### Switch the production run
 
-Archive `starmodder-4-public-site` before applying the publishing spec changes that depend on it. Once the comparison is good, stop writing the old files, delete `ForumScraper` and remove its config keys. Update `tool/update-mod-repo.sh` to check for the v2 files and name them in its commit message. Back up production `mod-ids.json`, run the linking command on the real `qb_data`, and run the new pipeline.
+Archive `starmodder-4-public-site` before applying the publishing spec changes that depend on it. Once the comparison is good, stop writing the old files, delete `ForumScraper` and remove its config keys. Update `tool/update-mod-repo.sh` to check for the new files and name them in its commit message. Back up production `mod-ids.json`, run the linking command on the real `qb_data`, and run the new pipeline.
 
 The script deletes local `outputs/` before each run. After the switch, the frozen old files will only be in the publish repo. The script copies files into that repo without deleting the old ones, so they stay available there.
 
-In a separate TriOS change, read the two v2 files and remove `withSynthesizedAddonEntries` and `_isTheCatalogEntry`.
+In a separate TriOS change, read the two new files and remove `withSynthesizedAddonEntries` and `_isTheCatalogEntry`.
 
 Before the production switch, we can abandon the new code without changing production data. After the switch, rolling back means restoring `mod-ids.json` from before the linking step and reverting the implementation commit. The old published files will still be there.
 

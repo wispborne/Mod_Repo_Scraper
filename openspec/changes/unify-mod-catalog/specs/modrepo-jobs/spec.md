@@ -7,7 +7,7 @@ The manager SHALL offer two catalog jobs:
 - `mergeModRepo`: merge saved data without network calls.
 - `scrapeAndMerge`: fetch the requested Discord and Nexus sources, then merge.
 
-Both SHALL read forum listings from QB rather than scrape the forum. Both SHALL write `ModRepo-v2.json` and, when merge debug is collected, a merge snapshot.
+Both SHALL read forum listings from QB rather than scrape the forum. Both SHALL write `mod-catalog.json` and, when merge debug is collected, a merge snapshot.
 
 Neither job SHALL call the LLM. They SHALL use stored forum and Discord results. Discord threads without extraction SHALL retain their rules listings until the next QB coverage pass.
 
@@ -16,7 +16,7 @@ QB jobs that can change listings (`fullRun`, `rescrapeTopics`, `extractLlm`, `ll
 #### Scenario: Merge from saved files
 
 - **WHEN** a `mergeModRepo` job runs and the QB store and the Discord and Nexus cache files are on disk
-- **THEN** the listings from all of them are merged, `ModRepo-v2.json` is written, and no network request is made
+- **THEN** the listings from all of them are merged, `mod-catalog.json` is written, and no network request is made
 
 #### Scenario: Scrape then merge
 
@@ -31,7 +31,7 @@ QB jobs that can change listings (`fullRun`, `rescrapeTopics`, `extractLlm`, `ll
 #### Scenario: An LLM pass changes the catalog straight away
 
 - **WHEN** an `llmCoveragePass` job finds that a topic holds four mods
-- **THEN** the job ends with a merge and a site build, and the four mods are in `ModRepo-v2.json` when the job finishes
+- **THEN** the job ends with a merge and a site build, and the four mods are in `mod-catalog.json` when the job finishes
 
 ### Requirement: The ModRepo service is told what to do, never asked to look it up
 
@@ -54,12 +54,12 @@ Each job request SHALL specify sources, Discord raw-cache replay, whether to ret
 
 ### Requirement: A cancelled merge leaves the output alone
 
-The service SHALL check cancellation between sources and merge phases. Cancellation before merge completion SHALL preserve the existing `ModRepo-v2.json` and write no snapshot. The log SHALL state that the output was preserved. Completed source-cache writes SHALL remain available.
+The service SHALL check cancellation between sources and merge phases. Cancellation before merge completion SHALL preserve the existing `mod-catalog.json` and write no snapshot. The log SHALL state that the output was preserved. Completed source-cache writes SHALL remain available.
 
 #### Scenario: Cancelled part-way through the merge
 
 - **WHEN** the user cancels a `mergeModRepo` job while it is merging
-- **THEN** the run is recorded as cancelled, `ModRepo-v2.json` is untouched, and the log says so
+- **THEN** the run is recorded as cancelled, `mod-catalog.json` is untouched, and the log says so
 
 #### Scenario: Cancelled after one source finished
 

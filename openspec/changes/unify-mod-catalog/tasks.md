@@ -67,24 +67,24 @@ Work through these before switching production. Use a copy of the real data for 
 - [x] 6.4 Write `bin/link_mod_ids.dart` to fill in the references from `outputs/site/mods/<id>.json`. For topics with several main mods, save the LLM name chosen by today's `_mainLlmMod`. Test that running it twice gives the same file and that topic 34161's mods get different references.
 - [x] 6.5 Check that a mod keeps its id when its name changes, its topic is retitled, or the LLM first gives its Discord announcement a better name. Test that an id is never reused for another mod and that an unreadable `mod-ids.json` fails the run.
 
-## 7. Write the v2 files
+## 7. Write the new files
 
 - [ ] 7.0 Archive `starmodder-4-public-site` first. Its publishing spec lists the site files that this change's `output-publishing` spec builds on.
-- [x] 7.1 Add the `ModRepo-v2.json` model with the permanent id, current catalog fields and source post references. Write it from the merge. A cancelled merge must leave the existing output alone and write no snapshot.
-- [x] 7.2 Write `forum-data-bundle-v2.json` locally and in the clone. Include the Discord answers in `discordThreads`, without message text.
-- [x] 7.3 Have `publishOutputs` copy the two v2 files and leave `ModRepo.json` and `forum-data-bundle.json` alone.
+- [x] 7.1 Add the `mod-catalog.json` model with the permanent id, current catalog fields and source post references. Write it from the merge. A cancelled merge must leave the existing output alone and write no snapshot.
+- [x] 7.2 Write `mod-catalog-details.json` locally and in the clone. Include the Discord answers in `discordThreads`, without message text.
+- [x] 7.3 Have `publishOutputs` copy the two new files and leave `ModRepo.json` and `forum-data-bundle.json` alone.
 - [x] 7.4 Check that no published output includes config values, tokens, local paths, run ids, confidence scores or Discord message text.
 
 ## 8. Have the site use the new catalog
 
-- [x] 8.1 Point `PublicSiteStep` and `PublicDataBuilder` at the v2 files. Read permanent ids from the catalog.
+- [x] 8.1 Point `PublicSiteStep` and `PublicDataBuilder` at the new files. Read permanent ids from the catalog.
 - [x] 8.2 Look up a mod's facts using its saved topic or thread id and LLM mod name. Remove `_threadOnlyMods`, `_mainLlmMod` and topic-id guessing, including the calls from `_releasesByMod` and `_shownNameFor`. Get the display name from the LLM listing, keeping the check that it agrees with the title.
 - [x] 8.3 If a Collection already has an id, publish a page at that address linking to its mods. Use the same HTML-head replacement as the mod pages.
 - [x] 8.4 Update the sample data and its test for the new formats. Include a Discord-only mod with LLM facts, and check that release detection still reads forum topics as before.
 
 ## 9. Update the viewer
 
-- [x] 9.1 Have the ModRepo view, Bundle view, both comparison pages and topic history read the v2 files.
+- [x] 9.1 Have the ModRepo view, Bundle view, both comparison pages and topic history read the new files.
 - [x] 9.2 Show each mod's source posts on its ModRepo page, with links to the forum topic or the LLM's Discord answer.
 
 ## 10. Compare with the published site
@@ -97,7 +97,7 @@ Work through these before switching production. Use a copy of the real data for 
 
 - [ ] 11.1 Delete `forum_scraper.dart` and remove forum scraping from the ModRepo service. Remove `modrepo_forums_enabled` and the forum page-count keys, including their entries in `config.example.properties` and `Common._recognizedKeys`.
 - [ ] 11.2 Stop writing `ModRepo.json` and `forum-data-bundle.json`.
-- [ ] 11.3 Make `tool/update-mod-repo.sh` check for `outputs/ModRepo-v2.json` and `outputs/forum-data-bundle-v2.json` before publishing. Change its commit message to name those files too.
+- [ ] 11.3 Make `tool/update-mod-repo.sh` check for `outputs/mod-catalog.json` and `outputs/mod-catalog-details.json` before publishing. Change its commit message to name those files too.
 - [x] 11.4 Update CLAUDE.md and AGENTS.md to explain the combined pipeline, Discord LLM calls, topics with several mods, caches and new outputs.
 - [ ] 11.5 Back up production `mod-ids.json`, run `bin/link_mod_ids.dart` on the real `qb_data`, then run the new pipeline. Keep the backup in case we need to roll back.
-- [ ] 11.6 Open a separate TriOS change to read the two v2 files, including `discordThreads`, and remove `withSynthesizedAddonEntries` and `_isTheCatalogEntry`.
+- [ ] 11.6 Open a separate TriOS change to read the two new files, including `discordThreads`, and remove `withSynthesizedAddonEntries` and `_isTheCatalogEntry`.

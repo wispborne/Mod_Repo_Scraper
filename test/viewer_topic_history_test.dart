@@ -590,7 +590,7 @@ void main() {
     test('with no bundles saved at all it says so in plain words', () async {
       final body = await get('topics/1/history');
       expect(body['missing'], isTrue);
-      expect(body['hint'], contains('No bundles have been saved yet'));
+      expect(body['hint'], contains('No snapshots have been saved yet'));
     });
 
     test('a topic id that is not a number is refused', () async {

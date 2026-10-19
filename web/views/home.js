@@ -1,4 +1,4 @@
-// #/home — search across data sources, common jobs, latest run and data health.
+// #/home — output files, search, jobs, latest run, and topic health.
 
 import { api, el, clear, go, MissingFile, noticeDialog, breadcrumbs, fmtBytes } from '../lib.js';
 import * as manager from '../manager.js';
@@ -26,7 +26,7 @@ export async function render(root) {
   loadHealth(health);
 }
 
-// --- The banner, with a card for each output file ---
+// --- Output files ---
 
 function heroBlock(outputs) {
   return el('div', { class: 'home-hero' }, [
@@ -36,9 +36,8 @@ function heroBlock(outputs) {
     ]),
     el('p', {
       class: 'home-hero-text',
-      text: 'Version 2 of the pipeline. Every source post is read into its '
-        + 'listings first, then one merge builds the catalog: each mod once, '
-        + 'with its permanent id and the posts it came from.',
+      text: 'Browse mods from the forum, Discord, and Nexus in one catalog. '
+        + 'Each mod has a permanent ID and a record of the posts or pages it came from.',
     }),
     outputs,
   ]);
@@ -47,18 +46,18 @@ function heroBlock(outputs) {
 const OUTPUTS = [
   {
     fileId: 'modrepo',
-    file: 'ModRepo-v2.json',
-    what: 'The catalog: every mod once, with its source posts.',
+    file: 'mod-catalog.json',
+    description: 'One entry per mod, with its ID and the posts or pages it came from.',
     href: '#/modrepo',
-    count: () => api('modrepo', { pageSize: 1 }),
+    loadCount: () => api('modrepo', { pageSize: 1 }),
     unit: 'mods',
   },
   {
     fileId: 'forum-data-bundle',
-    file: 'forum-data-bundle-v2.json',
-    what: 'The facts behind each mod: downloads, pictures and LLM answers.',
+    file: 'mod-catalog-details.json',
+    description: 'Forum topics with downloads and pictures, plus details from forum and Discord posts.',
     href: '#/bundle',
-    count: () => api('bundle/mods', { pageSize: 1 }),
+    loadCount: () => api('bundle/mods', { pageSize: 1 }),
     unit: 'topics',
   },
 ];
@@ -66,7 +65,7 @@ const OUTPUTS = [
 async function loadOutputs(node) {
   const [files, ...counts] = await Promise.all([
     api('files').catch(() => null),
-    ...OUTPUTS.map((o) => o.count().catch(() => null)),
+    ...OUTPUTS.map((o) => o.loadCount().catch(() => null)),
   ]);
   const fileRows = (files && files.items) || [];
   clear(node);
@@ -76,7 +75,7 @@ async function loadOutputs(node) {
     const missing = !file || !file.exists || !count || count instanceof MissingFile;
     node.append(el('a', { class: 'output-card' + (missing ? ' missing-file' : ''), href: o.href }, [
       el('div', { class: 'output-card-file', text: o.file }),
-      el('div', { class: 'output-card-what', text: o.what }),
+      el('div', { class: 'output-card-description', text: o.description }),
       missing
         ? el('div', { class: 'output-card-count', text: 'Not written yet' })
         : el('div', { class: 'output-card-count' }, [
@@ -100,7 +99,7 @@ function searchBlock() {
   const input = el('input', {
     type: 'search',
     class: 'home-search-input',
-    placeholder: 'Search topics, the bundle, and ModRepo…',
+    placeholder: 'Search topics, Mod Catalog and Mod Details…',
   });
   const results = el('div', { class: 'home-search-results' });
   let debounce;
@@ -174,14 +173,14 @@ function bundleGroup(data) {
     const row = it.index || {};
     return resultRow(`#/bundle/${row.topicId}`, row.title, `by ${row.author}`);
   });
-  return group('Forum Data Bundle', data.total, rows);
+  return group('Mod Details', data.total, rows);
 }
 
 function modrepoGroup(data) {
   if (!data || data instanceof MissingFile) return null;
   const rows = (data.items || []).map((it) =>
     resultRow(`#/modrepo/${it.index}`, it.name, `by ${(it.authorsList || []).join(', ')}`));
-  return group('ModRepo', data.total, rows);
+  return group('Mod Catalog', data.total, rows);
 }
 
 // --- Quick actions ---
@@ -206,9 +205,9 @@ function drawActions(node, status) {
     actionBtn('Start full run', 'Scrape new or changed topics on the main and libraries '
       + 'boards and run LLM extraction.',
       { kind: 'fullRun', scope: 'newData', boards: ['main', 'libraries'], runLlm: true, replayAllowed: false }, true),
-    actionBtn('Merge saved sources', 'Merge saved sources into ModRepo-v2.json. No network requests.',
+    actionBtn('Merge saved sources', 'Merge saved sources into mod-catalog.json. No network requests.',
       { kind: 'mergeModRepo', collectMergeDebug: true }),
-    actionBtn('Rebuild bundle', 'Rebuild forum-data-bundle-v2.json from saved data.',
+    actionBtn('Rebuild mod details', 'Rebuild mod-catalog-details.json from saved data.',
       { kind: 'rebuildBundle' }),
     actionBtn('LLM coverage pass', 'Extract missing or outdated LLM results from saved posts.',
       { kind: 'llmCoveragePass', runLlm: true }),

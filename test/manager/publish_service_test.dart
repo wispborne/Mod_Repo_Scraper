@@ -45,8 +45,8 @@ void main() {
             .trim());
 
     void writeOutputs(String modRepo, String bundle) {
-      File(p.join(outputs, 'ModRepo-v2.json')).writeAsStringSync(modRepo);
-      File(p.join(outputs, 'forum-data-bundle-v2.json')).writeAsStringSync(bundle);
+      File(p.join(outputs, 'mod-catalog.json')).writeAsStringSync(modRepo);
+      File(p.join(outputs, 'mod-catalog-details.json')).writeAsStringSync(bundle);
     }
 
     setUp(() {
@@ -64,8 +64,8 @@ void main() {
       _git(['init', '--bare', '--initial-branch=main', remote]);
       final seed = p.join(tmp.path, 'seed');
       _git(['clone', remote, seed]);
-      File(p.join(seed, 'ModRepo-v2.json')).writeAsStringSync('old repo');
-      File(p.join(seed, 'forum-data-bundle-v2.json')).writeAsStringSync('old bundle');
+      File(p.join(seed, 'mod-catalog.json')).writeAsStringSync('old repo');
+      File(p.join(seed, 'mod-catalog-details.json')).writeAsStringSync('old bundle');
       // The frozen files, which old TriOS installs read.
       File(p.join(seed, 'ModRepo.json')).writeAsStringSync('frozen repo');
       File(p.join(seed, 'forum-data-bundle.json')).writeAsStringSync('frozen bundle');
@@ -119,8 +119,8 @@ void main() {
       expect(outcome.cancelled, isFalse);
       expect(outcome.itemsDone, 2);
       expect(remoteCommitCount(), before + 1);
-      expect(remoteContent('ModRepo-v2.json'), 'new repo');
-      expect(remoteContent('forum-data-bundle-v2.json'), 'new bundle');
+      expect(remoteContent('mod-catalog.json'), 'new repo');
+      expect(remoteContent('mod-catalog-details.json'), 'new bundle');
     }, skip: _gitIsThere() ? false : 'git is not installed');
 
     test('the frozen ModRepo.json and forum-data-bundle.json are left as they were', () async {
@@ -131,7 +131,7 @@ void main() {
 
       await service.runJob(JobRequest.publishOutputs(), reporter: reporter);
 
-      expect(remoteContent('ModRepo-v2.json'), 'new repo');
+      expect(remoteContent('mod-catalog.json'), 'new repo');
       expect(remoteContent('ModRepo.json'), 'frozen repo');
       expect(remoteContent('forum-data-bundle.json'), 'frozen bundle');
     }, skip: _gitIsThere() ? false : 'git is not installed');
@@ -179,7 +179,7 @@ void main() {
 
       expect(outcome.cancelled, isTrue);
       expect(remoteCommitCount(), before);
-      expect(remoteContent('ModRepo-v2.json'), 'old repo');
+      expect(remoteContent('mod-catalog.json'), 'old repo');
       expect(reporter.logs.any((l) => l.contains('left as it was')), isTrue);
     }, skip: _gitIsThere() ? false : 'git is not installed');
 
@@ -192,8 +192,8 @@ void main() {
 
       // One commit, and everything in it.
       expect(remoteCommitCount(), before + 1);
-      expect(remoteContent('ModRepo-v2.json'), 'new repo');
-      expect(remoteContent('forum-data-bundle-v2.json'), 'new bundle');
+      expect(remoteContent('mod-catalog.json'), 'new repo');
+      expect(remoteContent('mod-catalog-details.json'), 'new bundle');
       expect(remoteContent('mods.json'), '{"mods": []}');
       expect(remoteContent('updates.json'), '{"releases": []}');
       expect(remoteContent('mods/nexerelin.json'), '{"id": "nexerelin"}');
@@ -229,8 +229,8 @@ void main() {
 
       expect(outcome.cancelled, isFalse);
       expect(remoteCommitCount(), before + 1);
-      expect(remoteContent('ModRepo-v2.json'), 'new repo');
-      expect(remoteContent('forum-data-bundle-v2.json'), 'new bundle');
+      expect(remoteContent('mod-catalog.json'), 'new repo');
+      expect(remoteContent('mod-catalog-details.json'), 'new bundle');
       expect(inRemote('mods.json'), isFalse);
       expect(
           reporter.logs.any((l) => l.contains('website files were not there')),

@@ -1,4 +1,4 @@
-// #/bundle — forum-data-bundle-v2.json browser and TriOS card preview.
+// #/bundle — Mod Details: the mod-catalog-details.json browser and TriOS card preview.
 //   #/bundle              bundle meta + searchable, paged entries
 //   #/bundle/<topicId>    working thread data and a card preview
 //   #/bundle/changes      what changed between two saved bundles
@@ -21,22 +21,22 @@ const state = { q: '', page: 0, pageSize: pageSizePreference() };
 export async function render(root, parts) {
   clear(root);
 
-  // The diff page lives in the sidebar as "Bundle diff".
+  // The diff page lives in the sidebar as "Details diff".
   if (parts[0] === 'changes') {
-    root.append(breadcrumbs([{ label: 'Bundle diff' }]));
-    root.append(el('h1', { text: 'Bundle diff' }));
+    root.append(breadcrumbs([{ label: 'Details diff' }]));
+    root.append(el('h1', { text: 'Details diff' }));
     return changesPage(root);
   }
   if (parts[1] === 'history') {
     return renderHistory(root, parts[0], {
-      parent: { label: 'Forum Data Bundle', href: '#/bundle' },
+      parent: { label: 'Mod Details', href: '#/bundle' },
     });
   }
   if (parts.length) return entry(root, parts[0]);
 
-  root.append(breadcrumbs([{ label: 'Forum Data Bundle' }]));
-  root.append(el('h1', { text: 'Forum Data Bundle' }));
-  root.append(el('p', { class: 'run-when', text: 'Published forum data used by TriOS.' }));
+  root.append(breadcrumbs([{ label: 'Mod Details' }]));
+  root.append(el('h1', { text: 'Mod Details' }));
+  root.append(el('p', { class: 'run-when', text: 'The details behind each mod: forum posts, downloads, and LLM answers for forum topics and Discord threads.' }));
 
   // Search and page ride in the URL, so a reload or the back button brings the
   // same list back.
@@ -113,7 +113,7 @@ export async function render(root, parts) {
 
 async function entry(root, topicId) {
   return renderThreadPage(root, topicId, {
-    parent: { label: 'Forum Data Bundle', href: '#/bundle' },
+    parent: { label: 'Mod Details', href: '#/bundle' },
   });
 }
 
@@ -165,18 +165,18 @@ function stalenessBanner(staleness, managerOn) {
   let detail;
   switch (staleness.state) {
     case 'stale':
-      heading = 'The published bundle is out of date.';
-      detail = `Thread scraped ${stamp(staleness.scrapedAt)}; bundle built `
-        + `${stamp(staleness.builtAt)}. Rebuild the bundle to `
+      heading = 'The published mod details are out of date.';
+      detail = `Thread scraped ${stamp(staleness.scrapedAt)}; mod details built `
+        + `${stamp(staleness.builtAt)}. Rebuild the mod details to `
         + 'publish these changes to TriOS.';
       break;
     case 'absent':
-      heading = 'This thread is not in the published bundle.';
-      detail = 'Thread data is saved locally. Rebuild the bundle to update published data.';
+      heading = 'This thread is not in the published mod details.';
+      detail = 'Thread data is saved locally. Rebuild the mod details to update published data.';
       break;
     default: // noBundle
-      heading = 'No Forum Data Bundle has been published yet.';
-      detail = 'Showing locally saved data. Rebuild the bundle to publish it to TriOS.';
+      heading = 'No mod details have been published yet.';
+      detail = 'Showing locally saved data. Rebuild the mod details to publish them to TriOS.';
   }
 
   const banner = el('div', { class: 'notice-banner' }, [

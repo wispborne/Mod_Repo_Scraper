@@ -105,7 +105,7 @@ class ScraperService implements JobRunner {
   /// Works out which mods released, and rebuilds the public website's files.
   final PublicSiteStep siteStep;
 
-  /// Merges every source post's listings into `ModRepo-v2.json`. Run after the
+  /// Merges every source post's listings into `mod-catalog.json`. Run after the
   /// bundle and before the website, so a job that changed the listings shows up
   /// in the catalog and on the site when it finishes.
   final CatalogStep catalogStep;

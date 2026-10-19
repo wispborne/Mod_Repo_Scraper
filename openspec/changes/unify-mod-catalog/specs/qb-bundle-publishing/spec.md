@@ -2,12 +2,12 @@
 
 ### Requirement: Git publishing
 
-When configured, the system SHALL publish `forum-data-bundle-v2.json` to a local git clone. It SHALL NOT write the frozen `forum-data-bundle.json`.
+When configured, the system SHALL publish `mod-catalog-details.json` to a local git clone. It SHALL NOT write the frozen `forum-data-bundle.json`.
 
 #### Scenario: Write and push
 
 - **WHEN** `qbRepoPath` is configured
-- **THEN** the system SHALL write `forum-data-bundle-v2.json`, run `git add`, `git commit -m "scrape update: {updatedAt}"`, and `git push`
+- **THEN** the system SHALL write `mod-catalog-details.json`, run `git add`, `git commit -m "scrape update: {updatedAt}"`, and `git push`
 
 #### Scenario: Old bundle untouched
 
@@ -27,7 +27,7 @@ When configured, the system SHALL publish `forum-data-bundle-v2.json` to a local
 #### Scenario: Local bundle copy
 
 - **WHEN** a scrape completes
-- **THEN** the bundle SHALL be written to `{qbDataPath}/forum-data-bundle-v2.json` regardless of repo config
+- **THEN** the bundle SHALL be written to `{qbDataPath}/mod-catalog-details.json` regardless of repo config
 
 ## ADDED Requirements
 

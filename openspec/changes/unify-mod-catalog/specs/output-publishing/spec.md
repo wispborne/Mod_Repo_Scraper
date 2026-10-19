@@ -2,7 +2,7 @@
 
 ### Requirement: Publishing is a job the manager can run
 
-The manager SHALL offer `publishOutputs` to publish current outputs to the target GitHub repo. The job SHALL prepare an up-to-date clone and copy `outputs/ModRepo-v2.json` and `outputs/forum-data-bundle-v2.json` into it. Stage changes, then commit and push only if something changed. The frozen `ModRepo.json` and `forum-data-bundle.json` SHALL NOT be written, staged or deleted.
+The manager SHALL offer `publishOutputs` to publish current outputs to the target GitHub repo. The job SHALL prepare an up-to-date clone and copy `outputs/mod-catalog.json` and `outputs/mod-catalog-details.json` into it. Stage changes, then commit and push only if something changed. The frozen `ModRepo.json` and `forum-data-bundle.json` SHALL NOT be written, staged or deleted.
 
 The job SHALL also copy:
 
@@ -15,7 +15,7 @@ Publishing SHALL use the host's existing git/SSH authentication. It SHALL make n
 
 #### Scenario: Publish changed outputs
 
-- **WHEN** a `publishOutputs` job runs and the current v2 output files differ from what is in the target repo
+- **WHEN** a `publishOutputs` job runs and the current `mod-catalog.json` and `mod-catalog-details.json` differ from what is in the target repo
 - **THEN** both files are copied into the clone, one commit is made, the commit is pushed, and the run is recorded as completed
 
 #### Scenario: Frozen files stay put

@@ -76,10 +76,10 @@ void main() {
       llmStore: llm,
     );
     await publisher.writeLocal(await publisher.createBundle());
-    return File(p.join(dir.path, 'outputs', BundlePublisher.bundleV2FileName)).readAsStringSync();
+    return File(p.join(dir.path, 'outputs', BundlePublisher.detailsFileName)).readAsStringSync();
   }
 
-  test("the v2 bundle carries the Discord thread's answer and none of its words", () async {
+  test("the mod details carry the Discord thread's answer and none of its words", () async {
     final json = await publishBundle();
     final threads = (jsonDecode(json) as Map)['discordThreads'] as List;
 
@@ -100,14 +100,14 @@ void main() {
     expect((jsonDecode(old) as Map).containsKey('discordThreads'), isFalse);
   });
 
-  test('neither v2 file holds a local path, a run id, a token or message text', () async {
+  test('neither new file holds a local path, a run id, a token or message text', () async {
     final bundle = await publishBundle();
     final catalog = (await CatalogStep(
       qbDataPath: dir.path,
       sourceCachePath: dir.path,
       outputPath: p.join(dir.path, 'outputs'),
     ).run())!;
-    final catalogJson = File(p.join(dir.path, 'outputs', 'ModRepo-v2.json')).readAsStringSync();
+    final catalogJson = File(p.join(dir.path, 'outputs', 'mod-catalog.json')).readAsStringSync();
     expect(catalog.mods.map((m) => m.mod.name), containsAll(['Forum Mod', 'Fresh Mod 1.2']));
 
     for (final json in [bundle, catalogJson]) {

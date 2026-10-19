@@ -17,18 +17,18 @@ export async function render(root, parts, { keepRuns = false } = {}) {
   if (!keepRuns) forgetRuns();
   clear(root);
 
-  // ModRepo diff has its own pair of pickers rather than single-merge controls.
+  // Catalog diff has its own pair of pickers rather than single-merge controls.
   const section = parts[0] || 'summary';
   if (section === 'changes') {
-    root.append(breadcrumbs([{ label: 'ModRepo diff' }]));
-    root.append(el('h1', { text: 'ModRepo diff' }));
+    root.append(breadcrumbs([{ label: 'Catalog diff' }]));
+    root.append(el('h1', { text: 'Catalog diff' }));
     const diffBody = el('div', {});
     root.append(diffBody);
     return changesPage(diffBody);
   }
 
-  root.append(breadcrumbs([{ label: 'ModRepo explorer' }]));
-  root.append(el('h1', { text: 'ModRepo explorer' }));
+  root.append(breadcrumbs([{ label: 'Catalog explorer' }]));
+  root.append(el('h1', { text: 'Catalog explorer' }));
   const pickerRow = el('div', {});
   root.append(pickerRow);
   root.append(subnav(parts));

@@ -34,9 +34,9 @@ export async function changesPage(body) {
       el('h3', { text: 'Nothing to compare yet' }),
       el('p', {
         text: runs.length === 1
-          ? 'Only one saved bundle is available, with no scraped data on disk '
+          ? 'Only one saved snapshot is available, with no scraped data on disk '
             + 'to compare. Run the scraper to create another.'
-          : 'No bundles have been saved yet. Run the scraper to save a snapshot.',
+          : 'No snapshots have been saved yet. Run the scraper to save one.',
       }),
     ]));
   }
@@ -55,7 +55,7 @@ export async function changesPage(body) {
 
   body.append(el('p', {
     class: 'run-when',
-    text: 'Compare saved bundles, or compare a bundle with current saved data to follow a run.',
+    text: 'Compare saved snapshots of the mod details, or compare one with current saved data to follow a run.',
   }));
 
   const selects = {};
@@ -85,7 +85,7 @@ export async function changesPage(body) {
   const swap = el('button', {
     class: 'btn',
     text: 'Swap',
-    title: 'Swap older and newer bundles.',
+    title: 'Swap older and newer snapshots.',
     onclick: () => {
       if (state.b === WORKING) return;
       [state.a, state.b] = [state.b, state.a];
@@ -104,7 +104,7 @@ export async function changesPage(body) {
     swap.disabled = off;
     swap.title = off
       ? 'Current saved data can only be the newer side.'
-      : 'Swap older and newer bundles.';
+      : 'Swap older and newer snapshots.';
   }
   /// Prevents self-comparison by swapping saved sides. When leaving working
   /// data, choose another older snapshot: working data cannot become older.
@@ -221,7 +221,7 @@ export async function changesPage(body) {
         class: 'loading',
         text: state.q || state.kind
           ? 'Nothing matches this search or filter.'
-          : 'No changes between these bundles.',
+          : 'No changes between these snapshots.',
       }));
     }
     foldAll.refresh();
@@ -281,7 +281,7 @@ function drawLiveNote(node, answer) {
     ? new Date(answer.workingUpdatedAt).toLocaleString()
     : null;
   node.append(el('span', {
-    text: 'Comparing current saved data with the selected bundle. '
+    text: 'Comparing current saved data with the selected snapshot. '
       + (asOf ? `Last written ${asOf}. ` : '')
       + 'Use Refresh to see new changes; updates are manual.',
   }));

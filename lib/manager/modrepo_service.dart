@@ -39,7 +39,7 @@ class ModRepoService implements JobRunner {
   /// mods are half of what that site is built from.
   final PublicSiteStep siteStep;
 
-  /// Merges every source post's listings into `ModRepo-v2.json`.
+  /// Merges every source post's listings into `mod-catalog.json`.
   final CatalogStep catalogStep;
 
   /// Makes the client used to reach Discord. Swapped out in tests.
@@ -146,7 +146,7 @@ class ModRepoService implements JobRunner {
 
     if (cancel?.isCancelled ?? false) {
       reporter.log('Cancelled before saving. ModRepo.json and '
-          'ModRepo-v2.json were left as they were.');
+          'mod-catalog.json were left as they were.');
       return _stopped(reporter, mods.length, errors: errors);
     }
 

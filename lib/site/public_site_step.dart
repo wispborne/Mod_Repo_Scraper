@@ -14,9 +14,9 @@ import 'release_state_store.dart';
 
 /// The step at the end of a run that rebuilds the public website's files.
 ///
-/// The website is built from the catalog (`ModRepo-v2.json`), which says what
+/// The website is built from the catalog (`mod-catalog.json`), which says what
 /// mods there are, their ids and the source posts each came from, and the
-/// bundle (`forum-data-bundle-v2.json`), which holds the posts and the LLM's
+/// bundle (`mod-catalog-details.json`), which holds the posts and the LLM's
 /// answers those source posts lead to. A run usually only produces one of
 /// those, so this reads the other back from the outputs folder. Neither is
 /// changed — they are read, and the website's files are written beside them.
@@ -89,7 +89,7 @@ class PublicSiteStep {
   /// Discord scrape writes. The site only reads it.
   ///
   /// [catalog] is the catalog the merge has just written; left out, it is read
-  /// back from `ModRepo-v2.json`.
+  /// back from `mod-catalog.json`.
   Future<void> afterMerge({
     ModCatalog? catalog,
     void Function(String message)? log,
@@ -139,7 +139,7 @@ class PublicSiteStep {
         '${data.feed.releases.length} releases in ${builder.siteDir}.');
   }
 
-  /// The catalog from `ModRepo-v2.json`, or null when there is no such file
+  /// The catalog from `mod-catalog.json`, or null when there is no such file
   /// yet.
   ModCatalog? _readCatalog() =>
       ModCatalog.read(File(p.join(outputPath, ModCatalog.fileName)));
@@ -162,7 +162,7 @@ class PublicSiteStep {
 
   /// The published bundle, or null when there is no such file yet.
   ForumDataBundle? _readBundle() {
-    final file = File(p.join(outputPath, BundlePublisher.bundleV2FileName));
+    final file = File(p.join(outputPath, BundlePublisher.detailsFileName));
     if (!file.existsSync()) return null;
     try {
       return ForumDataBundleMapper.fromJson(file.readAsStringSync());

@@ -16,7 +16,7 @@ import * as run from './views/run.js';
 import { mountHeaderChip } from './manager.js';
 import { icon } from './icons.js';
 
-// The longest matching route is active, so Bundle diff takes precedence over
+// The longest matching route is active, so Details diff takes precedence over
 // the bundle list for #/bundle/changes.
 const NAV_SECTIONS = [
   {
@@ -28,8 +28,8 @@ const NAV_SECTIONS = [
     title: 'Data',
     items: [
       { route: ['topics'], label: 'Topics', icon: 'list-details' },
-      { route: ['modrepo'], label: 'ModRepo', icon: 'packages' },
-      { route: ['bundle'], label: 'Forum Data Bundle', icon: 'package-export' },
+      { route: ['modrepo'], label: 'Mod Catalog', icon: 'packages' },
+      { route: ['bundle'], label: 'Mod Details', icon: 'package-export' },
     ],
   },
   {
@@ -41,9 +41,9 @@ const NAV_SECTIONS = [
   {
     title: 'Debug',
     items: [
-      { route: ['merge'], label: 'ModRepo explorer', icon: 'git-merge' },
-      { route: ['merge', 'changes'], label: 'ModRepo diff', icon: 'git-compare' },
-      { route: ['bundle', 'changes'], label: 'Bundle diff', icon: 'file-diff' },
+      { route: ['merge'], label: 'Catalog explorer', icon: 'git-merge' },
+      { route: ['merge', 'changes'], label: 'Catalog diff', icon: 'git-compare' },
+      { route: ['bundle', 'changes'], label: 'Details diff', icon: 'file-diff' },
       { route: ['llm-test'], label: 'LLM test report', icon: 'flask' },
       { route: ['files'], label: 'Files', icon: 'files' },
       { route: ['log'], label: 'Log', icon: 'terminal-2' },

@@ -261,10 +261,10 @@ void main() {
     expect(MergeSnapshotStore(p.join(workDir.path, 'qb_data')).list(), isEmpty);
   });
 
-  test('a merge cancelled while merging writes neither ModRepo.json nor ModRepo-v2.json', () async {
+  test('a merge cancelled while merging writes neither ModRepo.json nor mod-catalog.json', () async {
     writeSourceCaches();
     final repoFile = outputFile(p.join('outputs', 'ModRepo.json'));
-    final catalogFile = outputFile(p.join('outputs', 'ModRepo-v2.json'));
+    final catalogFile = outputFile(p.join('outputs', 'mod-catalog.json'));
     repoFile.parent.createSync(recursive: true);
     repoFile.writeAsStringSync('{"totalCount": 99}');
     catalogFile.writeAsStringSync('{"totalCount": 98}');

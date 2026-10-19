@@ -145,7 +145,7 @@ export async function addWhatChangedLink(row, runId, { live = false } = {}) {
       class: 'btn',
       href: buildHash(['bundle', 'changes'], { b: 'working' }),
       text: 'Changes so far',
-      title: 'Compare current saved data with the latest published bundle.',
+      title: 'Compare current saved data with the latest published mod details.',
     }));
     return;
   }
@@ -161,7 +161,7 @@ export async function addWhatChangedLink(row, runId, { live = false } = {}) {
     class: 'btn',
     href: buildHash(['bundle', 'changes'], { a: ids[at + 1], b: runId }),
     text: 'View changes',
-    title: 'Compare the bundle this run published with the one before it.',
+    title: 'Compare the mod details this run published with the ones before.',
   }));
 }
 

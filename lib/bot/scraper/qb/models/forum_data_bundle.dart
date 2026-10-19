@@ -20,7 +20,7 @@ class ForumDataBundle with ForumDataBundleMappable {
   /// output lives on each `index` item's `llm` field instead.
   final Map<String, List<AssumedDownloadCandidate>> assumedDownloads;
 
-  /// The LLM's answers for Discord threads, in `forum-data-bundle-v2.json`
+  /// The LLM's answers for Discord threads, in `mod-catalog-details.json`
   /// only. Each holds the thread's id, link and name and the mods read off it,
   /// in the same shape as a forum topic's `llm` mods. No message text is
   /// published. Null in the old `forum-data-bundle.json`, which never carries

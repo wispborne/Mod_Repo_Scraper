@@ -8,7 +8,7 @@ import { fieldList, llmModsBlock, normUrl } from './extraction_views.js';
 export async function render(root, parts) {
   clear(root);
   const threadId = parts[0];
-  const parent = { label: 'ModRepo', href: '#/modrepo' };
+  const parent = { label: 'Mod Catalog', href: '#/modrepo' };
 
   let body;
   try {

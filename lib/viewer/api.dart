@@ -286,7 +286,7 @@ class ViewerApi {
     final saved = data.bundleRuns();
     if (saved.isEmpty) {
       return _missing('bundle-runs',
-          'No bundles have been saved yet. Run the scraper to save a snapshot.');
+          'No snapshots have been saved yet. Run the scraper to save one.');
     }
 
     final stamp = saved.map((s) => s.id).join('|');
@@ -621,9 +621,9 @@ class ViewerApi {
         return _missing(
             'bundle-runs',
             b == workingSideId
-                ? 'No bundle has been saved yet. Publish one to compare '
-                    'it with the data on disk.'
-                : 'That is the oldest bundle still kept, so there is nothing to '
+                ? 'No snapshot has been saved yet. Publish the mod details to '
+                    'compare them with the data on disk.'
+                : 'That is the oldest snapshot still kept, so there is nothing to '
                     'compare it against.');
       }
       a = before;
@@ -637,7 +637,7 @@ class ViewerApi {
           'bundle-runs',
           b == workingSideId
               ? 'There is no scraped data on disk to compare against yet.'
-              : 'One of those bundles is no longer kept. Pick another.');
+              : 'One of those snapshots is no longer kept. Pick another.');
     }
 
     final q = _q(req);
@@ -799,7 +799,7 @@ class ViewerApi {
     final bundle = data.bundle;
     if (bundle == null) {
       return _missing(
-          'forum-data-bundle', 'Run the QB scraper to publish the bundle.');
+          'forum-data-bundle', 'Run the QB scraper to publish the mod details.');
     }
     return _json({
       'updatedAt': bundle['updatedAt'],
@@ -811,7 +811,7 @@ class ViewerApi {
     final bundle = data.bundle;
     if (bundle == null) {
       return _missing(
-          'forum-data-bundle', 'Run the QB scraper to publish the bundle.');
+          'forum-data-bundle', 'Run the QB scraper to publish the mod details.');
     }
     final index = ((bundle['index'] as List?) ?? const []).cast<Map>();
     final details = (bundle['details'] as Map?) ?? const {};

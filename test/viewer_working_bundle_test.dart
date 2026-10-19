@@ -181,7 +181,7 @@ void main() {
     writeWorking([summary(1)], {1: detail(1)});
     final body = await get('bundle/compare?b=working');
     expect(body['missing'], isNotNull, reason: 'a missing-file envelope');
-    expect(jsonEncode(body), contains('No bundle has been saved yet'));
+    expect(jsonEncode(body), contains('No snapshot has been saved yet'));
   });
 
   test('the answer carries no post text and no whole snapshot', () async {

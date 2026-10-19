@@ -225,9 +225,9 @@ If a Collection's rules listing had a permanent id, that id SHALL remain reserve
 - **WHEN** topic 34161 becomes a Collection and "Hartley's Miscellaneous Mods" never had an id
 - **THEN** no page is published for the topic itself
 
-### Requirement: ModRepo-v2.json
+### Requirement: mod-catalog.json
 
-The merge SHALL write `ModRepo-v2.json` with one record per mod: permanent id, existing `ModRepo.json` fields and source post refs. It SHALL NOT duplicate facts from `forum-data-bundle-v2.json` or include config values, tokens, local paths or confidence scores. A cancelled merge SHALL write nothing.
+The merge SHALL write `mod-catalog.json` with one record per mod: permanent id, existing `ModRepo.json` fields and source post refs. It SHALL NOT duplicate facts from `mod-catalog-details.json` or include config values, tokens, local paths or confidence scores. A cancelled merge SHALL write nothing.
 
 #### Scenario: Mod from a Collection
 
@@ -242,7 +242,7 @@ The merge SHALL write `ModRepo-v2.json` with one record per mod: permanent id, e
 #### Scenario: Cancelled merge
 
 - **WHEN** a merge is cancelled part-way
-- **THEN** `ModRepo-v2.json` is left as it was
+- **THEN** `mod-catalog.json` is left as it was
 
 ### Requirement: The old files are frozen
 

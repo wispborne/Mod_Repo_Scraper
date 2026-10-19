@@ -1,4 +1,4 @@
-// #/modrepo — ModRepo-v2.json browser.
+// #/modrepo — Mod Catalog: the mod-catalog.json browser.
 //   #/modrepo            searchable, paged mod table
 //   #/modrepo/<index>    one merged mod, with source provenance
 
@@ -20,8 +20,8 @@ export async function render(root, parts) {
   state.page = Math.max(0, parseInt(query.get('page'), 10) || 0);
   state.pageSize = pageSizePreference();
 
-  root.append(breadcrumbs([{ label: 'ModRepo' }]));
-  root.append(el('h1', { text: 'ModRepo' }));
+  root.append(breadcrumbs([{ label: 'Mod Catalog' }]));
+  root.append(el('h1', { text: 'Mod Catalog' }));
   root.append(el('p', { class: 'run-when', text: 'Merged mods from the forum, Discord, and Nexus.' }));
   const toolbar = el('div', { class: 'toolbar' });
   const search = el('input', { type: 'search', placeholder: 'Search name or author…', value: state.q });
@@ -75,15 +75,15 @@ export async function render(root, parts) {
 async function detail(root, index) {
   const mod = await api(`modrepo/${encodeURIComponent(index)}`);
   if (mod instanceof MissingFile) {
-    root.append(breadcrumbs([{ label: 'ModRepo', href: '#/modrepo' }]));
+    root.append(breadcrumbs([{ label: 'Mod Catalog', href: '#/modrepo' }]));
     return root.append(missingPanel(mod));
   }
   if (mod.error) {
-    root.append(breadcrumbs([{ label: 'ModRepo', href: '#/modrepo' }]));
+    root.append(breadcrumbs([{ label: 'Mod Catalog', href: '#/modrepo' }]));
     return root.append(el('div', { class: 'missing error' }, el('h3', { text: mod.error })));
   }
 
-  root.append(breadcrumbs([{ label: 'ModRepo', href: '#/modrepo' }, { label: mod.name || '(empty)' }]));
+  root.append(breadcrumbs([{ label: 'Mod Catalog', href: '#/modrepo' }, { label: mod.name || '(empty)' }]));
   root.append(el('h1', { text: mod.name || '(empty)' }));
 
   // Refresh merged output from saved sources; source fetching is configured on Runs.
@@ -93,7 +93,7 @@ async function detail(root, index) {
       el('button', {
         class: 'btn',
         text: 'Re-run merge',
-        title: 'Merge saved sources into ModRepo-v2.json. No network requests.',
+        title: 'Merge saved sources into mod-catalog.json. No network requests.',
         onclick: async () => {
           try {
             const record = await manager.confirmAndSubmit({

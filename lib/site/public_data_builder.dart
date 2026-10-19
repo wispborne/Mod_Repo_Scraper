@@ -200,8 +200,8 @@ class PublicCollection {
 }
 
 /// Builds the website's data files out of what the scraper already has: the
-/// catalog (`ModRepo-v2.json`) and the forum data bundle
-/// (`forum-data-bundle-v2.json`). Neither is changed by this — they are read,
+/// catalog (`mod-catalog.json`) and the forum data bundle
+/// (`mod-catalog-details.json`). Neither is changed by this — they are read,
 /// and the website's files are written beside them.
 ///
 /// The two are joined through each mod's saved source posts: a forum topic id

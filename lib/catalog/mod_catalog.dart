@@ -82,15 +82,15 @@ class CatalogCollection {
       );
 }
 
-/// `ModRepo-v2.json`: every mod with its permanent id and source posts, and the
+/// `mod-catalog.json`: every mod with its permanent id and source posts, and the
 /// Collections that keep an old address.
 ///
-/// It holds none of the facts the bundle holds. A reader finds a mod's facts
-/// in `forum-data-bundle-v2.json` through its source posts — the forum topic id
-/// or Discord thread id, and the LLM's name for the mod — without matching
-/// names.
+/// It holds none of the facts the details file holds. A reader finds a mod's
+/// facts in `mod-catalog-details.json` through its source posts — the forum
+/// topic id or Discord thread id, and the LLM's name for the mod — without
+/// matching names.
 class ModCatalog {
-  static const String fileName = 'ModRepo-v2.json';
+  static const String fileName = 'mod-catalog.json';
 
   final DateTime generatedAt;
   final List<CatalogMod> mods;

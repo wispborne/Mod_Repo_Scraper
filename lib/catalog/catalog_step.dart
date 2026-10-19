@@ -8,7 +8,7 @@ import '../site/mod_id_store.dart';
 import 'catalog_inputs.dart';
 import 'mod_catalog.dart';
 
-/// Builds `ModRepo-v2.json` from saved files: the QB store, the Discord and
+/// Builds `mod-catalog.json` from saved files: the QB store, the Discord and
 /// Nexus results, `discord-posts.json` and the LLM's answers.
 ///
 /// Every job that can change the listings ends here — the ModRepo merge jobs
@@ -24,7 +24,7 @@ class CatalogStep {
   /// Holds `discord_cache.json` and `nexus_cache.json`.
   final String sourceCachePath;
 
-  /// Where `ModRepo-v2.json` is written.
+  /// Where `mod-catalog.json` is written.
   final String outputPath;
 
   const CatalogStep({

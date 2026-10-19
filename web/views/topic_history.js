@@ -88,7 +88,7 @@ export async function render(root, topicId, { parent } = {}) {
 /// Counts changes across the readable saved bundles.
 function summaryLine(topicId, changed, history) {
   const checked = history.snapshotsRead || 0;
-  const bundles = `${checked} saved bundle${checked === 1 ? '' : 's'}`;
+  const bundles = `${checked} saved snapshot${checked === 1 ? '' : 's'}`;
   if (!history.everInBundle) {
     return `Topic ${topicId} · Not found in ${bundles}.`;
   }
@@ -100,11 +100,11 @@ function summaryLine(topicId, changed, history) {
 function nothingChangedLine(history) {
   const from = when(history.oldestSavedAt);
   if (!history.everInBundle) {
-    return 'This thread is not in any saved bundle. History starts when it is included in a bundle.';
+    return 'This thread is not in any saved snapshot. History starts when it is included in the mod details.';
   }
   return from
-    ? `No changes in saved bundles since ${from}.`
-    : 'No changes in saved bundles.';
+    ? `No changes in saved snapshots since ${from}.`
+    : 'No changes in saved snapshots.';
 }
 
 /// Marks the oldest retained snapshot as the history boundary.
@@ -115,11 +115,11 @@ function historyEndsHere(history) {
 
   const lines = [
     from
-      ? `History starts ${from}. Earlier bundle snapshots are unavailable.`
-      : 'Earlier bundle snapshots are unavailable.',
+      ? `History starts ${from}. Earlier snapshots are unavailable.`
+      : 'Earlier snapshots are unavailable.',
   ];
   if (read < total) {
-    lines.push(`${total - read} of the ${total} saved bundles could not be read `
+    lines.push(`${total - read} of the ${total} saved snapshots could not be read `
       + 'and were skipped.');
   }
 
@@ -142,15 +142,15 @@ async function unpublishedEntry(topicId, working) {
   const said = {
     stale: [
       'Unpublished changes',
-      'This thread was scraped after the last bundle build. These changes are not in a saved bundle yet.',
+      'This thread was scraped after the mod details were last built. These changes are not in a saved snapshot yet.',
     ],
     absent: [
       'Unpublished thread',
-      'This thread is saved locally but is not in the published bundle.',
+      'This thread is saved locally but is not in the published mod details.',
     ],
     noBundle: [
-      'No published bundle',
-      'No Forum Data Bundle has been published yet. There is no saved bundle to compare.',
+      'No published mod details',
+      'No mod details have been published yet. There is no saved snapshot to compare.',
     ],
   }[staleness.state];
 
@@ -212,13 +212,13 @@ function logEntry(entry, threadHref) {
   if (entry.kind === 'first') {
     body.append(el('p', {
       class: 'change-note',
-      text: 'First saved bundle containing this thread.',
+      text: 'First saved snapshot containing this thread.',
     }));
   }
   if (entry.kind === 'gone') {
     body.append(el('p', {
       class: 'change-note',
-      text: 'This thread was removed from the bundle.',
+      text: 'This thread was removed from the mod details.',
     }));
   }
   if (changes.length) body.append(diffTable(changes));

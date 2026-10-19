@@ -1,5 +1,5 @@
 // #/topics/<id> — one thread in full. The page itself lives in bundle.js as
-// renderThreadPage, shared with the Forum Data Bundle so both routes show the
+// renderThreadPage, shared with Mod Details so both routes show the
 // same thing; this just calls it with a "back to topics" link.
 //
 // #/topics/<id>/history — the same thread's history, shared the same way.

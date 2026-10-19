@@ -44,9 +44,9 @@ We'll compare the new catalog with the published site before using it in product
 
 ### Give the new data its own filenames
 
-`ModRepo-v2.json` will contain the mods, their permanent ids and the exact posts they came from. `forum-data-bundle-v2.json` will contain the forum data we publish today, plus the LLM's answers for Discord threads. It won't include Discord message text. The site and updated TriOS will use each mod's saved post references to look up its details.
+`mod-catalog.json` will contain the mods, their permanent ids and the exact posts they came from. `mod-catalog-details.json` will contain the forum data we publish today, plus the LLM's answers for Discord threads. It won't include Discord message text. The site and updated TriOS will use each mod's saved post references to look up its details.
 
-We'll stop updating `ModRepo.json` and `forum-data-bundle.json`. Old TriOS installs will still be able to read them, but their catalog will stay as it was on the day of the switch. A separate TriOS update will read the v2 files.
+We'll stop updating `ModRepo.json` and `forum-data-bundle.json`. Old TriOS installs will still be able to read them, but their catalog will stay as it was on the day of the switch. A separate TriOS update will read the new files.
 
 ### Leave Nexus extraction and release tracking for later
 
@@ -58,15 +58,15 @@ Releases will still be tracked by forum topic. This change won't put Discord-onl
 
 ### New Capabilities
 
-- `mod-catalog`: how we turn posts into listings, combine the rules with LLM answers, recognise Collections, merge the listings, choose facts, keep permanent ids, and compare the v2 catalog before switching.
+- `mod-catalog`: how we turn posts into listings, combine the rules with LLM answers, recognise Collections, merge the listings, choose facts, keep permanent ids, and compare the catalog file before switching.
 
 ### Modified Capabilities
 
 - `qb-forum-scraping`: save the mod index lines for each topic.
 - `qb-llm-post-extraction`: read saved Discord threads, cache their answers under separate keys, and include them in the coverage report.
-- `modrepo-jobs`: save Discord opening messages, take forum listings from QB, write the v2 catalog, and merge after jobs that change listings.
-- `qb-bundle-publishing`: write the v2 bundle with Discord answers and stop updating the old bundle.
-- `output-publishing`: publish the v2 files and leave the old files alone. Archive `starmodder-4-public-site` first, since its publishing requirement lists the site files this change must keep publishing.
+- `modrepo-jobs`: save Discord opening messages, take forum listings from QB, write the catalog file, and merge after jobs that change listings.
+- `qb-bundle-publishing`: write the mod details file with Discord answers and stop updating the old bundle.
+- `output-publishing`: publish the new files and leave the old files alone. Archive `starmodder-4-public-site` first, since its publishing requirement lists the site files this change must keep publishing.
 
 ## Impact
 
@@ -76,10 +76,10 @@ The main code changes are:
 - Have `lib/bot/scraper/discord_reader.dart` write the author's opening messages to `discord-posts.json`, using thread ids as keys.
 - Update `post_extractor.dart`, `extraction_store.dart` and `prompt.dart` so the same code can read forum and Discord posts. Include Discord in `scraper_service.dart`'s coverage pass.
 - Add the source post and listing models, the code that combines a post's listings, and `bin/link_mod_ids.dart`. Update `mod_merger.dart` and `modrepo_service.dart` to use listings, and move `ModIdStore` into the merge.
-- Have `public_data_builder.dart` and `public_site_step.dart` read the v2 files and their ids. Remove `_threadOnlyMods`, `_mainLlmMod` and topic-id guessing. Stop the site from writing `discord-posts.json`, and build pages for Collections that already have ids.
+- Have `public_data_builder.dart` and `public_site_step.dart` read the new files and their ids. Remove `_threadOnlyMods`, `_mainLlmMod` and topic-id guessing. Stop the site from writing `discord-posts.json`, and build pages for Collections that already have ids.
 - Update the viewer's ModRepo, Bundle and comparison pages. Merge debug should show where each listing came from, and a mod's page should show its source posts and their LLM answers, including Discord.
-- Update `publish_service.dart`, `bundle_publisher.dart` and `tool/update-mod-repo.sh`. The script must check for the v2 files and name them in its commit message. If it keeps checking for the old filenames, it won't publish the new run.
-- In the TriOS repo, switch to the v2 files and remove `withSynthesizedAddonEntries` and `_isTheCatalogEntry`.
+- Update `publish_service.dart`, `bundle_publisher.dart` and `tool/update-mod-repo.sh`. The script must check for the new files and name them in its commit message. If it keeps checking for the old filenames, it won't publish the new run.
+- In the TriOS repo, switch to the new files and remove `withSynthesizedAddonEntries` and `_isTheCatalogEntry`.
 
 The `public-site-data` and `public-site-pages` specs only exist in unarchived changes. This design replaces their rules about adding thread-only mods; there are no archived specs to write deltas against yet.
 

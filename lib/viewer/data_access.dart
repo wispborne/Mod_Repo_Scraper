@@ -62,9 +62,9 @@ class DataAccess {
   late final File _llmTestFile = File(p.join(dataDir, 'llm-test-output.json'));
   late final File _assumedFile =
       File(p.join(dataDir, 'assumed-downloads-cache.json'));
-  late final File _modRepoFile = File(p.join(outputsDir, 'ModRepo-v2.json'));
+  late final File _modRepoFile = File(p.join(outputsDir, 'mod-catalog.json'));
   late final File _bundleFile =
-      File(p.join(outputsDir, 'forum-data-bundle-v2.json'));
+      File(p.join(outputsDir, 'mod-catalog-details.json'));
   late final File _mergeDebugFile = File(p.join(rootDir, 'merge-debug.json'));
   late final File _logFile = File(p.join(rootDir, 'ModRepo.log'));
   late final Directory _modsDir = Directory(p.join(dataDir, 'mods'));
@@ -176,7 +176,7 @@ class DataAccess {
         'assumed-downloads-cache', _assumedFile, 'Run the QB scraper.'),
     AllowlistEntry('modrepo', _modRepoFile, 'Run the mod repo merge.'),
     AllowlistEntry('forum-data-bundle', _bundleFile,
-        'Run the QB scraper to publish the bundle.'),
+        'Run the QB scraper to publish the mod details.'),
     AllowlistEntry('merge-debug', _mergeDebugFile,
         'Run the scraper with modrepo_merge_debug enabled.'),
     AllowlistEntry('log', _logFile, 'Run the scraper.'),
