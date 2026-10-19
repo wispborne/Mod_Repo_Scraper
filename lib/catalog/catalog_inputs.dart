@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
+import '../bot/scraper/qb/download_resolver.dart';
 import '../bot/scraper/qb/json_data_store.dart';
 import '../bot/scraper/qb/llm/extraction_store.dart';
 import '../bot/scraper/qb/mod_thread_filter.dart';
@@ -24,6 +26,12 @@ class CatalogListings {
   /// mods it holds.
   final List<Listing> collections;
 
+  /// Forum topics left out because the LLM said they are not a mod and the
+  /// rules found nothing to download in them, by topic id, with their titles.
+  /// Kept so the comparison with the published site can tell a page dropped
+  /// on purpose from one lost by mistake.
+  final Map<String, String> notMods;
+
   /// How many forum topics and Discord threads gave listings, for the log.
   final int forumTopics;
   final int discordThreads;
@@ -32,6 +40,7 @@ class CatalogListings {
   const CatalogListings({
     this.listings = const [],
     this.collections = const [],
+    this.notMods = const {},
     this.forumTopics = 0,
     this.discordThreads = 0,
     this.nexusPages = 0,
@@ -59,6 +68,16 @@ class CatalogInputs {
 
     final listings = <Listing>[];
     final collections = <Listing>[];
+    final notMods = <String, String>{};
+
+    // Only the saved answers are read; the client is never used.
+    final client = http.Client();
+    final downloads = QbDownloadResolver(client: client, dataPath: qbDataPath);
+    try {
+      await downloads.loadCache();
+    } finally {
+      client.close();
+    }
 
     // --- Forum: every topic the bundle keeps ---
     var forumTopics = 0;
@@ -68,6 +87,15 @@ class CatalogInputs {
       for (final summary in await store.loadIndex()) {
         final answer = llmStore.get(summary.topicId);
         if (!keepThreadInBundle(title: summary.title, llmSaidMod: answer?.isMod, inModIndex: summary.inModIndex)) {
+          continue;
+        }
+        if (!keepThreadInCatalog(
+          title: summary.title,
+          llmSaidMod: answer?.isMod,
+          inModIndex: summary.inModIndex,
+          hasDownload: downloads.getCachedCandidates(summary.topicId)?.isNotEmpty ?? false,
+        )) {
+          notMods['${summary.topicId}'] = summary.title;
           continue;
         }
         final detail = await store.loadDetail(summary.topicId);
@@ -131,9 +159,15 @@ class CatalogInputs {
       nexusPages++;
     }
 
+    if (notMods.isNotEmpty) {
+      _log.info('Left out ${notMods.length} forum topic(s) the LLM said are not '
+          'a mod and that have nothing to download.');
+    }
+
     return CatalogListings(
       listings: listings,
       collections: collections,
+      notMods: notMods,
       forumTopics: forumTopics,
       discordThreads: discordThreads,
       nexusPages: nexusPages,

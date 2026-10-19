@@ -32,6 +32,13 @@ class CatalogComparison {
   /// either the two pages were one mod all along, or the merge joined two.
   final Map<String, CatalogMod> joinedInto;
 
+  /// Ids whose only post is a forum topic the catalog leaves out on purpose:
+  /// the LLM said it is not a mod and it has nothing to download. A question
+  /// thread or a showcase with nothing to install. These do not block the
+  /// switch; the ids stay in `mod-ids.json`, so a showcase that later puts out
+  /// a download gets its old address back.
+  final List<PublishedPage> removedOnPurpose;
+
   /// Ids that are now a Collection's page rather than a mod.
   final List<(PublishedPage, CatalogCollection)> becameCollections;
 
@@ -52,6 +59,7 @@ class CatalogComparison {
   const CatalogComparison({
     this.missing = const [],
     this.joinedInto = const {},
+    this.removedOnPurpose = const [],
     this.becameCollections = const [],
     this.postsChanged = const [],
     this.added = const [],
@@ -84,6 +92,9 @@ class CatalogComparison {
       for (final page in missing)
         '`${page.id}` — ${page.name}${_where(page)}'
             '${joinedInto[page.id] == null ? '' : ' — joined into `${joinedInto[page.id]!.id}`'}',
+    ]);
+    section('Removed on purpose: not a mod, nothing to download', [
+      for (final page in removedOnPurpose) '`${page.id}` — ${page.name}${_where(page)}',
     ]);
     section('Ids that become Collection pages', [
       for (final (page, collection) in becameCollections)
@@ -140,12 +151,22 @@ List<PublishedPage> readPublishedPages(Directory modsDir) {
 }
 
 /// Compares [catalog] with the [published] site, by permanent id.
-CatalogComparison compareCatalog({required List<PublishedPage> published, required ModCatalog catalog}) {
+///
+/// [notMods] is the forum topics the catalog left out on purpose
+/// ([CatalogListings.notMods]). A missing page whose only post is one of them
+/// is listed as removed on purpose rather than missing. A page that also had a
+/// Discord thread is still missing: the thread should have kept it.
+CatalogComparison compareCatalog({
+  required List<PublishedPage> published,
+  required ModCatalog catalog,
+  Set<String> notMods = const {},
+}) {
   final modsById = {for (final mod in catalog.mods) mod.id: mod};
   final collectionsById = {for (final c in catalog.collections) c.id: c};
   final publishedIds = {for (final page in published) page.id};
 
   final missing = <PublishedPage>[];
+  final removedOnPurpose = <PublishedPage>[];
   final becameCollections = <(PublishedPage, CatalogCollection)>[];
   final postsChanged = <(PublishedPage, CatalogMod)>[];
   final renamed = <(PublishedPage, CatalogMod)>[];
@@ -156,6 +177,8 @@ CatalogComparison compareCatalog({required List<PublishedPage> published, requir
       final collection = collectionsById[page.id];
       if (collection != null) {
         becameCollections.add((page, collection));
+      } else if (page.discordThread == null && notMods.contains(page.forumTopic)) {
+        removedOnPurpose.add(page);
       } else {
         missing.add(page);
       }
@@ -194,6 +217,7 @@ CatalogComparison compareCatalog({required List<PublishedPage> published, requir
   return CatalogComparison(
     missing: missing,
     joinedInto: joinedInto,
+    removedOnPurpose: removedOnPurpose,
     becameCollections: becameCollections,
     postsChanged: postsChanged,
     added: [for (final mod in catalog.mods) if (!publishedIds.contains(mod.id)) mod],

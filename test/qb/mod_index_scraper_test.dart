@@ -66,6 +66,23 @@ void main() {
       expect(result.containsKey(999), isFalse);
     });
 
+    test('only a line\'s own link counts, not a link in its notes', () {
+      // The old index line for New Galactic Order (topic 9402) links a
+      // "partial fix" post in topic 11402, which is a help thread.
+      final doc = html_parser.parse(_wrapPost('''
+<table class="bbc_table"><tbody><tr><td>
+  <strong>Faction Mods:</strong>
+  <ul class="bbc_list">
+    <li>[<strong>0.7.2a</strong>] <strong><a href="index.php?topic=9402.0">New Galactic Order</a></strong>
+      by <em><strong>Ahne (bugged, <a href="index.php?topic=11402.msg193960#msg193960">partial fix</a>)</strong></em></li>
+  </ul>
+</td></tr></tbody></table>
+'''));
+      final post = doc.querySelector('#forumposts .post .inner')!;
+      final result = QbModIndexScraper.extractTopicCategoriesFromPost(post);
+      expect(result, equals({9402: 'Faction Mods'}));
+    });
+
     test('label with multiple trailing colons trims all (BUG 5)', () {
       final doc = html_parser.parse(_wrapPost('''
 <table class="bbc_table"><tbody><tr><td>

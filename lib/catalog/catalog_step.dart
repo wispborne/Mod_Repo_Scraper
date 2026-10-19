@@ -44,6 +44,9 @@ class CatalogStep {
   ///
   /// A `mod-ids.json` that is there but cannot be read throws before anything
   /// is written, because fresh ids would move every mod's page.
+  ///
+  /// [onListings] is handed the listings the catalog was built from, for the
+  /// comparison with the published site.
   Future<ModCatalog?> run({
     List<ScrapedMod>? discordMods,
     List<ScrapedMod>? nexusMods,
@@ -51,6 +54,7 @@ class CatalogStep {
     bool keepAllGameVersionsFromSameSource = false,
     bool Function()? isCancelled,
     void Function(String message)? log,
+    void Function(CatalogListings listings)? onListings,
   }) async {
     final started = DateTime.now();
     final inputs = await CatalogInputs.read(
@@ -61,7 +65,9 @@ class CatalogStep {
     log?.call('Catalog listings: ${inputs.listings.length} from '
         '${inputs.forumTopics} forum topics, ${inputs.discordThreads} Discord '
         'threads and ${inputs.nexusPages} Nexus pages; '
-        '${inputs.collections.length} Collections.');
+        '${inputs.collections.length} Collections; ${inputs.notMods.length} '
+        'forum topics left out as not a mod with nothing to download.');
+    onListings?.call(inputs);
 
     final ids = ModIdStore(qbDataPath)..load();
     final catalog = await ModCatalog.build(

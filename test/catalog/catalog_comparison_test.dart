@@ -41,13 +41,24 @@ void main() {
     const PublishedPage(id: 'derelict-starts', name: 'Derelict Starts', forumTopic: '34457'),
     const PublishedPage(id: 'gone', name: 'Gone', forumTopic: '1'),
     const PublishedPage(id: 'kwin', name: 'Kwin', forumTopic: '35651'),
+    const PublishedPage(id: 'a-question', name: 'A question', forumTopic: '33546'),
+    const PublishedPage(id: 'question-with-thread', name: 'Question with a thread', forumTopic: '33547', discordThread: '9'),
   ];
 
-  final comparison = compareCatalog(published: published, catalog: catalog);
+  final comparison = compareCatalog(published: published, catalog: catalog, notMods: {'33546', '33547'});
 
   test('a published id with no mod and no Collection is missing, and blocks the switch', () {
     expect(comparison.missing.map((p) => p.id), containsAll(['gone', 'the-brighton-federation']));
     expect(comparison.blocksTheSwitch, isTrue);
+  });
+
+  test('a page whose only post was left out as not a mod is removed on purpose, not missing', () {
+    expect(comparison.removedOnPurpose.map((p) => p.id), ['a-question']);
+    expect(comparison.missing.map((p) => p.id), isNot(contains('a-question')));
+  });
+
+  test('a page that also had a Discord thread is still missing', () {
+    expect(comparison.missing.map((p) => p.id), contains('question-with-thread'));
   });
 
   test('a missing id whose post is now in another mod is said to be joined into it', () {
@@ -73,5 +84,6 @@ void main() {
     final report = comparison.toMarkdown();
     expect(report, contains('The switch is blocked'));
     expect(report, contains('joined into `brighton-federation`'));
+    expect(report, contains('Removed on purpose'));
   });
 }

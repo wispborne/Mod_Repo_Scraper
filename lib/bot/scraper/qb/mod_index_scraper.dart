@@ -247,10 +247,13 @@ class QbModIndexScraper {
 
       if (sibling == null) continue;
 
-      final topicLinks = sibling.querySelectorAll("a[href*='topic='], a[href*='topic,'], a[href*='topic/']");
-      for (final link in topicLinks) {
-        final href = link.attributes['href'];
-        final topicId = ForumConstants.tryExtractTopicId(href);
+      // Only each line's own link, the one [extractIndexLinesFromPost] names
+      // the mod from. Other links on a line are notes: an old line for New
+      // Galactic Order links a "partial fix" post in topic 11402, a help
+      // thread, and counting it made that thread a mod.
+      for (final item in sibling.querySelectorAll('li')) {
+        final link = item.querySelector("a[href*='topic='], a[href*='topic,'], a[href*='topic/']");
+        final topicId = ForumConstants.tryExtractTopicId(link?.attributes['href']);
         if (topicId == null) continue;
         parsed.putIfAbsent(topicId, () => category);
       }

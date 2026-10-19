@@ -27,3 +27,28 @@ bool keepThreadInBundle({
   if (llmSaidMod != false) return true;
   return ForumConstants.gameVersionRegex.hasMatch(title);
 }
+
+/// Whether a thread gives the catalog a mod. Stricter than
+/// [keepThreadInBundle], which still decides what the old bundle carries.
+///
+/// A thread the LLM judged a non-mod is kept only when the mod index lists it
+/// or the rules found something to download in it ([hasDownload]). A game
+/// version in the title no longer counts on its own: question threads carry
+/// one too ("[0.98a] Null error using the Star Wars mod", topic 33546). So
+/// two signals still have to agree before a thread is dropped — the LLM, and
+/// a post with nothing to install.
+///
+/// On real data every thread this drops had no download at all: questions,
+/// old threads marked "MOVED:" whose mod is published from its new thread,
+/// and work-in-progress showcases.
+bool keepThreadInCatalog({
+  required String title,
+  required bool? llmSaidMod,
+  bool inModIndex = false,
+  required bool hasDownload,
+}) {
+  if (!keepThreadInBundle(title: title, llmSaidMod: llmSaidMod, inModIndex: inModIndex)) return false;
+  if (inModIndex) return true;
+  if (llmSaidMod != false) return true;
+  return hasDownload;
+}

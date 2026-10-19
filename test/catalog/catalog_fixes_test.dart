@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:mod_repo_scraper/bot/scraper/mod_merger.dart';
+import 'package:http/http.dart' as http;
+import 'package:mod_repo_scraper/bot/scraper/qb/download_resolver.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/json_data_store.dart';
+import 'package:mod_repo_scraper/bot/scraper/qb/llm/extraction_store.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/mod_thread_filter.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_detail.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_summary.dart';
@@ -263,6 +266,57 @@ void main() {
 
     expect([for (final l in inputs.listings) l.ref.id]..sort(), ['22693', '5']);
     expect(inputs.listings.firstWhere((l) => l.ref.id == '22693').mod.name, 'Fast Engine Rendering');
+  });
+
+  test('a "[0.98a]" title no longer keeps a thread the LLM says is not a mod', () {
+    // Topic 33546 is a question; the version tag used to make it a mod.
+    expect(
+      keepThreadInCatalog(title: '[0.98a] Null error using the Star Wars mod', llmSaidMod: false, hasDownload: false),
+      isFalse,
+    );
+    expect(keepThreadInCatalog(title: '[0.98a] Some Mod', llmSaidMod: false, hasDownload: true), isTrue);
+    expect(
+      keepThreadInCatalog(title: 'A help thread', llmSaidMod: false, inModIndex: true, hasDownload: false),
+      isTrue,
+    );
+    expect(keepThreadInCatalog(title: '[0.98a] Unread Mod', llmSaidMod: null, hasDownload: false), isTrue);
+    // Never keeps what the bundle drops.
+    expect(keepThreadInCatalog(title: 'Any mods with swappable modules?', llmSaidMod: false, hasDownload: true),
+        isFalse);
+  });
+
+  test('a thread the LLM says is not a mod gives a listing only with something to download', () async {
+    final dir = Directory.systemTemp.createTempSync('catalog_fixes_not_mods');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final store = JsonDataStore(dir.path);
+    const question = '[0.98a] Null error using the Star Wars mod';
+    const withDownload = '[0.97a] Old Mod 1.0';
+    await store.saveIndex([
+      QbModSummary(topicId: 33546, title: question),
+      QbModSummary(topicId: 6, title: withDownload),
+    ]);
+    await store.saveDetail(QbModDetail(topicId: 33546, title: question, contentHtml: '<p>It crashes.</p>'));
+    await store.saveDetail(QbModDetail(topicId: 6, title: withDownload, contentHtml: '<p>Old Mod.</p>'));
+
+    final llm = LlmExtractionStore(dir.path, flushEveryN: 1000);
+    for (final topicId in [33546, 6]) {
+      await llm.put(topicId,
+          LlmStoreEntry(fingerprint: 'x', schemaVersion: LlmExtractionStore.schemaVersion, promptVersion: 1, mods: const [], isMod: false));
+    }
+    await llm.flush();
+
+    final client = http.Client();
+    addTearDown(client.close);
+    final downloads = QbDownloadResolver(client: client, dataPath: dir.path)
+      ..importCandidates(6, [
+        DownloadCandidate(sourceUrl: 'https://example.com/OldMod.zip', resolvedUrl: 'https://example.com/OldMod.zip'),
+      ]);
+    await downloads.saveCache();
+
+    final inputs = await CatalogInputs.read(qbDataPath: dir.path);
+
+    expect([for (final l in inputs.listings) l.ref.id], ['6']);
+    expect(inputs.notMods, {'33546': question});
   });
 
   test('a topic the index does not list is named from its title with nothing left dangling', () {

@@ -66,18 +66,23 @@ Future<void> main(List<String> arguments) async {
     stdout.writeln('Linked ${report.links} source posts from ${report.pages} published pages.');
   }
 
+  var notMods = const <String>{};
   final catalog = await CatalogStep(
     qbDataPath: dataPath,
     sourceCachePath: args['sources'] as String,
     outputPath: outPath,
-  ).run(log: stdout.writeln);
+  ).run(log: stdout.writeln, onListings: (listings) => notMods = listings.notMods.keys.toSet());
 
-  final comparison = compareCatalog(published: readPublishedPages(publishedMods), catalog: catalog!);
+  final comparison = compareCatalog(
+    published: readPublishedPages(publishedMods),
+    catalog: catalog!,
+    notMods: notMods,
+  );
   final reportFile = File(p.join(outPath, 'catalog-comparison.md'));
   await reportFile.writeAsString(comparison.toMarkdown());
 
   stdout.writeln('Missing ids: ${comparison.missing.length} (${comparison.joinedInto.length} joined into another '
-      'mod); becoming Collections: '
+      'mod); removed on purpose: ${comparison.removedOnPurpose.length}; becoming Collections: '
       '${comparison.becameCollections.length}; source posts changed: ${comparison.postsChanged.length}; '
       'Discord threads giving several mods: ${comparison.discordThreadsWithSeveral.length}; '
       'new mods: ${comparison.added.length}; names that differ: ${comparison.renamed.length}.');
