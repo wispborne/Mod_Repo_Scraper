@@ -231,4 +231,62 @@ void main() {
       expect(id, isNot(before['BSP Peenemunde']));
     });
   });
+
+  group('a topic the old site made two pages from', () {
+    // Topic 35988 had a page of its own and one shared with its Discord thread.
+    // Both were linked to the whole topic.
+    void writeOrbitingSpoons() => File(p.join(dir.path, ModIdStore.fileName)).writeAsStringSync(jsonEncode({
+          'ids': {
+            'orbiting spoons - chat and dine with your crew (wip)': {
+              'id': 'orbiting-spoons-wip',
+              'firstSeen': '2026-09-08',
+              'mark': 'topic:35988',
+              'posts': ['forum:35988'],
+            },
+            'the orbiting spoon - a space diner': {
+              'id': 'the-orbiting-spoon',
+              'firstSeen': '2026-09-08',
+              'mark': 'topic:35988',
+              'posts': ['discord:1546728677616779344', 'forum:35988'],
+            },
+          },
+        }));
+    final forumRef = forum('35988', 'The Orbiting Spoon');
+    final discordRef = discord('1546728677616779344', 'The Orbiting Spoon');
+
+    for (final discordFirst in [true, false]) {
+      test('the topic keeps its own id while the Discord thread keeps the shared one (Discord first: $discordFirst)',
+          () {
+        writeOrbitingSpoons();
+        final ids = store()..beginRun(refsThisRun: [forumRef, discordRef]);
+        String forumId() => ids.idForPosts('Orbiting Spoons', mark: 'topic:35988', refs: [forumRef]);
+        String discordId() => ids.idForPosts('The Orbiting Spoon', mark: 'volkflower', refs: [discordRef]);
+
+        final String fromForum;
+        final String fromDiscord;
+        if (discordFirst) {
+          fromDiscord = discordId();
+          fromForum = forumId();
+        } else {
+          fromForum = forumId();
+          fromDiscord = discordId();
+        }
+
+        expect(fromForum, 'orbiting-spoons-wip');
+        expect(fromDiscord, 'the-orbiting-spoon');
+      });
+    }
+
+    test("two whole-topic ids with nothing to tell them apart are still nobody's", () {
+      File(p.join(dir.path, ModIdStore.fileName)).writeAsStringSync(jsonEncode({
+        'ids': {
+          'a': {'id': 'a', 'firstSeen': '2026-09-08', 'mark': 'topic:7', 'posts': ['forum:7']},
+          'b': {'id': 'b', 'firstSeen': '2026-09-08', 'mark': 'topic:7', 'posts': ['forum:7']},
+        },
+      }));
+      final ref = forum('7', 'Something New');
+      final ids = store()..beginRun(refsThisRun: [ref]);
+      expect(ids.idForPosts('Something New', mark: 'topic:7', refs: [ref]), isNot(anyOf('a', 'b')));
+    });
+  });
 }

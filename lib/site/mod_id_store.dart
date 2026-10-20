@@ -319,11 +319,36 @@ class ModIdStore {
       // post has just the one.
       final whole = _byPost[ref.post.key];
       if (_usable(whole) && (_byPostOnly[ref.post.key]?.length ?? 0) <= 1) return whole;
-      return _renamedEntry(ref);
+      return _renamedEntry(ref) ?? _wholePostEntryLeft(ref.post.key);
     }
     // Asked about a whole post: its entry when there is exactly one.
     final candidates = [for (final e in _byPostOnly[ref.post.key] ?? const <_Entry>[]) if (_usable(e)) e];
-    return candidates.length == 1 ? candidates.single : null;
+    return candidates.length == 1 ? candidates.single : _wholePostEntryLeft(ref.post.key);
+  }
+
+  /// The one whole-post id left on [post] once the ids that belong elsewhere
+  /// are set aside, or null.
+  ///
+  /// The old site sometimes made two pages from one topic, and both were linked
+  /// to the whole topic. Topic 35988 had one page of its own and one shared with
+  /// its Discord thread. The Discord thread gives a mod of its own this run and
+  /// keeps the shared id, so the topic's own id is the only one left for it.
+  /// Without this the topic got a new id and lost its address.
+  ///
+  /// Only ids linked to the whole post count. An id linked under an LLM name is
+  /// left to [_renamedEntry], which is careful for good reason (topic 34161).
+  /// An id also linked to another post in this build is set aside: it goes with
+  /// that post. Two or more left over is still nobody's.
+  _Entry? _wholePostEntryLeft(String post) {
+    final left = [
+      for (final entry in _byPostOnly[post] ?? const <_Entry>[])
+        if (_usable(entry) &&
+            entry.posts.contains(post) &&
+            _oldNamesOn(entry, post).isEmpty &&
+            !entry.posts.any((key) => _postOnlyKey(key) != post && _postsThisRun.contains(_postOnlyKey(key))))
+          entry,
+    ];
+    return left.length == 1 ? left.single : null;
   }
 
   bool _usable(_Entry? entry) =>
