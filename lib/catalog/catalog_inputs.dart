@@ -8,6 +8,7 @@ import '../bot/scraper/qb/download_resolver.dart';
 import '../bot/scraper/qb/json_data_store.dart';
 import '../bot/scraper/qb/llm/extraction_store.dart';
 import '../bot/scraper/qb/mod_thread_filter.dart';
+import '../bot/scraper/qb/models/mod_summary.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
 import 'discord_posts.dart';
@@ -32,6 +33,11 @@ class CatalogListings {
   /// on purpose from one lost by mistake.
   final Map<String, String> notMods;
 
+  /// Mods on a forum topic that only link to a topic of their own, so they
+  /// made no listing (see `SourcePostListings.combine`): the key of the ref
+  /// each would have had to the key of the topic it links to.
+  final Map<String, String> pointers;
+
   /// How many forum topics and Discord threads gave listings, for the log.
   final int forumTopics;
   final int discordThreads;
@@ -41,6 +47,7 @@ class CatalogListings {
     this.listings = const [],
     this.collections = const [],
     this.notMods = const {},
+    this.pointers = const {},
     this.forumTopics = 0,
     this.discordThreads = 0,
     this.nexusPages = 0,
@@ -79,11 +86,16 @@ class CatalogInputs {
       client.close();
     }
 
+    final pointers = <String, String>{};
+
     // --- Forum: every topic the bundle keeps ---
     var forumTopics = 0;
     final storeDir = Directory(qbDataPath);
     if (File(p.join(qbDataPath, 'mods-index.json')).existsSync() && storeDir.existsSync()) {
       final store = JsonDataStore(qbDataPath);
+      // Read first and combined after, because a post can point at another
+      // topic's mod only once every topic in the build is known.
+      final kept = <(QbModSummary, LlmStoreEntry?, String?)>[];
       for (final summary in await store.loadIndex()) {
         final answer = llmStore.get(summary.topicId);
         if (!keepThreadInBundle(title: summary.title, llmSaidMod: answer?.isMod, inModIndex: summary.inModIndex)) {
@@ -107,14 +119,24 @@ class CatalogInputs {
         final words = detail == null
             ? summary.title
             : SourcePostListings.openingRunWords(SourcePost.fromForumDetail(detail));
+        kept.add((summary, answer, words));
+      }
+      final topicsInBuild = {for (final (summary, _, _) in kept) '${summary.topicId}'};
+      for (final (summary, answer, words) in kept) {
         final result = SourcePostListings.combine(
           rules: forumRulesListing(summary),
           llmMods: answer?.mods ?? const <LlmMod>[],
           postWords: words,
+          forumTopicsInBuild: topicsInBuild,
         );
         listings.addAll(result.listings);
         if (result.collection != null) collections.add(result.collection!);
+        pointers.addAll(result.pointers);
         forumTopics++;
+      }
+      if (pointers.isNotEmpty) {
+        _log.info('${pointers.length} mod(s) on a list of mods only link to a forum topic '
+            'of their own, so they are that topic\'s mod: ${pointers.keys.join(', ')}');
       }
     }
 
@@ -168,6 +190,7 @@ class CatalogInputs {
       listings: listings,
       collections: collections,
       notMods: notMods,
+      pointers: pointers,
       forumTopics: forumTopics,
       discordThreads: discordThreads,
       nexusPages: nexusPages,

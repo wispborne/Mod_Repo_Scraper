@@ -219,6 +219,16 @@ class ModCatalog {
         CatalogMod(id: idOf[i]!, mod: merged[i].mod, sourcePosts: postsOf[i]),
     ];
 
+    // The topics a Collection's mods link to, where they have a thread of
+    // their own (see SourcePostListings.combine).
+    Set<String> pointedFrom(SourcePostRef collection) {
+      final prefix = '${collection.post.key}#';
+      return {
+        for (final MapEntry(:key, :value) in inputs.pointers.entries)
+          if (key.startsWith(prefix)) value,
+      };
+    }
+
     final collections = [
       for (final (id, collection) in reserved)
         CatalogCollection(
@@ -227,7 +237,9 @@ class ModCatalog {
           post: collection.ref.post,
           modIds: [
             for (final mod in mods)
-              if (mod.sourcePosts.any((post) => post.kind == collection.ref.kind && post.id == collection.ref.id))
+              if (mod.sourcePosts.any((post) =>
+                  (post.kind == collection.ref.kind && post.id == collection.ref.id) ||
+                  pointedFrom(collection.ref).contains(post.ref.post.key)))
                 mod.id,
           ],
         ),
@@ -241,7 +253,7 @@ class ModCatalog {
           authors: mod.mod.getAuthors(),
           refs: [for (final post in mod.sourcePosts) post.ref],
         ),
-    ], log: log);
+    ], pointers: inputs.pointers, log: log);
 
     return ModCatalog(
       generatedAt: (generatedAt ?? DateTime.now()).toUtc(),

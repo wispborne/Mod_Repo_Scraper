@@ -1,3 +1,4 @@
+import '../bot/scraper/qb/forum_constants.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
 import '../site/mod_name_match.dart';
@@ -17,7 +18,14 @@ class PostListings {
   /// reserved for a page listing the mods. Null when the post is not one.
   final Listing? collection;
 
-  const PostListings(this.listings, {this.collection});
+  /// The mods on the post that only point at a forum thread of their own,
+  /// which make no listing here: the key of the ref each would have had
+  /// (`forum:36175#Cloning`) to the key of the topic it links to
+  /// (`forum:35130`). An old id once given to one of them leads to the mod on
+  /// that topic.
+  final Map<String, String> pointers;
+
+  const PostListings(this.listings, {this.collection, this.pointers = const {}});
 
   bool get isCollection => collection != null;
 }
@@ -40,6 +48,15 @@ class PostListings {
 /// Add-ons and variants are never listings: they are listed on their main
 /// mod's page. A `separate` mod is no listing either.
 ///
+/// On a forum topic with two or more, a mod whose every download is a link to
+/// one other forum topic in this build is that topic's mod, and makes no
+/// listing here. Topic 36175 is one author's list of fourteen mods, thirteen
+/// of them linking to a thread of their own, and the LLM took each link for
+/// the mod's download; each became a second page for a mod that already had
+/// one, because two forum topics never become one mod. The rest of the post
+/// goes through the rule for two or more, so a post left with no mods of its
+/// own is a Collection.
+///
 /// With the LLM off, every post gives exactly its rules listing. The
 /// Collection case is the only way the LLM can take the rules listing away; it
 /// can never rename it or merge it into a different mod.
@@ -49,12 +66,31 @@ class SourcePostListings {
   /// [rules] is the post's rules listing. [llmMods] is the LLM's answer for
   /// the post, empty when it has none. [postWords] is the plain text of the
   /// author's opening run, which a mod's name has to appear in.
+  /// [forumTopicsInBuild] is the id of every forum topic that gives listings
+  /// this build; a mod is only taken as pointing at a topic in it, so a mod
+  /// whose own thread we do not have keeps its listing here.
   static PostListings combine({
     required Listing rules,
     required List<LlmMod> llmMods,
     required String? postWords,
+    Set<String> forumTopicsInBuild = const {},
   }) {
     final grounded = groundedMainMods(llmMods, postWords);
+
+    if (grounded.length >= 2 && rules.ref.kind == SourceKind.forum) {
+      final pointers = <String, String>{};
+      final own = <LlmMod>[];
+      for (final llmMod in grounded) {
+        final topic = _topicPointedTo(llmMod, rules.ref.id, forumTopicsInBuild);
+        if (topic == null) {
+          own.add(llmMod);
+        } else {
+          pointers[rules.ref.copyWith(llmModName: llmMod.name.trim()).key] =
+              SourcePostRef(kind: SourceKind.forum, id: topic).key;
+        }
+      }
+      if (pointers.isNotEmpty) return _several(rules, own, pointers: pointers);
+    }
 
     if (grounded.isEmpty) {
       // Unchanged, except that the post's one LLM mod — where it is plain which
@@ -70,17 +106,42 @@ class SourcePostListings {
       return PostListings([_joined(rules, grounded.single)]);
     }
 
-    final match = _matchFor(rules, grounded);
+    return _several(rules, grounded);
+  }
+
+  /// The rule for a post holding two or more mods, [mods] being the ones that
+  /// make listings here.
+  static PostListings _several(Listing rules, List<LlmMod> mods, {Map<String, String> pointers = const {}}) {
+    final match = _matchFor(rules, mods);
     if (match == null) {
       return PostListings(
-        [for (final llmMod in grounded) _llmListing(rules, llmMod)],
+        [for (final llmMod in mods) _llmListing(rules, llmMod)],
         collection: rules,
+        pointers: pointers,
       );
     }
-    return PostListings([
-      for (final llmMod in grounded)
-        identical(llmMod, match) ? _joined(rules, llmMod) : _llmListing(rules, llmMod),
-    ]);
+    return PostListings(
+      [
+        for (final llmMod in mods)
+          identical(llmMod, match) ? _joined(rules, llmMod) : _llmListing(rules, llmMod),
+      ],
+      pointers: pointers,
+    );
+  }
+
+  /// The id of the one other forum topic in [inBuild] that every download of
+  /// [llmMod] links to, or null. A file attached to a topic is a download,
+  /// not a link to it, so an `action=` address never counts.
+  static String? _topicPointedTo(LlmMod llmMod, String ownTopic, Set<String> inBuild) {
+    final topics = <String>{};
+    for (final download in llmMod.downloads) {
+      final url = download.url;
+      if (!ForumConstants.isForumHosted(url) || url.contains('action=')) return null;
+      final topic = ForumConstants.tryExtractTopicId(url)?.toString();
+      if (topic == null || topic == ownTopic || !inBuild.contains(topic)) return null;
+      topics.add(topic);
+    }
+    return topics.length == 1 ? topics.single : null;
   }
 
   /// The LLM's `main` mods on a post that count: named in the author's own

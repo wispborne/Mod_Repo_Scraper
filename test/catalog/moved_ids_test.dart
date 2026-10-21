@@ -48,6 +48,26 @@ void main() {
     expect(ids.movedIds([built(id, refs, names: ['CarrierUI'])]), {'carrierui-2': 'carrierui'});
   });
 
+  test("an id from a list of mods leads to the mod's own thread, never to what is left on the list", () {
+    // Topic 36175 got a page for each of its mods for a day before the list's
+    // links to each mod's own thread were understood.
+    final ids = storeWith({
+      'cloning#topic:36175': {'id': 'cloning-3', 'posts': ['forum:36175#Cloning']},
+      'coalesced little mods': {'id': 'coalesced-little-mods', 'posts': ['forum:36175#Coalesced Little Mods']},
+      'cloning': {'id': 'cloning', 'posts': ['forum:35130']},
+    });
+    ids.beginRun();
+    final moved = ids.movedIds(
+      [
+        built('cloning', [forum('35130')], names: ['Cloning']),
+        built('coalesced-little-mods', [forum('36175', 'Coalesced Little Mods')], names: ['Coalesced Little Mods']),
+      ],
+      pointers: {'forum:36175#Cloning': 'forum:35130'},
+    );
+
+    expect(moved, {'cloning-3': 'cloning'});
+  });
+
   test('an id linked to no post goes to the mod on its topic only when that mod goes by its name', () {
     // Topic 30580 was NEON's ship pack and is now Xxarra's Variety Pack.
     final ids = storeWith({

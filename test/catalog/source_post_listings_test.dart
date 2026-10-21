@@ -194,6 +194,98 @@ void main() {
     });
   });
 
+  group("a list of mods that links to each mod's own thread (topic 36175)", () {
+    const hubWords = "Oddisz's Mods. Every mod I've made is in this list. Cloning: a cloning industry. "
+        'Sol Renewed: adds Sol. Coalesced Little Mods (no thread yet, links to GitHub).';
+    final hub = Listing(
+      mod: const ScrapedMod(
+        name: "Oddish's Mods",
+        urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=36175.0'},
+      ),
+      ref: const SourcePostRef(kind: SourceKind.forum, id: '36175'),
+    );
+    LlmMod linking(String name, List<String> urls) =>
+        LlmMod(name: name, downloads: [for (final url in urls) LlmDownload(url: url)]);
+    String thread(int topic) =>
+        'https://fractalsoftworks.com/forum/index.php?PHPSESSID=49bdf1e17287b62ad790769849bb727e&topic=$topic';
+    const pack = 'https://github.com/andrzejsokolowski/starsector-coalesced-little-mods/releases/latest';
+    const inBuild = {'36175', '35130', '35983'};
+
+    test('a mod that only links to its own thread is that thread\'s mod; the rest is a Collection', () {
+      final result = SourcePostListings.combine(
+        rules: hub,
+        llmMods: [
+          linking('Cloning', [thread(35130)]),
+          linking('Sol Renewed', [thread(35983)]),
+          linking('Coalesced Little Mods', [pack]),
+        ],
+        postWords: hubWords,
+        forumTopicsInBuild: inBuild,
+      );
+
+      expect(_names(result), ['Coalesced Little Mods']);
+      expect(result.isCollection, isTrue, reason: "no mod is called the list's name");
+      expect(result.pointers, {
+        'forum:36175#Cloning': 'forum:35130',
+        'forum:36175#Sol Renewed': 'forum:35983',
+      });
+    });
+
+    test('a list whose every mod has its own thread gives no listings at all', () {
+      final result = SourcePostListings.combine(
+        rules: hub,
+        llmMods: [linking('Cloning', [thread(35130)]), linking('Sol Renewed', [thread(35983)])],
+        postWords: hubWords,
+        forumTopicsInBuild: inBuild,
+      );
+      expect(result.listings, isEmpty);
+      expect(result.isCollection, isTrue);
+    });
+
+    test('a thread we do not have, a real file beside the link, or a file attached to another topic: still a mod here',
+        () {
+      final result = SourcePostListings.combine(
+        rules: hub,
+        llmMods: [
+          linking('Cloning', [thread(99999)]),
+          linking('Sol Renewed', [thread(35983), 'https://example.com/sol.zip']),
+          linking('Coalesced Little Mods',
+              ['https://fractalsoftworks.com/forum/index.php?action=dlattach;topic=35130.0;attach=1']),
+        ],
+        postWords: hubWords,
+        forumTopicsInBuild: inBuild,
+      );
+      expect(_names(result), ['Cloning', 'Sol Renewed', 'Coalesced Little Mods']);
+      expect(result.pointers, isEmpty);
+    });
+
+    test("a post with one mod linking elsewhere is left alone: an old thread's link to its new one", () {
+      final result = SourcePostListings.combine(
+        rules: hub,
+        llmMods: [linking('Cloning', [thread(35130)])],
+        postWords: hubWords,
+        forumTopicsInBuild: inBuild,
+      );
+      expect(result.listings.single.ref.llmModName, 'Cloning');
+      expect(result.pointers, isEmpty);
+    });
+
+    test('a Discord thread is left alone: the merge joins it to the forum mod by name', () {
+      final discordRules = Listing(
+        mod: const ScrapedMod(name: 'Two Mods Thread'),
+        ref: const SourcePostRef(kind: SourceKind.discord, id: '900'),
+      );
+      final result = SourcePostListings.combine(
+        rules: discordRules,
+        llmMods: [linking('Cloning', [thread(35130)]), linking('Sol Renewed', [thread(35983)])],
+        postWords: hubWords,
+        forumTopicsInBuild: inBuild,
+      );
+      expect(_names(result), ['Cloning', 'Sol Renewed']);
+      expect(result.pointers, isEmpty);
+    });
+  });
+
   group('Discord threads go through the same rule', () {
     final thread = DiscordThreadPost(
       threadId: '900',

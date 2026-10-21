@@ -303,12 +303,18 @@ class ModIdStore {
   ///   credited to that author). Never a topic's mod by the topic alone: topic
   ///   30580 was NEON's ship pack and is now Xxarra's Variety Pack.
   ///
+  /// An id linked under a mod that only pointed at a forum topic of its own
+  /// ([pointers], from `SourcePostListings.combine`) goes to the one mod on
+  /// that topic, and never to whatever else is left on the post: topic 36175
+  /// listed thirteen mods with threads of their own and one without.
+  ///
   /// Two or more mods that fit is nobody's: a wrong address is worse than none.
   /// A move is kept in the file, so an old id still leads somewhere after its
   /// posts are gone, for as long as the mod it leads to is still in the build.
   /// An id a mod is given again stops being moved.
   Map<String, String> movedIds(
     List<({String id, List<String> names, List<String> authors, List<SourcePostRef> refs})> mods, {
+    Map<String, String> pointers = const {},
     void Function(String message)? log,
   }) {
     final liveIds = {for (final mod in mods) mod.id};
@@ -330,7 +336,7 @@ class ModIdStore {
       }
       if (moved.containsKey(entry.id)) continue;
 
-      final target = _movedTarget(entry, namesOf[entry]!, mods);
+      final target = _movedTarget(entry, namesOf[entry]!, mods, pointers);
       if (target != null) {
         moved[entry.id] = target;
         if (entry.movedTo != target) {
@@ -349,6 +355,7 @@ class ModIdStore {
     _Entry entry,
     List<String> entryNames,
     List<({String id, List<String> names, List<String> authors, List<SourcePostRef> refs})> mods,
+    Map<String, String> pointers,
   ) {
     String? onlyOne(Iterable<String> ids) {
       final distinct = ids.toSet();
@@ -366,6 +373,14 @@ class ModIdStore {
           if (mod.refs.any((ref) => entry.posts.contains(ref.key))) mod.id,
       ]);
       if (exact != null) return exact;
+
+      final pointedTo = {for (final key in entry.posts) if (pointers[key] case final topic?) topic};
+      if (pointedTo.isNotEmpty) {
+        return onlyOne([
+          for (final mod in mods)
+            if (mod.refs.any((ref) => pointedTo.contains(ref.post.key))) mod.id,
+        ]);
+      }
 
       final posts = {for (final key in entry.posts) _postOnlyKey(key)};
       final onPosts = [
