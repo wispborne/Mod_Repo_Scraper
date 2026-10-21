@@ -11,8 +11,14 @@ set -euo pipefail
 
 SERVICE="starsector-scraper"
 SERVER_URL="http://127.0.0.1:8085"
-REPO="https://github.com/wispborne/Mod_Repo_Scraper"
-RELEASE="$REPO/releases/latest/download"
+GITEA="https://git.wispborne.com"
+REPO="david/Mod_Repo_Scraper"
+# Gitea only lets signed-in users see anything, downloads included, so the
+# script signs in with a token kept in this file beside it. Make one in Gitea
+# under Settings > Applications, with read access to repositories, and keep
+# the file readable by its owner only (chmod 600). The server reads it too, to
+# offer updates in the viewer.
+TOKEN_FILE=".gitea-token"
 WAIT_SECONDS=30
 
 # Everything a release replaces. Both programs and both page folders come from
@@ -100,17 +106,23 @@ fi
 
 # --- Is there anything to do? ------------------------------------------------
 
-installed=$(build_in site/version.json)
-# /releases/latest redirects to /releases/tag/v<N>. Reading where it lands
-# gives the newest build number without GitHub's API and its rate limit.
-latest=$(curl -fsSL --max-time 15 -o /dev/null -w '%{url_effective}' "$REPO/releases/latest" |
-  sed -n 's#.*/tag/v\([0-9]*\)$#\1#p' || true)
+[[ -s $TOKEN_FILE ]] ||
+  fail "There is no Gitea token in $TOKEN_FILE. Gitea only lets signed-in users download releases. Nothing was changed."
+AUTH="Authorization: token $(tr -d '[:space:]' <"$TOKEN_FILE")"
 
-if [[ -n $latest && $installed == "$latest" && $force == no ]]; then
+installed=$(build_in site/version.json)
+# Gitea names the newest published release. Its tag is v<N>, where N is the
+# build number.
+latest=$(curl -fsS --max-time 15 -H "$AUTH" "$GITEA/api/v1/repos/$REPO/releases/latest" |
+  grep -o '"tag_name":"v[0-9]*"' | grep -o '[0-9][0-9]*' || true)
+[[ -n $latest ]] ||
+  fail "Could not ask Gitea which release is the newest. Is the token in $TOKEN_FILE still good? Nothing was changed."
+
+if [[ $installed == "$latest" && $force == no ]]; then
   say "Already on the latest build, v$latest. Nothing to do. (--force updates anyway.)"
   exit 0
 fi
-say "Installed: ${installed:+v}${installed:-unknown}. Latest: ${latest:+v}${latest:-unknown}."
+say "Installed: ${installed:+v}${installed:-unknown}. Latest: v$latest."
 
 # A restart stops the job that is running and forgets the ones waiting.
 status=$(curl -fsS --max-time 5 "$SERVER_URL/api/manager/status" 2>/dev/null || true)
@@ -132,13 +144,16 @@ mkdir "$staging/new"
 
 fetch() {
   # -f so an error page is a failure rather than something saved as the program.
-  curl -fL --retry 3 --retry-delay 2 --connect-timeout 15 -o "$2" "$1"
+  # Gitea sends a token it turns down to the sign-in page instead of refusing
+  # it, so a bad token saves a web page here. The checks below catch that.
+  curl -fL --retry 3 --retry-delay 2 --connect-timeout 15 -H "$AUTH" -o "$2" "$1"
 }
 
-say "Downloading the latest release..."
-fetch "$RELEASE/mod_repo_scraper" "$staging/new/mod_repo_scraper" ||
+release="$GITEA/$REPO/releases/download/v$latest"
+say "Downloading v$latest..."
+fetch "$release/mod_repo_scraper" "$staging/new/mod_repo_scraper" ||
   fail "Could not download the scraper. Nothing was changed."
-fetch "$RELEASE/mod_repo_scraper_server.tar.gz" "$staging/server.tar.gz" ||
+fetch "$release/mod_repo_scraper_server.tar.gz" "$staging/server.tar.gz" ||
   fail "Could not download the server. Nothing was changed."
 
 [[ $(head -c4 "$staging/new/mod_repo_scraper") == $'\x7fELF' ]] ||

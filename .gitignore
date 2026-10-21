@@ -39,6 +39,7 @@ desktop.ini
 
 # Local config (contains secrets)
 config.properties
+.gitea-token
 
 # Output data
 /*_cache.json

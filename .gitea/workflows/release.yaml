@@ -6,6 +6,10 @@ name: Release
 # Work that should not be built goes on another branch — `dev` — and lands here
 # when it is ready.
 #
+# This runs on Gitea, and the release lives there. The same commits are pushed
+# to GitHub too, but only as a copy of the code: GitHub does not read this
+# folder, so nothing is built there.
+#
 # The tests below stand between a commit and a release: a failing test fails the
 # job, and no release is made, so the machine that downloads the newest release
 # twice a day never picks up a build that could not pass them.
@@ -73,14 +77,33 @@ jobs:
       - name: Pack the server with the pages it serves
         run: tar czf mod_repo_scraper_server.tar.gz mod_repo_scraper_server web site
 
-      # The tag is made here rather than by hand. It sits on the commit being
-      # built, so every release can be traced back to exactly one commit.
+      # Made through Gitea's own API with plain curl. The GitHub release action
+      # only talks to GitHub's API, which Gitea's does not match.
+      #
+      # The release starts as a draft and is only published once both files are
+      # on it. The host asks for the newest published release, so it can never
+      # find one with a file still missing. The tag is made when the draft is
+      # published, on the commit being built, so every release can be traced
+      # back to exactly one commit.
       - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.build.outputs.number }}
-          name: v${{ steps.build.outputs.number }}
-          files: |
-            mod_repo_scraper
-            mod_repo_scraper_server.tar.gz
-          generate_release_notes: true
+        shell: bash
+        env:
+          TOKEN: ${{ github.token }}
+          API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
+          TAG: v${{ steps.build.outputs.number }}
+        run: |
+          set -euo pipefail
+          auth="Authorization: token $TOKEN"
+          release=$(curl -fsS -X POST -H "$auth" -H 'Content-Type: application/json' \
+            -d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\",\"target_commitish\":\"$GITHUB_SHA\",\"draft\":true}" \
+            "$API/releases")
+          # The release's own id is the first one in the answer; the ones after
+          # it belong to the author.
+          id=$(printf '%s' "$release" | grep -o '"id":[0-9]*' | head -n1 | cut -d: -f2)
+          [[ -n $id ]] || { echo "Gitea did not say which release it made: $release"; exit 1; }
+          for file in mod_repo_scraper mod_repo_scraper_server.tar.gz; do
+            curl -fsS -X POST -H "$auth" -F "attachment=@$file" "$API/releases/$id/assets?name=$file" >/dev/null
+          done
+          curl -fsS -X PATCH -H "$auth" -H 'Content-Type: application/json' \
+            -d '{"draft":false}' "$API/releases/$id" >/dev/null
+          echo "Released $TAG."
