@@ -11,9 +11,11 @@ import 'package:mod_repo_scraper/manager/run_history_store.dart';
 import 'package:mod_repo_scraper/manager/run_reporter.dart';
 import 'package:mod_repo_scraper/manager/scraper_service.dart';
 import 'package:mod_repo_scraper/manager/scraper_settings.dart';
+import 'package:mod_repo_scraper/manager/self_update.dart';
 import 'package:mod_repo_scraper/viewer/api.dart';
 import 'package:mod_repo_scraper/viewer/data_access.dart';
 import 'package:mod_repo_scraper/viewer/server_app.dart';
+import 'package:mod_repo_scraper/viewer/site_version.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -186,6 +188,15 @@ Future<_ManagerSetup> _buildManager({
   );
   await jobManager.load();
 
-  final api = ManagerApi(manager: jobManager, dataPath: config.qbDataPath);
+  final api = ManagerApi(
+    manager: jobManager,
+    dataPath: config.qbDataPath,
+    selfUpdate: SelfUpdate(
+      rootDir: viewerRootDir,
+      installedBuild: () => SiteVersion(viewerRootDir).read()?['build'] as int?,
+      busy: () =>
+          jobManager.currentRun != null || jobManager.queuedRuns.isNotEmpty,
+    ),
+  );
   return _ManagerSetup(api.router, 'on, working on $managerDataPath');
 }

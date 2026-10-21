@@ -114,6 +114,20 @@ a:hover { text-decoration: underline; }
   transition: width 0.4s ease;
 }
 
+/* "Update to vN", under the status chip, only when a newer release is out. */
+.update-notice { margin: 7px 12px 0; display: flex; justify-content: center; }
+.update-notice:empty { display: none; }
+.update-button {
+  width: 100%; padding: 5px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--primary); background: transparent;
+  color: var(--primary); font-size: 0.78rem;
+}
+.update-button:hover { background: rgba(73, 252, 255, 0.08); }
+.update-button.running { border-color: var(--border); color: var(--text-dim); }
+dialog.update-dialog { width: min(640px, 92vw); max-width: none; }
+pre.update-log { max-height: 40vh; font-size: 0.74rem; margin: 0; }
+pre.update-log:empty { display: none; }
+
 /* Build identifier for bug reports. */
 .site-version {
   margin: 7px 12px 0;
@@ -140,6 +154,8 @@ main { flex: 1; min-width: 0; max-width: 1500px; margin: 0 auto; padding: 20px 2
   .nav-section-title { display: none; }
   .status-chip { margin: 0 0 0 auto; }
   .site-version { margin: 0 0 0 10px; }
+  .update-notice { margin: 0 0 0 10px; }
+  .update-button { width: auto; }
 }
 
 h1 { color: var(--primary); font-size: 1.5rem; margin: 0 0 12px; }

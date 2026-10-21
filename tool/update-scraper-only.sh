@@ -48,9 +48,14 @@ build_in() { grep -o '"build":[0-9]*' "$1" 2>/dev/null | cut -d: -f2 || true; }
 cd "$(dirname "$(readlink -f "$0")")"
 say "Running as $(whoami) in $(pwd)"
 
-for cmd in curl tar sudo systemctl; do
+for cmd in curl tar sudo systemctl flock; do
   command -v "$cmd" >/dev/null || fail "$cmd is not installed."
 done
+
+# One update at a time. The viewer can start one too, and two at once would
+# swap files out from under each other.
+exec 8>.update-scraper-only.lock
+flock -n 8 || fail "Another update is already going."
 
 # systemd says "started" as soon as the program starts, not when it is
 # listening. Wait for it to answer, and give up early if systemd says it died.

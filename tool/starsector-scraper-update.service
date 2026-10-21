@@ -1,0 +1,26 @@
+# Runs update-scraper-only.sh as its own unit, so the update outlives the
+# server it replaces: the script stops starsector-scraper, and stopping a
+# service kills every process that service started.
+#
+# The viewer's "Update" button starts this unit and nothing else. It runs as
+# the usual user, and what it runs is fixed here, so the button gives the
+# server no way to run anything as root.
+#
+# Install (change User= and WorkingDirectory= if the program lives elsewhere):
+#   sudo cp starsector-scraper-update.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+# Then allow the server's user to start it: see starsector-scraper-update.rules.
+#
+# WorkingDirectory= must be the folder the server runs in. The server reads
+# .self-update.log from there, and refuses to offer an update when they differ.
+
+[Unit]
+Description=Update the Starsector mod repo scraper to the newest release
+
+[Service]
+Type=oneshot
+User=david
+WorkingDirectory=/home/david/Applications/Starsector_Mod_Repo_Scraper
+# The last line says how the script ended, however it ended. The server reads
+# it back to tell the page. $$ is how systemd writes a plain $.
+ExecStart=/bin/bash -c './update-scraper-only.sh >>.self-update.log 2>&1; echo "Finished with exit code $$?" >>.self-update.log'

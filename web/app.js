@@ -14,6 +14,7 @@ import * as log from './views/log.js';
 import * as runs from './views/runs.js';
 import * as run from './views/run.js';
 import { mountHeaderChip } from './manager.js';
+import { mountUpdateNotice } from './update.js';
 import { icon } from './icons.js';
 
 // The longest matching route is active, so Details diff takes precedence over
@@ -146,6 +147,7 @@ async function showVersion(element) {
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', () => {
   mountHeaderChip(document.getElementById('status-chip'));
+  mountUpdateNotice(document.getElementById('update-notice'));
   showVersion(document.getElementById('site-version'));
   if (!location.hash) location.hash = '#/home';
   else route();

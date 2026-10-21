@@ -7,6 +7,7 @@ import 'package:shelf_router/shelf_router.dart';
 
 import 'job.dart';
 import 'job_manager.dart';
+import 'self_update.dart';
 
 /// The HTTP face of the manager core: start a job, watch it, stop it, and read
 /// what past runs did.
@@ -33,8 +34,15 @@ class ManagerApi {
   /// The folder the manager writes to, as an absolute path.
   final String dataPath;
 
-  ManagerApi({required this.manager, required String dataPath})
-      : dataPath = p.normalize(p.absolute(dataPath));
+  /// Updates the server to the newest release. Null where nobody set it up,
+  /// which answers as "this server cannot update itself".
+  final SelfUpdate? selfUpdate;
+
+  ManagerApi({
+    required this.manager,
+    required String dataPath,
+    this.selfUpdate,
+  }) : dataPath = p.normalize(p.absolute(dataPath));
 
   Handler get router {
     final r = Router();
@@ -45,6 +53,8 @@ class ManagerApi {
     r.get('/runs', _runs);
     r.get('/runs/<id>', _run);
     r.get('/runs/<id>/log', _runLog);
+    r.get('/update', _updateStatus);
+    r.post('/update', _startUpdate);
 
     return r.call;
   }
@@ -80,6 +90,13 @@ class ManagerApi {
   // --- Jobs ---
 
   Future<Response> _submitJob(Request req) async {
+    // The update stops the server, and with it any job started now.
+    if (selfUpdate?.isRunning ?? false) {
+      return _error(
+          'The server is updating and will restart in a moment. Start the job '
+          'once it is back.',
+          status: HttpStatus.conflict);
+    }
     final body = await req.readAsString();
     final JobRequest request;
     try {
@@ -234,6 +251,30 @@ class ManagerApi {
       'returned': selected.length,
       'tail': tail,
     });
+  }
+
+  // --- Updating the server ---
+
+  Future<Response> _updateStatus(Request req) async {
+    final update = selfUpdate;
+    if (update == null) {
+      return _json({
+        'supported': false,
+        'reason': 'This server was started without a way to update itself.',
+      });
+    }
+    return _json(await update.status());
+  }
+
+  Future<Response> _startUpdate(Request req) async {
+    final update = selfUpdate;
+    if (update == null) {
+      return _error('This server was started without a way to update itself.',
+          status: HttpStatus.conflict);
+    }
+    final refused = await update.start();
+    if (refused != null) return _error(refused, status: HttpStatus.conflict);
+    return _json({'started': true}, status: HttpStatus.accepted);
   }
 
   // --- Small helpers ---
