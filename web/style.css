@@ -25,7 +25,7 @@ body {
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* Scrollbars in the theme's colours, everywhere they appear. */
+/* Scrollbars */
 * { scrollbar-width: thin; scrollbar-color: rgba(73, 252, 255, 0.3) var(--surface-2); }
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-track { background: var(--surface-2); }
@@ -36,8 +36,7 @@ a:hover { text-decoration: underline; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(73, 252, 255, 0.55); }
 ::-webkit-scrollbar-corner { background: var(--surface-2); }
 
-/* Sidebar + nav. The sidebar holds the brand, the grouped nav, and the status
-   chip; it stays put while the page scrolls. */
+/* Sidebar and navigation */
 .layout { display: flex; align-items: stretch; min-height: 100vh; }
 .sidebar {
   width: 200px; flex-shrink: 0;
@@ -47,7 +46,6 @@ a:hover { text-decoration: underline; }
   padding: 14px 0 12px;
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
 }
-/* The cyan-to-purple line across the top of the sidebar marks the 2.0 viewer. */
 .sidebar::before {
   content: ''; display: block; height: 2px; margin: -14px 0 14px;
   background: linear-gradient(90deg, var(--primary), var(--llm));
@@ -77,16 +75,14 @@ a:hover { text-decoration: underline; }
 }
 #nav a:hover { color: var(--text); background: rgba(73, 252, 255, 0.06); text-decoration: none; }
 #nav a.active { color: var(--primary); background: rgba(73, 252, 255, 0.12); border-left-color: var(--primary); }
-/* The icon is dimmer than the label until the row is active or hovered, so the
-   words stay the thing you read. */
+/* Keep inactive icons dim so labels stand out. */
 .icon { width: 18px; height: 18px; flex-shrink: 0; }
 #nav a .icon { color: var(--text-dim); }
 #nav a:hover .icon, #nav a.active .icon { color: inherit; }
 
-/* Status chip: what the manager is doing, on every page. Sits at the bottom
-   of the sidebar. */
+/* Manager status */
 .status-chip {
-  margin: auto 12px 0; /* The auto pushes it to the bottom. */
+  margin: auto 12px 0;
   display: flex; flex-direction: column; gap: 6px;
   /* Held steady so the chip doesn't jump when the progress line appears. */
   min-height: 34px; justify-content: center;
@@ -98,7 +94,6 @@ a:hover { text-decoration: underline; }
 .status-chip-row { display: flex; align-items: center; gap: 8px; }
 .status-chip-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* The dot is the state at a glance. */
 .status-dot {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   background: var(--text-dim);
@@ -119,8 +114,7 @@ a:hover { text-decoration: underline; }
   transition: width 0.4s ease;
 }
 
-/* Which build of the site this is, under the status chip. Deliberately quiet —
-   it is there for bug reports, not for reading. */
+/* Build identifier for bug reports. */
 .site-version {
   margin: 7px 12px 0;
   color: var(--text-dim); font-size: 0.68rem;
@@ -152,8 +146,7 @@ h1 { color: var(--primary); font-size: 1.5rem; margin: 0 0 12px; }
 h2 { color: var(--secondary); font-size: 1.2rem; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
 h3 { color: var(--text); font-size: 1rem; margin: 14px 0 8px; }
 
-/* Breadcrumbs at the top of every page. Ancestors are links; the current page
-   is plain text. */
+/* Breadcrumbs */
 .breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 0.82rem; }
 .crumb { color: var(--text-dim); }
 a.crumb:hover { color: var(--primary); text-decoration: none; }
@@ -202,15 +195,11 @@ tbody tr.clickable { cursor: pointer; }
 .badge-dim { background: rgba(140, 150, 170, 0.15); color: var(--text-dim); }
 .badge-llm { background: rgba(196, 148, 255, 0.18); color: var(--llm); }
 
-/* Flags: one control that both filters the list and says what each badge means.
-   Closed, it is a row of buttons; "Explain these" opens each out onto its own
-   line with the meaning beside it. */
+/* Filter flags, with optional explanations. */
 .flag-picker-wrap { margin: 0 0 14px; }
 .flag-picker { display: flex; flex-wrap: wrap; gap: 6px; }
 .flag-chip {
-  /* The badge runs right to the outline: no padding on its side, and the pill
-     shape clips its corners. `stretch` is what takes the colour to the top and
-     bottom edges too. */
+  /* Stretch the badge to fill the chip's height; clip it to the rounded border. */
   display: inline-flex; align-items: stretch; gap: 8px;
   padding: 0 12px 0 0; overflow: hidden;
   border-radius: 999px; cursor: pointer;
@@ -224,8 +213,7 @@ tbody tr.clickable { cursor: pointer; }
 .flag-chip.on { color: var(--text); border-color: var(--primary); background: rgba(73, 252, 255, 0.12); font-weight: 600; }
 .flag-chip-desc { display: none; color: var(--text-dim); font-weight: 400; }
 
-/* Opened out: one flag per line, badge and name in a fixed column so the
-   meanings line up down the page. */
+/* Fixed badge and name widths align the explanations. */
 .flag-picker.explained { flex-direction: column; flex-wrap: nowrap; gap: 4px; max-width: 780px; }
 .flag-picker.explained .flag-chip { width: 100%; border-radius: 6px; }
 .flag-picker.explained .badge { flex-shrink: 0; width: 7em; justify-content: center; }
@@ -266,8 +254,6 @@ tbody tr.clickable { cursor: pointer; }
 .pager button:hover:not([disabled]) { color: var(--primary); border-color: var(--primary); }
 .pager button[disabled] { opacity: 0.4; cursor: default; }
 .pager-info { color: var(--text-dim); font-size: 0.8rem; }
-/* How many rows to a page. Pushed to the right so it stays out of the way of
-   the page buttons, which is what people reach for most. */
 .pager-size-label { margin-left: auto; color: var(--text-dim); font-size: 0.8rem; display: flex; align-items: center; gap: 6px; }
 .pager-size { background: var(--surface-container); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 0.8rem; }
 
@@ -293,21 +279,17 @@ tbody tr.clickable { cursor: pointer; }
 .llm-summary-sentence { color: var(--text); font-size: 0.92rem; font-weight: 600; margin: 4px 0 8px; }
 .llm-summary-paragraph { color: var(--text-dim); font-size: 0.85rem; line-height: 1.5; margin: 0 0 12px; }
 
-/* A single column of blocks with even space between them, so no one block has
-   to carry its own margins. Used by the thread page and the run detail page. */
+/* Stack containers own the spacing between blocks. */
 .thread > *, .stack > * { margin: 0; }
 .thread > * + *, .stack > * + * { margin-top: 16px; }
-/* A block that a loader has emptied takes no space, so a section that isn't
-   there leaves no gap. */
+/* Loaders clear missing sections; leave no gap for them. */
 .thread > *:empty, .stack > *:empty { margin-top: 0; }
 .thread h1 { margin-bottom: 0; }
-/* A section's own leading heading shouldn't add to the gap the container
-   already provides. */
+/* Avoid adding heading margins to the container's spacing. */
 .stack > * > h2:first-child, .thread > * > h2:first-child { margin-top: 0; }
-/* The action buttons act on the thing the title names, so they hug it. */
+/* Keep topic actions close to the title. */
 .thread > .thread-controls { margin-top: 10px; }
-/* The warning banner is a distinct alert, so it sits clearly apart from the
-   buttons above it. */
+/* Separate the warning from the action buttons. */
 .thread > .notice-banner { margin-top: 24px; }
 /* The forum link and the per-topic job buttons on one wrapping row. */
 .thread-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -316,12 +298,8 @@ tbody tr.clickable { cursor: pointer; }
 .post-frame { width: 100%; height: 70vh; border: 1px solid var(--border); border-radius: 8px; background: rgb(24, 26, 30); }
 
 .dl-row.llm { background: rgba(196, 148, 255, 0.08); }
-/* URLs in tables show a shortened form; keep them on a line or two, never one
-   character per line. */
 .url-cell { word-break: break-word; }
-/* Download tables live in narrow half-width panels. Keep every cell on one
-   line — a long file name or URL scrolls the table sideways (its wrapper
-   handles that) instead of stacking one character to a line. */
+/* Scroll long downloads horizontally in narrow panels instead of wrapping. */
 .dl-table td, .dl-table th { white-space: nowrap; }
 
 /* "Show the raw data" fold on detail pages. */
@@ -352,8 +330,7 @@ details.fold summary { cursor: pointer; color: var(--text-dim); font-weight: 600
 details.fold summary:hover { color: var(--primary); }
 details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 
-/* One LLM-found mod (its own downloads + extras). Darker than the panel it
-   sits in, so nested boxes stay visible. */
+/* Use a darker surface to distinguish each LLM mod from its containing panel. */
 .llm-mod { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 8px 0 14px; background: var(--surface-2); }
 .llm-mod-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
 .llm-mod-name { font-weight: 700; color: var(--primary); }
@@ -365,7 +342,6 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 .stat-card .value { color: var(--primary); font-size: 1.7rem; font-weight: 700; }
 .stat-card.warning .value { color: var(--warning); }
 .stat-card.error .value { color: var(--error); }
-/* A stat card that is also a link into a filtered list. */
 .stat-card-link { display: block; text-decoration: none; }
 .stat-card-link:hover { text-decoration: none; border-color: var(--primary); }
 .stat-card.success .value { color: var(--success); }
@@ -376,8 +352,7 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 .stat-card-filter:hover { border-color: var(--primary); }
 .stat-card-filter.on { border-color: var(--primary); background: rgba(73, 252, 255, 0.08); }
 
-/* One difference between two saved bundles or merges: a fold-out card with an
-   older/newer table inside. */
+/* Foldable changes on bundle and catalog diff pages. */
 .change-card {
   background: var(--surface-container); border: 1px solid var(--border);
   border-radius: 8px; margin-bottom: 8px;
@@ -403,7 +378,7 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 .change-note { color: var(--text-dim); font-size: 0.85rem; margin: 0; font-style: italic; }
 .llm-source { color: var(--text-dim); font-size: 0.85rem; margin: 0; }
 
-/* The older value beside the newer one, tinted like a diff. */
+/* Diff tables */
 .diff-table { table-layout: fixed; }
 .diff-table th { background: var(--surface-2); }
 .diff-table td { white-space: pre-wrap; }
@@ -558,7 +533,7 @@ dialog.ask-dialog p { margin: 0 0 10px; font-size: 0.9rem; line-height: 1.5; }
 .queue-list { margin: 6px 0 0; padding-left: 22px; font-size: 0.85rem; }
 .queue-list li { padding: 2px 0; }
 
-/* Start-a-job form: two cards side by side (scrape/extract, and merge). */
+/* Start-a-job cards */
 .job-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
 @media (max-width: 900px) { .job-columns { grid-template-columns: 1fr; } }
 .job-card {
@@ -567,8 +542,7 @@ dialog.ask-dialog p { margin: 0 0 10px; font-size: 0.9rem; line-height: 1.5; }
 }
 .job-card h3 { margin-top: 0; }
 .job-card .btn-primary { margin-top: 4px; }
-/* A quiet divider inside a card, e.g. "Without scraping" above the no-choice
-   buttons. */
+/* Job card subheadings */
 .job-subhead {
   color: var(--text-dim); font-size: 0.72rem; text-transform: uppercase;
   letter-spacing: 0.05em; margin: 16px 0 8px;
@@ -606,8 +580,6 @@ td.pick, th.pick { width: 34px; text-align: center; }
     radial-gradient(circle at 0% 100%, rgba(73, 252, 255, 0.12), transparent 55%),
     var(--surface-container);
 }
-/* The banner is the biggest block on the page, so it gets more room under it
-   than the stack's usual gap. */
 .stack > .home-hero + * { margin-top: 22px; }
 .home-hero-title { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
 .home-hero-title h1 { margin: 0; }
@@ -629,8 +601,7 @@ td.pick, th.pick { width: 34px; text-align: center; }
 .output-card:hover { text-decoration: none; border-color: var(--primary); }
 .output-card-file { font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.85rem; color: var(--primary); }
 .output-card-description { color: var(--text-dim); font-size: 0.8rem; margin: 4px 0 12px; }
-/* The count sits at the foot of the card, so two cards whose descriptions wrap
-   differently still line their numbers up. */
+/* Align counts across cards even when descriptions wrap differently. */
 .output-card-count { margin-top: auto; font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
 .output-card-count small { font-size: 0.8rem; font-weight: 400; color: var(--text-dim); margin-left: 4px; }
 .output-card-when { margin-top: 4px; color: var(--text-dim); font-size: 0.78rem; }

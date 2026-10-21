@@ -118,7 +118,7 @@ async function groupsList(body) {
   });
   const multi = el('span', {
     class: 'chip' + (groupsState.multiOnly ? ' on' : ''),
-    text: 'Multiple entries only',
+    text: 'Groups with multiple entries',
     onclick: () => { groupsState.multiOnly = !groupsState.multiOnly; multi.classList.toggle('on'); groupsState.page = 0; load(); },
   });
   const results = el('div', {});

@@ -36,7 +36,7 @@ export async function render(root, parts) {
 
   root.append(breadcrumbs([{ label: 'Mod Details' }]));
   root.append(el('h1', { text: 'Mod Details' }));
-  root.append(el('p', { class: 'run-when', text: 'The details behind each mod: forum posts, downloads, and LLM answers for forum topics and Discord threads.' }));
+  root.append(el('p', { class: 'run-when', text: 'Saved forum posts, download links, and LLM results. Select a topic to inspect its data.' }));
 
   // Search and page ride in the URL, so a reload or the back button brings the
   // same list back.
@@ -103,7 +103,7 @@ export async function render(root, parts) {
     table.append(tb);
     wrap.append(table);
     results.append(wrap);
-    if (!data.items.length) results.append(el('p', { class: 'loading', text: 'No entries match.' }));
+    if (!data.items.length) results.append(el('p', { class: 'loading', text: 'No topics match your search.' }));
     results.append(pager(data.page, data.pageSize, data.total,
       (p) => { state.page = p; load(); },
       (size) => { state.pageSize = size; state.page = 0; load(); }));
@@ -165,18 +165,17 @@ function stalenessBanner(staleness, managerOn) {
   let detail;
   switch (staleness.state) {
     case 'stale':
-      heading = 'The published mod details are out of date.';
-      detail = `Thread scraped ${stamp(staleness.scrapedAt)}; mod details built `
-        + `${stamp(staleness.builtAt)}. Rebuild the mod details to `
-        + 'publish these changes to TriOS.';
+      heading = 'Mod details are out of date.';
+      detail = `Thread scraped ${stamp(staleness.scrapedAt)}; details built `
+        + `${stamp(staleness.builtAt)}. Rebuild mod details to include these changes.`;
       break;
     case 'absent':
-      heading = 'This thread is not in the published mod details.';
-      detail = 'Thread data is saved locally. Rebuild the mod details to update published data.';
+      heading = 'This thread is not in the built mod details.';
+      detail = 'This page shows locally saved data. Rebuild mod details to update the output files.';
       break;
     default: // noBundle
-      heading = 'No mod details have been published yet.';
-      detail = 'Showing locally saved data. Rebuild the mod details to publish them to TriOS.';
+      heading = 'Mod details have not been built yet.';
+      detail = 'This page shows locally saved data. Rebuild mod details to create the output files.';
   }
 
   const banner = el('div', { class: 'notice-banner' }, [

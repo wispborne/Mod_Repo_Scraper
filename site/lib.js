@@ -228,8 +228,18 @@ const AI_KEY = 'starmodderAiSummaries';
 
 /// The three choices, the same three TriOS offers and in the same order:
 /// prefer the AI summary, use it only where the author wrote nothing, or
-/// never show it.
-export const AI_SUMMARY_MODES = ['always', 'whenMissing', 'never'];
+/// never show it. The banner and the Settings dialog both draw from this, so
+/// they always say the same thing.
+export const AI_SUMMARY_CHOICES = [
+  { mode: 'always', name: 'Always', note: 'Prefer the consistent, succinct AI summaries.' },
+  {
+    mode: 'whenMissing', name: 'Only as a fallback',
+    note: 'Only show the AI summary if there\'s no human description.',
+  },
+  { mode: 'never', name: 'Never', note: 'Never ever show AI summaries - humans only!' },
+];
+
+export const AI_SUMMARY_MODES = AI_SUMMARY_CHOICES.map((choice) => choice.mode);
 
 /// What the reader picked, defaulting to "whenMissing".
 export function aiSummaryMode() {
@@ -284,7 +294,7 @@ export function aiSummaryBanner(onPicked) {
   if (aiBannerHidden()) return null;
 
   const current = aiSummaryMode();
-  const choice = (mode, name, note) => {
+  const choice = ({ mode, name, note }) => {
     const button = el('button', {
       type: 'button', class: 'ai-banner-choice', title: note,
       'aria-pressed': String(mode === current),
@@ -317,12 +327,7 @@ export function aiSummaryBanner(onPicked) {
     el('p', {
       text: 'You may choose to never see AI-gen summaries, see one only if there\'s no real (human) one, or always see them.',
     }),
-    el('div', { class: 'ai-banner-choices' }, [
-      choice('always', 'Always', 'Prefer the AI summary when available.'),
-      choice('whenMissing', 'Only if missing',
-        'Show the author\'s own words. Use the AI summary only where there are none.'),
-      choice('never', 'Never', 'Hide AI summaries, including hover text.'),
-    ]),
+    el('div', { class: 'ai-banner-choices' }, AI_SUMMARY_CHOICES.map(choice)),
     el('p', {
       text: 'You can change this again later in Settings. Summaries were generated on personally-owned hardware and not used for training.',
     }),

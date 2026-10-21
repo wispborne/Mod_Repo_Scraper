@@ -16,8 +16,8 @@ export async function render(root, parts) {
   } catch (err) {
     root.append(breadcrumbs([parent, { label: `Discord thread ${threadId}` }]));
     root.append(el('div', { class: 'missing error' }, [
-      el('h3', { text: 'Nothing saved for this Discord thread.' }),
-      el('p', { text: 'A Discord scrape saves the thread, and the next LLM catch-up reads it.' }),
+      el('h3', { text: 'Could not load this Discord thread.' }),
+      el('p', { text: 'If it has not been saved yet, run Fetch and update with Discord selected.' }),
     ]));
     return;
   }
@@ -49,24 +49,24 @@ export async function render(root, parts) {
     }
     page.append(messages);
   } else {
-    page.append(el('p', { class: 'loading', text: 'The thread itself is not in discord-posts.json any more; only the LLM answer is left.' }));
+    page.append(el('p', { class: 'loading', text: 'Only LLM results are available. The saved thread is missing from discord-posts.json.' }));
   }
 
   const llm = el('div', { class: 'panel' });
-  llm.append(el('h2', { text: 'Mods the LLM found' }));
+  llm.append(el('h2', { text: 'LLM results' }));
   if (body.llm) {
     llm.append(fieldList([
       ['Is a mod release', body.llm.isMod ? 'yes' : 'no'],
       ['Prompt version', body.llm.promptVersion],
       ['Model', body.llm.model],
-      ['Asked through', body.llm.endpoint],
+      ['Endpoint', body.llm.endpoint],
     ]));
     const ruleUrls = new Set((body.ruleDownloads || []).map((c) => normUrl(c.sourceUrl)));
     llm.append((body.llm.mods || []).length
       ? llmModsBlock(body.llm.mods, ruleUrls)
       : el('p', { class: 'loading', text: 'The LLM found no mods in this thread.' }));
   } else {
-    llm.append(el('p', { class: 'loading', text: 'The LLM has not read this thread yet. The next LLM catch-up reads it.' }));
+    llm.append(el('p', { class: 'loading', text: 'No LLM results saved. Run LLM catch-up to extract mod details from this thread.' }));
   }
   page.append(llm);
 

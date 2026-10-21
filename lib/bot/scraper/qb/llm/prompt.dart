@@ -1,35 +1,28 @@
 import '../../../../catalog/source_post.dart';
 
-/// The prompt text and what we ask the model to return, kept in one place.
-/// [promptVersion] is part of the cache key (see [LlmExtractionStore]);
-/// bumping it re-runs every affected post.
+/// Prompts and response schema for extracting mod facts.
 ///
-/// Bump [promptVersion] whenever the system prompt, the requested field set, or
-/// the user-message shape changes.
-///
-/// Discord threads have their own version, [discordPromptVersion]. A change to
-/// the Discord line in the user prompt bumps only that one, so fixing its
-/// wording does not pay for every forum topic again. A change to anything both
-/// share (the system prompt, the fields, the user-message shape) bumps both.
+/// [promptVersion] controls forum cache invalidation; [discordPromptVersion]
+/// controls Discord. Bump both when the system prompt, response fields or
+/// shared user-message format changes. Bump only [discordPromptVersion] for
+/// Discord-only user-message changes.
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 23;
-  static const int discordPromptVersion = 1;
+  static const int promptVersion = 24;
+  static const int discordPromptVersion = 2;
 
-  /// The version a post of [kind] is filed under. Nexus is not read yet.
+  /// Cache version for [kind]. Nexus extraction is not supported yet.
   static int promptVersionFor(SourceKind kind) =>
       kind == SourceKind.discord ? discordPromptVersion : promptVersion;
 
-  /// Fixed request settings live here too so a change to them also
-  /// forces a re-run via [promptVersion].
+  /// Bump both prompt versions when changing these request settings.
   static const double temperature = 0;
   static const int maxTokens = 4000;
 
-  /// The system message. When [includeSummary] is true it adds a `summary`
-  /// field and the rules for it — the one place the model is asked to write in
-  /// its own words. Note the cache key does not hash this text: only bumping
-  /// [promptVersion] makes an edit here reach topics already extracted.
+  /// Builds the system prompt, with summary rules when [includeSummary] is true.
+  /// The system text is not hashed in the cache key; bump both prompt versions
+  /// when changing it so cached posts are extracted again.
   static String buildSystemPrompt({bool includeSummary = false}) {
     final summaryRule = includeSummary
         ? '\n- The "summary" field is the ONE exception to the copy-exactly '
@@ -59,10 +52,9 @@ class ExtractionPrompt {
             'four sentences. Use plain, everyday words.\n'
             '  - Good sentence: "Adds dynamic lighting, HDR bloom, and distortion '
             'effects in battle."\n'
-            '  - Good paragraph: "Adds numerous graphical improvements: a variety '
-            'of effects plugins, a dynamic lighting engine, and a screen-space '
-            'distortion shader. Other mods can build on it through its lighting, '
-            'distortion, and post-processing APIs."\n'
+            '  - Good paragraph: "Adds effects plugins, a dynamic lighting '
+            'engine, and a screen-space distortion shader. Other mods can use '
+            'its lighting, distortion, and post-processing APIs."\n'
             '  - Bad, do NOT write like this: "ShaderLib is a mod that adds '
             'shaders to Starsector." It names the mod and says "is a mod".\n'
             '  - Also bad: "Adds a suite of shader effects for enhanced graphics '
@@ -77,14 +69,12 @@ class ExtractionPrompt {
         : '';
 
     return '''
-You read the opening posts of a forum thread about a Starsector mod and pull out
-facts that are actually present in them. You return ONLY a JSON object in the
-exact shape below. No prose, no markdown, no comments.
+Extract only facts stated in the opening posts of this Starsector mod thread.
+Return ONLY a JSON object in the exact shape below. No prose, markdown, or comments.
 
-You may be given more than one post. They are all by the same author, they open
-the same thread, and you read them together as one. The number of posts is unrelated
-to the number of mods in them.
-Below, "the post" means all of the posts you were given.
+All supplied posts are by the same author at the start of one thread. Read them
+together. The number of posts does not determine the number of mods. Below,
+"the post" means all supplied posts.
 
 The post text has "[link: <url>]" written into it, marking where each link sat.
 That is our note, not the author's words. Use it to see which mod a download
@@ -242,7 +232,8 @@ Guidance:
   - "mirror": the same file (incl version) offered on another host.
   - "trios": an "Install with TriOS" link.
 - The changelog has two parts, and a post can have BOTH — return each part that
-  the post actually has. Summarizing the changelog or fixing up a url will result in them being treated as invalid!
+  the post actually has. Copy changelog text and URLs exactly;
+  paraphrased notes and altered URLs are rejected.
   - "link": a changelog URL copied from the post (e.g. a GitHub releases page or a
     changelog file). Leave null when the post links none.
   - "entries": changelog text copied from the post, as a map keyed by the
@@ -400,13 +391,13 @@ Guidance:
 ''';
   }
 
-  /// The JSON Schema for the answer, matching the shape in [buildSystemPrompt].
-  /// Sent as `response_format: json_schema` when structured output is on, so a
-  /// compliant endpoint can only return valid JSON in this shape. Nullable
-  /// fields use a `["<type>", "null"]` union, matching the "or null" wording in
-  /// the prompt. Kept in step with the prompt: change one, change the other, and
-  /// bump [promptVersion] if the shape changes.
-  static Map<String, dynamic> buildResponseSchema({bool includeSummary = false}) {
+  /// JSON Schema matching the response described by [buildSystemPrompt].
+  ///
+  /// Used for `response_format: json_schema` when structured output is enabled.
+  /// Keep the schema and prompt in sync, and bump both prompt versions when
+  /// changing the response shape.
+  static Map<String, dynamic> buildResponseSchema(
+      {bool includeSummary = false}) {
     Map<String, dynamic> nullableString() => {
           'type': ['string', 'null']
         };
@@ -450,8 +441,7 @@ Guidance:
           'link': nullableString(),
           'entries': {
             'type': ['object', 'null'],
-            // Keyed by an arbitrary version string, valued by that version's
-            // notes.
+            // Version keys come from the post, so additional properties are allowed.
             'additionalProperties': {'type': 'string'},
           },
         },
@@ -559,9 +549,8 @@ Guidance:
     };
   }
 
-  /// Builds the user message: the reduced post plus the hints the scraper
-  /// already knows. Always builds the same string for the same post (the
-  /// content hash depends on it).
+  /// Builds a deterministic user message from the reduced post and scraper hints.
+  /// Its text is part of the cache fingerprint.
   static String buildUserPrompt({
     required String reducedText,
     required List<({String url, String text, bool isDownloadable})> links,
@@ -574,10 +563,9 @@ Guidance:
   }) {
     final buffer = StringBuffer();
 
-    // Discord threads say what they are. The forum prompt has no such line,
-    // and must not gain one: every forum answer is filed under the exact text.
+    // Keep this section Discord-only to preserve forum cache fingerprints.
     if (isDiscordThread) {
-      buffer.writeln('=== WHERE THIS IS FROM ===');
+      buffer.writeln('=== SOURCE ===');
       buffer.writeln('A Discord announcement thread. The title below is the '
           "thread's name. The post is the author's announcement message, and "
           'each follow-up post is a later message by the same author in the '
@@ -585,8 +573,7 @@ Guidance:
       buffer.writeln();
     }
 
-    // Always sent — the title helps the model name each mod. It carries the
-    // version, so a release changes the cache key and re-runs the topic.
+    // Titles can carry release versions, so title changes must invalidate the cache.
     if (modTitle != null && modTitle.trim().isNotEmpty) {
       buffer.writeln('=== MOD TITLE ===');
       buffer.writeln(modTitle.trim());
@@ -598,8 +585,7 @@ Guidance:
     buffer.writeln(reducedText.trim());
     buffer.writeln();
 
-    // The author's own later posts, if the thread has any. Threads that keep
-    // their downloads in a second post are the reason these are sent at all.
+    // Authors may put their downloads in a follow-up post.
     for (var i = 0; i < followUpTexts.length; i++) {
       final text = followUpTexts[i].trim();
       if (text.isEmpty) continue;
@@ -631,12 +617,15 @@ Guidance:
     }
     buffer.writeln();
 
-    buffer.writeln('=== IMAGES IN THE POST (use only these URLs for "image") ===');
+    buffer.writeln(
+        '=== IMAGES IN THE POST (use only these URLs for "image") ===');
     if (images.isEmpty) {
       buffer.writeln('(none)');
     } else {
       for (final img in images) {
-        final alt = img.alt != null && img.alt!.trim().isNotEmpty ? '  "${img.alt!.trim()}"' : '';
+        final alt = img.alt != null && img.alt!.trim().isNotEmpty
+            ? '  "${img.alt!.trim()}"'
+            : '';
         buffer.writeln('- ${img.url}$alt');
       }
     }

@@ -255,7 +255,7 @@ export async function changesPage(body) {
         class: 'loading',
         text: state.q || state.kind
           ? 'Nothing matches this search or filter.'
-          : 'No changes between these merges.',
+          : 'No differences found.',
       }));
     }
     foldAll.refresh();

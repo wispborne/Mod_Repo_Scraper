@@ -53,32 +53,29 @@ const NAV_SECTIONS = [
 
 // Detail routes share their parent view's navigation entry.
 const ROUTES = {
-  home: (root, parts) => home.render(root, parts),
-  // A topic id is always a number, so `#/topics/12345` opens that topic. Plain
-  // `#/topics` (with any `?q=…&filters=…` query) opens the list.
+  home: home.render,
+  // Numeric topic paths open a detail page; the bare route opens the list.
   topics: (root, parts) =>
     parts.length && /^\d+$/.test(parts[0])
       ? topic.render(root, parts)
       : topics.render(root, parts),
   runs: (root, parts) =>
     parts.length ? run.render(root, parts) : runs.render(root, parts),
-  'llm-test': (root, parts) => llmTest.render(root, parts),
-  merge: (root, parts) => merge.render(root, parts),
-  modrepo: (root, parts) => modrepo.render(root, parts),
-  discord: (root, parts) => discord.render(root, parts),
-  bundle: (root, parts) => bundle.render(root, parts),
-  files: (root, parts) => files.render(root, parts),
-  log: (root, parts) => log.render(root, parts),
+  'llm-test': llmTest.render,
+  merge: merge.render,
+  modrepo: modrepo.render,
+  discord: discord.render,
+  bundle: bundle.render,
+  files: files.render,
+  log: log.render,
 };
 
-/// True when the hash starts with every segment of the entry's route.
 function routeMatches(route, parts) {
   return route.length <= parts.length
     && route.every((seg, i) => seg === parts[i]);
 }
 
 function renderNav(parts) {
-  // The lit entry is the deepest route that matches the current hash.
   let active = null;
   for (const section of NAV_SECTIONS) {
     for (const item of section.items) {

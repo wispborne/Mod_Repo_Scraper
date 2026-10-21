@@ -47,8 +47,6 @@ async function viewer(root, id) {
   const nav = el('div', { class: 'pager' });
   root.append(status, nav, pre);
 
-  let offset = 0;
-
   async function loadSlice(off) {
     const data = await api(`files/${encodeURIComponent(id)}`, { offset: off, length: SLICE });
     if (data instanceof MissingFile) {
@@ -58,7 +56,6 @@ async function viewer(root, id) {
       );
       return;
     }
-    offset = data.offset;
 
     // Whole small file fetched in one slice → pretty-print JSON when possible.
     if (data.offset === 0 && data.eof && data.totalSize < PRETTY_LIMIT) {
@@ -68,7 +65,6 @@ async function viewer(root, id) {
       return;
     }
 
-    // Large file → plain-text slices with prev/next.
     status.textContent = `${fmtBytes(data.totalSize)} · ${data.length} bytes from offset ${data.offset} · plain text`;
     pre.textContent = data.content;
     clear(nav);

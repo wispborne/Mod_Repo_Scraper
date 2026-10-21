@@ -47,7 +47,6 @@ export function itemList(items) {
       el('span', { class: 'item-mark', text: mark(item.change) }),
       el('span', { class: 'item-label', text: item.label || '' }),
     ]);
-    // Scalar entries display their value directly, without a named part.
     if ('before' in item || 'after' in item) row.append(valueLine(item));
     for (const part of item.parts || []) {
       const partRow = el('div', { class: 'item-part' }, [

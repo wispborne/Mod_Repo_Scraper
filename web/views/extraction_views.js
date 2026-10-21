@@ -193,7 +193,7 @@ export function assumedTable(rows) {
     el('th', { text: 'Confidence' }),
     el('th', { text: 'Host' }),
     el('th', { text: 'File name' }),
-    el('th', { text: 'Manual step' }),
+    el('th', { text: 'Extra step required' }),
     el('th', { text: 'Link text' }),
     el('th', { text: 'Source URL' }),
   ])));
@@ -258,7 +258,7 @@ export function modCard(mod, assumedUrls) {
 
 export function llmDownloadsTable(downloads, assumedUrls) {
   if (!downloads.length) {
-    return el('p', { class: 'loading', text: 'No downloads.' });
+    return el('p', { class: 'loading', text: 'No downloads listed for this mod.' });
   }
   const wrap = el('div', { class: 'table-wrapper' });
   const table = el('table', { class: 'dl-table' });
@@ -268,7 +268,7 @@ export function llmDownloadsTable(downloads, assumedUrls) {
     el('th', { text: 'Confidence' }),
     el('th', { text: 'Host' }),
     el('th', { text: 'File name' }),
-    el('th', { text: 'Manual step' }),
+    el('th', { text: 'Extra step required' }),
     el('th', { text: 'URL' }),
   ])));
   const tbody = el('tbody');
@@ -352,7 +352,7 @@ export function extrasBlock(extras) {
     ]));
   }
   if (list.children.length) {
-    box.append(el('h3', { text: 'LLM extras' }));
+    box.append(el('h3', { text: 'Extracted details' }));
     box.append(list);
   }
 
@@ -374,8 +374,8 @@ export function extrasBlock(extras) {
   }
 
   if (!hasSummary && !list.children.length && !hasChangelog) {
-    box.append(el('h3', { text: 'LLM extras' }));
-    box.append(el('p', { class: 'loading', text: 'No extras found.' }));
+    box.append(el('h3', { text: 'Extracted details' }));
+    box.append(el('p', { class: 'loading', text: 'No additional details found.' }));
   }
   return box;
 }
