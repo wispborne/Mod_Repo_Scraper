@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:mod_repo_scraper/bot/scraper/qb/models/scrape_job.dart';
 import 'package:mod_repo_scraper/manager/cancel_token.dart';
 import 'package:mod_repo_scraper/manager/job.dart';
 import 'package:mod_repo_scraper/manager/modrepo_service.dart';
 import 'package:mod_repo_scraper/manager/publish_service.dart';
 import 'package:mod_repo_scraper/manager/run_reporter.dart';
+import 'package:mod_repo_scraper/manager/scraper_service.dart';
 import 'package:mod_repo_scraper/manager/scraper_settings.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -15,6 +17,26 @@ import 'fake_job_runner.dart';
 ProcessResult _git(List<String> args, {String? cwd}) {
   final result = Process.runSync('git', args, workingDirectory: cwd);
   return result;
+}
+
+/// A fake job that writes its name down when it runs, so a test can see which
+/// of two runners went first.
+class _OrderedRunner extends FakeJobRunner {
+  final String name;
+  final List<String> order;
+
+  _OrderedRunner(this.name, this.order);
+
+  @override
+  Future<JobOutcome> runJob(
+    JobRequest request, {
+    RunReporter reporter = const SilentRunReporter(),
+    CancelToken? cancel,
+    String? runId,
+  }) {
+    order.add(name);
+    return super.runJob(request, reporter: reporter, cancel: cancel, runId: runId);
+  }
 }
 
 bool _gitIsThere() {
@@ -288,6 +310,104 @@ void main() {
       expect(modRepo.ran.map((r) => r.kind), [JobKind.mergeModRepo]);
       expect(qb.ran.map((r) => r.kind), [JobKind.rebuildBundle]);
       expect(publish.ran, isEmpty);
+    });
+
+    test('fetchAndUpdate fetches the sources first, then runs the forum '
+        'scrape that builds the catalog', () async {
+      final order = <String>[];
+      final qb = _OrderedRunner('qb', order);
+      final modRepo = _OrderedRunner('modRepo', order);
+      final router =
+          JobRouter(qb: qb, modRepo: modRepo, publish: FakeJobRunner());
+
+      await router.runJob(JobRequest.fetchAndUpdate(
+        scope: ScopeType.all,
+        boards: {ScrapeBoard.main},
+        sources: {ModSourceKind.discord},
+      ));
+
+      expect(order, ['modRepo', 'qb'],
+          reason: 'the LLM can only read Discord threads already fetched');
+
+      final merge = modRepo.ran.single;
+      expect(merge.kind, JobKind.scrapeAndMerge);
+      expect(merge.oldRepoOnly, isTrue,
+          reason: 'the catalog is built once, by the forum half');
+      expect(merge.modSources, {ModSourceKind.forum, ModSourceKind.discord},
+          reason: 'the old forum scraper still feeds ModRepo.json');
+
+      final scrape = qb.ran.single;
+      expect(scrape.kind, JobKind.fullRun);
+      expect(scrape.scope, ScopeType.all);
+      expect(scrape.boards, {ScrapeBoard.main});
+      expect(scrape.runLlm, isTrue);
+      expect(scrape.collectMergeDebug, isTrue);
+      expect(scrape.replayAllowed, isFalse);
+    });
+
+    test('with no board ticked, neither scraper goes near the forum', () async {
+      final qb = FakeJobRunner();
+      final modRepo = FakeJobRunner();
+      final router =
+          JobRouter(qb: qb, modRepo: modRepo, publish: FakeJobRunner());
+
+      await router.runJob(JobRequest.fetchAndUpdate(
+        boards: {},
+        sources: {ModSourceKind.discord},
+      ));
+
+      expect(modRepo.ran.single.kind, JobKind.scrapeAndMerge);
+      expect(modRepo.ran.single.modSources, {ModSourceKind.discord},
+          reason: 'the old forum scraper must not run either');
+      // The LLM still reads the Discord threads just fetched.
+      expect(qb.ran.single.kind, JobKind.llmCoveragePass);
+      expect(qb.ran.single.collectMergeDebug, isTrue);
+    });
+
+    test('with no board ticked and the LLM off, the forum half only rebuilds',
+        () async {
+      final qb = FakeJobRunner();
+      final router =
+          JobRouter(qb: qb, modRepo: FakeJobRunner(), publish: FakeJobRunner());
+
+      await router.runJob(JobRequest.fetchAndUpdate(
+        boards: {},
+        sources: {ModSourceKind.discord},
+        runLlm: false,
+      ));
+
+      expect(qb.ran.single.kind, JobKind.rebuildBundle);
+      expect(qb.ran.single.runLlm, isFalse);
+    });
+
+    test('rebuildFromSaved merges saved files, then rebuilds the bundle',
+        () async {
+      final qb = FakeJobRunner();
+      final modRepo = FakeJobRunner();
+      final router =
+          JobRouter(qb: qb, modRepo: modRepo, publish: FakeJobRunner());
+
+      await router.runJob(JobRequest.rebuildFromSaved());
+
+      expect(modRepo.ran.single.kind, JobKind.mergeModRepo);
+      expect(modRepo.ran.single.oldRepoOnly, isTrue);
+      expect(qb.ran.single.kind, JobKind.rebuildBundle);
+      expect(qb.ran.single.collectMergeDebug, isTrue);
+    });
+
+    test('a combined job stopped during the merge never starts the forum half',
+        () async {
+      final qb = FakeJobRunner();
+      final modRepo = FakeJobRunner();
+      final router =
+          JobRouter(qb: qb, modRepo: modRepo, publish: FakeJobRunner());
+
+      final outcome = await router.runJob(JobRequest.rebuildFromSaved(),
+          cancel: CancelToken()..cancel());
+
+      expect(outcome.cancelled, isTrue);
+      expect(modRepo.ran, hasLength(1));
+      expect(qb.ran, isEmpty);
     });
   });
 }

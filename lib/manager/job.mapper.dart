@@ -47,6 +47,10 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return JobKind.scrapeAndMerge;
       case r'publishOutputs':
         return JobKind.publishOutputs;
+      case r'fetchAndUpdate':
+        return JobKind.fetchAndUpdate;
+      case r'rebuildFromSaved':
+        return JobKind.rebuildFromSaved;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -75,6 +79,10 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return r'scrapeAndMerge';
       case JobKind.publishOutputs:
         return r'publishOutputs';
+      case JobKind.fetchAndUpdate:
+        return r'fetchAndUpdate';
+      case JobKind.rebuildFromSaved:
+        return r'rebuildFromSaved';
     }
   }
 }
@@ -315,6 +323,13 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     opt: true,
     def: false,
   );
+  static bool _$oldRepoOnly(JobRequest v) => v.oldRepoOnly;
+  static const Field<JobRequest, bool> _f$oldRepoOnly = Field(
+    'oldRepoOnly',
+    _$oldRepoOnly,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<JobRequest> fields = const {
@@ -333,6 +348,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     #moddingForumPages: _f$moddingForumPages,
     #keepAllGameVersions: _f$keepAllGameVersions,
     #collectMergeDebug: _f$collectMergeDebug,
+    #oldRepoOnly: _f$oldRepoOnly,
   };
 
   static JobRequest _instantiate(DecodingData data) {
@@ -352,6 +368,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       moddingForumPages: data.dec(_f$moddingForumPages),
       keepAllGameVersions: data.dec(_f$keepAllGameVersions),
       collectMergeDebug: data.dec(_f$collectMergeDebug),
+      oldRepoOnly: data.dec(_f$oldRepoOnly),
     );
   }
 
@@ -432,6 +449,7 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     int? moddingForumPages,
     bool? keepAllGameVersions,
     bool? collectMergeDebug,
+    bool? oldRepoOnly,
   });
   JobRequestCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -468,6 +486,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
     Object? moddingForumPages = $none,
     bool? keepAllGameVersions,
     bool? collectMergeDebug,
+    bool? oldRepoOnly,
   }) => $apply(
     FieldCopyWithData({
       if (kind != null) #kind: kind,
@@ -486,6 +505,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
       if (keepAllGameVersions != null)
         #keepAllGameVersions: keepAllGameVersions,
       if (collectMergeDebug != null) #collectMergeDebug: collectMergeDebug,
+      if (oldRepoOnly != null) #oldRepoOnly: oldRepoOnly,
     }),
   );
   @override
@@ -517,6 +537,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
       #collectMergeDebug,
       or: $value.collectMergeDebug,
     ),
+    oldRepoOnly: data.get(#oldRepoOnly, or: $value.oldRepoOnly),
   );
 
   @override

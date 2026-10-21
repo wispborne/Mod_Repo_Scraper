@@ -34,8 +34,8 @@ export async function changesPage(body) {
       el('h3', { text: 'Nothing to compare yet' }),
       el('p', {
         text: runs.length === 1
-          ? 'Only one saved snapshot is available, with no scraped data on disk '
-            + 'to compare. Run the scraper to create another.'
+          ? 'Only one snapshot is saved, and there is no local data to compare. '
+            + 'Run the scraper to create another snapshot.'
           : 'No snapshots have been saved yet. Run the scraper to save one.',
       }),
     ]));
@@ -55,7 +55,7 @@ export async function changesPage(body) {
 
   body.append(el('p', {
     class: 'run-when',
-    text: 'Compare saved snapshots of the mod details, or compare one with current saved data to follow a run.',
+    text: 'Compare two snapshots, or compare a snapshot with current local data.',
   }));
 
   const selects = {};
@@ -103,7 +103,7 @@ export async function changesPage(body) {
     const off = state.b === WORKING;
     swap.disabled = off;
     swap.title = off
-      ? 'Current saved data can only be the newer side.'
+      ? 'Current local data can only be the newer side.'
       : 'Swap older and newer snapshots.';
   }
   /// Prevents self-comparison by swapping saved sides. When leaving working
@@ -221,7 +221,7 @@ export async function changesPage(body) {
         class: 'loading',
         text: state.q || state.kind
           ? 'Nothing matches this search or filter.'
-          : 'No changes between these snapshots.',
+          : 'No differences found.',
       }));
     }
     foldAll.refresh();
@@ -281,9 +281,9 @@ function drawLiveNote(node, answer) {
     ? new Date(answer.workingUpdatedAt).toLocaleString()
     : null;
   node.append(el('span', {
-    text: 'Comparing current saved data with the selected snapshot. '
+    text: 'Comparing current local data with the selected snapshot. '
       + (asOf ? `Last written ${asOf}. ` : '')
-      + 'Use Refresh to see new changes; updates are manual.',
+      + 'Select Refresh to check for updates.',
   }));
 }
 
@@ -293,7 +293,7 @@ function workingLabel(working) {
     ? new Date(working.updatedAt).toLocaleString()
     : null;
   const size = working.indexCount != null ? `${working.indexCount} topics` : '';
-  return ['Current saved data (unpublished)', when, size]
+  return ['Current local data', when, size]
     .filter(Boolean).join(' — ');
 }
 
@@ -315,6 +315,8 @@ function jobWord(id) {
     extractLlm: 'LLM extraction',
     llmCoveragePass: 'LLM coverage',
     rebuildBundle: 'rebuild',
+    fetchAndUpdate: 'fetch and update',
+    rebuildFromSaved: 'rebuild from saved',
   }[kind] || kind;
 }
 

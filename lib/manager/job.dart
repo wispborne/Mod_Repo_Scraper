@@ -40,6 +40,17 @@ enum JobKind {
   /// Publish the current output files to the target GitHub repo. No scrape, no
   /// merge — copies what is already in `outputs/` into a git clone and pushes.
   publishOutputs,
+
+  /// Fetch the chosen sources and rebuild every output, in the order the
+  /// pieces need: Discord and Nexus (and the old forum scraper for
+  /// `ModRepo.json`) first, then the forum boards and the LLM, which reads the
+  /// new Discord threads too, then the bundle, the catalog and the website.
+  /// With no board chosen the forum is left alone.
+  fetchAndUpdate,
+
+  /// Rebuild every output from saved files: `ModRepo.json`, the bundle, the
+  /// catalog and the website. No network, no LLM.
+  rebuildFromSaved,
 }
 
 /// The places ModRepo mods are scraped from. Which of these a job wants is job
@@ -117,8 +128,15 @@ class JobRequest with JobRequestMappable {
 
   /// Whether a merge collects the data behind the Merge Explorer. Runs started
   /// from the website always ask for it; the CLI asks when
-  /// `modrepo_merge_debug` is on.
+  /// `modrepo_merge_debug` is on. On a QB job it means the catalog built at
+  /// the end collects it.
   final bool collectMergeDebug;
+
+  /// Whether a merge writes only the old `ModRepo.json`, leaving the catalog
+  /// and the website to the step that runs after it. Only `JobRouter` sets
+  /// this, for the merge half of [JobKind.fetchAndUpdate] and
+  /// [JobKind.rebuildFromSaved].
+  final bool oldRepoOnly;
 
   const JobRequest({
     required this.kind,
@@ -140,6 +158,7 @@ class JobRequest with JobRequestMappable {
     this.moddingForumPages,
     this.keepAllGameVersions = false,
     this.collectMergeDebug = false,
+    this.oldRepoOnly = false,
   });
 
   /// A scrape over the boards, the way the CLI has always run.
@@ -228,6 +247,36 @@ class JobRequest with JobRequestMappable {
   /// caller can point it somewhere else.
   factory JobRequest.publishOutputs() =>
       const JobRequest(kind: JobKind.publishOutputs);
+
+  /// Fetches the chosen sources and rebuilds every output. [boards] says which
+  /// forum boards to scrape; none leaves the forum alone. [sources] says which
+  /// of Discord and Nexus to fetch.
+  factory JobRequest.fetchAndUpdate({
+    ScopeType scope = ScopeType.newData,
+    Set<ScrapeBoard> boards = const {
+      ScrapeBoard.main,
+      ScrapeBoard.libraries,
+      ScrapeBoard.lesser
+    },
+    Set<ModSourceKind> sources = const {ModSourceKind.discord},
+    bool runLlm = true,
+  }) =>
+      JobRequest(
+        kind: JobKind.fetchAndUpdate,
+        scope: scope,
+        boards: boards,
+        modSources: sources,
+        runLlm: runLlm,
+        collectMergeDebug: true,
+      );
+
+  /// Rebuilds every output from saved files.
+  factory JobRequest.rebuildFromSaved() => const JobRequest(
+      kind: JobKind.rebuildFromSaved, collectMergeDebug: true);
+
+  /// True for the two kinds that run both pipelines, one after the other.
+  bool get isPipelineKind =>
+      kind == JobKind.fetchAndUpdate || kind == JobKind.rebuildFromSaved;
 
   /// True for the two kinds that end in a merge.
   bool get isMergeKind =>

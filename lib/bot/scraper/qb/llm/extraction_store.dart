@@ -196,6 +196,38 @@ class LlmExtractionStore {
     await _markDirty();
   }
 
+  /// Files an answer saved under [oldFingerprint] under [newFingerprint]
+  /// instead, when nothing else about it is out of date. Returns whether it
+  /// did. Lets the way a fingerprint is worked out change without paying for
+  /// every answer again, provided the input is still what was read.
+  Future<bool> moveFingerprint(
+    String key, {
+    required String oldFingerprint,
+    required String newFingerprint,
+    required int promptVersion,
+  }) async {
+    final e = getKey(key);
+    if (e == null ||
+        e.fingerprint != oldFingerprint ||
+        e.schemaVersion != schemaVersion ||
+        e.promptVersion != promptVersion) {
+      return false;
+    }
+    await putKey(
+        key,
+        LlmStoreEntry(
+          fingerprint: newFingerprint,
+          schemaVersion: e.schemaVersion,
+          promptVersion: e.promptVersion,
+          mods: e.mods,
+          isMod: e.isMod,
+          stats: e.stats,
+          model: e.model,
+          endpoint: e.endpoint,
+        ));
+    return true;
+  }
+
   /// Stores a finished result and saves to disk when due.
   Future<void> put(int topicId, LlmStoreEntry entry) async {
     _entries[topicId] = entry;
@@ -260,6 +292,34 @@ class LlmExtractionStore {
   /// All Discord entries, keyed by thread id.
   Map<String, LlmStoreEntry> get discordEntries =>
       Map.unmodifiable(_discordEntries);
+
+  /// Discord attachment addresses, which carry a signature Discord writes
+  /// fresh every time a message is fetched.
+  static final RegExp _discordAttachmentUrl = RegExp(
+      r'''https?://(?:cdn\.discordapp\.com|media\.discordapp\.net)/[^\s"'<>()\[\]]+''');
+
+  static final RegExp _discordSignaturePart = RegExp(r'^(?:ex|is|hm)=');
+
+  /// [text] with the signature (`ex`, `is` and `hm`) taken off every Discord
+  /// attachment address in it.
+  ///
+  /// A Discord thread's fingerprint is worked out from this. The signature
+  /// changes on every fetch while the picture stays the same, so with it left
+  /// in, every thread with a picture was read again after each Discord fetch.
+  static String withoutDiscordSignatures(String text) =>
+      text.replaceAllMapped(_discordAttachmentUrl, (m) {
+        final url = m[0]!;
+        final q = url.indexOf('?');
+        if (q < 0) return url;
+        final kept = url
+            .substring(q + 1)
+            .split('&')
+            .where((part) =>
+                part.isNotEmpty && !_discordSignaturePart.hasMatch(part))
+            .toList();
+        final base = url.substring(0, q);
+        return kept.isEmpty ? base : '$base?${kept.join('&')}';
+      });
 
   /// A fingerprint of the exact input, field list, and prompt version. Changing
   /// any of these re-runs the topic.

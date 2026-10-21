@@ -11,7 +11,7 @@ const state = { page: 0, pageSize: pageSizePreference() };
 export async function render(root) {
   clear(root);
   root.append(breadcrumbs([{ label: 'Runs and queue' }]));
-  root.append(el('h1', { text: 'Runs' }));
+  root.append(el('h1', { text: 'Runs and queue' }));
 
   const live = el('div', { class: 'run-section' });
   const starter = el('div', { class: 'run-section' });
@@ -187,7 +187,13 @@ const SCOPES = [
 const BOARDS = [
   ['main', 'Main mods board', true],
   ['libraries', 'Libraries board', true],
-  ['lesser', 'Lesser mods board', false],
+  ['lesser', 'Lesser mods board', true],
+];
+
+// Forum boards are selected separately from these sources.
+const OTHER_SOURCES = [
+  ['discord', 'Discord', true],
+  ['nexus', 'Nexus', false],
 ];
 
 function drawStarter(node, s) {
@@ -198,16 +204,17 @@ function drawStarter(node, s) {
   panel.append(el('h2', { text: 'Start a job' }));
   panel.append(el('p', {
     class: 'run-when',
-    text: 'Scrape jobs fetch current pages. Use the command line to replay cached pages.',
+    text: 'Fetching jobs use current pages. Use the command line to replay cached '
+      + 'pages.',
   }));
 
   panel.append(el('div', { class: 'job-columns' }, [
-    scrapeCard(), mergeCard(), publishCard(),
+    updateCard(), savedCard(), publishCard(),
   ]));
   node.append(panel);
 }
 
-function scrapeCard() {
+function updateCard() {
   const scopeSelect = el('select', { class: 'field-input' });
   for (const [value, label] of SCOPES) {
     scopeSelect.append(el('option', { value, text: label }));
@@ -217,13 +224,23 @@ function scrapeCard() {
     box.checked = on;
     return { value, box, label };
   });
+  const sourceBoxes = OTHER_SOURCES.map(([value, label, on]) => {
+    const box = el('input', { type: 'checkbox', value });
+    box.checked = on;
+    return { value, box, label };
+  });
   const llmBox = el('input', { type: 'checkbox' });
   llmBox.checked = true;
 
   const card = el('div', { class: 'job-card' });
-  card.append(el('h3', { text: 'Scrape and extract' }));
+  card.append(el('h3', { text: 'Fetch and update' }));
+  card.append(el('p', {
+    class: 'run-when',
+    text: 'Fetch the selected boards and sources. Unchecked sources keep their saved '
+      + 'results.',
+  }));
   card.append(el('label', { class: 'job-field' }, [
-    el('span', { class: 'field-label', text: 'Scope' }),
+    el('span', { class: 'field-label', text: 'Forum scope' }),
     scopeSelect,
   ]));
   const boardRow = el('div', { class: 'job-field' }, [
@@ -233,105 +250,81 @@ function scrapeCard() {
     boardRow.append(el('label', { class: 'job-check' }, [b.box, ' ' + b.label]));
   }
   card.append(boardRow);
-  card.append(el('div', { class: 'job-field' }, [
-    el('span', { class: 'field-label', text: 'LLM' }),
-    el('label', { class: 'job-check' }, [llmBox, ' Run LLM extraction']),
-  ]));
-  card.append(el('button', {
-    class: 'btn btn-primary',
-    text: 'Start full run',
-    onclick: () => start({
-      kind: 'fullRun',
-      scope: scopeSelect.value,
-      boards: boardBoxes.filter((b) => b.box.checked).map((b) => b.value),
-      runLlm: llmBox.checked,
-      replayAllowed: false,
-    }),
-  }));
-
-  // These jobs use saved posts rather than scraping the forum.
-  card.append(el('div', { class: 'job-subhead', text: 'Without scraping' }));
-  card.append(el('div', { class: 'job-buttons' }, [
-    el('button', {
-      class: 'btn',
-      text: 'LLM coverage pass',
-      title: 'Extract missing or outdated LLM results from saved posts.',
-      onclick: () => start({ kind: 'llmCoveragePass', runLlm: true }),
-    }),
-    el('button', {
-      class: 'btn',
-      text: 'Rebuild mod details',
-      title: 'Rebuild mod-catalog-details.json from saved data.',
-      onclick: () => start({ kind: 'rebuildBundle' }),
-    }),
-  ]));
-  return card;
-}
-
-const MOD_SOURCES = [
-  ['forum', 'Forum', true],
-  ['discord', 'Discord', true],
-  ['nexus', 'Nexus', true],
-];
-
-function mergeCard() {
-  const sourceBoxes = MOD_SOURCES.map(([value, label, on]) => {
-    const box = el('input', { type: 'checkbox', value });
-    box.checked = on;
-    return { value, box, label };
-  });
-  const keepVersionsBox = el('input', { type: 'checkbox' });
-
-  const card = el('div', { class: 'job-card' });
-  card.append(el('h3', { text: 'Merge into mod-catalog.json' }));
-  card.append(el('p', {
-    class: 'run-when',
-    text: 'Each merge saves a snapshot for comparison in Catalog diff.',
-  }));
-
   const sourceRow = el('div', { class: 'job-field' }, [
-    el('span', { class: 'field-label', text: 'Sources' }),
+    el('span', { class: 'field-label', text: 'Also fetch' }),
   ]);
-  for (const s of sourceBoxes) {
-    sourceRow.append(el('label', { class: 'job-check' }, [s.box, ' ' + s.label]));
+  for (const src of sourceBoxes) {
+    sourceRow.append(el('label', { class: 'job-check' }, [src.box, ' ' + src.label]));
   }
   card.append(sourceRow);
   card.append(el('div', { class: 'job-field' }, [
-    el('span', { class: 'field-label', text: 'Versions' }),
-    el('label', { class: 'job-check' }, [
-      keepVersionsBox,
-      ' Keep all game versions listed by a source',
-    ]),
+    el('span', { class: 'field-label', text: 'LLM' }),
+    el('label', { class: 'job-check' }, [llmBox, ' Extract mod details from new and changed posts']),
   ]));
+  const button = el('button', {
+    class: 'btn btn-primary',
+    text: 'Fetch and update',
+    onclick: () => start({
+      kind: 'fetchAndUpdate',
+      scope: scopeSelect.value,
+      boards: boardBoxes.filter((b) => b.box.checked).map((b) => b.value),
+      modSources: sourceBoxes.filter((src) => src.box.checked).map((src) => src.value),
+      runLlm: llmBox.checked,
+      collectMergeDebug: true,
+      replayAllowed: false,
+    }),
+  });
+  const nothingNote = el('span', {
+    class: 'run-when',
+    text: 'Select at least one board or source. To use saved data, choose Rebuild from saved files.',
+  });
+  card.append(el('div', { class: 'job-buttons' }, [button, nothingNote]));
 
+  // Use the saved-files card when no board or source is selected.
+  const boxes = [...boardBoxes, ...sourceBoxes].map((b) => b.box);
+  const refresh = () => {
+    const any = boxes.some((box) => box.checked);
+    button.disabled = !any;
+    nothingNote.hidden = any;
+    scopeSelect.disabled = !boardBoxes.some((b) => b.box.checked);
+  };
+  for (const box of boxes) box.addEventListener('change', refresh);
+  refresh();
+  return card;
+}
+
+function savedCard() {
+  const card = el('div', { class: 'job-card' });
+  card.append(el('h3', { text: 'Use saved data' }));
+
+  card.append(el('p', {
+    class: 'run-when',
+    text: 'Rebuild every output from saved files. No network or LLM calls. '
+      + 'Saves a snapshot for Catalog diff.',
+  }));
   card.append(el('div', { class: 'job-buttons' }, [
     el('button', {
       class: 'btn btn-primary',
-      text: 'Merge from saved files',
-      title: 'Merge saved sources. No network requests.',
-      onclick: () => start({
-        kind: 'mergeModRepo',
-        keepAllGameVersions: keepVersionsBox.checked,
-        collectMergeDebug: true,
-      }),
+      text: 'Rebuild from saved files',
+      onclick: () => start({ kind: 'rebuildFromSaved', collectMergeDebug: true }),
     }),
+  ]));
+
+  card.append(el('p', {
+    class: 'run-when',
+    text: 'Update missing or outdated LLM results using saved forum topics and Discord '
+      + 'threads. Then rebuild the catalog, mod details, and website.',
+  }));
+  card.append(el('div', { class: 'job-buttons' }, [
     el('button', {
       class: 'btn',
-      text: 'Scrape then merge',
-      title: 'Fetch selected sources, then merge into mod-catalog.json.',
-      onclick: () => start({
-        kind: 'scrapeAndMerge',
-        modSources: sourceBoxes.filter((s) => s.box.checked).map((s) => s.value),
-        keepAllGameVersions: keepVersionsBox.checked,
-        collectMergeDebug: true,
-        replayAllowed: false,
-      }),
+      text: 'LLM catch-up',
+      onclick: () => start({ kind: 'llmCoveragePass', runLlm: true }),
     }),
   ]));
   return card;
 }
 
-/// Publishes current outputs without additional job settings.
 function publishCard() {
   const card = el('div', { class: 'job-card' });
   card.append(el('h3', { text: 'Publish to GitHub' }));

@@ -302,7 +302,8 @@ void main() {
         reason: 'the log should say why Nexus was skipped');
   });
 
-  test('a source the job did not ask for is left alone', () async {
+  test('a source the job did not ask to fetch is not fetched, but its saved '
+      'mods are still merged', () async {
     writeSourceCaches();
 
     await service.runJob(
@@ -319,6 +320,34 @@ void main() {
         reporter.logs.any(
             (l) => l.contains('Skipping Discord') && l.contains('did not ask')),
         isTrue);
+
+    final names = (readJson(outputFile(p.join('outputs', 'ModRepo.json')))
+            ['items'] as List)
+        .map((m) => (m as Map<String, dynamic>)['name'])
+        .toList();
+    expect(names, containsAll(['Another Mod', 'Discord Only Mod']),
+        reason: 'not fetching a source must not take its mods out of '
+            'ModRepo.json');
+  });
+
+  test('a merge asked for the old repo only leaves the catalog, the website '
+      'and the merge data to the step after it', () async {
+    writeSourceCaches();
+
+    await service.runJob(
+      const JobRequest(
+          kind: JobKind.mergeModRepo,
+          collectMergeDebug: true,
+          oldRepoOnly: true),
+      reporter: reporter,
+      runId: '20260722T120000Z-rebuildFromSaved',
+    );
+
+    expect(outputFile(p.join('outputs', 'ModRepo.json')).existsSync(), isTrue);
+    expect(outputFile(p.join('outputs', 'mod-catalog.json')).existsSync(),
+        isFalse);
+    expect(outputFile('merge-debug.json').existsSync(), isFalse);
+    expect(reporter.phases, ['Forum', 'Discord', 'Nexus', 'Merge', 'Save']);
   });
 
   test('the merge job reports its phases in order', () async {

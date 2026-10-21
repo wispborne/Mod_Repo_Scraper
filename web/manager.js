@@ -11,11 +11,13 @@ const BUSY_MS = 1000;
 const IDLE_MS = 5000;
 
 export const KIND_LABELS = {
+  fetchAndUpdate: 'Fetch and update',
+  rebuildFromSaved: 'Rebuild from saved files',
   fullRun: 'Full run',
   rescrapeTopics: 'Re-scrape topics',
   resolveDownloads: 'Recheck downloads',
   extractLlm: 'Re-run LLM extraction',
-  llmCoveragePass: 'LLM coverage pass',
+  llmCoveragePass: 'LLM catch-up',
   llmTest: 'LLM test',
   rebuildBundle: 'Rebuild mod details',
   mergeModRepo: 'Merge from saved files',
@@ -27,7 +29,6 @@ export function kindLabel(kind) {
   return KIND_LABELS[kind] || kind || 'Job';
 }
 
-/// Badge classes for run states.
 export const STATE_BADGES = {
   queued: 'badge-dim',
   running: 'badge-primary',
@@ -195,6 +196,11 @@ export function describeJob(request) {
   const count = (request.topicIds || []).length;
   const topics = count === 1 ? '1 topic' : `${count} topics`;
   switch (request.kind) {
+    case 'fetchAndUpdate':
+      return describeFetchAndUpdate(request);
+    case 'rebuildFromSaved':
+      return 'Rebuild mod-catalog.json, mod-catalog-details.json, the old ModRepo.json '
+        + 'and the website from saved files. No network or LLM calls.';
     case 'rescrapeTopics':
       return `Fetch ${topics} from the forum again, resolve downloads, and `
         + 're-run LLM extraction. This makes network requests. LLM calls may cost money.';
@@ -211,24 +217,61 @@ export function describeJob(request) {
         + `This makes network requests.${request.runLlm ? ' LLM calls may cost money.' : ''}`;
     }
     case 'llmCoveragePass':
-      return 'Run LLM extraction for stored topics with missing or outdated results, '
-        + 'up to the per-run call limit. Uses saved posts. LLM calls may cost money.';
+      return 'Update missing or outdated LLM results using saved forum topics and Discord '
+        + 'threads, up to the per-run call limit. Then rebuild the catalog, mod details, '
+        + 'and website. LLM calls may cost money.';
     case 'rebuildBundle':
-      return 'Rebuild mod-catalog-details.json from saved data. No network or LLM calls.';
+      return 'Rebuild mod-catalog-details.json, mod-catalog.json and the website from saved '
+        + 'data. No network or LLM calls.';
     case 'llmTest':
       return 'Test the LLM prompt on a few topics and save a report. '
         + 'Other data stays unchanged. LLM calls may cost money.';
     case 'mergeModRepo':
-      return 'Merge saved sources into mod-catalog.json. No network or LLM calls.';
+      return 'Merge saved sources into the old ModRepo.json, and rebuild mod-catalog.json '
+        + 'and the website. No network or LLM calls.';
     case 'scrapeAndMerge':
-      return `Fetch ${listSources(request.modSources)}, then merge into mod-catalog.json. `
-        + 'This makes network requests. No LLM calls.';
+      return `Fetch ${listSources(request.modSources)}, then merge into the old ModRepo.json `
+        + 'and rebuild mod-catalog.json and the website. This makes network requests. '
+        + 'No LLM calls.';
     case 'publishOutputs':
       return 'Publish the current outputs and website to the GitHub repo TriOS reads. '
         + 'If nothing changed, nothing is pushed.';
     default:
       return `Run a "${request.kind}" job.`;
   }
+}
+
+// The confirmation must reflect unchecked sources and boards too.
+function describeFetchAndUpdate(request) {
+  const boards = request.boards || [];
+  const others = (request.modSources || []).filter((s) => s !== 'forum');
+  const kept = ['discord', 'nexus'].filter((s) => !others.includes(s));
+
+  const steps = [];
+  if (others.length) steps.push(`fetch ${listSources(others)}`);
+  if (boards.length) {
+    steps.push(`scrape ${describeScope(request.scope)} on ${listBoards(boards)}`);
+  }
+  const parts = [];
+  if (steps.length) {
+    const first = steps.join(', then ');
+    parts.push(first.charAt(0).toUpperCase() + first.slice(1) + '.');
+  } else {
+    parts.push('Nothing is fetched.');
+  }
+  if (!boards.length) parts.push('The forum is not scraped.');
+  if (kept.length) {
+    parts.push(`${listSources(kept)} ${kept.length === 1 ? 'keeps its' : 'keep their'} `
+      + 'saved results.');
+  }
+  if (request.runLlm) {
+    parts.push('Update missing or outdated LLM results. LLM calls may cost money.');
+  } else {
+    parts.push('No LLM calls.');
+  }
+  parts.push('Then rebuild mod-catalog.json, mod-catalog-details.json, the old '
+    + 'ModRepo.json and the website.');
+  return parts.join(' ');
 }
 
 /// Formats selected boards for job confirmations.

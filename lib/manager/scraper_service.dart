@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:path/path.dart' as p;
 
+import '../bot/scraper/debug/merge_debug_collector.dart';
 import '../bot/scraper/qb/bundle_publisher.dart';
 import '../bot/scraper/qb/download_resolver.dart';
 import '../bot/scraper/qb/downloadable_probe_cache.dart';
@@ -25,6 +26,8 @@ import '../utilities/caching_http_client.dart';
 import 'bundle_snapshot_store.dart';
 import 'cancel_token.dart';
 import 'job.dart';
+import 'merge_debug_writer.dart';
+import 'merge_snapshot_store.dart';
 import 'run_reporter.dart';
 import 'scraper_settings.dart';
 
@@ -110,6 +113,10 @@ class ScraperService implements JobRunner {
   /// in the catalog and on the site when it finishes.
   final CatalogStep catalogStep;
 
+  /// Saves the data behind the Merge view and Catalog diff, for a job that
+  /// asks for it ([JobRequest.collectMergeDebug]).
+  final MergeDebugWriter mergeDebugWriter;
+
   final http.Client _linkClient;
 
   /// Makes the client used to reach the forum. Swapped out in tests.
@@ -160,6 +167,11 @@ class ScraperService implements JobRunner {
         sourceCachePath: environment.sourceCachePath,
         outputPath: environment.outputPath,
       ),
+      mergeDebugWriter: MergeDebugWriter(
+        workingPath: environment.sourceCachePath,
+        snapshots: MergeSnapshotStore(environment.dataPath,
+            mergesToKeep: guardrails.mergesToKeep),
+      ),
       linkClient: links,
       createNetworkClient: createNetworkClient ?? http.Client.new,
       createLlmClient: createLlmClient,
@@ -176,6 +188,7 @@ class ScraperService implements JobRunner {
     required this.bundleSnapshots,
     required this.siteStep,
     required this.catalogStep,
+    required this.mergeDebugWriter,
     required http.Client linkClient,
     required http.Client Function() createNetworkClient,
     LlmClient Function()? createLlmClient,
@@ -217,7 +230,7 @@ class ScraperService implements JobRunner {
       case JobKind.llmTest:
         return _llmTest(request, reporter, cancel);
       case JobKind.rebuildBundle:
-        return _rebuildBundleJob(reporter, runId);
+        return _rebuildBundleJob(request, reporter, runId);
       case JobKind.mergeModRepo:
       case JobKind.scrapeAndMerge:
         // The merge kinds belong to the ModRepo service. A JobRouter sends them
@@ -225,6 +238,13 @@ class ScraperService implements JobRunner {
         throw ArgumentError(
             'The QB service cannot run ${request.kind.name}; that is a ModRepo '
             'job.');
+      case JobKind.fetchAndUpdate:
+      case JobKind.rebuildFromSaved:
+        // These run both pipelines, so a JobRouter runs them, handing this
+        // service its own half as a fullRun or a rebuildBundle.
+        throw ArgumentError(
+            'The QB service cannot run ${request.kind.name} on its own; a '
+            'JobRouter runs it.');
       case JobKind.publishOutputs:
         // Publishing belongs to the publish service, reached through a
         // JobRouter. This service only sees it if it was wired up on its own.
@@ -276,7 +296,10 @@ class ScraperService implements JobRunner {
           '${result.errors} errors.');
 
       await _rebuildBundle(
-          scrapeResult: result, runId: runId, reporter: reporter);
+          scrapeResult: result,
+          runId: runId,
+          reporter: reporter,
+          collectMergeDebug: request.collectMergeDebug);
 
       return JobOutcome(
         itemsDone: result.modsScraped,
@@ -446,14 +469,23 @@ class ScraperService implements JobRunner {
   ) async {
     final llm = _buildExtractor(request);
     if (llm == null) {
+      // Still rebuilt: this pass can follow a Discord fetch, and the catalog
+      // has to take in the threads that fetch brought back.
       reporter.log('No LLM service is set up, so nothing was sent.');
+      await _rebuildBundle(
+          runId: runId,
+          reporter: reporter,
+          collectMergeDebug: request.collectMergeDebug);
       return const JobOutcome();
     }
     try {
       final pass = await _llmCoveragePass(llm.extractor, reporter, cancel);
       await llmStore!.flush();
       await probeCache.saveCache();
-      await _rebuildBundle(runId: runId, reporter: reporter);
+      await _rebuildBundle(
+          runId: runId,
+          reporter: reporter,
+          collectMergeDebug: request.collectMergeDebug);
       return JobOutcome(
         itemsDone: pass.seen,
         itemsTotal: pass.total,
@@ -530,9 +562,12 @@ class ScraperService implements JobRunner {
   }
 
   Future<JobOutcome> _rebuildBundleJob(
-      RunReporter reporter, String? runId) async {
+      JobRequest request, RunReporter reporter, String? runId) async {
     reporter.phase('Building the bundle');
-    await _rebuildBundle(runId: runId, reporter: reporter);
+    await _rebuildBundle(
+        runId: runId,
+        reporter: reporter,
+        collectMergeDebug: request.collectMergeDebug);
     return const JobOutcome();
   }
 
@@ -855,10 +890,14 @@ class ScraperService implements JobRunner {
   ///
   /// Every job kind that publishes comes through here, so none of them has to
   /// know snapshots exist.
+  ///
+  /// [collectMergeDebug] also saves the data behind the Merge view and Catalog
+  /// diff, from the catalog built here.
   Future<void> _rebuildBundle(
       {ScrapeResult? scrapeResult,
       String? runId,
-      RunReporter? reporter}) async {
+      RunReporter? reporter,
+      bool collectMergeDebug = false}) async {
     final publisher = BundlePublisher(
       store: store,
       resolver: resolver,
@@ -873,7 +912,12 @@ class ScraperService implements JobRunner {
     // found four mods on is four listings now — so the catalog is merged again
     // before the website is built from it. Saved files only; no network.
     reporter?.phase('Catalog');
-    await catalogStep.run(log: reporter?.log);
+    final collector = collectMergeDebug ? MergeDebugCollector() : null;
+    await catalogStep.run(debugCollector: collector, log: reporter?.log);
+    if (collector != null) {
+      await mergeDebugWriter.save(
+          collector.data, runId, reporter?.log ?? (_) {});
+    }
 
     // The bundle is half of what the public website is built from, and the only
     // thing a mod's version can be read from. This is the one place a release

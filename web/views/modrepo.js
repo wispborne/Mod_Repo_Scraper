@@ -86,18 +86,18 @@ async function detail(root, index) {
   root.append(breadcrumbs([{ label: 'Mod Catalog', href: '#/modrepo' }, { label: mod.name || '(empty)' }]));
   root.append(el('h1', { text: mod.name || '(empty)' }));
 
-  // Refresh merged output from saved sources; source fetching is configured on Runs.
+  // Rebuild the outputs from saved files; fetching is set up on Runs.
   const status = manager.status() || await manager.refresh();
   if (status && status.on) {
     root.append(el('div', { class: 'topic-actions' }, [
       el('button', {
         class: 'btn',
-        text: 'Re-run merge',
-        title: 'Merge saved sources into mod-catalog.json. No network requests.',
+        text: 'Rebuild from saved files',
+        title: 'Rebuild every output from saved files. No network or LLM calls.',
         onclick: async () => {
           try {
             const record = await manager.confirmAndSubmit({
-              kind: 'mergeModRepo',
+              kind: 'rebuildFromSaved',
               collectMergeDebug: true,
             });
             if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
@@ -145,12 +145,12 @@ async function detail(root, index) {
     root.append(posts);
   }
 
-  root.append(el('h3', { text: 'Contributing sources' }));
+  root.append(el('h3', { text: 'Sources' }));
   root.append(el('div', { class: 'meta-chips' }, (mod.sources || []).map((s) => el('span', { class: 'badge badge-primary', text: s }))));
   if (!(mod.sources || []).length) root.append(el('p', { class: 'loading', text: 'No sources listed.' }));
 
   if (mod.urls) {
-    root.append(el('h3', { text: 'URLs' }));
+    root.append(el('h3', { text: 'Links' }));
     const ul = el('ul', { class: 'field-list' });
     for (const [type, url] of Object.entries(mod.urls)) {
       ul.append(el('li', {}, [el('span', { class: 'field-label', text: type }), el('a', { class: 'field-value', href: url, target: '_blank', text: url })]));
@@ -162,7 +162,7 @@ async function detail(root, index) {
     root.append(el('p', {},
       el('a', {
         href: `#/discord/${encodeURIComponent(mod.discordThreadId)}`,
-        text: "Open the LLM's answer for this mod's Discord thread →",
+        text: "View Discord thread and LLM results →",
       })));
   }
 

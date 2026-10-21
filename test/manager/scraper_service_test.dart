@@ -12,6 +12,7 @@ import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_summary.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/scrape_job.dart';
 import 'package:mod_repo_scraper/manager/bundle_snapshot_store.dart';
 import 'package:mod_repo_scraper/manager/job.dart';
+import 'package:mod_repo_scraper/manager/merge_snapshot_store.dart';
 import 'package:mod_repo_scraper/manager/run_reporter.dart';
 import 'package:mod_repo_scraper/manager/scraper_service.dart';
 import 'package:mod_repo_scraper/manager/scraper_settings.dart';
@@ -76,6 +77,7 @@ void main() {
         environment: ScraperEnvironment(
           dataPath: dir.path,
           outputPath: p.join(dir.path, 'outputs'),
+          sourceCachePath: dir.path,
           llm: llm == null
               ? null
               : const LlmSettings(
@@ -296,6 +298,34 @@ void main() {
       );
 
       expect(service.bundleSnapshots.list(), isEmpty);
+    });
+  });
+
+  group('the catalog diff data', () {
+    test('a rebuild that asks for it saves the data behind Catalog diff',
+        () async {
+      final service = makeService();
+      await service.runJob(
+        const JobRequest(kind: JobKind.rebuildBundle, collectMergeDebug: true),
+        reporter: RecordingRunReporter(),
+        runId: '20260722T120000Z-rebuildFromSaved',
+      );
+
+      expect(File(p.join(dir.path, 'merge-debug.json')).existsSync(), isTrue);
+      expect(MergeSnapshotStore(dir.path).list().map((s) => s.id),
+          ['20260722T120000Z-rebuildFromSaved']);
+    });
+
+    test('a rebuild that does not ask for it saves none', () async {
+      final service = makeService();
+      await service.runJob(
+        JobRequest.rebuildBundle(),
+        reporter: RecordingRunReporter(),
+        runId: '20260722T120000Z-rebuildBundle',
+      );
+
+      expect(File(p.join(dir.path, 'merge-debug.json')).existsSync(), isFalse);
+      expect(MergeSnapshotStore(dir.path).list(), isEmpty);
     });
   });
 }

@@ -36,8 +36,7 @@ function heroBlock(outputs) {
     ]),
     el('p', {
       class: 'home-hero-text',
-      text: 'Browse mods from the forum, Discord, and Nexus in one catalog. '
-        + 'Each mod has a permanent ID and a record of the posts or pages it came from.',
+      text: 'Inspect mod data from the forum, Discord, and Nexus.',
     }),
     outputs,
   ]);
@@ -47,7 +46,7 @@ const OUTPUTS = [
   {
     fileId: 'modrepo',
     file: 'mod-catalog.json',
-    description: 'One entry per mod, with its ID and the posts or pages it came from.',
+    description: 'Merged mods, permanent IDs, and source posts.',
     href: '#/modrepo',
     loadCount: () => api('modrepo', { pageSize: 1 }),
     unit: 'mods',
@@ -55,7 +54,7 @@ const OUTPUTS = [
   {
     fileId: 'forum-data-bundle',
     file: 'mod-catalog-details.json',
-    description: 'Forum topics with downloads and pictures, plus details from forum and Discord posts.',
+    description: 'Forum posts and images, download links, and LLM results from forum and Discord threads.',
     href: '#/bundle',
     loadCount: () => api('bundle/mods', { pageSize: 1 }),
     unit: 'topics',
@@ -202,20 +201,24 @@ function drawActions(node, status) {
 
   const row = el('div', { class: 'job-buttons' });
   row.append(
-    actionBtn('Start full run', 'Scrape new or changed topics on the main and libraries '
-      + 'boards and run LLM extraction.',
-      { kind: 'fullRun', scope: 'newData', boards: ['main', 'libraries'], runLlm: true, replayAllowed: false }, true),
-    actionBtn('Merge saved sources', 'Merge saved sources into mod-catalog.json. No network requests.',
-      { kind: 'mergeModRepo', collectMergeDebug: true }),
-    actionBtn('Rebuild mod details', 'Rebuild mod-catalog-details.json from saved data.',
-      { kind: 'rebuildBundle' }),
-    actionBtn('LLM coverage pass', 'Extract missing or outdated LLM results from saved posts.',
+    actionBtn('Fetch and update', 'Fetch new or changed forum topics and Discord, '
+      + 'run the LLM, and rebuild every output. Nexus keeps its saved results.',
+      {
+        kind: 'fetchAndUpdate', scope: 'newData', boards: ['main', 'libraries', 'lesser'],
+        modSources: ['discord'], runLlm: true, collectMergeDebug: true,
+        replayAllowed: false,
+      }, true),
+    actionBtn('Rebuild from saved files', 'Rebuild every output from saved files. '
+      + 'No network or LLM calls.',
+      { kind: 'rebuildFromSaved', collectMergeDebug: true }),
+    actionBtn('LLM catch-up', 'Update missing or outdated LLM results from saved posts, '
+      + 'then rebuild the catalog, mod details, and website.',
       { kind: 'llmCoveragePass', runLlm: true }),
   );
   panel.append(row);
   panel.append(el('p', {
     class: 'run-when',
-    text: 'For scope, board, and source options, open Runs and queue.',
+    text: 'For scope, board and source options, open Runs and queue.',
   }));
   node.append(panel);
 }
@@ -307,12 +310,12 @@ async function loadHealth(node) {
   }
 
   clear(node);
-  node.append(el('h2', { text: 'At a glance' }));
+  node.append(el('h2', { text: 'Topic coverage' }));
   node.append(el('div', { class: 'stat-grid' }, [
     statCard('Topics saved', all, '#/topics'),
     statCard('No download found', noDl, '#/topics?filters=noDownload', 'warning'),
     statCard('No LLM results', noLlm, '#/topics?filters=noLlmExtraction'),
-    statCard('Placeholders', placeholders, '#/topics?filters=placeholderDetail', 'error'),
+    statCard('Placeholder posts', placeholders, '#/topics?filters=placeholderDetail', 'error'),
   ]));
   node.append(el('p', {
     class: 'run-when',

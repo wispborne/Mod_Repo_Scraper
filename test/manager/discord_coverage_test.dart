@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/json_data_store.dart';
+import 'package:mod_repo_scraper/bot/scraper/qb/llm/extraction_store.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/llm_client.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/prompt.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_detail.dart';
@@ -45,7 +46,13 @@ class _FakeLlm implements LlmClient {
   }
 }
 
-DiscordThreadPost _thread(String id) => DiscordThreadPost(
+/// A picture attachment's address as Discord gives it, signed. [signature]
+/// stands in for the parts Discord writes fresh on every fetch.
+String _signedPicture(String signature) =>
+    'https://cdn.discordapp.com/attachments/1/2/ships.png'
+    '?ex=$signature&is=$signature&hm=${signature}abc&';
+
+DiscordThreadPost _thread(String id, {String? picture}) => DiscordThreadPost(
       threadId: id,
       name: 'Fresh Mod 1.2',
       author: 'Author',
@@ -55,6 +62,7 @@ DiscordThreadPost _thread(String id) => DiscordThreadPost(
           id: id,
           content: '**Fresh Mod**\nDownload: https://github.com/a/fresh/releases/download/1.2/fresh.zip',
           timestamp: DateTime.utc(2026, 1, 1),
+          images: [if (picture != null) DiscordImage(url: picture, filename: 'ships.png')],
         ),
         DiscordOpeningMessage(id: '${id}1', content: 'Update 1.1: fixed a crash.', timestamp: DateTime.utc(2026, 1, 2)),
         DiscordOpeningMessage(id: '${id}2', content: 'Update 1.2: new ships.', timestamp: DateTime.utc(2026, 1, 3)),
@@ -112,7 +120,7 @@ void main() {
     expect(discordPrompt, contains('Update 1.1: fixed a crash.'));
     expect(discordPrompt, contains('Update 1.2: new ships.'));
     // The forum prompt never gains the Discord line.
-    expect(llm.prompts.where((prompt) => prompt.contains('WHERE THIS IS FROM')), hasLength(2));
+    expect(llm.prompts.where((prompt) => prompt.contains('=== SOURCE ===')), hasLength(2));
   });
 
   test('an unchanged thread is served from the store the next time', () async {
@@ -144,5 +152,80 @@ void main() {
     final mods = (llmCache()['discord:900'] as Map<String, dynamic>)['mods'] as List;
     final downloads = mods.isEmpty ? const [] : (mods.single['downloads'] as List? ?? const []);
     expect(downloads.map((d) => d['url']), isNot(contains('https://example.com/someone-elses-beta.zip')));
+  });
+
+  test('a thread whose picture was signed again is not read again', () async {
+    // Discord writes a fresh signature on a picture's address every time a
+    // message is fetched. The picture is the same, so the answer still is.
+    final file = File(p.join(dir.path, DiscordPostsFile.fileName));
+    await DiscordPostsFile.write(file, {'900': _thread('900', picture: _signedPicture('6ad863e6'))});
+    final llm = _FakeLlm();
+    await service(llm).runJob(JobRequest.llmCoveragePass(), reporter: RecordingRunReporter());
+    final calls = llm.prompts.length;
+    expect(llm.prompts.any((prompt) => prompt.contains('ex=6ad863e6')), isTrue,
+        reason: 'the model is still sent the real address\n${llm.prompts.join('\n-----\n')}');
+
+    await DiscordPostsFile.write(file, {'900': _thread('900', picture: _signedPicture('6ad9b566'))});
+    await service(llm).runJob(JobRequest.llmCoveragePass(), reporter: RecordingRunReporter());
+
+    expect(llm.prompts.length, calls);
+  });
+
+  test('a thread whose picture changed is read again', () async {
+    final file = File(p.join(dir.path, DiscordPostsFile.fileName));
+    await DiscordPostsFile.write(file, {'900': _thread('900', picture: _signedPicture('6ad863e6'))});
+    final llm = _FakeLlm();
+    await service(llm).runJob(JobRequest.llmCoveragePass(), reporter: RecordingRunReporter());
+    final calls = llm.prompts.length;
+
+    await DiscordPostsFile.write(file, {
+      '900': _thread('900', picture: _signedPicture('6ad863e6').replaceFirst('ships.png', 'stations.png')),
+    });
+    await service(llm).runJob(JobRequest.llmCoveragePass(), reporter: RecordingRunReporter());
+
+    expect(llm.prompts.length, calls + 1);
+  });
+
+  group('withoutDiscordSignatures', () {
+    test('takes off only the signature', () {
+      expect(
+        LlmExtractionStore.withoutDiscordSignatures(
+            'see https://media.discordapp.net/attachments/1/2/a.png?ex=1&is=2&hm=3&=&format=webp&width=10 here'),
+        'see https://media.discordapp.net/attachments/1/2/a.png?=&format=webp&width=10 here',
+      );
+      expect(LlmExtractionStore.withoutDiscordSignatures('[link: ${_signedPicture('1')}]'),
+          '[link: https://cdn.discordapp.com/attachments/1/2/ships.png]');
+    });
+
+    test('leaves every other address alone', () {
+      const text = 'https://example.com/a.zip?ex=1&is=2 and https://cdn.discordapp.com/attachments/1/2/a.zip';
+      expect(LlmExtractionStore.withoutDiscordSignatures(text), text);
+    });
+  });
+
+  test('an answer saved under the old fingerprint is moved, not paid for again', () async {
+    final store = LlmExtractionStore(dir.path);
+    await store.load();
+    await store.putKey(
+        'discord:900',
+        LlmStoreEntry(
+          fingerprint: 'old',
+          schemaVersion: LlmExtractionStore.schemaVersion,
+          promptVersion: 7,
+          mods: const [],
+        ));
+
+    expect(
+        await store.moveFingerprint('discord:900',
+            oldFingerprint: 'something else', newFingerprint: 'new', promptVersion: 7),
+        isFalse);
+    expect(
+        await store.moveFingerprint('discord:900', oldFingerprint: 'old', newFingerprint: 'new', promptVersion: 8),
+        isFalse,
+        reason: 'an answer from an older prompt is out of date anyway');
+    expect(
+        await store.moveFingerprint('discord:900', oldFingerprint: 'old', newFingerprint: 'new', promptVersion: 7),
+        isTrue);
+    expect(store.isFreshKey('discord:900', 'new', 7), isTrue);
   });
 }

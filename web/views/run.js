@@ -145,7 +145,7 @@ export async function addWhatChangedLink(row, runId, { live = false } = {}) {
       class: 'btn',
       href: buildHash(['bundle', 'changes'], { b: 'working' }),
       text: 'Changes so far',
-      title: 'Compare current saved data with the latest published mod details.',
+      title: 'Compare current local data with the latest snapshot.',
     }));
     return;
   }
@@ -161,7 +161,7 @@ export async function addWhatChangedLink(row, runId, { live = false } = {}) {
     class: 'btn',
     href: buildHash(['bundle', 'changes'], { a: ids[at + 1], b: runId }),
     text: 'View changes',
-    title: 'Compare the mod details this run published with the ones before.',
+    title: 'Compare these mod details with the previous snapshot.',
   }));
 }
 
@@ -203,11 +203,15 @@ function recordPanel(record) {
 function requestFields(request) {
   const list = el('ul', { class: 'field-list' });
   const topics = request.topicIds || [];
+  const scrapesBoards = request.kind === 'fullRun' || request.kind === 'fetchAndUpdate';
   const rows = [
     ['Job', manager.kindLabel(request.kind)],
     ['Topics', topics.length ? topics.join(', ') : null],
-    ['Scope', request.kind === 'fullRun' ? request.scope : null],
-    ['Boards', request.kind === 'fullRun' ? (request.boards || []).join(', ') : null],
+    ['Scope', scrapesBoards ? request.scope : null],
+    ['Boards', scrapesBoards ? (request.boards || []).join(', ') : null],
+    ['Fetch', request.kind === 'fetchAndUpdate'
+      ? ['forum', ...(request.modSources || []).filter((s) => s !== 'forum')].join(', ')
+      : null],
     ['LLM extraction', request.runLlm ? 'yes' : 'no'],
     ['Replay saved pages', request.replayAllowed ? 'yes' : 'no'],
   ];

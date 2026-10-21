@@ -330,8 +330,14 @@ class PostExtractor {
     final userPrompt = _buildUserPrompt(source, read, ruleCandidates);
     final promptVersion = ExtractionPrompt.promptVersionFor(source.kind);
 
+    // A Discord thread's picture addresses carry a signature Discord writes
+    // fresh on every fetch, so it is left out of the fingerprint. The forum's
+    // is left exactly as it was, so no forum answer is paid for again.
+    final isDiscord = source.kind == SourceKind.discord;
     final fingerprint = LlmExtractionStore.computeFingerprint(
-      userPrompt: userPrompt,
+      userPrompt: isDiscord
+          ? LlmExtractionStore.withoutDiscordSignatures(userPrompt)
+          : userPrompt,
       promptVersion: promptVersion,
       fieldSet: _effectiveFieldSet,
     );
@@ -345,6 +351,26 @@ class PostExtractor {
     // topics every time.
     if (_store.isFreshKey(source.storeKey, fingerprint, promptVersion)) {
       _log.fine('LLM store hit for ${source.label}');
+      return false;
+    }
+
+    // An answer saved before the signature was left out carries a fingerprint
+    // of the signed text. While the saved thread still has the signatures it
+    // was read with, that answer is still good: file it under the new
+    // fingerprint instead of reading the thread again. Can go once every
+    // Discord answer has been through here or been read again.
+    if (isDiscord &&
+        await _store.moveFingerprint(
+          source.storeKey,
+          oldFingerprint: LlmExtractionStore.computeFingerprint(
+            userPrompt: userPrompt,
+            promptVersion: promptVersion,
+            fieldSet: _effectiveFieldSet,
+          ),
+          newFingerprint: fingerprint,
+          promptVersion: promptVersion,
+        )) {
+      _log.fine('LLM store hit for ${source.label} (fingerprint updated)');
       return false;
     }
 

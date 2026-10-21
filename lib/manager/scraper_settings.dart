@@ -146,6 +146,10 @@ class ScraperGuardrails {
   /// everything.
   final int bundlesToKeep;
 
+  /// How many merge snapshots to keep, for a job that saves one with its
+  /// catalog. 0 keeps everything. The same limit the ModRepo side uses.
+  final int mergesToKeep;
+
   const ScraperGuardrails({
     this.delayMs = 1500,
     this.llmMaxTopics,
@@ -156,6 +160,7 @@ class ScraperGuardrails {
     this.llmMaxTokens,
     this.llmMaxInputChars,
     this.bundlesToKeep = 500,
+    this.mergesToKeep = 20,
   });
 
   factory ScraperGuardrails.fromConfig(BotConfig config) => ScraperGuardrails(
@@ -168,6 +173,7 @@ class ScraperGuardrails {
         llmMaxTokens: config.llmMaxTokens,
         llmMaxInputChars: config.llmMaxInputChars,
         bundlesToKeep: config.qbBundlesToKeep,
+        mergesToKeep: config.modRepoMergesToKeep,
       );
 }
 

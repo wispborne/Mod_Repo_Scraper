@@ -100,7 +100,7 @@ function summaryLine(topicId, changed, history) {
 function nothingChangedLine(history) {
   const from = when(history.oldestSavedAt);
   if (!history.everInBundle) {
-    return 'This thread is not in any saved snapshot. History starts when it is included in the mod details.';
+    return 'No saved snapshot includes this thread yet.';
   }
   return from
     ? `No changes in saved snapshots since ${from}.`
@@ -142,15 +142,15 @@ async function unpublishedEntry(topicId, working) {
   const said = {
     stale: [
       'Unpublished changes',
-      'This thread was scraped after the mod details were last built. These changes are not in a saved snapshot yet.',
+      'This thread has newer saved data than the latest mod details snapshot.',
     ],
     absent: [
       'Unpublished thread',
-      'This thread is saved locally but is not in the published mod details.',
+      'This thread is saved locally but is not in the built mod details.',
     ],
     noBundle: [
-      'No published mod details',
-      'No mod details have been published yet. There is no saved snapshot to compare.',
+      'Mod details not built yet',
+      'Rebuild mod details to create the first snapshot.',
     ],
   }[staleness.state];
 
@@ -258,6 +258,8 @@ function jobWord(id) {
     llmCoveragePass: 'LLM coverage',
     rebuildBundle: 'rebuild',
     scrapeAndMerge: 'scrape and merge',
+    fetchAndUpdate: 'fetch and update',
+    rebuildFromSaved: 'rebuild from saved',
     imported: 'imported',
   }[kind] || kind;
 }

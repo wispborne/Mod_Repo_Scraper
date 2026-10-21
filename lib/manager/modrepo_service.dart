@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 import '../bot/scraper/debug/merge_debug_collector.dart';
-import '../bot/scraper/debug/merge_debug_data.dart';
 import '../bot/scraper/discord_reader.dart';
 import '../bot/scraper/forum_scraper.dart';
 import '../bot/scraper/mod_merger.dart';
@@ -18,6 +17,7 @@ import '../utilities/caching_http_client.dart';
 import '../utilities/jsanity.dart';
 import 'cancel_token.dart';
 import 'job.dart';
+import 'merge_debug_writer.dart';
 import 'merge_snapshot_store.dart';
 import 'run_reporter.dart';
 import 'scraper_service.dart';
@@ -34,6 +34,10 @@ class ModRepoService implements JobRunner {
   final ModRepoEnvironment environment;
   final ModRepoGuardrails guardrails;
   final MergeSnapshotStore snapshots;
+
+  /// Saves the data behind the Merge view and Catalog diff.
+  MergeDebugWriter get mergeDebugWriter => MergeDebugWriter(
+      workingPath: environment.workingPath, snapshots: snapshots);
 
   /// Rebuilds the public website's files once a merge has landed. The merged
   /// mods are half of what that site is built from.
@@ -104,29 +108,23 @@ class ModRepoService implements JobRunner {
     for (final source in ModSourceKind.values) {
       if (cancel?.isCancelled ?? false) return _stopped(reporter, mods.length);
 
-      final wanted = !scrapeFirst || request.modSources.contains(source);
-      if (!wanted) {
+      // A source this job did not ask to fetch still has its saved results.
+      // Leaving them out would take its mods out of ModRepo.json.
+      final fetch = scrapeFirst && request.modSources.contains(source);
+      if (scrapeFirst && !fetch) {
         reporter.log('Skipping ${_sourceName(source)}: this job did not ask '
-            'for it.');
-        continue;
+            'to fetch it, so its saved results are used.');
       }
 
       reporter.phase(_sourceName(source));
-      final result = await _loadSource(source, request, reporter,
-          scrapeFirst: scrapeFirst);
+      final result =
+          await _loadSource(source, request, reporter, scrapeFirst: fetch);
       mods.addAll(result.mods);
       bySource[source] = result.mods;
       if (result.failed) errors++;
     }
 
     if (cancel?.isCancelled ?? false) return _stopped(reporter, mods.length);
-
-    // The catalog reads every source, asked for or not: a source this job did
-    // not scrape still has its saved results, and leaving them out would take
-    // its mods out of the catalog.
-    for (final source in [ModSourceKind.discord, ModSourceKind.nexus]) {
-      bySource[source] ??= await _loadSaved(source, reporter);
-    }
 
     reporter.phase('Merge');
     reporter.progress(0, mods.length, errors: errors);
@@ -148,6 +146,17 @@ class ModRepoService implements JobRunner {
       reporter.log('Cancelled before saving. ModRepo.json and '
           'mod-catalog.json were left as they were.');
       return _stopped(reporter, mods.length, errors: errors);
+    }
+
+    // The forum half of the job builds the catalog and the website after this.
+    if (request.oldRepoOnly) {
+      reporter.phase('Save');
+      await _saveMergedMods(merged, reporter);
+      return JobOutcome(
+        itemsDone: merged.length,
+        itemsTotal: mods.length,
+        errors: errors,
+      );
     }
 
     // The catalog: every source post's listings, merged once, each mod given
@@ -173,7 +182,7 @@ class ModRepoService implements JobRunner {
     reporter.phase('Save');
     await _saveMergedMods(merged, reporter);
     if (collector != null) {
-      await _saveMergeDebug(collector.data, runId, reporter);
+      await mergeDebugWriter.save(collector.data, runId, reporter.log);
     }
 
     reporter.phase('Website files');
@@ -423,31 +432,6 @@ class ModRepoService implements JobRunner {
     reporter.log('Saved ${merged.length} mods to ${file.absolute.path}.');
   }
 
-  /// Writes the merge debug data twice: once as `merge-debug.json` where it has
-  /// always gone, and once as this run's snapshot, so an older merge can still
-  /// be looked at after the next one lands.
-  Future<void> _saveMergeDebug(
-    MergeDebugData data,
-    String? runId,
-    RunReporter reporter,
-  ) async {
-    MergeDebugDataMapper.ensureInitialized();
-    final file = File(p.join(environment.workingPath, 'merge-debug.json'));
-    await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(data.toMap()));
-    reporter.log('Merge debug data written to ${file.path}.');
-
-    if (runId == null) return;
-    try {
-      final saved = await snapshots.save(runId, data);
-      reporter.log('Saved this merge as ${p.basename(saved.path)}, so it can '
-          'be compared with the next one.');
-    } catch (e) {
-      // A snapshot is a nice-to-have. Losing it must not fail a good merge.
-      reporter.log('Could not save the merge snapshot: $e');
-    }
-  }
-
   String _sourceName(ModSourceKind source) => switch (source) {
         ModSourceKind.forum => 'Forum',
         ModSourceKind.discord => 'Discord',
@@ -460,6 +444,13 @@ class ModRepoService implements JobRunner {
 /// The manager runs one job at a time whatever kind it is, so the two pipelines
 /// share a queue, a history and a lock while sharing no code, no files and no
 /// secrets.
+///
+/// The two kinds that need both pipelines ([JobKind.fetchAndUpdate] and
+/// [JobKind.rebuildFromSaved]) are run here, as two steps of one job: the
+/// ModRepo merge first, writing only the old `ModRepo.json`, then the QB half,
+/// which ends by building the bundle, the catalog and the website. That order
+/// matters: the Discord threads have to be fetched before the LLM can read
+/// them, and the catalog has to be built after the LLM has read them.
 class JobRouter implements JobRunner {
   final JobRunner qb;
   final JobRunner modRepo;
@@ -477,9 +468,78 @@ class JobRouter implements JobRunner {
     RunReporter reporter = const SilentRunReporter(),
     CancelToken? cancel,
     String? runId,
-  }) =>
-      _runnerFor(request)
-          .runJob(request, reporter: reporter, cancel: cancel, runId: runId);
+  }) {
+    if (request.isPipelineKind) {
+      return _runBoth(request, reporter: reporter, cancel: cancel, runId: runId);
+    }
+    return _runnerFor(request)
+        .runJob(request, reporter: reporter, cancel: cancel, runId: runId);
+  }
+
+  Future<JobOutcome> _runBoth(
+    JobRequest request, {
+    required RunReporter reporter,
+    CancelToken? cancel,
+    String? runId,
+  }) async {
+    final fetch = request.kind == JobKind.fetchAndUpdate;
+    // No board ticked means the forum is left alone altogether: neither
+    // scraper goes near it, and its saved results are used.
+    final scrapeForum = fetch && request.boards.isNotEmpty;
+
+    final merge = await modRepo.runJob(
+      JobRequest(
+        kind: fetch ? JobKind.scrapeAndMerge : JobKind.mergeModRepo,
+        // The old forum scraper feeds only ModRepo.json, and runs until the
+        // switch. The catalog reads the forum from the QB store.
+        modSources: {
+          if (scrapeForum) ModSourceKind.forum,
+          ...request.modSources.where((s) => s != ModSourceKind.forum),
+        },
+        keepAllGameVersions: request.keepAllGameVersions,
+        oldRepoOnly: true,
+      ),
+      reporter: reporter,
+      cancel: cancel,
+      runId: runId,
+    );
+    if (merge.cancelled || (cancel?.isCancelled ?? false)) return merge;
+
+    // With the forum left alone, the LLM still reads whatever Discord threads
+    // were just fetched, through the catch-up pass.
+    final qbOutcome = await qb.runJob(
+      scrapeForum
+          ? JobRequest(
+              kind: JobKind.fullRun,
+              scope: request.scope,
+              boards: request.boards,
+              maxPagesMain: request.maxPagesMain,
+              maxPagesLesser: request.maxPagesLesser,
+              maxPagesLibraries: request.maxPagesLibraries,
+              runLlm: request.runLlm,
+              collectMergeDebug: request.collectMergeDebug,
+            )
+          : JobRequest(
+              kind: fetch && request.runLlm
+                  ? JobKind.llmCoveragePass
+                  : JobKind.rebuildBundle,
+              runLlm: fetch && request.runLlm,
+              collectMergeDebug: request.collectMergeDebug,
+            ),
+      reporter: reporter,
+      cancel: cancel,
+      runId: runId,
+    );
+
+    return JobOutcome(
+      itemsDone: qbOutcome.itemsDone,
+      itemsTotal: qbOutcome.itemsTotal,
+      errors: merge.errors + qbOutcome.errors,
+      llmCalls: qbOutcome.llmCalls,
+      guardrailStop: qbOutcome.guardrailStop,
+      cancelled: qbOutcome.cancelled,
+    );
+  }
 
   JobRunner _runnerFor(JobRequest request) {
     if (request.isPublishKind) return publish;
@@ -500,4 +560,6 @@ String jobKindLabel(JobKind kind) => switch (kind) {
       JobKind.mergeModRepo => 'merge from saved files',
       JobKind.scrapeAndMerge => 'scrape then merge',
       JobKind.publishOutputs => 'publish to GitHub',
+      JobKind.fetchAndUpdate => 'fetch and update',
+      JobKind.rebuildFromSaved => 'rebuild from saved files',
     };
