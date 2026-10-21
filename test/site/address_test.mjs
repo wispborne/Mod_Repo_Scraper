@@ -202,6 +202,22 @@ test('a filter change moves the address without redrawing', () => {
   assert.equal(browser.entries(), 1, 'a filter change piled up in the history');
 });
 
+test("an old mod address goes on to the mod it was joined into, and Back skips it", () => {
+  const browser = fakeBrowser('https://example.test/#/browse');
+  const address = siteAddress(browser);
+  const drawn = [];
+  address.watch(() => drawn.push(address.parts()));
+
+  browser.click('mods/carrierui-2/');
+  address.redirect(address.modHref('carrierui'));
+
+  assert.equal(browser.locationRef.href, 'https://example.test/mods/carrierui/');
+  assert.deepEqual(drawn, [['mods', 'carrierui-2'], ['mods', 'carrierui']]);
+
+  browser.back();
+  assert.equal(browser.locationRef.href, 'https://example.test/#/browse');
+});
+
 test("a tab's hash on a mod's page names the tab, not a page", () => {
   // A mod's page keeps its open tab as a plain hash after its path. The route
   // must still be the mod, and the scroll position must still be filed under

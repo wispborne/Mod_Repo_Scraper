@@ -127,6 +127,7 @@ class PublicSiteStep {
     final data = builder.build(
       mods: catalog.mods,
       collections: catalog.collections,
+      movedIds: catalog.movedIds,
       bundle: bundle,
       threadReleases: releases,
       discordPosts: _readDiscordPosts(),

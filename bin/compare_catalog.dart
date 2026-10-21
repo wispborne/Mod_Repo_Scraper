@@ -82,7 +82,7 @@ Future<void> main(List<String> arguments) async {
   await reportFile.writeAsString(comparison.toMarkdown());
 
   stdout.writeln('Missing ids: ${comparison.missing.length} (${comparison.joinedInto.length} joined into another '
-      'mod); removed on purpose: ${comparison.removedOnPurpose.length}; becoming Collections: '
+      'mod); leading to the mod they were joined into: ${comparison.moved.length}; removed on purpose: ${comparison.removedOnPurpose.length}; becoming Collections: '
       '${comparison.becameCollections.length}; source posts changed: ${comparison.postsChanged.length}; '
       'Discord threads giving several mods: ${comparison.discordThreadsWithSeveral.length}; '
       'new mods: ${comparison.added.length}; names that differ: ${comparison.renamed.length}.');

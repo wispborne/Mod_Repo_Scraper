@@ -162,11 +162,16 @@ class PublicSiteData {
   /// one. Each gets a page at that address linking to the mods it holds.
   final List<PublicCollection> collections;
 
+  /// Old addresses that lead to another mod's page, each with the id of that
+  /// mod. Only ids whose mod has a page here.
+  final Map<String, String> movedIds;
+
   const PublicSiteData({
     required this.list,
     required this.details,
     required this.feed,
     this.collections = const [],
+    this.movedIds = const {},
   });
 }
 
@@ -267,6 +272,7 @@ class PublicDataBuilder {
   PublicSiteData build({
     required List<CatalogMod> mods,
     List<CatalogCollection> collections = const [],
+    Map<String, String> movedIds = const {},
     ForumDataBundle? bundle,
     List<ThreadRelease> threadReleases = const [],
     DiscordPostsFile discordPosts = const DiscordPostsFile(),
@@ -420,11 +426,17 @@ class PublicDataBuilder {
         .toLowerCase()
         .compareTo((b.displayName ?? b.name).toLowerCase()));
 
+    final collectionPages = _collectionPages(collections, listRecords, takenIds);
+    final pageIds = {...details.keys, for (final page in collectionPages) page.id};
     return PublicSiteData(
       list: PublicModList(generatedAt: builtAt, mods: listRecords),
       details: details,
       feed: ModReleaseFeed(generatedAt: builtAt, releases: feed),
-      collections: _collectionPages(collections, listRecords, takenIds),
+      collections: collectionPages,
+      movedIds: {
+        for (final MapEntry(key: old, value: to) in movedIds.entries)
+          if (!pageIds.contains(old) && details.containsKey(to)) old: to,
+      },
     );
   }
 
@@ -732,19 +744,33 @@ class PublicDataBuilder {
       ));
     }
 
+    // An old address whose mod was joined into another leads to that mod's
+    // page: a file the site's own pages follow, and a page of its own for a
+    // link from outside.
+    for (final MapEntry(key: old, value: to) in data.movedIds.entries) {
+      await File(p.join(modsDir, '$old.json')).writeAsString(encoder.convert({'movedTo': to}));
+      final folder = Directory(p.join(modsDir, old));
+      if (!folder.existsSync()) folder.createSync(recursive: true);
+      await File(p.join(folder.path, 'index.html'))
+          .writeAsString(buildMovedPageHtml(to: data.details[to]!.listing));
+    }
+
+    bool kept(String id) =>
+        data.details.containsKey(id) || collectionIds.contains(id) || data.movedIds.containsKey(id);
+
     var dropped = 0;
     for (final fileOrFolder in mods.listSync()) {
       final name = p.basename(fileOrFolder.path);
       if (fileOrFolder is File) {
         if (!name.endsWith('.json')) continue;
         final id = name.substring(0, name.length - '.json'.length);
-        if (data.details.containsKey(id) || collectionIds.contains(id)) continue;
+        if (kept(id)) continue;
         fileOrFolder.deleteSync();
         dropped++;
       } else if (fileOrFolder is Directory) {
-        // A mod's own little page. It is named for the mod, so a folder no mod
-        // or Collection answers to belongs to one that has gone.
-        if (data.details.containsKey(name) || collectionIds.contains(name)) continue;
+        // A mod's own little page. It is named for the mod, so a folder no mod,
+        // Collection or moved address answers to belongs to one that has gone.
+        if (kept(name)) continue;
         fileOrFolder.deleteSync(recursive: true);
         dropped++;
       }

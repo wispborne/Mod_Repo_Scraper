@@ -120,6 +120,8 @@ class ModIdStore {
         firstSeen: (firstSeen?.isEmpty ?? true) ? null : firstSeen,
         mark: stored is Map ? stored['mark'] as String? : null,
       );
+      final movedTo = stored is Map ? stored['movedTo'] : null;
+      if (movedTo is String && movedTo.isNotEmpty) entry.movedTo = movedTo;
       _entries[name] = entry;
       _idsTaken.add(id);
       // Older entries have no posts yet; `bin/link_mod_ids.dart` fills them in.
@@ -281,6 +283,117 @@ class ModIdStore {
     _link(entry, ref.post);
     return entry.id;
   }
+
+  /// The old ids that now lead to another mod's page, each with the id of the
+  /// mod it leads to. Call once every mod in a build has its id; [mods] is
+  /// every one of them, with its name, its authors and its posts (whose LLM
+  /// names count as its names too).
+  ///
+  /// An id no mod was given this build is kept when its mod was joined into
+  /// another: the old site often made one page from a mod's forum topic and a
+  /// second from its Discord thread, and the catalog makes them one mod. Its
+  /// address should lead to that mod rather than nowhere. Each old id goes to:
+  ///
+  /// - the one mod holding exactly the post key it was linked under;
+  /// - else the one mod on any of its posts, or the one of those that goes by
+  ///   its name;
+  /// - else, for an id linked to no post at all, the one mod on its own forum
+  ///   topic that goes by its name, or failing that the one mod anywhere that
+  ///   goes by its name (and, for an id remembered under its author, is
+  ///   credited to that author). Never a topic's mod by the topic alone: topic
+  ///   30580 was NEON's ship pack and is now Xxarra's Variety Pack.
+  ///
+  /// Two or more mods that fit is nobody's: a wrong address is worse than none.
+  /// A move is kept in the file, so an old id still leads somewhere after its
+  /// posts are gone, for as long as the mod it leads to is still in the build.
+  /// An id a mod is given again stops being moved.
+  Map<String, String> movedIds(
+    List<({String id, List<String> names, List<String> authors, List<SourcePostRef> refs})> mods, {
+    void Function(String message)? log,
+  }) {
+    final liveIds = {for (final mod in mods) mod.id};
+    final reservedIds = {for (final entry in _reserved) entry.id};
+    final namesOf = <_Entry, List<String>>{};
+    _entries.forEach((key, entry) {
+      final at = key.indexOf('#');
+      namesOf.putIfAbsent(entry, () => []).add(at < 0 ? key : key.substring(0, at));
+    });
+
+    final moved = <String, String>{};
+    for (final entry in namesOf.keys) {
+      if (liveIds.contains(entry.id) || reservedIds.contains(entry.id)) {
+        if (entry.movedTo != null) {
+          entry.movedTo = null;
+          _changed = true;
+        }
+        continue;
+      }
+      if (moved.containsKey(entry.id)) continue;
+
+      final target = _movedTarget(entry, namesOf[entry]!, mods);
+      if (target != null) {
+        moved[entry.id] = target;
+        if (entry.movedTo != target) {
+          log?.call('The old address "${entry.id}" now leads to "$target", the mod it was joined into.');
+          entry.movedTo = target;
+          _changed = true;
+        }
+      } else if (entry.movedTo case final kept? when liveIds.contains(kept)) {
+        moved[entry.id] = kept;
+      }
+    }
+    return moved;
+  }
+
+  String? _movedTarget(
+    _Entry entry,
+    List<String> entryNames,
+    List<({String id, List<String> names, List<String> authors, List<SourcePostRef> refs})> mods,
+  ) {
+    String? onlyOne(Iterable<String> ids) {
+      final distinct = ids.toSet();
+      return distinct.length == 1 ? distinct.single : null;
+    }
+
+    bool goesByName(({String id, List<String> names, List<String> authors, List<SourcePostRef> refs}) mod) {
+      final names = [...mod.names, for (final ref in mod.refs) if (ref.llmModName case final name?) name];
+      return entryNames.any((name) => names.any((other) => modNamesMatch(name, other)));
+    }
+
+    if (entry.posts.isNotEmpty) {
+      final exact = onlyOne([
+        for (final mod in mods)
+          if (mod.refs.any((ref) => entry.posts.contains(ref.key))) mod.id,
+      ]);
+      if (exact != null) return exact;
+
+      final posts = {for (final key in entry.posts) _postOnlyKey(key)};
+      final onPosts = [
+        for (final mod in mods)
+          if (mod.refs.any((ref) => posts.contains(ref.post.key))) mod,
+      ];
+      return onlyOne([for (final mod in onPosts) mod.id]) ??
+          onlyOne([for (final mod in onPosts) if (goesByName(mod)) mod.id]);
+    }
+
+    final mark = entry.mark ?? '';
+    if (mark.startsWith('topic:')) {
+      final topic = 'forum:${mark.substring('topic:'.length)}';
+      final onTopic = onlyOne([
+        for (final mod in mods)
+          if (mod.refs.any((ref) => ref.post.key == topic) && goesByName(mod)) mod.id,
+      ]);
+      if (onTopic != null) return onTopic;
+    }
+    // An id remembered under its author only leads to that person's mod.
+    final author = mark.startsWith('author:') ? _lettersOnly(mark.substring('author:'.length)) : null;
+    return onlyOne([
+      for (final mod in mods)
+        if (goesByName(mod) && (author == null || mod.authors.any((name) => _lettersOnly(name) == author))) mod.id,
+    ]);
+  }
+
+  static String _lettersOnly(String value) => value.toLowerCase().replaceAll(_notWordy, '');
 
   /// The day the mod with this id was first seen, or null.
   String? firstSeenOfId(String id) {
@@ -609,6 +722,8 @@ class ModIdStore {
           if (_entries[name]!.mark != null) 'mark': _entries[name]!.mark,
           if (_entries[name]!.posts.isNotEmpty)
             'posts': ([..._entries[name]!.posts]..sort()),
+          if (_entries[name]!.movedTo != null)
+            'movedTo': _entries[name]!.movedTo,
         },
     };
     File(filePath).writeAsStringSync(
@@ -725,6 +840,10 @@ class _Entry {
   /// The source posts this mod came from, as [SourcePostRef.key]s. Empty for a
   /// line written before posts were kept.
   final List<String> posts = [];
+
+  /// The id of the mod this one was joined into, when no mod has this id any
+  /// more. Its address leads there. See [ModIdStore.movedIds].
+  String? movedTo;
 
   _Entry({required this.id, this.firstSeen, this.mark});
 }

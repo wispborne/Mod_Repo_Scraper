@@ -90,6 +90,10 @@ class CatalogStep {
         '${catalog.collections.length} Collection pages, saved to '
         '${outputFile.path} in '
         '${DateTime.now().difference(started).inMilliseconds}ms.');
+    if (catalog.movedIds.isNotEmpty) {
+      log?.call('${catalog.movedIds.length} old addresses lead to the mod they '
+          'were joined into.');
+    }
     return catalog;
   }
 

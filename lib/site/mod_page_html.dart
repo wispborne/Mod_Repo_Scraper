@@ -1,6 +1,7 @@
 import 'display_name.dart';
 import 'models/public_mod.dart';
 import 'models/public_mod_detail.dart';
+import 'sitemap.dart';
 
 /// A mod's own page, at `mods/<id>/index.html`.
 ///
@@ -282,6 +283,42 @@ String _head({
         'content="${picture == null ? 'summary' : 'summary_large_image'}">',
   ];
   return lines.join('\n  ');
+}
+
+/// The page at an old address whose mod was joined into [to]. It sends the
+/// reader straight on to [to]'s own page, keeping the reader's `?data=…` and
+/// a tab picked after the address. It carries [to]'s preview tags, so an old
+/// link shared in Discord still shows the mod, and names [to]'s page as the
+/// real one so a search engine files the two as one.
+String buildMovedPageHtml({required PublicMod to}) {
+  final name = to.displayName ?? displayName(to.name);
+  final about = _describe(to, name);
+  final picture = _webPicture(to.imageUrl);
+  final id = Uri.encodeComponent(to.id);
+  final page = '../$id/';
+  return '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<title>${_escape(name)} | Starmodder</title>
+<link rel="canonical" href="${siteAddress}mods/$id/">
+<meta http-equiv="refresh" content="0; url=$page">
+<meta name="description" content="${_attribute(about)}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Starmodder">
+<meta property="og:title" content="${_attribute(name)}">
+<meta property="og:description" content="${_attribute(about)}">
+${picture == null ? '' : '<meta property="og:image" content="${_attribute(picture)}">\n'}<meta name="twitter:card" content="${picture == null ? 'summary' : 'summary_large_image'}">
+<script>location.replace('$page' + location.search + (location.hash.indexOf('#/') === 0 ? '' : location.hash));</script>
+</head>
+<body>
+<p>This mod's page has moved: <a href="$page">${_escape(name)} on Starmodder</a>.</p>
+</body>
+</html>
+''';
 }
 
 /// The stand-in for when the site's own document cannot be read: the preview

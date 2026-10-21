@@ -86,4 +86,20 @@ void main() {
     expect(report, contains('joined into `brighton-federation`'));
     expect(report, contains('Removed on purpose'));
   });
+
+  test('a published id that leads to the mod it was joined into is moved, not missing', () {
+    final withMoves = ModCatalog(
+      generatedAt: catalog.generatedAt,
+      mods: catalog.mods,
+      collections: catalog.collections,
+      movedIds: const {'the-brighton-federation': 'brighton-federation', 'gone': 'nowhere'},
+    );
+    final compared = compareCatalog(published: published, catalog: withMoves, notMods: {'33546', '33547'});
+
+    expect(compared.moved.map((e) => (e.$1.id, e.$2.id)), [('the-brighton-federation', 'brighton-federation')]);
+    expect(compared.missing.map((p) => p.id), isNot(contains('the-brighton-federation')));
+    // A move to a mod this catalog does not have leads nowhere: still missing.
+    expect(compared.missing.map((p) => p.id), contains('gone'));
+    expect(compared.toMarkdown(), contains('leading to the mod they were joined into'));
+  });
 }

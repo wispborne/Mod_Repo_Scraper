@@ -67,6 +67,12 @@ export async function render(root, parts) {
     return;
   }
 
+  // An old address whose mod was joined into another: on to that mod's page.
+  if (detail.movedTo) {
+    address().redirect(modHref(detail.movedTo));
+    return;
+  }
+
   // An address that turned out to be a post holding several mods: it keeps
   // its page, which now lists the mods instead of standing for one of them.
   if (detail.collection) {

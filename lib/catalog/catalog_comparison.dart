@@ -32,6 +32,11 @@ class CatalogComparison {
   /// either the two pages were one mod all along, or the merge joined two.
   final Map<String, CatalogMod> joinedInto;
 
+  /// Ids that are no mod's any more but lead to the mod they were joined into
+  /// (`ModCatalog.movedIds`). A saved link still reaches the mod, so these do
+  /// not block the switch, but each is worth a look: the join could be wrong.
+  final List<(PublishedPage, CatalogMod)> moved;
+
   /// Ids whose only post is a forum topic the catalog leaves out on purpose:
   /// the LLM said it is not a mod and it has nothing to download. A question
   /// thread or a showcase with nothing to install. These do not block the
@@ -59,6 +64,7 @@ class CatalogComparison {
   const CatalogComparison({
     this.missing = const [],
     this.joinedInto = const {},
+    this.moved = const [],
     this.removedOnPurpose = const [],
     this.becameCollections = const [],
     this.postsChanged = const [],
@@ -74,7 +80,7 @@ class CatalogComparison {
     final b = StringBuffer('# Catalog comparison\n\n');
     b.writeln(blocksTheSwitch
         ? '**The switch is blocked:** ${missing.length} published id(s) would stop working.\n'
-        : 'Every published id still leads to its mod or to a Collection page.\n');
+        : 'Every published id still leads to its mod, to the mod it was joined into, or to a Collection page.\n');
     void section(String title, Iterable<String> lines) {
       final all = lines.toList();
       b.writeln('## $title (${all.length})\n');
@@ -92,6 +98,9 @@ class CatalogComparison {
       for (final page in missing)
         '`${page.id}` — ${page.name}${_where(page)}'
             '${joinedInto[page.id] == null ? '' : ' — joined into `${joinedInto[page.id]!.id}`'}',
+    ]);
+    section('Published ids leading to the mod they were joined into', [
+      for (final (page, mod) in moved) '`${page.id}` — ${page.name}${_where(page)} → `${mod.id}` ${mod.mod.name}',
     ]);
     section('Removed on purpose: not a mod, nothing to download', [
       for (final page in removedOnPurpose) '`${page.id}` — ${page.name}${_where(page)}',
@@ -166,6 +175,7 @@ CatalogComparison compareCatalog({
   final publishedIds = {for (final page in published) page.id};
 
   final missing = <PublishedPage>[];
+  final moved = <(PublishedPage, CatalogMod)>[];
   final removedOnPurpose = <PublishedPage>[];
   final becameCollections = <(PublishedPage, CatalogCollection)>[];
   final postsChanged = <(PublishedPage, CatalogMod)>[];
@@ -175,8 +185,11 @@ CatalogComparison compareCatalog({
     final mod = modsById[page.id];
     if (mod == null) {
       final collection = collectionsById[page.id];
+      final movedTo = modsById[catalog.movedIds[page.id]];
       if (collection != null) {
         becameCollections.add((page, collection));
+      } else if (movedTo != null) {
+        moved.add((page, movedTo));
       } else if (page.discordThread == null && notMods.contains(page.forumTopic)) {
         removedOnPurpose.add(page);
       } else {
@@ -217,6 +230,7 @@ CatalogComparison compareCatalog({
   return CatalogComparison(
     missing: missing,
     joinedInto: joinedInto,
+    moved: moved,
     removedOnPurpose: removedOnPurpose,
     becameCollections: becameCollections,
     postsChanged: postsChanged,

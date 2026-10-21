@@ -1526,6 +1526,32 @@ void main() {
     });
   });
 
+  test('an old address joined into another mod leads to its page, and is kept between writes', () async {
+    final bundle = bundleOf();
+    final mods = catalogOf([forumMod()], bundle: bundle);
+    final id = mods.single.id;
+    final data = builder.build(
+      mods: mods,
+      bundle: bundle,
+      // One to a mod with no page, and one standing on a mod's own address.
+      movedIds: {'old-page': id, 'gone-too': 'no-such-mod', id: 'old-page'},
+    );
+    expect(data.movedIds, {'old-page': id});
+    expect(data.list.mods.map((m) => m.id), isNot(contains('old-page')));
+
+    await builder.write(data);
+    final file = File(p.join(builder.modsDir, 'old-page.json'));
+    expect(jsonDecode(file.readAsStringSync()), {'movedTo': id});
+    final page = File(p.join(builder.modsDir, 'old-page', 'index.html')).readAsStringSync();
+    expect(page, contains('url=../$id/'));
+    expect(page, contains('<link rel="canonical" href="https://starmodder.wispborne.com/mods/$id/">'));
+
+    // Written again, the moved address is one of this run's and stays.
+    await builder.write(data);
+    expect(file.existsSync(), isTrue);
+    expect(Directory(p.join(builder.modsDir, 'old-page')).existsSync(), isTrue);
+  });
+
   group('a thread only QB knows about', () {
     /// Topic 35651, "Computica's Faction Forks": a thread whose title carries
     /// no bracketed game version, and whose author never posted the forks on

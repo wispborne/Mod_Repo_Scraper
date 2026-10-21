@@ -96,11 +96,21 @@ class ModCatalog {
   final List<CatalogMod> mods;
   final List<CatalogCollection> collections;
 
-  const ModCatalog({required this.generatedAt, this.mods = const [], this.collections = const []});
+  /// Old ids that no mod has any more, each with the id of the mod it was
+  /// joined into. The site keeps such an address leading to that mod's page.
+  final Map<String, String> movedIds;
+
+  const ModCatalog({
+    required this.generatedAt,
+    this.mods = const [],
+    this.collections = const [],
+    this.movedIds = const {},
+  });
 
   Map<String, dynamic> toMap() => {
         'items': [for (final mod in mods) mod.toMap()],
         'collections': [for (final c in collections) c.toMap()],
+        if (movedIds.isNotEmpty) 'movedIds': Map.fromEntries(movedIds.entries.toList()..sort((a, b) => a.key.compareTo(b.key))),
         'totalCount': mods.length,
         'lastUpdated': generatedAt.toUtc().toIso8601String(),
       };
@@ -115,6 +125,10 @@ class ModCatalog {
           for (final item in (map['collections'] as List?) ?? const [])
             CatalogCollection.fromMap(Map<String, dynamic>.from(item as Map)),
         ],
+        movedIds: {
+          for (final MapEntry(:key, :value) in ((map['movedIds'] as Map?) ?? const {}).entries)
+            if (key is String && value is String) key: value,
+        },
       );
 
   /// Reads [file], or null when there is none.
@@ -219,10 +233,21 @@ class ModCatalog {
         ),
     ];
 
+    final movedIds = ids.movedIds([
+      for (final mod in mods)
+        (
+          id: mod.id,
+          names: [mod.mod.name],
+          authors: mod.mod.getAuthors(),
+          refs: [for (final post in mod.sourcePosts) post.ref],
+        ),
+    ], log: log);
+
     return ModCatalog(
       generatedAt: (generatedAt ?? DateTime.now()).toUtc(),
       mods: mods,
       collections: collections,
+      movedIds: movedIds,
     );
   }
 
