@@ -79,7 +79,7 @@ class QbBoardScraper {
         break;
       }
 
-      if (doc.querySelectorAll('a.navPages').isEmpty) {
+      if (!hasPageLinks(doc)) {
         _log.info('No more pages after page $pageIndex');
         break;
       }
@@ -122,62 +122,60 @@ class QbBoardScraper {
         final topicId = ForumConstants.tryExtractTopicId(href);
         if (topicId == null) continue;
 
-        // Sticky detection: walk up to parent td, look for show_sticky.gif
-        if (skipStickyTopics && !pinnedTopicsToKeep.contains(topicId)) {
-          final parentTd = _findAncestor(span, 'td');
-          if (parentTd != null) {
-            final stickyImg = parentTd.querySelector("img[src*='show_sticky.gif']");
-            if (stickyImg != null) continue;
-          }
+        // The topic's row. SMF 2.1 writes it as a `div.windowbg`; SMF 2.0
+        // wrote a table row.
+        final row = _topicRow(span);
+
+        if (skipStickyTopics &&
+            !pinnedTopicsToKeep.contains(topicId) &&
+            row != null &&
+            _isPinned(row)) {
+          continue;
         }
 
         final versionMatch = ForumConstants.gameVersionRegex.firstMatch(title);
         final gameVersion = versionMatch?.group(1);
 
-        // Navigate to parent row for other cells
-        final parentRow = _findAncestor(span, 'tr');
-
         var author = '';
-        if (parentRow != null) {
-          final starterCell = parentRow.querySelector('td.starter a');
-          if (starterCell != null) author = starterCell.text.trim();
-        }
-
         var replies = 0;
         var views = 0;
-        if (parentRow != null) {
-          final repliesCell = parentRow.querySelector('td.replies');
-          if (repliesCell != null) {
-            replies = int.tryParse(
-                    repliesCell.text.trim().replaceAll(',', '')) ??
-                0;
-          }
-          final viewsCell = parentRow.querySelector('td.views');
-          if (viewsCell != null) {
-            views =
-                int.tryParse(viewsCell.text.trim().replaceAll(',', '')) ??
-                    0;
-          }
-        }
-
         String? lastPostDate;
         String? lastPostBy;
-        if (parentRow != null) {
-          final lastpostCell = parentRow.querySelector('td.lastpost');
-          if (lastpostCell != null) {
-            final smalltext = lastpostCell.querySelector('.smalltext');
-            if (smalltext != null) {
-              final lpText = smalltext.text;
-              final parts = lpText
-                  .split('\n')
-                  .map((s) => s.trim())
-                  .where((s) => s.isNotEmpty)
-                  .toList();
-              if (parts.isNotEmpty) lastPostDate = parts[0];
-              if (parts.length >= 2) {
-                lastPostBy = parts[1].replaceFirst('by ', '').trim();
-              }
+        if (row != null) {
+          final starter = row.querySelector('td.starter a') ??
+              row.querySelector('.info p.floatleft a');
+          if (starter != null) author = starter.text.trim();
+
+          final repliesCell = row.querySelector('td.replies');
+          final viewsCell = row.querySelector('td.views');
+          if (repliesCell != null || viewsCell != null) {
+            replies = _count(repliesCell?.text);
+            views = _count(viewsCell?.text);
+          } else {
+            // SMF 2.1: "Replies: 402<br>Views: 194,320" in one cell.
+            final stats = row.querySelector('.board_stats')?.text ?? '';
+            replies = _count(_repliesRegex.firstMatch(stats)?.group(1));
+            views = _count(_viewsRegex.firstMatch(stats)?.group(1));
+          }
+
+          final lastpostCell = row.querySelector('td.lastpost') ??
+              row.querySelector('div.lastpost');
+          final smalltext = lastpostCell?.querySelector('.smalltext');
+          if (smalltext != null) {
+            final parts = smalltext.text
+                .split('\n')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toList();
+            if (parts.isNotEmpty) lastPostDate = parts[0];
+            if (parts.length >= 2) {
+              lastPostBy = parts[1].replaceFirst('by ', '').trim();
             }
+          } else if (lastpostCell != null) {
+            // SMF 2.1: `<a>date</a><br>by <a>name</a>`.
+            final links = lastpostCell.querySelectorAll('a');
+            if (links.isNotEmpty) lastPostDate = links[0].text.trim();
+            if (links.length >= 2) lastPostBy = links[1].text.trim();
           }
         }
 
@@ -201,12 +199,34 @@ class QbBoardScraper {
     return mods;
   }
 
-  static Element? _findAncestor(Element element, String tagName) {
-    Node? current = element.parent;
-    while (current != null) {
-      if (current is Element && current.localName == tagName) return current;
-      current = current.parent;
+  /// Whether the page has links to the board's other pages. SMF 2.1 marks them
+  /// `a.nav_page` and SMF 2.0 `a.navPages`. Each topic row has its own
+  /// `a.nav_page` links to the topic's pages too, so only the board's own page
+  /// bar counts.
+  @visibleForTesting
+  static bool hasPageLinks(Document doc) =>
+      doc.querySelector('.pagelinks a.nav_page') != null ||
+      doc.querySelector('a.navPages') != null;
+
+  static final RegExp _repliesRegex = RegExp(r'Replies:\s*([\d,]+)');
+  static final RegExp _viewsRegex = RegExp(r'Views:\s*([\d,]+)');
+
+  static int _count(String? text) =>
+      int.tryParse((text ?? '').trim().replaceAll(',', '')) ?? 0;
+
+  static Element? _topicRow(Element span) {
+    for (Node? node = span.parent; node != null; node = node.parent) {
+      if (node is! Element) continue;
+      if (node.localName == 'tr') return node;
+      if (node.localName == 'div' && node.classes.contains('windowbg')) {
+        return node;
+      }
     }
     return null;
   }
+
+  /// SMF 2.1 puts `sticky` on the row itself; SMF 2.0 showed a pin picture.
+  static bool _isPinned(Element row) =>
+      row.classes.contains('sticky') ||
+      row.querySelector("img[src*='show_sticky.gif']") != null;
 }

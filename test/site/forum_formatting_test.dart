@@ -79,6 +79,40 @@ void main() {
       expect(cleanPostHtml('<p>Run <tt class="bbc_tt">PrintChatterChars</tt></p>'),
           '<p>Run <code>PrintChatterChars</code></p>');
     });
+
+    // The forum moved to SMF 2.1 in October 2026, which writes these its own way.
+    test('an SMF 2.1 quote keeps the name from its cite, without the link', () {
+      expect(
+        cleanPostHtml('<blockquote class="bbc_standard_quote"><cite>'
+            '<a href="https://fractalsoftworks.com/forum/index.php?topic=10982.msg187260#msg187260">'
+            'Quote from: samsaq on April 21, 2016, 07:56:58 PM</a></cite><br />'
+            'I have an issue.</blockquote>'),
+        '<blockquote><cite>Quote from: samsaq on April 21, 2016, 07:56:58 PM</cite>'
+        'I have an issue.</blockquote>',
+      );
+      expect(
+        cleanPostHtml('<blockquote class="bbc_standard_quote"><cite>Quote</cite>'
+            '<br />Words</blockquote>'),
+        '<blockquote>Words</blockquote>',
+      );
+    });
+
+    test('an SMF 2.1 code block loses its header and keeps its lines', () {
+      expect(
+        cleanPostHtml('<div class="codeheader"><span class="code floatleft">Code</span>'
+            ' (java) <a class="codeoperation smf_select_text">Select</a></div>'
+            '<code class="bbc_code">public static boolean hasGraphicsLib;<br />'
+            '@Override</code>'),
+        '<pre><code>public static boolean hasGraphicsLib;<br>@Override</code></pre>',
+      );
+    });
+
+    test('SMF 2.1 typewriter text is code', () {
+      expect(
+        cleanPostHtml('<p>The <span class="monospace">magicSettings </span>functions</p>'),
+        '<p>The <code>magicSettings </code>functions</p>',
+      );
+    });
   });
 
   group('tables', () {
@@ -116,6 +150,14 @@ void main() {
       expect(cleanPostHtml('<div style="text-align: right;">Right</div>'),
           '<div class="align-right">Right</div>');
       expect(cleanPostHtml('<div style="text-align: left;">Left</div>'), 'Left');
+    });
+
+    test('SMF 2.1 aligns with a class', () {
+      expect(cleanPostHtml('<div class="centertext">Middle</div>'),
+          '<div class="align-center">Middle</div>');
+      expect(cleanPostHtml('<div class="righttext">Right</div>'),
+          '<div class="align-right">Right</div>');
+      expect(cleanPostHtml('<div class="lefttext">Left</div>'), 'Left');
     });
 
     test('an empty centred block goes', () {

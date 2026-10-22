@@ -154,8 +154,8 @@ class ForumScraper {
             summary: null,
             description: null,
             modVersion: null,
-            gameVersionReq: modElement.querySelector("strong span")?.text ?? "",
-            authorsList: [modElement.querySelector("em strong")?.text ?? ""],
+            gameVersionReq: modElement.querySelector("strong span, b span")?.text ?? "",
+            authorsList: [modElement.querySelector("em strong, i b")?.text ?? ""],
             urls: cleanedLink != null ? {ModUrlType.Forum: cleanedLink} : null,
             sources: [ModSource.Index],
             categories: [category],
@@ -219,7 +219,8 @@ class ForumScraper {
         previous != null;
         previous = previous.previousElementSibling) {
       if (previous.localName == 'br') continue;
-      if (previous.localName != 'strong') return null;
+      // SMF 2.1 writes bold as `<b>`, SMF 2.0 as `<strong>`.
+      if (previous.localName != 'strong' && previous.localName != 'b') return null;
 
       final heading = previous.text.trim().replaceAll(_trailingColonRegex, '').trim();
       return heading.isEmpty ? null : heading;
@@ -266,11 +267,12 @@ class ForumScraper {
 
         final response = await http.get(Uri.parse("$forumBaseUrl?board=$subforumNumber.$page"));
         final doc = html_parser.parse(response.body);
-        final posts = doc.querySelectorAll("#messageindex tr");
+        // SMF 2.1 writes each topic as a `div.windowbg`; SMF 2.0 wrote a table row.
+        final posts = doc.querySelectorAll("#messageindex tr, #messageindex div.windowbg");
 
         final pageMods = await posts.parallelMap((postElement) async {
-          final titleLinkElement = postElement.querySelector("td.subject span a");
-          final authorLinkElement = postElement.querySelector("td.starter a");
+          final titleLinkElement = postElement.querySelector("td.subject span a, span[id^='msg_'] a");
+          final authorLinkElement = postElement.querySelector("td.starter a, .info p.floatleft a");
 
           if (titleLinkElement == null) return null;
 

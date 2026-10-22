@@ -140,7 +140,7 @@ final RegExp _breaksAtTheEnd = RegExp(r'(?:<br>\s*)+$');
 final RegExp _breaksBeforeClose =
     RegExp(r'(?:<br>\s*)+(</(?:details|div|td|th|li|blockquote)>)');
 final RegExp _breaksAfterOpen = RegExp(
-    r'(</summary>|<div class="[a-z-]+">|<td>|<th>|<li>|<blockquote>)(?:\s*<br>)+');
+    r'(</summary>|</cite>|<div class="[a-z-]+">|<td>|<th>|<li>|<blockquote>)(?:\s*<br>)+');
 
 /// Tidies what is left once the tags that were not kept have gone.
 String _tidy(String html) {
@@ -336,9 +336,11 @@ bool _writeForumFormatting(
     // The site's own class is read back too, so HTML that has already been
     // cleaned once — a description cut out of a post — keeps its blocks. Dropped,
     // two blocks side by side run their words together ("ContentsThe Ship…").
-    final ownAlign = classes.contains('align-center')
+    // SMF 2.1 centres with a class rather than an `align`.
+    final ownAlign = classes.contains('align-center') ||
+            classes.contains('centertext')
         ? 'center'
-        : classes.contains('align-right')
+        : classes.contains('align-right') || classes.contains('righttext')
             ? 'right'
             : null;
     final align = (node.attributes['align'] ??
@@ -354,6 +356,35 @@ bool _writeForumFormatting(
       return true;
     }
     return false;
+  }
+
+  // SMF 2.1 names who is quoted in a `<cite>` inside the quote. Its words are
+  // kept and its link is not, as with SMF 2.0's header above the quote.
+  if (tag == 'cite') {
+    final words = _oneLine(node.text);
+    if (words.isNotEmpty && words.toLowerCase() != 'quote') {
+      out.write('<cite>${_escape(words)}</cite>');
+    }
+    return true;
+  }
+
+  // SMF 2.1's code block is a bare `<code>` the forum's stylesheet shows as a
+  // block; SMF 2.0 put a `<pre>` round it.
+  if (tag == 'code' &&
+      classes.contains('bbc_code') &&
+      node.parent?.localName != 'pre') {
+    out.write('<pre><code>');
+    _writeChildren(node, out, inLink: inLink);
+    out.write('</code></pre>');
+    return true;
+  }
+
+  // SMF 2.1's typewriter text, which SMF 2.0 wrote as `<tt>`.
+  if (tag == 'span' && classes.contains('monospace')) {
+    out.write('<code>');
+    _writeChildren(node, out, inLink: inLink);
+    out.write('</code>');
+    return true;
   }
 
   if (tag == 'span') {

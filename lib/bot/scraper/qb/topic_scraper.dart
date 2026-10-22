@@ -31,8 +31,10 @@ class QbTopicScraper {
   static final RegExp _postDateRegex =
       RegExp(r'on:\s*(.+?)\s*(?:\u00ab|\u00bb|Â»|»)');
   static final RegExp _lastEditRegex = RegExp(
-    r'Last\s+Edit:\s*(.+?)(?:\s*(?:Â»|»|&raquo;)|$)',
+    r'Last\s+Edit:\s*(.+?)(?:\s*(?:Â»|»|&raquo;)|[ \t]*$)',
     caseSensitive: false,
+    // SMF 2.1 writes no » after the date, and the line ends in whitespace.
+    multiLine: true,
   );
   static final RegExp _htmlTagStrip = RegExp(r'<[^>]+>');
   static final RegExp _imgSrcRegex =
@@ -228,11 +230,21 @@ class QbTopicScraper {
       final authorLink = poster.querySelector('h4 a');
       if (authorLink != null) author = authorLink.text.trim();
 
+      // SMF 2.1 marks each line and puts the avatar first, so the rank is
+      // read by its class: a custom title, else the member group, else the
+      // post-count group. SMF 2.0 put the rank on the first line.
+      final rank = poster.querySelector('li.title') ??
+          poster.querySelector('li.membergroup') ??
+          poster.querySelector('li.postgroup');
+      final rankText = rank?.text.trim() ?? '';
+      if (rankText.isNotEmpty) authorTitle = rankText;
+
       final listItems = poster.querySelectorAll('ul li');
       for (var i = 0; i < listItems.length; i++) {
         final text = listItems[i].text.trim();
 
-        if (i == 0 &&
+        if (rank == null &&
+            i == 0 &&
             text.isNotEmpty &&
             !text.startsWith('Posts:')) {
           authorTitle = text;

@@ -32,6 +32,12 @@ class QbModIndexScraper {
 
   static final RegExp _spaceRegex = RegExp(r'\s+');
 
+  // SMF 2.1 writes bold as `<b>` and italics as `<i>`; SMF 2.0 wrote
+  // `<strong>` and `<em>`. Both are read.
+  static const String _headingSelector =
+      'table.bbc_table > tbody > tr > td > strong, table.bbc_table > tbody > tr > td > b';
+  static const String _authorSelector = 'em strong, i b';
+
   QbModIndexScraper(this._client, {Logger? logger}) : _log = logger ?? Logger('QbModIndexScraper');
 
   Future<ModIndexCategoriesResult> scrape() async {
@@ -173,7 +179,7 @@ class QbModIndexScraper {
   @visibleForTesting
   static List<(int, QbIndexLine)> extractIndexLinesFromPost(Element postRoot) {
     final lines = <(int, QbIndexLine)>[];
-    for (final categoryNode in postRoot.querySelectorAll('table.bbc_table > tbody > tr > td > strong')) {
+    for (final categoryNode in postRoot.querySelectorAll(_headingSelector)) {
       final category = _normalizeCategory(categoryNode.text.trim().replaceAll(RegExp(r':+$'), '').trim());
       if (category.isEmpty) continue;
 
@@ -191,7 +197,7 @@ class QbModIndexScraper {
           topicId,
           QbIndexLine(
             name: name,
-            author: _tidy(item.querySelector('em strong')?.text ?? ''),
+            author: _tidy(item.querySelector(_authorSelector)?.text ?? ''),
             gameVersion: _gameVersionOf(item, link),
             category: category,
           ),
@@ -207,7 +213,7 @@ class QbModIndexScraper {
   static String? _gameVersionOf(Element item, Element link) {
     for (final node in item.children) {
       if (node == link || node.contains(link)) break;
-      if (node.localName == 'strong') {
+      if (node.localName == 'strong' || node.localName == 'b') {
         final text = _tidy(node.text);
         return text.isEmpty ? null : text;
       }
@@ -229,7 +235,7 @@ class QbModIndexScraper {
     final parsed = <int, String>{};
 
     // Find table.bbc_table > tbody > tr > td > strong (category headers)
-    final categoryNodes = postRoot.querySelectorAll('table.bbc_table > tbody > tr > td > strong');
+    final categoryNodes = postRoot.querySelectorAll(_headingSelector);
 
     for (final categoryNode in categoryNodes) {
       final categoryRaw = categoryNode.text.trim();
