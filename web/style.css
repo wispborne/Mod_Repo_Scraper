@@ -393,6 +393,8 @@ details.fold[open] summary { color: var(--text); margin-bottom: 6px; }
 .change-body > .table-wrapper { align-self: stretch; }
 .change-note { color: var(--text-dim); font-size: 0.85rem; margin: 0; font-style: italic; }
 .picture-seen-facts { font-size: 0.75rem; font-style: normal; opacity: 0.8; margin-top: 2px; }
+.picture-thumb-link { display: block; width: fit-content; margin-bottom: 4px; }
+.picture-thumb { display: block; max-width: min(100%, 360px); max-height: 200px; border-radius: 4px; background: var(--surface-container); }
 .llm-source { color: var(--text-dim); font-size: 0.85rem; margin: 0; }
 
 /* Diff tables */

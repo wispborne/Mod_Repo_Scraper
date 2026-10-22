@@ -152,6 +152,12 @@ export function imageList(images, captions = {}) {
   const list = el('ul', { class: 'field-list' });
   for (const img of images) {
     const value = el('span', { class: 'field-value' }, [
+      el('a', { href: img.originalUrl, target: '_blank', class: 'picture-thumb-link' }, [
+        el('img', {
+          class: 'picture-thumb', src: img.originalUrl, alt: img.alt || '',
+          loading: 'lazy', referrerpolicy: 'no-referrer',
+        }),
+      ]),
       el('a', { href: img.originalUrl, target: '_blank', text: img.originalUrl }),
     ]);
     const seen = captions[img.originalUrl];
@@ -165,9 +171,9 @@ export function imageList(images, captions = {}) {
 }
 
 const FIT_BADGES = {
-  good: ['badge-success', 'Good card picture'],
-  okay: ['badge-warning', 'Okay card picture'],
-  poor: ['badge-error', 'Not a card picture'],
+  good: ['badge-success', 'Good for a mod card'],
+  okay: ['badge-warning', 'Okay for a mod card'],
+  poor: ['badge-error', 'Poor for a mod card'],
 };
 
 /// One saved picture entry: its kind, card fit and description, or why it
@@ -176,15 +182,15 @@ const FIT_BADGES = {
 function pictureSeen(seen) {
   const box = el('div', { class: 'change-note' });
   if (seen.caption) {
-    const [fitClass, fitText] = FIT_BADGES[seen.fit] || ['badge-dim', `Fit: ${seen.fit || 'not saved'}`];
+    const [fitClass, fitText] = FIT_BADGES[seen.fit] || ['badge-dim', seen.fit ? `For a mod card: ${seen.fit}` : 'Card picture rating not saved'];
     box.append(
       el('span', { class: 'badge badge-llm', text: seen.kind || 'other' }), ' ',
       el('span', { class: `badge ${fitClass}`, text: fitText }), ' ',
       seen.caption,
     );
   } else if (seen.unreadable) {
-    box.append(el('span', { class: 'badge badge-error', text: 'unreadable' }), ' ',
-      `The model's server could not read it: ${seen.unreadable}`);
+    box.append(el('span', { class: 'badge badge-error', text: 'Could not read' }), ' ',
+      `The model's server could not read this picture: ${seen.unreadable}`);
   }
   const facts = [];
   if (seen.model) facts.push(seen.model);
@@ -192,7 +198,7 @@ function pictureSeen(seen) {
   if (seen.at) facts.push(new Date(seen.at).toLocaleString());
   if (seen.v != null) {
     facts.push(seen.current === false
-      ? `caption prompt v${seen.v} (old; it will be looked at again)`
+      ? `caption prompt v${seen.v} (outdated)`
       : `caption prompt v${seen.v}`);
   }
   if (facts.length) box.append(el('div', { class: 'picture-seen-facts', text: facts.join(' · ') }));

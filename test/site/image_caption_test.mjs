@@ -60,15 +60,15 @@ test('the AI facts about a picture follow both AI preferences', () => {
       setAiSummaryMode(mode);
       setAiOnModPages(visibility);
       const allowed = mode !== 'never' && visibility !== 'hide';
-      assert.equal(imageAiFacts(seen), allowed ? 'AI: Banner, good as a card picture' : '');
+      assert.equal(imageAiFacts(seen), allowed ? 'AI: Banner, good for a mod card' : '');
       assert.equal(imageAiFacts({ aiUnreadable: true }),
-        allowed ? 'AI: could not open this picture' : '');
+        allowed ? 'AI: could not read this picture' : '');
       assert.equal(imageAiFacts({}), '');
     }
   }
   setAiSummaryMode('whenMissing');
   setAiOnModPages('show');
-  assert.equal(imageHoverText(seen), 'Author\nAI: Banner, good as a card picture');
-  assert.equal(imageHoverText({ aiFit: 'poor' }), 'AI: not a card picture');
+  assert.equal(imageHoverText(seen), 'Author\nAI: Banner, good for a mod card');
+  assert.equal(imageHoverText({ aiFit: 'poor' }), 'AI: poor for a mod card');
   assert.equal(imageHoverText({}), '');
 });

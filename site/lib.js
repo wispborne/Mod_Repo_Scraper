@@ -505,19 +505,25 @@ export function imageCaption(image) {
 }
 
 const PICTURE_FITS = {
-  good: 'good as a card picture',
-  okay: 'okay as a card picture',
-  poor: 'not a card picture',
+  good: 'good for a mod card',
+  okay: 'okay for a mod card',
+  poor: 'poor for a mod card',
+};
+
+const PICTURE_KINDS = {
+  missing: 'Missing picture notice',
 };
 
 /// What the AI saw in a picture besides its description: what kind of
-/// picture it is and how well it would do as a mod's card picture, or that
-/// it could not open it. Empty when the reader has turned AI words off.
+/// picture it is and how well it would do on a mod's card, or that it could
+/// not read it. Empty when the reader has turned AI words off.
 export function imageAiFacts(image) {
   if (aiSummaryMode() === 'never' || aiOnModPages() === 'hide') return '';
-  if (image.aiUnreadable) return 'AI: could not open this picture';
+  if (image.aiUnreadable) return 'AI: could not read this picture';
   const parts = [];
-  if (image.aiKind) parts.push(image.aiKind[0].toUpperCase() + image.aiKind.slice(1));
+  if (image.aiKind) {
+    parts.push(PICTURE_KINDS[image.aiKind] || image.aiKind[0].toUpperCase() + image.aiKind.slice(1));
+  }
   if (PICTURE_FITS[image.aiFit]) parts.push(PICTURE_FITS[image.aiFit]);
   return parts.length ? `AI: ${parts.join(', ')}` : '';
 }
