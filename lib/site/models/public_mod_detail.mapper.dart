@@ -676,6 +676,24 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
     _$aiCaption,
     opt: true,
   );
+  static String? _$aiKind(PublicImage v) => v.aiKind;
+  static const Field<PublicImage, String> _f$aiKind = Field(
+    'aiKind',
+    _$aiKind,
+    opt: true,
+  );
+  static String? _$aiFit(PublicImage v) => v.aiFit;
+  static const Field<PublicImage, String> _f$aiFit = Field(
+    'aiFit',
+    _$aiFit,
+    opt: true,
+  );
+  static bool? _$aiUnreadable(PublicImage v) => v.aiUnreadable;
+  static const Field<PublicImage, bool> _f$aiUnreadable = Field(
+    'aiUnreadable',
+    _$aiUnreadable,
+    opt: true,
+  );
   static bool? _$small(PublicImage v) => v.small;
   static const Field<PublicImage, bool> _f$small = Field(
     'small',
@@ -688,6 +706,9 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
     #url: _f$url,
     #caption: _f$caption,
     #aiCaption: _f$aiCaption,
+    #aiKind: _f$aiKind,
+    #aiFit: _f$aiFit,
+    #aiUnreadable: _f$aiUnreadable,
     #small: _f$small,
   };
   @override
@@ -698,6 +719,9 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
       url: data.dec(_f$url),
       caption: data.dec(_f$caption),
       aiCaption: data.dec(_f$aiCaption),
+      aiKind: data.dec(_f$aiKind),
+      aiFit: data.dec(_f$aiFit),
+      aiUnreadable: data.dec(_f$aiUnreadable),
       small: data.dec(_f$small),
     );
   }
@@ -762,7 +786,15 @@ extension PublicImageValueCopy<$R, $Out>
 
 abstract class PublicImageCopyWith<$R, $In extends PublicImage, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? url, String? caption, String? aiCaption, bool? small});
+  $R call({
+    String? url,
+    String? caption,
+    String? aiCaption,
+    String? aiKind,
+    String? aiFit,
+    bool? aiUnreadable,
+    bool? small,
+  });
   PublicImageCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
 
@@ -779,12 +811,18 @@ class _PublicImageCopyWithImpl<$R, $Out>
     String? url,
     Object? caption = $none,
     Object? aiCaption = $none,
+    Object? aiKind = $none,
+    Object? aiFit = $none,
+    Object? aiUnreadable = $none,
     Object? small = $none,
   }) => $apply(
     FieldCopyWithData({
       if (url != null) #url: url,
       if (caption != $none) #caption: caption,
       if (aiCaption != $none) #aiCaption: aiCaption,
+      if (aiKind != $none) #aiKind: aiKind,
+      if (aiFit != $none) #aiFit: aiFit,
+      if (aiUnreadable != $none) #aiUnreadable: aiUnreadable,
       if (small != $none) #small: small,
     }),
   );
@@ -793,6 +831,9 @@ class _PublicImageCopyWithImpl<$R, $Out>
     url: data.get(#url, or: $value.url),
     caption: data.get(#caption, or: $value.caption),
     aiCaption: data.get(#aiCaption, or: $value.aiCaption),
+    aiKind: data.get(#aiKind, or: $value.aiKind),
+    aiFit: data.get(#aiFit, or: $value.aiFit),
+    aiUnreadable: data.get(#aiUnreadable, or: $value.aiUnreadable),
     small: data.get(#small, or: $value.small),
   );
 

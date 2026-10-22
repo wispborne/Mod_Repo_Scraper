@@ -146,29 +146,57 @@ export function fieldList(rows) {
   return list;
 }
 
-/// The images the scraper found in the post, each with what the model saw in
-/// it when it has looked (`captions` is keyed by the picture's address).
+/// The images the scraper found in the post, each with everything saved about
+/// what the model saw in it (`captions` is keyed by the picture's address).
 export function imageList(images, captions = {}) {
   const list = el('ul', { class: 'field-list' });
   for (const img of images) {
-    const seen = captions[img.originalUrl];
     const value = el('span', { class: 'field-value' }, [
       el('a', { href: img.originalUrl, target: '_blank', text: img.originalUrl }),
     ]);
-    if (seen?.caption) {
-      value.append(el('div', { class: 'change-note' }, [
-        el('span', { class: 'badge badge-llm', text: seen.kind || 'other' }),
-        ' ', seen.caption,
-      ]));
-    } else if (seen?.unreadable) {
-      value.append(el('div', { class: 'change-note', text: `The model could not read it: ${seen.unreadable}` }));
-    }
+    const seen = captions[img.originalUrl];
+    if (seen) value.append(pictureSeen(seen));
     list.append(el('li', {}, [
       el('span', { class: 'field-label', text: img.alt || 'image' }),
       value,
     ]));
   }
   return list;
+}
+
+const FIT_BADGES = {
+  good: ['badge-success', 'Good card picture'],
+  okay: ['badge-warning', 'Okay card picture'],
+  poor: ['badge-error', 'Not a card picture'],
+};
+
+/// One saved picture entry: its kind, card fit and description, or why it
+/// could not be read, then which model looked, where, when and with which
+/// version of the caption prompt.
+function pictureSeen(seen) {
+  const box = el('div', { class: 'change-note' });
+  if (seen.caption) {
+    const [fitClass, fitText] = FIT_BADGES[seen.fit] || ['badge-dim', `Fit: ${seen.fit || 'not saved'}`];
+    box.append(
+      el('span', { class: 'badge badge-llm', text: seen.kind || 'other' }), ' ',
+      el('span', { class: `badge ${fitClass}`, text: fitText }), ' ',
+      seen.caption,
+    );
+  } else if (seen.unreadable) {
+    box.append(el('span', { class: 'badge badge-error', text: 'unreadable' }), ' ',
+      `The model's server could not read it: ${seen.unreadable}`);
+  }
+  const facts = [];
+  if (seen.model) facts.push(seen.model);
+  if (seen.endpoint) facts.push(seen.endpoint);
+  if (seen.at) facts.push(new Date(seen.at).toLocaleString());
+  if (seen.v != null) {
+    facts.push(seen.current === false
+      ? `caption prompt v${seen.v} (old; it will be looked at again)`
+      : `caption prompt v${seen.v}`);
+  }
+  if (facts.length) box.append(el('div', { class: 'picture-seen-facts', text: facts.join(' · ') }));
+  return box;
 }
 
 /// Every link in the post, marked as a download, external or internal.

@@ -106,6 +106,28 @@ void main() {
     });
   });
 
+  test('a topic carries everything saved about each of its pictures', () async {
+    const url = 'https://example.com/shot.png';
+    File('$dataDir/mods/500/detail.json').writeAsStringSync(jsonEncode({
+      'topicId': 500,
+      'images': [{'originalUrl': url, 'localPath': '', 'alt': ''}],
+    }));
+    File('$dataDir/picture-captions.json').writeAsStringSync(jsonEncode({
+      'pictures': {
+        url: {
+          'v': 1, 'kind': 'banner', 'caption': 'A title.', 'fit': 'good',
+          'model': 'm', 'endpoint': 'https://llm.example/v1', 'at': '2026-10-22T13:10:10Z',
+        },
+      },
+    }));
+    final seen = (await get('topics/500'))['pictureCaptions'][url] as Map;
+    expect(seen, containsPair('fit', 'good'));
+    expect(seen, containsPair('endpoint', 'https://llm.example/v1'));
+    expect(seen, containsPair('at', '2026-10-22T13:10:10Z'));
+    expect(seen, containsPair('v', 1));
+    expect(seen, containsPair('current', false));
+  });
+
   test('text search matches title or author', () async {
     final byTitle = await get('topics?q=alpha');
     expect((byTitle['items'] as List).length, 1);

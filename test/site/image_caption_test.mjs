@@ -20,7 +20,7 @@ globalThis.window = new EventTarget();
 globalThis.location = { search: '' };
 globalThis.history = {};
 globalThis.document = { cookie: '' };
-const { imageCaption, setAiSummaryMode, setAiOnModPages } =
+const { imageCaption, imageAiFacts, imageHoverText, setAiSummaryMode, setAiOnModPages } =
   await import(await moduleUrl(new URL('../../site/lib.js', import.meta.url)));
 
 test('caption choices follow both AI preferences and preserve author text', () => {
@@ -51,4 +51,24 @@ test('changing visibility notifies the gallery and changes caption selection', (
   setAiOnModPages('show');
   assert.equal(caption, 'AI description: Generated');
   window.removeEventListener('ai-caption-preference-changed', update);
+});
+
+test('the AI facts about a picture follow both AI preferences', () => {
+  const seen = { caption: 'Author', aiKind: 'banner', aiFit: 'good' };
+  for (const mode of ['always', 'whenMissing', 'never']) {
+    for (const visibility of ['show', 'hide']) {
+      setAiSummaryMode(mode);
+      setAiOnModPages(visibility);
+      const allowed = mode !== 'never' && visibility !== 'hide';
+      assert.equal(imageAiFacts(seen), allowed ? 'AI: Banner, good as a card picture' : '');
+      assert.equal(imageAiFacts({ aiUnreadable: true }),
+        allowed ? 'AI: could not open this picture' : '');
+      assert.equal(imageAiFacts({}), '');
+    }
+  }
+  setAiSummaryMode('whenMissing');
+  setAiOnModPages('show');
+  assert.equal(imageHoverText(seen), 'Author\nAI: Banner, good as a card picture');
+  assert.equal(imageHoverText({ aiFit: 'poor' }), 'AI: not a card picture');
+  assert.equal(imageHoverText({}), '');
 });

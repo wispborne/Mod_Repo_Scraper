@@ -1001,6 +1001,32 @@ void main() {
       expect(gallery.last.toMap().containsKey('aiCaption'), isFalse);
     });
 
+    test('gallery publishes what kind of picture the AI saw, its card fit, and dead pictures', () async {
+      const dead = 'https://example.com/dead.png';
+      await seeing({
+        banner: const PictureCaption(kind: PictureKind.banner, caption: 'A title', fit: CardFit.good),
+      }, dead: {dead});
+      final data = buildFrom(
+        mods: [forumMod()],
+        bundle: bundleOf(index: [thread()], details: {
+          '9175': postOf('<p>Look</p>', images: [
+            ImageRef(originalUrl: banner),
+            ImageRef(originalUrl: dead),
+            ImageRef(originalUrl: 'https://example.com/unseen.png'),
+          ]),
+        }),
+      );
+      final gallery = {for (final i in data.details['nexerelin']!.gallery) i.url: i.toMap()};
+      expect(gallery[banner], containsPair('aiKind', 'banner'));
+      expect(gallery[banner], containsPair('aiFit', 'good'));
+      expect(gallery[banner]!.containsKey('aiUnreadable'), isFalse);
+      expect(gallery[dead], containsPair('aiUnreadable', true));
+      // The server's own error words are never published.
+      expect(gallery[dead]!.values, isNot(contains('not found')));
+      final unseen = gallery['https://example.com/unseen.png']!;
+      expect(unseen.keys.where((k) => k.startsWith('ai')), isEmpty);
+    });
+
     test('the earliest picture rated good is the card picture, whatever the LLM picked', () async {
       // The rating is saved per picture and never asked again, so this is the
       // same picture on every build. The LLM's pick can change each time the

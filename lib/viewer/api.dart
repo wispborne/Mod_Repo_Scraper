@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import '../bot/scraper/qb/models/forum_date.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
@@ -259,13 +260,16 @@ class ViewerApi {
     return _json({
       'index': idx?.toMap(),
       'detail': detail?.toMap(),
-      // What the model saw in each of the opening run's pictures, by address.
+      // What the model saw in each of the opening run's pictures, by address:
+      // the whole saved entry, plus whether it was made with today's caption
+      // prompt. The endpoint is saved with its user name, password and query
+      // already cut off.
       'pictureCaptions': {
         for (final image in detail?.allImages ?? const <ImageRef>[])
           if (data.pictureCaption(image.originalUrl) case final seen?)
             image.originalUrl: {
-              for (final key in const ['kind', 'caption', 'unreadable', 'model'])
-                if (seen[key] != null) key: seen[key],
+              ...seen,
+              'current': seen['v'] == PictureCaptionStore.captionVersion,
             },
       },
       'assumedDownloads': assumed?.map((c) => c.toJson()).toList(),

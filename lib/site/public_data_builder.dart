@@ -1214,10 +1214,14 @@ class PublicDataBuilder {
       // A "Buy me a coffee" button or a build badge is still published, but
       // marked, so the page can keep it out of the way of the screenshots.
       final small = !looksLikeAScreenshot(cleaned, sizes: sizes);
+      final looked = pictureCaptions?.captionFor(cleaned);
       gallery.add(PublicImage(
         url: cleaned,
         caption: _firstNonEmpty([caption]),
-        aiCaption: _firstNonEmpty([pictureCaptions?.captionFor(cleaned)?.caption]),
+        aiCaption: _firstNonEmpty([looked?.caption]),
+        aiKind: looked?.kind.name,
+        aiFit: looked?.fit.name,
+        aiUnreadable: looked == null && pictureCaptions?.isUnreadable(cleaned) == true ? true : null,
         small: small ? true : null,
       ));
     }

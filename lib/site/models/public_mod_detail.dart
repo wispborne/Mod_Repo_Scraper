@@ -197,11 +197,31 @@ class PublicImage with PublicImageMappable {
   /// Saved AI description, kept separate so readers can hide generated text.
   final String? aiCaption;
 
+  /// What kind of picture the AI saw: screenshot, logo, banner, art, button,
+  /// badge, divider, missing or other. Null when it has not looked.
+  final String? aiKind;
+
+  /// How well the AI thought it would work as a mod's card picture: good,
+  /// okay or poor. Null when it has not looked.
+  final String? aiFit;
+
+  /// True when the AI's server could not fetch or open the picture. Only
+  /// written when true. The server's own error is not published.
+  final bool? aiUnreadable;
+
   /// A badge, button, icon or small picture, hidden by default in the gallery.
   /// Only written when true.
   final bool? small;
 
-  PublicImage({required this.url, this.caption, this.aiCaption, this.small});
+  PublicImage({
+    required this.url,
+    this.caption,
+    this.aiCaption,
+    this.aiKind,
+    this.aiFit,
+    this.aiUnreadable,
+    this.small,
+  });
 }
 
 /// One way to get the mod.

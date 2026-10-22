@@ -6,7 +6,7 @@
 // so a thin page reads as deliberate instead of broken.
 
 import {
-  aiOnModPages, aiSparkle, aiSummaryNote, aiSummaryOf, imageCaption,
+  aiOnModPages, aiSparkle, aiSummaryNote, aiSummaryOf, imageCaption, imageHoverText,
   clear,
   currentGameVersion, DATA_BASE, downloadButton, el, errorPanel, expandAllButton, formatDay,
   favoriteToggle, formatMoment, imageUrlOf, inlinePictures, joinNames, quickTip,
@@ -1069,7 +1069,7 @@ function gallery(detail, onCount) {
   images.forEach((image) => {
     const button = el('button', {
       class: 'shot',
-      title: imageCaption(image) || 'Open picture',
+      title: imageHoverText(image) || 'Open picture',
     });
     const img = picture(image.url, {
       alt: imageCaption(image),
@@ -1096,7 +1096,7 @@ function gallery(detail, onCount) {
   const refreshCaptions = () => {
     for (const [image, button] of buttons) {
       const caption = imageCaption(image);
-      button.title = caption || 'Open picture';
+      button.title = imageHoverText(image) || 'Open picture';
       const img = button.querySelector('img');
       if (img) img.alt = caption;
     }
