@@ -653,6 +653,12 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
     _$caption,
     opt: true,
   );
+  static String? _$aiCaption(PublicImage v) => v.aiCaption;
+  static const Field<PublicImage, String> _f$aiCaption = Field(
+    'aiCaption',
+    _$aiCaption,
+    opt: true,
+  );
   static bool? _$small(PublicImage v) => v.small;
   static const Field<PublicImage, bool> _f$small = Field(
     'small',
@@ -664,6 +670,7 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
   final MappableFields<PublicImage> fields = const {
     #url: _f$url,
     #caption: _f$caption,
+    #aiCaption: _f$aiCaption,
     #small: _f$small,
   };
   @override
@@ -673,6 +680,7 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
     return PublicImage(
       url: data.dec(_f$url),
       caption: data.dec(_f$caption),
+      aiCaption: data.dec(_f$aiCaption),
       small: data.dec(_f$small),
     );
   }
@@ -737,7 +745,7 @@ extension PublicImageValueCopy<$R, $Out>
 
 abstract class PublicImageCopyWith<$R, $In extends PublicImage, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? url, String? caption, bool? small});
+  $R call({String? url, String? caption, String? aiCaption, bool? small});
   PublicImageCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
 
@@ -750,18 +758,24 @@ class _PublicImageCopyWithImpl<$R, $Out>
   late final ClassMapperBase<PublicImage> $mapper =
       PublicImageMapper.ensureInitialized();
   @override
-  $R call({String? url, Object? caption = $none, Object? small = $none}) =>
-      $apply(
-        FieldCopyWithData({
-          if (url != null) #url: url,
-          if (caption != $none) #caption: caption,
-          if (small != $none) #small: small,
-        }),
-      );
+  $R call({
+    String? url,
+    Object? caption = $none,
+    Object? aiCaption = $none,
+    Object? small = $none,
+  }) => $apply(
+    FieldCopyWithData({
+      if (url != null) #url: url,
+      if (caption != $none) #caption: caption,
+      if (aiCaption != $none) #aiCaption: aiCaption,
+      if (small != $none) #small: small,
+    }),
+  );
   @override
   PublicImage $make(CopyWithData data) => PublicImage(
     url: data.get(#url, or: $value.url),
     caption: data.get(#caption, or: $value.caption),
+    aiCaption: data.get(#aiCaption, or: $value.aiCaption),
     small: data.get(#small, or: $value.small),
   );
 

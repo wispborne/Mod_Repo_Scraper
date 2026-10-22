@@ -6,7 +6,7 @@
 // so a thin page reads as deliberate instead of broken.
 
 import {
-  aiOnModPages, aiSparkle, aiSummaryNote, aiSummaryOf,
+  aiOnModPages, aiSparkle, aiSummaryNote, aiSummaryOf, imageCaption,
   clear,
   currentGameVersion, DATA_BASE, downloadButton, el, errorPanel, expandAllButton, formatDay,
   favoriteToggle, formatMoment, imageUrlOf, inlinePictures, joinNames, quickTip,
@@ -1069,10 +1069,10 @@ function gallery(detail, onCount) {
   images.forEach((image) => {
     const button = el('button', {
       class: 'shot',
-      title: image.caption || 'Open picture',
+      title: imageCaption(image) || 'Open picture',
     });
     const img = picture(image.url, {
-      alt: image.caption || '',
+      alt: imageCaption(image),
       whenBroken: () => {
         button.remove();
         broken.add(image);
@@ -1092,6 +1092,20 @@ function gallery(detail, onCount) {
     buttons.set(image, button);
     grid.append(button);
   });
+
+  const refreshCaptions = () => {
+    for (const [image, button] of buttons) {
+      const caption = imageCaption(image);
+      button.title = caption || 'Open picture';
+      const img = button.querySelector('img');
+      if (img) img.alt = caption;
+    }
+  };
+  const captionEvents = new AbortController();
+  window.addEventListener('ai-caption-preference-changed', refreshCaptions,
+    { signal: captionEvents.signal });
+  window.addEventListener('hashchange', () => captionEvents.abort(),
+    { once: true, signal: captionEvents.signal });
 
   toggle.addEventListener('click', () => {
     showHidden = !showHidden;

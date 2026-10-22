@@ -902,6 +902,32 @@ void main() {
       );
     }
 
+    test('gallery publishes saved AI captions separately from author text', () async {
+      await seeing({
+        banner: const PictureCaption(kind: PictureKind.banner, caption: 'Generated description'),
+        discordIcon: const PictureCaption(kind: PictureKind.art, caption: 'Discord art'),
+      });
+      final data = buildFrom(
+        mods: [forumMod(images: const {
+          '1': Image(id: '1', url: 'https://cdn.discordapp.com/attachments/1/2/mod_post_icon_indevo.png?ex=another'),
+        })],
+        bundle: bundleOf(index: [thread()], details: {
+          '9175': postOf('<p>Look</p>', images: [
+            ImageRef(originalUrl: banner, alt: 'Author caption'),
+            ImageRef(originalUrl: 'https://example.com/unclassified.png'),
+          ]),
+        }),
+      );
+      final gallery = data.details['nexerelin']!.gallery;
+      final image = gallery.firstWhere((image) => image.url == banner);
+      expect(image.caption, 'Author caption');
+      expect(image.aiCaption, 'Generated description');
+      expect(image.toMap()['aiCaption'], 'Generated description');
+      expect(gallery.first.aiCaption, 'Discord art');
+      expect(gallery.last.aiCaption, isNull);
+      expect(gallery.last.toMap().containsKey('aiCaption'), isFalse);
+    });
+
     test('the earliest picture rated good is the card picture, whatever the LLM picked', () async {
       // The rating is saved per picture and never asked again, so this is the
       // same picture on every build. The LLM's pick can change each time the

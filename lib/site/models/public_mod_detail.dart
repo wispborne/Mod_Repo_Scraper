@@ -188,11 +188,14 @@ class PublicImage with PublicImageMappable {
   /// The picture's own caption or alt text. Null when it had none.
   final String? caption;
 
+  /// Saved AI description, kept separate so readers can hide generated text.
+  final String? aiCaption;
+
   /// A badge, button, icon or small picture, hidden by default in the gallery.
   /// Only written when true.
   final bool? small;
 
-  PublicImage({required this.url, this.caption, this.small});
+  PublicImage({required this.url, this.caption, this.aiCaption, this.small});
 }
 
 /// One way to get the mod.

@@ -1214,6 +1214,7 @@ class PublicDataBuilder {
       gallery.add(PublicImage(
         url: cleaned,
         caption: _firstNonEmpty([caption]),
+        aiCaption: _firstNonEmpty([pictureCaptions?.captionFor(cleaned)?.caption]),
         small: small ? true : null,
       ));
     }
