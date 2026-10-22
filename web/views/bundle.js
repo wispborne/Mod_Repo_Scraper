@@ -148,6 +148,7 @@ export async function renderThreadPage(root, topicId, { parent } = {}) {
     detail: data.detail,
     downloads: (data.assumedDownloads || []).map(downloadRowFromCandidate),
     llm: data.llm,
+    pictureCaptions: data.pictureCaptions || {},
     raw: data,
     topicId: Number(topicId),
     managerOn,
@@ -202,7 +203,7 @@ function primaryExtras(llm) {
 function renderEntry(root, entry) {
   const {
     index: idx, detail, downloads, llm, raw, topicId, managerOn, staleness,
-    historyBase,
+    historyBase, pictureCaptions,
   } = entry;
   const mods = (llm && llm.mods) || [];
 
@@ -296,7 +297,7 @@ function renderEntry(root, entry) {
     post.append(el('p', { class: 'loading', text: 'No post text saved for this thread.' }));
   }
   if (detail && (detail.images || []).length) {
-    post.append(fold(`Images (${detail.images.length})`, imageList(detail.images)));
+    post.append(fold(`Images (${detail.images.length})`, imageList(detail.images, pictureCaptions)));
   }
   if (detail && (detail.links || []).length) {
     post.append(fold(`Links (${detail.links.length})`, linkList(detail.links)));
@@ -310,7 +311,7 @@ function renderEntry(root, entry) {
     if (when) post.append(el('p', { class: 'change-note', text: when }));
     if (extra.contentHtml) post.append(postFrame(extra.contentHtml));
     if ((extra.images || []).length) {
-      post.append(fold(`Images (${extra.images.length})`, imageList(extra.images)));
+      post.append(fold(`Images (${extra.images.length})`, imageList(extra.images, pictureCaptions)));
     }
     if ((extra.links || []).length) {
       post.append(fold(`Links (${extra.links.length})`, linkList(extra.links)));

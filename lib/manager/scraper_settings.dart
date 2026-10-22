@@ -14,6 +14,9 @@ class LlmSettings {
   /// Whether the model is also asked for a short plain-English summary.
   final bool generateSummaries;
 
+  /// Whether the model is shown each post's pictures before the post is read.
+  final bool captionPictures;
+
   /// A second service, used only when the first one can't be reached.
   final String? fallbackBaseUrl;
   final String? fallbackModel;
@@ -32,6 +35,7 @@ class LlmSettings {
     this.disableThinking = false,
     this.structuredOutput = false,
     this.generateSummaries = false,
+    this.captionPictures = false,
     this.fallbackBaseUrl,
     this.fallbackModel,
     this.fallbackApiToken,
@@ -52,6 +56,7 @@ class LlmSettings {
         disableThinking: config.llmDisableThinking,
         structuredOutput: config.llmStructuredOutput,
         generateSummaries: config.enableLlmSummaries,
+        captionPictures: config.llmCaptionPictures,
         fallbackBaseUrl: config.llmFallbackBaseUrl,
         fallbackModel: config.llmFallbackModel,
         fallbackApiToken: config.llmFallbackApiToken,

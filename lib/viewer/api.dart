@@ -4,6 +4,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../bot/scraper/qb/models/forum_date.dart';
+import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../catalog/discord_posts.dart';
 import 'bundle_views.dart';
@@ -258,6 +259,15 @@ class ViewerApi {
     return _json({
       'index': idx?.toMap(),
       'detail': detail?.toMap(),
+      // What the model saw in each of the opening run's pictures, by address.
+      'pictureCaptions': {
+        for (final image in detail?.allImages ?? const <ImageRef>[])
+          if (data.pictureCaption(image.originalUrl) case final seen?)
+            image.originalUrl: {
+              for (final key in const ['kind', 'caption', 'unreadable', 'model'])
+                if (seen[key] != null) key: seen[key],
+            },
+      },
       'assumedDownloads': assumed?.map((c) => c.toJson()).toList(),
       // Use the bundle's LLM shape, with viewer-only classification and model
       // metadata from the cache. These extra fields are not published.

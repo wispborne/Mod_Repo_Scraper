@@ -252,6 +252,11 @@ Guidance:
     picture to.
   - Copy the image URL exactly from the images list. Never guess or build a URL,
     and never use one that is not in that list.
+  - A picture may carry "(seen: <kind>: <what it shows>)" after its address. We
+    wrote that by looking at the picture, so it is not the author's words. Use
+    it to choose: the mod's banner, logo or a screenshot of it is a good
+    picture; a button, a badge, a divider or a picture of another mod is not.
+    Never copy those words into any field.
   - Do NOT use badges or icons (license shields, version badges, forum smileys, donation links).
 - "supportLinks" is where readers can give money to the author of THIS mod: a
   Patreon, Ko-fi, PayPal or donation page. Most posts have none, and the list
@@ -555,7 +560,7 @@ Guidance:
     required String reducedText,
     required List<({String url, String text, bool isDownloadable})> links,
     required List<String> ruleLinks,
-    List<({String url, String? alt})> images = const [],
+    List<({String url, String? alt, String? seen})> images = const [],
     String? gameVersion,
     String? modTitle,
     List<String> followUpTexts = const [],
@@ -626,7 +631,12 @@ Guidance:
         final alt = img.alt != null && img.alt!.trim().isNotEmpty
             ? '  "${img.alt!.trim()}"'
             : '';
-        buffer.writeln('- ${img.url}$alt');
+        // Left off when there is no description, so the prompt of a post
+        // whose pictures were never looked at is exactly what it was.
+        final seen = img.seen != null && img.seen!.trim().isNotEmpty
+            ? '  (seen: ${img.seen!.trim()})'
+            : '';
+        buffer.writeln('- ${img.url}$alt$seen');
       }
     }
     buffer.writeln();

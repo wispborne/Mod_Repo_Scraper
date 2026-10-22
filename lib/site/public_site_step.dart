@@ -7,6 +7,7 @@ import '../bot/scraper/qb/bundle_publisher.dart';
 import '../bot/scraper/qb/models/forum_data_bundle.dart';
 import '../catalog/discord_posts.dart';
 import '../catalog/mod_catalog.dart';
+import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import 'mod_id_store.dart';
 import 'public_data_builder.dart';
 import 'release_detector.dart';
@@ -121,8 +122,15 @@ class PublicSiteStep {
     // Read for the day each mod was first seen. The ids themselves come from
     // the catalog; this hands none out and writes nothing.
     final idStore = ModIdStore(dataPath)..load();
+    // Read, never written: the LLM step saves what it saw in each picture, and
+    // the card picture is chosen from that.
+    final pictureCaptions = PictureCaptionStore(dataPath);
+    await pictureCaptions.load();
     final builder = PublicDataBuilder(
-        outputPath: outputPath, idStore: idStore, sitePath: sitePath);
+        outputPath: outputPath,
+        idStore: idStore,
+        sitePath: sitePath,
+        pictureCaptions: pictureCaptions);
 
     final data = builder.build(
       mods: catalog.mods,

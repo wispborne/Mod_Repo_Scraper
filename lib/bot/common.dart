@@ -110,6 +110,8 @@ class Common {
             properties['llm_structured_output']?.toLowerCase() == 'true',
         enableLlmSummaries:
             properties['llm_summaries']?.toLowerCase() == 'true',
+        llmCaptionPictures:
+            properties['llm_caption_pictures']?.toLowerCase() == 'true',
         llmSkipScrapeReprocessOnly:
             properties['llm_reprocess_only']?.toLowerCase() == 'true',
         llmTestMode: properties['llm_test_mode']?.toLowerCase() == 'true',
@@ -185,6 +187,7 @@ class Common {
     'llm_disable_thinking',
     'llm_structured_output',
     'llm_summaries',
+    'llm_caption_pictures',
     'llm_reprocess_only',
     'llm_test_mode',
     'llm_test_limit',
@@ -452,6 +455,12 @@ class BotConfig with BotConfigMappable {
   /// the post. Turning this on re-runs affected posts; turning it off leaves the
   /// saved results as they are.
   final bool enableLlmSummaries;
+  /// When true, the model is shown each post's pictures before the post is
+  /// read, and what it sees is written next to each picture's address in the
+  /// prompt. Needs a model that can read pictures, on the primary endpoint;
+  /// the fallback is never used for it. Descriptions already saved are used
+  /// either way.
+  final bool llmCaptionPictures;
   /// Skip the forum scrape entirely and instead run the LLM over every post
   /// already saved on disk, then rebuild the bundle. Picks up where it left
   /// off, so re-runs only handle new or changed posts. When false, a normal
@@ -556,6 +565,7 @@ class BotConfig with BotConfigMappable {
     this.llmDisableThinking = false,
     this.llmStructuredOutput = false,
     this.enableLlmSummaries = false,
+    this.llmCaptionPictures = false,
     this.llmSkipScrapeReprocessOnly = false,
     this.llmTestMode = false,
     this.llmTestLimit = 5,

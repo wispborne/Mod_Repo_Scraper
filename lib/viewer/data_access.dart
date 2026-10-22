@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../bot/scraper/qb/download_resolver.dart';
 import '../bot/scraper/qb/llm/extraction_store.dart';
+import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
 import '../catalog/discord_posts.dart';
@@ -70,6 +71,23 @@ class DataAccess {
   late final Directory _modsDir = Directory(p.join(dataDir, 'mods'));
   late final File _discordPostsFile =
       File(p.join(dataDir, DiscordPostsFile.fileName));
+  late final File _pictureCaptionsFile =
+      File(p.join(dataDir, PictureCaptionStore.fileName));
+
+  /// What the model saw in each picture, as saved: keyed the way
+  /// [PictureCaptionStore.keyFor] keys them.
+  late final _MtimeCache<Map<String, Map<String, dynamic>>> _pictureCaptionsCache =
+      _MtimeCache(
+    _pictureCaptionsFile,
+    (s) {
+      final pictures = (jsonDecode(s) as Map<String, dynamic>)['pictures'];
+      if (pictures is! Map<String, dynamic>) return const {};
+      return {
+        for (final e in pictures.entries)
+          if (e.value is Map<String, dynamic>) e.key: e.value as Map<String, dynamic>,
+      };
+    },
+  );
 
   late final _MtimeCache<List<QbModSummary>> _indexCache = _MtimeCache(
     _indexFile,
@@ -170,6 +188,8 @@ class DataAccess {
     AllowlistEntry('mods-index', _indexFile, 'Run the QB scraper.'),
     AllowlistEntry('llm-extraction-cache', _llmCacheFile,
         'Run the scraper with LLM extraction enabled.'),
+    AllowlistEntry('picture-captions', _pictureCaptionsFile,
+        'Run the scraper with llm_caption_pictures on.'),
     AllowlistEntry('llm-test-output', _llmTestFile,
         'Run the scraper with LLM test mode enabled.'),
     AllowlistEntry(
@@ -196,6 +216,11 @@ class DataAccess {
   List<QbModSummary>? get index => _indexCache.get();
 
   Map<int, LlmStoreEntry>? get llmCache => _llmCache.get();
+
+  /// What the model saw in [url], as saved — its kind and caption, or why it
+  /// could not be read — or null when it has not been looked at.
+  Map<String, dynamic>? pictureCaption(String url) =>
+      _pictureCaptionsCache.get()?[PictureCaptionStore.keyFor(url)];
 
   Map<int, List<DownloadCandidate>>? get assumedDownloads =>
       _assumedCache.get();

@@ -11,6 +11,7 @@ import 'package:mod_repo_scraper/catalog/other_listings.dart';
 import 'package:mod_repo_scraper/catalog/source_post.dart';
 import 'package:mod_repo_scraper/catalog/source_post_listings.dart';
 import 'package:mod_repo_scraper/site/mod_name_match.dart';
+import 'package:mod_repo_scraper/bot/scraper/qb/llm/picture_caption_store.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/assumed_download.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/forum_data_bundle.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_detail.dart';
@@ -832,18 +833,139 @@ void main() {
         reason: 'an avatar path is written relative to the forum');
   });
 
-  test('a picture in the post is not the card picture', () {
-    // TriOS does not go looking through the post for one, so neither does this.
-    final data = buildFrom(
-      mods: [forumMod()],
-      bundle: bundleOf(index: [
-        thread()
-      ], details: {
-        '9175': postOf('<img src="https://i.imgur.com/shot.png" width="900">',
-            images: [ImageRef(originalUrl: 'https://i.imgur.com/shot.png')]),
-      }),
-    );
-    expect(data.list.mods.single.imageUrl, isNull);
+  group("the post's own pictures", () {
+    const banner = 'https://i.imgur.com/7k1QAas.png';
+    const discordIcon = 'https://cdn.discordapp.com/attachments/1/2/mod_post_icon_indevo.png?ex=6ad88799';
+    final postPictures = [
+      ImageRef(originalUrl: 'https://trilink.wispborne.com/badges/install-badge-forthebadge.svg'),
+      ImageRef(originalUrl: banner),
+      ImageRef(originalUrl: 'https://i.imgur.com/second.png'),
+    ];
+
+    ScrapedMod announced() => forumMod(images: const {
+          '1': Image(id: '1', url: discordIcon),
+        });
+
+    test("the post's first picture stands in when the LLM picked none", () {
+      // Industrial Evolution: the LLM left the forum answer's picture empty,
+      // so the card showed the Discord one, whose address runs out a day
+      // after the Discord scrape. The post had a dozen screenshots.
+      final data = buildFrom(
+        mods: [announced()],
+        bundle: bundleOf(index: [
+          thread(llmMods: [LlmMod(name: 'Nexerelin')]),
+        ], details: {
+          '9175': postOf('<p>Look</p>', images: postPictures),
+        }),
+      );
+      expect(data.list.mods.single.imageUrl, banner, reason: 'the install badge is skipped');
+      expect(data.list.mods.single.announcementImageUrl, discordIcon);
+    });
+
+    test("the LLM's pick from the post still comes first", () {
+      final data = buildFrom(
+        mods: [announced()],
+        bundle: bundleOf(index: [
+          thread(llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:https://i.imgur.com/second.png')]),
+        ], details: {
+          '9175': postOf('<p>Look</p>', images: postPictures),
+        }),
+      );
+      expect(data.list.mods.single.imageUrl, 'https://i.imgur.com/second.png');
+    });
+
+    test("a picture the LLM picked off Discord comes after the post's own", () {
+      final data = buildFrom(
+        mods: [announced()],
+        bundle: bundleOf(index: [
+          thread(llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:$discordIcon')]),
+        ], details: {
+          '9175': postOf('<p>Look</p>', images: postPictures),
+        }),
+      );
+      expect(data.list.mods.single.imageUrl, banner);
+    });
+
+    /// The builder, reading [captions] for what the model saw in each picture.
+    Future<void> seeing(Map<String, PictureCaption> captions, {Set<String> dead = const {}}) async {
+      final store = PictureCaptionStore(p.join(dir.path, 'data'));
+      for (final MapEntry(key: url, value: seen) in captions.entries) {
+        await store.putCaption(url, seen);
+      }
+      for (final url in dead) {
+        await store.putUnreadable(url, 'not found');
+      }
+      builder = PublicDataBuilder(
+        outputPath: p.join(dir.path, 'outputs'),
+        idStore: idStore,
+        pictureCaptions: store,
+      );
+    }
+
+    test('the earliest picture rated good is the card picture, whatever the LLM picked', () async {
+      // The rating is saved per picture and never asked again, so this is the
+      // same picture on every build. The LLM's pick can change each time the
+      // post is read.
+      await seeing({
+        banner: const PictureCaption(kind: PictureKind.banner, caption: 'A thin title strip.', fit: CardFit.okay),
+        'https://i.imgur.com/second.png':
+            const PictureCaption(kind: PictureKind.screenshot, caption: 'The new market.', fit: CardFit.good),
+      });
+      final data = buildFrom(
+        mods: [forumMod()],
+        bundle: bundleOf(index: [
+          thread(llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:$banner')]),
+        ], details: {
+          '9175': postOf('<p>Look</p>', images: postPictures),
+        }),
+      );
+      expect(data.list.mods.single.imageUrl, 'https://i.imgur.com/second.png');
+    });
+
+    test('with nothing rated good, the earliest rated okay is used', () async {
+      await seeing({
+        banner: const PictureCaption(kind: PictureKind.banner, caption: 'A thin title strip.', fit: CardFit.okay),
+        'https://i.imgur.com/second.png':
+            const PictureCaption(kind: PictureKind.screenshot, caption: 'A stats screen.', fit: CardFit.okay),
+      });
+      final data = buildFrom(
+        mods: [forumMod()],
+        bundle: bundleOf(index: [thread()], details: {'9175': postOf('<p>Look</p>', images: postPictures)}),
+      );
+      expect(data.list.mods.single.imageUrl, banner);
+    });
+
+    test('a removed-picture notice, a poor fit or a dead link is never a card picture', () async {
+      // Old Photobucket links answer with Photobucket's own placeholder, which
+      // nothing but the model can tell from a real picture.
+      await seeing({
+        banner: const PictureCaption(kind: PictureKind.missing, caption: "Photobucket's placeholder.", fit: CardFit.poor),
+        discordIcon: const PictureCaption(kind: PictureKind.other, caption: 'A meme.', fit: CardFit.poor),
+      }, dead: {'https://i.imgur.com/second.png'});
+      final data = buildFrom(
+        mods: [announced()],
+        bundle: bundleOf(index: [
+          thread(llmMods: [LlmMod(name: 'Nexerelin', image: 'ext:$banner')]),
+        ], details: {
+          '9175': postOf('<p>Look</p>', images: postPictures, avatarPath: 'avatars/histidine.png'),
+        }),
+      );
+      expect(data.list.mods.single.imageUrl, 'https://fractalsoftworks.com/forum/avatars/histidine.png');
+      expect(data.list.mods.single.announcementImageUrl, isNull);
+    });
+
+    test('a post with only badges gives no picture of its own', () {
+      final data = buildFrom(
+        mods: [forumMod()],
+        bundle: bundleOf(index: [
+          thread()
+        ], details: {
+          '9175': postOf('<p>Look</p>',
+              images: [ImageRef(originalUrl: 'https://ko-fi.com/img/donate.png')]),
+        }),
+      );
+      expect(data.list.mods.single.imageUrl, isNull);
+    });
   });
 
   test('a summary that is only a download link gives way to the AI summary',
@@ -1313,6 +1435,25 @@ void main() {
           bundle: bundleOf(index: [hartleysThread()], details: {'34161': hartleysPost()}),
           discordMods: discordMods ?? hartleyOnDiscord(),
         );
+
+    test("a shared thread's first picture is not given to every mod on it", () async {
+      // The first picture on a thread of four mods may be any one of them,
+      // even when the model rated it a good card picture.
+      final store = PictureCaptionStore(p.join(dir.path, 'data'));
+      await store.putCaption('https://i.imgur.com/tithes.png',
+          const PictureCaption(kind: PictureKind.screenshot, caption: 'Tithes.', fit: CardFit.good));
+      builder = PublicDataBuilder(outputPath: p.join(dir.path, 'outputs'), idStore: idStore, pictureCaptions: store);
+      final data = await buildThroughCatalog(
+        bundle: bundleOf(index: [
+          hartleysThread()
+        ], details: {
+          '34161': postOf('<p>Useful.Tithes, Big Pilum Energy, Lost.Sector and Disco.Balls. Four small mods in one thread.</p>',
+              topicId: 34161, images: [ImageRef(originalUrl: 'https://i.imgur.com/tithes.png')]),
+        }),
+      );
+      final lost = data.list.mods.singleWhere((m) => m.name == 'Lost.Sector');
+      expect(lost.imageUrl, isNull);
+    });
 
     test('every mod on the thread is published, and the thread itself is not a mod', () async {
       final data = await buildHartleys();

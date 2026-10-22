@@ -11,6 +11,8 @@ import '../bot/scraper/qb/models/forum_data_bundle.dart';
 import '../bot/scraper/qb/models/forum_date.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
+import '../bot/scraper/qb/llm/picture_caption_store.dart';
+import '../bot/scraper/qb/llm/picture_captioner.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
 import '../catalog/discord_posts.dart';
@@ -235,12 +237,20 @@ class PublicDataBuilder {
   /// added. Ids come from the catalog; nothing is handed out here.
   final ModIdStore? idStore;
 
+  /// What the model saw in each post's pictures, and how well it judged each
+  /// would do on a mod's card. This is what picks the card picture on a
+  /// thread about one mod, so the same picture is chosen on every build.
+  /// Left out, the card picture is chosen as it was before pictures were
+  /// looked at.
+  final PictureCaptionStore? pictureCaptions;
+
   final Logger _log;
 
   PublicDataBuilder({
     required this.outputPath,
     this.idStore,
     this.sitePath = 'site',
+    this.pictureCaptions,
     Logger? logger,
   }) : _log = logger ?? Logger('PublicDataBuilder');
 
@@ -389,6 +399,8 @@ class PublicDataBuilder {
         postDate: detail?.postDate,
         threadWasRead: detail != null,
         authorAvatarPath: detail?.authorAvatarPath,
+        postPictures: detail?.allImages ?? const [],
+        pictureSizes: post.pictureSizes,
         chosen: chosen,
         ownSection: ownSection,
         threadDownloads: threadDownloads,
@@ -791,6 +803,8 @@ class PublicDataBuilder {
     required String? postDate,
     required bool threadWasRead,
     required String? authorAvatarPath,
+    required List<ImageRef> postPictures,
+    required Map<String, int> pictureSizes,
     required LlmMod? chosen,
     required String? ownSection,
     required List<AssumedDownloadCandidate> threadDownloads,
@@ -811,7 +825,14 @@ class PublicDataBuilder {
         summaryOfDiscordPost(
             discordPosts.firstTextFor(discordUrl));
     final generatedSummary = usableSummary(extras?.summary?.sentence);
-    final pictures = _picturesFor(mod, chosen, authorAvatarPath);
+    final pictures = _picturesFor(
+      mod,
+      chosen,
+      authorAvatarPath,
+      postPictures: postPictures,
+      sizes: pictureSizes,
+      sharedThread: partOfThreadTitle != null,
+    );
 
     return PublicMod(
       id: id,
@@ -1210,43 +1231,103 @@ class PublicDataBuilder {
 
   /// The picture the site shows, and the picture from the mod's announcement.
   ///
-  /// Two pictures can be on offer. One is the picture the LLM found in the
-  /// author's forum post; the other is the picture the merge kept, which comes
-  /// from the Discord or Nexus post announcing the mod, since the forum
-  /// scraper collects none. The post's picture is shown by default: it is the
-  /// one the author put at the top of their own thread, where an announcement
-  /// picture is whatever was attached to a message. The announcement one is
-  /// published beside it, so the reader's choice costs the site no extra
-  /// fetch.
+  /// Two pictures can be on offer. One is from the author's forum post; the
+  /// other is the picture the merge kept, which comes from the Discord or
+  /// Nexus post announcing the mod, since the forum scraper collects none. The
+  /// post's picture is shown by default: it is the one the author put at the
+  /// top of their own thread, where an announcement picture is whatever was
+  /// attached to a message. The announcement one is published beside it, so
+  /// the reader's choice costs the site no extra fetch.
+  ///
+  /// The shown picture is the first of these there is:
+  ///
+  /// 1. On a thread about this one mod, the earliest of the post's pictures
+  ///    the model rated a good fit for a card, else the earliest it rated an
+  ///    okay one ([pictureCaptions]). This comes first because it is the same
+  ///    on every build: a rating is saved per picture and never asked again,
+  ///    where the LLM's pick below can change whenever the post is read again.
+  /// 2. The picture the LLM picked, when it is one of the forum post's own.
+  /// 3. The forum post's first picture that is not a badge, a button or an
+  ///    icon, again only on a thread about this one mod: on a shared thread
+  ///    the first picture may be another mod's.
+  /// 4. The picture the LLM picked from the mod's Discord thread.
+  /// 5. The announcement picture.
+  /// 6. The author's forum avatar. TriOS falls back to the installed mod's
+  ///    icon after that, which a website has no way to read.
+  ///
+  /// A picture is never chosen at all when the model's server could not fetch
+  /// it, or when the model rated it a poor fit or saw a button, a badge, a
+  /// divider or a host's "picture removed" notice. Old Photobucket and Imgur
+  /// links answer with such a notice rather than an error, so nothing else
+  /// can tell them from a real picture.
   ///
   /// This is where the site parts company with TriOS's catalog, which takes
   /// the merged picture first. A mod can therefore look different in the two,
   /// which is the point of the setting.
   ///
-  /// Where the announcement picture is the only one there is, it is what
-  /// [_Pictures.shown] holds and [_Pictures.announcement] is left null — the
-  /// same address twice would only make `mods.json` bigger. The author's forum
-  /// avatar stands in when there is no picture at all. TriOS falls back to the
-  /// installed mod's icon after that, which a website has no way to read.
+  /// Where the announcement picture is the one shown, [_Pictures.announcement]
+  /// is left null — the same address twice would only make `mods.json`
+  /// bigger.
   ///
   /// Anything that is not a plain web address is dropped, and only then does it
   /// fall through to the next one.
   _Pictures _picturesFor(
     ScrapedMod mod,
     LlmMod? chosen,
-    String? authorAvatarPath,
-  ) {
+    String? authorAvatarPath, {
+    required List<ImageRef> postPictures,
+    required Map<String, int> sizes,
+    required bool sharedThread,
+  }) {
+    String? allowed(String? url) => url == null || _barredFromCards(url) ? null : url;
+
+    final inPost = [
+      for (final image in postPictures)
+        if (stripExternalPrefix(image.originalUrl) case final url?) url,
+    ];
+    final rated = sharedThread ? null : _bestRatedPicture(inPost);
+    final picked = allowed(stripExternalPrefix(chosen?.image));
+    final pickedFromPost = picked != null && inPost.contains(picked) ? picked : null;
+    final firstInPost = sharedThread
+        ? null
+        : inPost
+            .where((url) => looksLikeAScreenshot(url, sizes: sizes) && !_barredFromCards(url))
+            .firstOrNull;
+
     final merged = mod.getImages().values;
-    final fromPost = stripExternalPrefix(chosen?.image);
     final fromAnnouncement =
-        stripExternalPrefix(merged.isEmpty ? null : merged.first.url);
+        allowed(stripExternalPrefix(merged.isEmpty ? null : merged.first.url));
     final avatar = stripExternalPrefix(_avatarUrl(authorAvatarPath));
 
-    final shown = fromPost ?? fromAnnouncement ?? avatar;
+    final shown =
+        rated ?? pickedFromPost ?? firstInPost ?? picked ?? fromAnnouncement ?? avatar;
     return _Pictures(
       shown: shown,
       announcement: fromAnnouncement == shown ? null : fromAnnouncement,
     );
+  }
+
+  /// The earliest of the post's pictures the model rated a good fit for a
+  /// card, else the earliest it rated an okay one. Only the pictures the model
+  /// is shown count: the first [PictureCaptioner.maxPicturesPerPost] that are
+  /// not a badge or a button by their address.
+  String? _bestRatedPicture(List<String> inPost) {
+    final captions = pictureCaptions;
+    if (captions == null) return null;
+    final looked = [
+      for (final url in inPost.where((u) => !isBadgeOrDonationImage(u)).take(PictureCaptioner.maxPicturesPerPost))
+        if (captions.captionFor(url) case final seen? when !seen.neverOnACard) (url: url, fit: seen.fit),
+    ];
+    return looked.where((p) => p.fit == CardFit.good).firstOrNull?.url ??
+        looked.where((p) => p.fit == CardFit.okay).firstOrNull?.url;
+  }
+
+  /// True when [url] may never be a mod's card picture: the model's server
+  /// could not fetch it, or the model saw that it is not a picture of the mod.
+  bool _barredFromCards(String url) {
+    final captions = pictureCaptions;
+    if (captions == null) return false;
+    return captions.isUnreadable(url) || (captions.captionFor(url)?.neverOnACard ?? false);
   }
 
   /// A forum avatar path is written relative to the forum, so it is made into a

@@ -14,6 +14,8 @@ import '../bot/scraper/qb/llm/extraction_store.dart';
 import '../bot/scraper/qb/llm/fallback_llm_client.dart';
 import '../bot/scraper/qb/llm/llm_client.dart';
 import '../bot/scraper/qb/llm/openai_client.dart';
+import '../bot/scraper/qb/llm/picture_caption_store.dart';
+import '../bot/scraper/qb/llm/picture_captioner.dart';
 import '../bot/scraper/qb/llm/post_extractor.dart';
 import '../bot/scraper/qb/models/forum_data_bundle.dart';
 import '../bot/scraper/qb/models/scrape_job.dart';
@@ -101,6 +103,10 @@ class ScraperService implements JobRunner {
   /// Null when the environment has no LLM service set up.
   final LlmExtractionStore? llmStore;
 
+  /// What the model saw in each post's pictures. Null, like [llmStore], when
+  /// there is no LLM service.
+  final PictureCaptionStore? pictureCaptions;
+
   /// Keeps a copy of each bundle this service publishes, so two runs can be
   /// compared afterwards.
   final BundleSnapshotStore bundleSnapshots;
@@ -155,6 +161,9 @@ class ScraperService implements JobRunner {
       llmStore: environment.llm == null
           ? null
           : LlmExtractionStore(environment.dataPath),
+      pictureCaptions: environment.llm == null
+          ? null
+          : PictureCaptionStore(environment.dataPath),
       bundleSnapshots: BundleSnapshotStore(environment.dataPath,
           bundlesToKeep: guardrails.bundlesToKeep),
       siteStep: PublicSiteStep(
@@ -185,6 +194,7 @@ class ScraperService implements JobRunner {
     required this.probeCache,
     required this.resolver,
     required this.llmStore,
+    required this.pictureCaptions,
     required this.bundleSnapshots,
     required this.siteStep,
     required this.catalogStep,
@@ -204,6 +214,7 @@ class ScraperService implements JobRunner {
     await resolver.loadCache();
     await probeCache.loadCache();
     await llmStore?.load();
+    await pictureCaptions?.load();
   }
 
   /// Runs one job and says how it went. Never throws for a job that merely did
@@ -310,7 +321,7 @@ class ScraperService implements JobRunner {
         cancelled: cancel?.isCancelled ?? false,
       );
     } finally {
-      llm?.close();
+      await llm?.close();
       await client.close();
     }
   }
@@ -349,7 +360,7 @@ class ScraperService implements JobRunner {
         cancelled: cancel?.isCancelled ?? false,
       );
     } finally {
-      llm?.close();
+      await llm?.close();
       await client.close();
     }
   }
@@ -457,7 +468,7 @@ class ScraperService implements JobRunner {
         cancelled: cancel?.isCancelled ?? false,
       );
     } finally {
-      llm.close();
+      await llm.close();
     }
   }
 
@@ -495,7 +506,7 @@ class ScraperService implements JobRunner {
         cancelled: cancel?.isCancelled ?? false,
       );
     } finally {
-      llm.close();
+      await llm.close();
     }
   }
 
@@ -557,7 +568,7 @@ class ScraperService implements JobRunner {
         cancelled: cancel?.isCancelled ?? false,
       );
     } finally {
-      llm.close();
+      await llm.close();
     }
   }
 
@@ -798,6 +809,14 @@ class ScraperService implements JobRunner {
 
     final discord = await _discordCoverage(extractor, reporter, cancel);
 
+    final captioner = extractor.captioner;
+    if (captioner != null) {
+      reporter.log('Pictures: ${captioner.callCount} calls this run to look at '
+          'pictures (counted in the LLM calls above); '
+          '${extractor.pictureCaptions?.length ?? 0} pictures saved in all'
+          '${captioner.hasStopped ? '. Stopped early after calls kept failing' : ''}.');
+    }
+
     return _CoverageTally(
       seen: seen + discord.seen,
       total: index.length + discord.total,
@@ -1001,8 +1020,12 @@ class ScraperService implements JobRunner {
 
     final override = _createLlmClient;
     if (override != null) {
-      return _JobLlm(_buildPostExtractor(override(), request, settings,
-          testMode: testMode));
+      final client = override();
+      return _JobLlm(
+        _buildPostExtractor(client, request, settings,
+            testMode: testMode, captionClient: client),
+        captions: pictureCaptions,
+      );
     }
 
     final idleTimeout = Duration(seconds: guardrails.llmIdleTimeoutSeconds);
@@ -1046,9 +1069,14 @@ class ScraperService implements JobRunner {
     }
 
     return _JobLlm(
-      _buildPostExtractor(client, request, settings, testMode: testMode),
-      primaryClient,
-      fallbackClient,
+      // Pictures go to the primary alone. A picture it cannot read must never
+      // latch the fallback for the rest of the run, or start spending money
+      // on a paid one.
+      _buildPostExtractor(client, request, settings,
+          testMode: testMode, captionClient: primary),
+      primary: primaryClient,
+      fallback: fallbackClient,
+      captions: pictureCaptions,
     );
   }
 
@@ -1074,6 +1102,7 @@ class ScraperService implements JobRunner {
     JobRequest request,
     LlmSettings settings, {
     required bool testMode,
+    required LlmClient captionClient,
   }) =>
       PostExtractor(
         client: client,
@@ -1090,6 +1119,10 @@ class ScraperService implements JobRunner {
         testLimit: request.testLimit,
         testTopicIds:
             request.topicIds.isEmpty ? null : request.topicIds.toSet(),
+        pictureCaptions: pictureCaptions,
+        captioner: settings.captionPictures && !testMode && pictureCaptions != null
+            ? PictureCaptioner(client: captionClient, store: pictureCaptions!)
+            : null,
       );
 
   /// Closes the shared client used to look at download links.
@@ -1119,12 +1152,23 @@ class _JobLlm {
   final PostExtractor extractor;
   final ThrottledClient? _primary;
   final ThrottledClient? _fallback;
+  final PictureCaptionStore? _captions;
 
-  _JobLlm(this.extractor, [this._primary, this._fallback]);
+  _JobLlm(this.extractor,
+      {ThrottledClient? primary, ThrottledClient? fallback, PictureCaptionStore? captions})
+      : _primary = primary,
+        _fallback = fallback,
+        _captions = captions;
 
-  void close() {
-    _primary?.close();
-    _fallback?.close();
+  /// Saves the last picture descriptions and closes the clients. Called on the
+  /// failure path too, so a run that breaks keeps what it looked at.
+  Future<void> close() async {
+    try {
+      await _captions?.flush();
+    } finally {
+      _primary?.close();
+      _fallback?.close();
+    }
   }
 }
 

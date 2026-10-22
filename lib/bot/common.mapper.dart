@@ -287,6 +287,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: false,
   );
+  static bool _$llmCaptionPictures(BotConfig v) => v.llmCaptionPictures;
+  static const Field<BotConfig, bool> _f$llmCaptionPictures = Field(
+    'llmCaptionPictures',
+    _$llmCaptionPictures,
+    opt: true,
+    def: false,
+  );
   static bool _$llmSkipScrapeReprocessOnly(BotConfig v) =>
       v.llmSkipScrapeReprocessOnly;
   static const Field<BotConfig, bool> _f$llmSkipScrapeReprocessOnly = Field(
@@ -420,6 +427,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #llmDisableThinking: _f$llmDisableThinking,
     #llmStructuredOutput: _f$llmStructuredOutput,
     #enableLlmSummaries: _f$enableLlmSummaries,
+    #llmCaptionPictures: _f$llmCaptionPictures,
     #llmSkipScrapeReprocessOnly: _f$llmSkipScrapeReprocessOnly,
     #llmTestMode: _f$llmTestMode,
     #llmTestLimit: _f$llmTestLimit,
@@ -481,6 +489,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       llmDisableThinking: data.dec(_f$llmDisableThinking),
       llmStructuredOutput: data.dec(_f$llmStructuredOutput),
       enableLlmSummaries: data.dec(_f$enableLlmSummaries),
+      llmCaptionPictures: data.dec(_f$llmCaptionPictures),
       llmSkipScrapeReprocessOnly: data.dec(_f$llmSkipScrapeReprocessOnly),
       llmTestMode: data.dec(_f$llmTestMode),
       llmTestLimit: data.dec(_f$llmTestLimit),
@@ -599,6 +608,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     bool? llmDisableThinking,
     bool? llmStructuredOutput,
     bool? enableLlmSummaries,
+    bool? llmCaptionPictures,
     bool? llmSkipScrapeReprocessOnly,
     bool? llmTestMode,
     int? llmTestLimit,
@@ -676,6 +686,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     bool? llmDisableThinking,
     bool? llmStructuredOutput,
     bool? enableLlmSummaries,
+    bool? llmCaptionPictures,
     bool? llmSkipScrapeReprocessOnly,
     bool? llmTestMode,
     int? llmTestLimit,
@@ -741,6 +752,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (llmStructuredOutput != null)
         #llmStructuredOutput: llmStructuredOutput,
       if (enableLlmSummaries != null) #enableLlmSummaries: enableLlmSummaries,
+      if (llmCaptionPictures != null) #llmCaptionPictures: llmCaptionPictures,
       if (llmSkipScrapeReprocessOnly != null)
         #llmSkipScrapeReprocessOnly: llmSkipScrapeReprocessOnly,
       if (llmTestMode != null) #llmTestMode: llmTestMode,
@@ -841,6 +853,10 @@ class _BotConfigCopyWithImpl<$R, $Out>
     enableLlmSummaries: data.get(
       #enableLlmSummaries,
       or: $value.enableLlmSummaries,
+    ),
+    llmCaptionPictures: data.get(
+      #llmCaptionPictures,
+      or: $value.llmCaptionPictures,
     ),
     llmSkipScrapeReprocessOnly: data.get(
       #llmSkipScrapeReprocessOnly,

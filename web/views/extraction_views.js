@@ -146,13 +146,26 @@ export function fieldList(rows) {
   return list;
 }
 
-/// The images the scraper found in the post.
-export function imageList(images) {
+/// The images the scraper found in the post, each with what the model saw in
+/// it when it has looked (`captions` is keyed by the picture's address).
+export function imageList(images, captions = {}) {
   const list = el('ul', { class: 'field-list' });
   for (const img of images) {
+    const seen = captions[img.originalUrl];
+    const value = el('span', { class: 'field-value' }, [
+      el('a', { href: img.originalUrl, target: '_blank', text: img.originalUrl }),
+    ]);
+    if (seen?.caption) {
+      value.append(el('div', { class: 'change-note' }, [
+        el('span', { class: 'badge badge-llm', text: seen.kind || 'other' }),
+        ' ', seen.caption,
+      ]));
+    } else if (seen?.unreadable) {
+      value.append(el('div', { class: 'change-note', text: `The model could not read it: ${seen.unreadable}` }));
+    }
     list.append(el('li', {}, [
       el('span', { class: 'field-label', text: img.alt || 'image' }),
-      el('a', { class: 'field-value', href: img.originalUrl, target: '_blank', text: img.originalUrl }),
+      value,
     ]));
   }
   return list;

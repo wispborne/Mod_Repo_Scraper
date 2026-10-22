@@ -41,7 +41,8 @@ ${blocks.join('\n')}
 }
 
 Future<QbModDetail?> _scrape(List<_Post> posts) async {
-  final forum = MockClient((req) async => http.Response(_topicHtml(posts), 200));
+  final forum =
+      MockClient((req) async => http.Response(_topicHtml(posts), 200));
   final external = MockClient((req) async => http.Response('<html></html>', 200,
       headers: {'content-type': 'text/html; charset=utf-8'}));
   final scraper = QbTopicScraper(
@@ -53,6 +54,24 @@ Future<QbModDetail?> _scrape(List<_Post> posts) async {
 }
 
 void main() {
+  test('keeps mod artwork stored in an icons directory', () async {
+    const artwork = 'https://github.com/andrzejsokolowski/'
+        'starsector-omega-core-everywhere/blob/main/graphics/icons/'
+        'omega-core-everywhere-small.png?raw=true';
+    final detail = await _scrape([
+      (
+        author: 'oddisz',
+        body: '<img src="$artwork" width="220" class="bbc_img resized">'
+            '<img src="https://fractalsoftworks.com/forum/Smileys/default/smiley.gif">'
+            '<img src="https://fractalsoftworks.com/forum/Themes/default/images/icons/clip.gif">'
+            '<img src="https://fractalsoftworks.com/forum/Themes/default/images/star.gif">',
+      ),
+    ]);
+
+    expect(detail!.contentHtml, contains(artwork));
+    expect(detail.images.map((image) => image.originalUrl), [artwork]);
+  });
+
   group('the author\'s opening run of posts', () {
     test('a Downloads post by the same author is kept', () async {
       final detail = await _scrape([
@@ -182,7 +201,9 @@ void main() {
         extraPosts: [
           QbForumPost(
             contentHtml: '<p>Downloads</p>',
-            links: [LinkRef(url: 'https://example.com/a.zip', isExternal: true)],
+            links: [
+              LinkRef(url: 'https://example.com/a.zip', isExternal: true)
+            ],
             postDate: 'June 26, 2026, 06:50:19 PM',
           ),
         ],

@@ -90,7 +90,7 @@ class OpenAiCompatibleClient implements LlmClient {
             ? {
                 'type': 'json_schema',
                 'json_schema': {
-                  'name': 'mod_extraction',
+                  'name': request.schemaName,
                   'strict': true,
                   'schema': request.jsonSchema,
                 },
@@ -101,7 +101,22 @@ class OpenAiCompatibleClient implements LlmClient {
       'model': _model,
       'messages': [
         {'role': 'system', 'content': request.systemPrompt},
-        {'role': 'user', 'content': request.userPrompt},
+        {
+          'role': 'user',
+          // A request with pictures sends the words and the pictures as a list
+          // of parts, the OpenAI way. A text-only request is sent as it always
+          // was.
+          'content': request.imageUrls.isEmpty
+              ? request.userPrompt
+              : [
+                  {'type': 'text', 'text': request.userPrompt},
+                  for (final url in request.imageUrls)
+                    {
+                      'type': 'image_url',
+                      'image_url': {'url': url},
+                    },
+                ],
+        },
       ],
       'temperature': request.temperature,
       'response_format': responseFormat,

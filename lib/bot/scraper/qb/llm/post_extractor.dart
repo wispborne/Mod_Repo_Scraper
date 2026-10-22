@@ -17,6 +17,8 @@ import '../../../../site/description_slice.dart';
 import '../../../../site/gallery_filter.dart';
 import 'extraction_store.dart';
 import 'llm_client.dart';
+import 'picture_caption_store.dart';
+import 'picture_captioner.dart';
 import 'post_reducer.dart';
 import 'prompt.dart';
 
@@ -233,6 +235,16 @@ class PostExtractor {
   /// `llm_max_concurrent_calls`.
   final int maxConcurrentCalls;
 
+  /// The saved descriptions of the posts' pictures. Each picture that has one
+  /// is shown with it in the prompt, so the model can tell the mod's banner
+  /// from a Patreon button. Used whenever it is given, even with [captioner]
+  /// off, so turning captioning off does not change any prompt.
+  final PictureCaptionStore? pictureCaptions;
+
+  /// Looks at the pictures that have no description yet, before the post is
+  /// read. Null when `llm_caption_pictures` is off.
+  final PictureCaptioner? captioner;
+
   final Lock _lock = Lock();
   int _consecutiveFailures = 0;
   bool _bailed = false;
@@ -263,6 +275,8 @@ class PostExtractor {
     this.testMode = false,
     this.testLimit = 5,
     this.testTopicIds,
+    this.pictureCaptions,
+    this.captioner,
     Logger? logger,
   })  : _client = client,
         _store = store,
@@ -326,6 +340,38 @@ class PostExtractor {
       return false;
     }
 
+    // The pictures are looked at first, because what the model sees in them
+    // goes into the prompt, and so into the fingerprint.
+    final looked = await _lookAtPictures(source);
+    if (looked == null) return false;
+    return await _extract(source, ruleCandidates) || looked;
+  }
+
+  /// Looks at the post's pictures that have no description yet. Returns
+  /// whether a call was spent, or null when the run has been asked to stop or
+  /// has no budget left, so the post is not read either. Takes a turn like any
+  /// other call, and counts against [maxTopics].
+  Future<bool?> _lookAtPictures(SourcePost source) async {
+    final captioner = this.captioner;
+    if (captioner == null) return false;
+    final pictures = captioner.picturesToLookAt(source);
+    if (pictures.isEmpty) return false;
+
+    await _slots.take();
+    try {
+      if (_stopAsked) return null;
+      if (!await _reserveSlot()) return null;
+      await captioner.lookAt(pictures, where: source.label, title: source.title);
+      return true;
+    } finally {
+      _slots.release();
+    }
+  }
+
+  Future<bool> _extract(
+    SourcePost source,
+    List<DownloadCandidate> ruleCandidates,
+  ) async {
     final read = _ReadPosts.of(source);
     final userPrompt = _buildUserPrompt(source, read, ruleCandidates);
     final promptVersion = ExtractionPrompt.promptVersionFor(source.kind);
@@ -526,7 +572,11 @@ class PostExtractor {
     final images = [
       for (final img in source.allImages)
         if (!isBadgeOrDonationImage(img.originalUrl))
-          (url: img.originalUrl, alt: img.alt),
+          (
+            url: img.originalUrl,
+            alt: img.alt,
+            seen: pictureCaptions?.captionFor(img.originalUrl)?.promptText,
+          ),
     ];
 
     return ExtractionPrompt.buildUserPrompt(

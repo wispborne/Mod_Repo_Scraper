@@ -22,6 +22,7 @@ class QbTopicScraper {
     r'^https?://.+\.(png|jpg|jpeg|gif|webp|bmp|svg)',
     caseSensitive: false,
   );
+
   /// How many of the author's follow-up posts to keep. Enough for a thread that
   /// reserves a few posts for downloads and changelogs, small enough that a
   /// thread where the author talks to themselves for a page does not balloon.
@@ -163,7 +164,8 @@ class QbTopicScraper {
       if (_authorNameOf(post) != author) break;
 
       final contentHtml = _extractContentHtml(post);
-      final links = await _classifyDownloadableLinks(_extractLinks(contentHtml));
+      final links =
+          await _classifyDownloadableLinks(_extractLinks(contentHtml));
       followUps.add(QbForumPost(
         contentHtml: contentHtml,
         images: _extractImageUrls(contentHtml),
@@ -322,9 +324,16 @@ class QbTopicScraper {
     for (final m in _imgSrcRegex.allMatches(html)) {
       final src = ForumConstants.stripPhpSessId(m.group(1)!);
       if (src.isEmpty || src.startsWith('data:')) continue;
-      if (src.toLowerCase().contains('/smileys/') ||
-          src.toLowerCase().contains('/icons/') ||
-          src.toLowerCase().contains('star.gif')) {
+      final uri = Uri.tryParse(src);
+      final path = uri?.path.toLowerCase() ?? '';
+      // Mod artwork can live in an icons folder too. Only discard the
+      // forum's own smileys and theme decorations.
+      final forumImage = uri != null &&
+          (uri.host.isEmpty || ForumConstants.isForumHosted(src));
+      if (forumImage &&
+          (path.contains('/smileys/') ||
+              (path.contains('/themes/') &&
+                  (path.contains('/icons/') || path.endsWith('/star.gif'))))) {
         continue;
       }
       if (!seen.add(src)) continue;
@@ -364,8 +373,7 @@ class QbTopicScraper {
     final seen = <String>{};
 
     for (final m in _linkRegex.allMatches(html)) {
-      if (spoilerRanges
-          .any((r) => m.start >= r.start && m.start < r.end)) {
+      if (spoilerRanges.any((r) => m.start >= r.start && m.start < r.end)) {
         continue;
       }
 
@@ -373,7 +381,9 @@ class QbTopicScraper {
           HtmlProcessor.decodeEntities(m.group(1)!).trim());
       final text = m.group(2)!.replaceAll(_htmlTagStrip, '').trim();
 
-      if (href.isEmpty || href.startsWith('#') || href.startsWith('javascript:')) {
+      if (href.isEmpty ||
+          href.startsWith('#') ||
+          href.startsWith('javascript:')) {
         continue;
       }
       if (!seen.add(href)) continue;
@@ -418,7 +428,6 @@ class QbTopicScraper {
 
     return ranges;
   }
-
 }
 
 class _AuthorInfo {

@@ -12,12 +12,22 @@ class LlmRequest {
   /// this shape. Clients not using structured output ignore it.
   final Map<String, dynamic>? jsonSchema;
 
+  /// The name the schema is sent under. Some servers show it in their logs.
+  final String schemaName;
+
+  /// Pictures sent with the user message, by address. The server fetches each
+  /// one itself, so nothing is downloaded here. Empty for an ordinary
+  /// text-only request.
+  final List<String> imageUrls;
+
   const LlmRequest({
     required this.systemPrompt,
     required this.userPrompt,
     this.temperature = 0,
     this.maxTokens = 6000,
     this.jsonSchema,
+    this.schemaName = 'mod_extraction',
+    this.imageUrls = const [],
   });
 
   /// A copy with a different [temperature]. Used to retry a parse failure with
@@ -29,6 +39,8 @@ class LlmRequest {
         temperature: temperature ?? this.temperature,
         maxTokens: maxTokens,
         jsonSchema: jsonSchema,
+        schemaName: schemaName,
+        imageUrls: imageUrls,
       );
 }
 
