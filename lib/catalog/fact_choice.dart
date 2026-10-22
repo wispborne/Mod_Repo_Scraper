@@ -68,6 +68,12 @@ LlmMod? chooseFacts(List<FactSource> sources) {
     canRemove: removing.canRemove,
     summary: firstOf((e) => e.summary, (s) => !s.isEmpty),
     needs: firstOf((e) => e.needs, (l) => l.isNotEmpty),
+    // Taken whole from one answer. A forum "no AI" and a Discord "AI
+    // portraits" are two statements, and joining them would misquote both.
+    // A post that says nothing leaves the field to one that does; only when
+    // none says anything is the mod "not stated" rather than not read yet.
+    aiUse: firstOf((e) => e.aiUse, (a) => a.isStated) ??
+        firstOf((e) => e.aiUse, (_) => true),
   );
 
   final downloads = [

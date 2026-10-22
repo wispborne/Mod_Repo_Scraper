@@ -58,6 +58,184 @@ extension SaveAnswerMapperExtension on SaveAnswer {
   }
 }
 
+class AiUseAreaMapper extends EnumMapper<AiUseArea> {
+  AiUseAreaMapper._();
+
+  static AiUseAreaMapper? _instance;
+  static AiUseAreaMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = AiUseAreaMapper._());
+    }
+    return _instance!;
+  }
+
+  static AiUseArea fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  AiUseArea decode(dynamic value) {
+    switch (value) {
+      case r'portraits':
+        return AiUseArea.portraits;
+      case r'illustrations':
+        return AiUseArea.illustrations;
+      case r'sprites':
+        return AiUseArea.sprites;
+      case r'icons':
+        return AiUseArea.icons;
+      case r'music':
+        return AiUseArea.music;
+      case r'voice':
+        return AiUseArea.voice;
+      case r'writing':
+        return AiUseArea.writing;
+      case r'translation':
+        return AiUseArea.translation;
+      case r'code':
+        return AiUseArea.code;
+      case r'other':
+        return AiUseArea.other;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(AiUseArea self) {
+    switch (self) {
+      case AiUseArea.portraits:
+        return r'portraits';
+      case AiUseArea.illustrations:
+        return r'illustrations';
+      case AiUseArea.sprites:
+        return r'sprites';
+      case AiUseArea.icons:
+        return r'icons';
+      case AiUseArea.music:
+        return r'music';
+      case AiUseArea.voice:
+        return r'voice';
+      case AiUseArea.writing:
+        return r'writing';
+      case AiUseArea.translation:
+        return r'translation';
+      case AiUseArea.code:
+        return r'code';
+      case AiUseArea.other:
+        return r'other';
+    }
+  }
+}
+
+extension AiUseAreaMapperExtension on AiUseArea {
+  String toValue() {
+    AiUseAreaMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<AiUseArea>(this) as String;
+  }
+}
+
+class AiUseHowMapper extends EnumMapper<AiUseHow> {
+  AiUseHowMapper._();
+
+  static AiUseHowMapper? _instance;
+  static AiUseHowMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = AiUseHowMapper._());
+    }
+    return _instance!;
+  }
+
+  static AiUseHow fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  AiUseHow decode(dynamic value) {
+    switch (value) {
+      case r'generated':
+        return AiUseHow.generated;
+      case r'edited':
+        return AiUseHow.edited;
+      case r'assisted':
+        return AiUseHow.assisted;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(AiUseHow self) {
+    switch (self) {
+      case AiUseHow.generated:
+        return r'generated';
+      case AiUseHow.edited:
+        return r'edited';
+      case AiUseHow.assisted:
+        return r'assisted';
+    }
+  }
+}
+
+extension AiUseHowMapperExtension on AiUseHow {
+  String toValue() {
+    AiUseHowMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<AiUseHow>(this) as String;
+  }
+}
+
+class AiUseExtentMapper extends EnumMapper<AiUseExtent> {
+  AiUseExtentMapper._();
+
+  static AiUseExtentMapper? _instance;
+  static AiUseExtentMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = AiUseExtentMapper._());
+    }
+    return _instance!;
+  }
+
+  static AiUseExtent fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  AiUseExtent decode(dynamic value) {
+    switch (value) {
+      case r'all':
+        return AiUseExtent.all;
+      case r'most':
+        return AiUseExtent.most;
+      case r'some':
+        return AiUseExtent.some;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(AiUseExtent self) {
+    switch (self) {
+      case AiUseExtent.all:
+        return r'all';
+      case AiUseExtent.most:
+        return r'most';
+      case AiUseExtent.some:
+        return r'some';
+    }
+  }
+}
+
+extension AiUseExtentMapperExtension on AiUseExtent {
+  String toValue() {
+    AiUseExtentMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<AiUseExtent>(this) as String;
+  }
+}
+
 class LlmUpdateNoteMapper extends ClassMapperBase<LlmUpdateNote> {
   LlmUpdateNoteMapper._();
 
@@ -199,6 +377,360 @@ class _LlmUpdateNoteCopyWithImpl<$R, $Out>
   LlmUpdateNoteCopyWith<$R2, LlmUpdateNote, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   ) => _LlmUpdateNoteCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class LlmAiUseEntryMapper extends ClassMapperBase<LlmAiUseEntry> {
+  LlmAiUseEntryMapper._();
+
+  static LlmAiUseEntryMapper? _instance;
+  static LlmAiUseEntryMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = LlmAiUseEntryMapper._());
+      AiUseAreaMapper.ensureInitialized();
+      AiUseHowMapper.ensureInitialized();
+      AiUseExtentMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'LlmAiUseEntry';
+
+  static AiUseArea _$area(LlmAiUseEntry v) => v.area;
+  static const Field<LlmAiUseEntry, AiUseArea> _f$area = Field('area', _$area);
+  static AiUseHow? _$how(LlmAiUseEntry v) => v.how;
+  static const Field<LlmAiUseEntry, AiUseHow> _f$how = Field(
+    'how',
+    _$how,
+    opt: true,
+  );
+  static AiUseExtent? _$extent(LlmAiUseEntry v) => v.extent;
+  static const Field<LlmAiUseEntry, AiUseExtent> _f$extent = Field(
+    'extent',
+    _$extent,
+    opt: true,
+  );
+  static bool? _$optional(LlmAiUseEntry v) => v.optional;
+  static const Field<LlmAiUseEntry, bool> _f$optional = Field(
+    'optional',
+    _$optional,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<LlmAiUseEntry> fields = const {
+    #area: _f$area,
+    #how: _f$how,
+    #extent: _f$extent,
+    #optional: _f$optional,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static LlmAiUseEntry _instantiate(DecodingData data) {
+    return LlmAiUseEntry(
+      area: data.dec(_f$area),
+      how: data.dec(_f$how),
+      extent: data.dec(_f$extent),
+      optional: data.dec(_f$optional),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static LlmAiUseEntry fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<LlmAiUseEntry>(map);
+  }
+
+  static LlmAiUseEntry fromJson(String json) {
+    return ensureInitialized().decodeJson<LlmAiUseEntry>(json);
+  }
+}
+
+mixin LlmAiUseEntryMappable {
+  String toJson() {
+    return LlmAiUseEntryMapper.ensureInitialized().encodeJson<LlmAiUseEntry>(
+      this as LlmAiUseEntry,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return LlmAiUseEntryMapper.ensureInitialized().encodeMap<LlmAiUseEntry>(
+      this as LlmAiUseEntry,
+    );
+  }
+
+  LlmAiUseEntryCopyWith<LlmAiUseEntry, LlmAiUseEntry, LlmAiUseEntry>
+  get copyWith => _LlmAiUseEntryCopyWithImpl<LlmAiUseEntry, LlmAiUseEntry>(
+    this as LlmAiUseEntry,
+    $identity,
+    $identity,
+  );
+  @override
+  String toString() {
+    return LlmAiUseEntryMapper.ensureInitialized().stringifyValue(
+      this as LlmAiUseEntry,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return LlmAiUseEntryMapper.ensureInitialized().equalsValue(
+      this as LlmAiUseEntry,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return LlmAiUseEntryMapper.ensureInitialized().hashValue(
+      this as LlmAiUseEntry,
+    );
+  }
+}
+
+extension LlmAiUseEntryValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, LlmAiUseEntry, $Out> {
+  LlmAiUseEntryCopyWith<$R, LlmAiUseEntry, $Out> get $asLlmAiUseEntry =>
+      $base.as((v, t, t2) => _LlmAiUseEntryCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class LlmAiUseEntryCopyWith<$R, $In extends LlmAiUseEntry, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({
+    AiUseArea? area,
+    AiUseHow? how,
+    AiUseExtent? extent,
+    bool? optional,
+  });
+  LlmAiUseEntryCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _LlmAiUseEntryCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, LlmAiUseEntry, $Out>
+    implements LlmAiUseEntryCopyWith<$R, LlmAiUseEntry, $Out> {
+  _LlmAiUseEntryCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<LlmAiUseEntry> $mapper =
+      LlmAiUseEntryMapper.ensureInitialized();
+  @override
+  $R call({
+    AiUseArea? area,
+    Object? how = $none,
+    Object? extent = $none,
+    Object? optional = $none,
+  }) => $apply(
+    FieldCopyWithData({
+      if (area != null) #area: area,
+      if (how != $none) #how: how,
+      if (extent != $none) #extent: extent,
+      if (optional != $none) #optional: optional,
+    }),
+  );
+  @override
+  LlmAiUseEntry $make(CopyWithData data) => LlmAiUseEntry(
+    area: data.get(#area, or: $value.area),
+    how: data.get(#how, or: $value.how),
+    extent: data.get(#extent, or: $value.extent),
+    optional: data.get(#optional, or: $value.optional),
+  );
+
+  @override
+  LlmAiUseEntryCopyWith<$R2, LlmAiUseEntry, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _LlmAiUseEntryCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class LlmAiUseMapper extends ClassMapperBase<LlmAiUse> {
+  LlmAiUseMapper._();
+
+  static LlmAiUseMapper? _instance;
+  static LlmAiUseMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = LlmAiUseMapper._());
+      LlmAiUseEntryMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'LlmAiUse';
+
+  static String? _$quote(LlmAiUse v) => v.quote;
+  static const Field<LlmAiUse, String> _f$quote = Field(
+    'quote',
+    _$quote,
+    opt: true,
+  );
+  static bool? _$usesAi(LlmAiUse v) => v.usesAi;
+  static const Field<LlmAiUse, bool> _f$usesAi = Field(
+    'usesAi',
+    _$usesAi,
+    opt: true,
+  );
+  static List<LlmAiUseEntry>? _$uses(LlmAiUse v) => v.uses;
+  static const Field<LlmAiUse, List<LlmAiUseEntry>> _f$uses = Field(
+    'uses',
+    _$uses,
+    opt: true,
+  );
+  static List<String>? _$tools(LlmAiUse v) => v.tools;
+  static const Field<LlmAiUse, List<String>> _f$tools = Field(
+    'tools',
+    _$tools,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<LlmAiUse> fields = const {
+    #quote: _f$quote,
+    #usesAi: _f$usesAi,
+    #uses: _f$uses,
+    #tools: _f$tools,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static LlmAiUse _instantiate(DecodingData data) {
+    return LlmAiUse(
+      quote: data.dec(_f$quote),
+      usesAi: data.dec(_f$usesAi),
+      uses: data.dec(_f$uses),
+      tools: data.dec(_f$tools),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static LlmAiUse fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<LlmAiUse>(map);
+  }
+
+  static LlmAiUse fromJson(String json) {
+    return ensureInitialized().decodeJson<LlmAiUse>(json);
+  }
+}
+
+mixin LlmAiUseMappable {
+  String toJson() {
+    return LlmAiUseMapper.ensureInitialized().encodeJson<LlmAiUse>(
+      this as LlmAiUse,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return LlmAiUseMapper.ensureInitialized().encodeMap<LlmAiUse>(
+      this as LlmAiUse,
+    );
+  }
+
+  LlmAiUseCopyWith<LlmAiUse, LlmAiUse, LlmAiUse> get copyWith =>
+      _LlmAiUseCopyWithImpl<LlmAiUse, LlmAiUse>(
+        this as LlmAiUse,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return LlmAiUseMapper.ensureInitialized().stringifyValue(this as LlmAiUse);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return LlmAiUseMapper.ensureInitialized().equalsValue(
+      this as LlmAiUse,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return LlmAiUseMapper.ensureInitialized().hashValue(this as LlmAiUse);
+  }
+}
+
+extension LlmAiUseValueCopy<$R, $Out> on ObjectCopyWith<$R, LlmAiUse, $Out> {
+  LlmAiUseCopyWith<$R, LlmAiUse, $Out> get $asLlmAiUse =>
+      $base.as((v, t, t2) => _LlmAiUseCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class LlmAiUseCopyWith<$R, $In extends LlmAiUse, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<
+    $R,
+    LlmAiUseEntry,
+    LlmAiUseEntryCopyWith<$R, LlmAiUseEntry, LlmAiUseEntry>
+  >?
+  get uses;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get tools;
+  $R call({
+    String? quote,
+    bool? usesAi,
+    List<LlmAiUseEntry>? uses,
+    List<String>? tools,
+  });
+  LlmAiUseCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _LlmAiUseCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, LlmAiUse, $Out>
+    implements LlmAiUseCopyWith<$R, LlmAiUse, $Out> {
+  _LlmAiUseCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<LlmAiUse> $mapper =
+      LlmAiUseMapper.ensureInitialized();
+  @override
+  ListCopyWith<
+    $R,
+    LlmAiUseEntry,
+    LlmAiUseEntryCopyWith<$R, LlmAiUseEntry, LlmAiUseEntry>
+  >?
+  get uses => $value.uses != null
+      ? ListCopyWith(
+          $value.uses!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(uses: v),
+        )
+      : null;
+  @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get tools =>
+      $value.tools != null
+      ? ListCopyWith(
+          $value.tools!,
+          (v, t) => ObjectCopyWith(v, $identity, t),
+          (v) => call(tools: v),
+        )
+      : null;
+  @override
+  $R call({
+    Object? quote = $none,
+    Object? usesAi = $none,
+    Object? uses = $none,
+    Object? tools = $none,
+  }) => $apply(
+    FieldCopyWithData({
+      if (quote != $none) #quote: quote,
+      if (usesAi != $none) #usesAi: usesAi,
+      if (uses != $none) #uses: uses,
+      if (tools != $none) #tools: tools,
+    }),
+  );
+  @override
+  LlmAiUse $make(CopyWithData data) => LlmAiUse(
+    quote: data.get(#quote, or: $value.quote),
+    usesAi: data.get(#usesAi, or: $value.usesAi),
+    uses: data.get(#uses, or: $value.uses),
+    tools: data.get(#tools, or: $value.tools),
+  );
+
+  @override
+  LlmAiUseCopyWith<$R2, LlmAiUse, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _LlmAiUseCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
 class LlmChangelogMapper extends ClassMapperBase<LlmChangelog> {
@@ -630,6 +1162,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
       LlmUpdateNoteMapper.ensureInitialized();
       SaveAnswerMapper.ensureInitialized();
       LlmModSummaryMapper.ensureInitialized();
+      LlmAiUseMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -709,6 +1242,12 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     _$needs,
     opt: true,
   );
+  static LlmAiUse? _$aiUse(LlmExtras v) => v.aiUse;
+  static const Field<LlmExtras, LlmAiUse> _f$aiUse = Field(
+    'aiUse',
+    _$aiUse,
+    opt: true,
+  );
 
   @override
   final MappableFields<LlmExtras> fields = const {
@@ -724,6 +1263,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     #canRemove: _f$canRemove,
     #summary: _f$summary,
     #needs: _f$needs,
+    #aiUse: _f$aiUse,
   };
   @override
   final bool ignoreNull = true;
@@ -742,6 +1282,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
       canRemove: data.dec(_f$canRemove),
       summary: data.dec(_f$summary),
       needs: data.dec(_f$needs),
+      aiUse: data.dec(_f$aiUse),
     );
   }
 
@@ -819,6 +1360,7 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
   get updateNotes;
   LlmModSummaryCopyWith<$R, LlmModSummary, LlmModSummary>? get summary;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get needs;
+  LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse;
   $R call({
     String? version,
     LlmChangelog? changelog,
@@ -832,6 +1374,7 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
     SaveAnswer? canRemove,
     LlmModSummary? summary,
     List<String>? needs,
+    LlmAiUse? aiUse,
   });
   LlmExtrasCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -886,6 +1429,9 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
         )
       : null;
   @override
+  LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse =>
+      $value.aiUse?.copyWith.$chain((v) => call(aiUse: v));
+  @override
   $R call({
     Object? version = $none,
     Object? changelog = $none,
@@ -899,6 +1445,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     Object? canRemove = $none,
     Object? summary = $none,
     Object? needs = $none,
+    Object? aiUse = $none,
   }) => $apply(
     FieldCopyWithData({
       if (version != $none) #version: version,
@@ -914,6 +1461,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
       if (canRemove != $none) #canRemove: canRemove,
       if (summary != $none) #summary: summary,
       if (needs != $none) #needs: needs,
+      if (aiUse != $none) #aiUse: aiUse,
     }),
   );
   @override
@@ -936,6 +1484,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     canRemove: data.get(#canRemove, or: $value.canRemove),
     summary: data.get(#summary, or: $value.summary),
     needs: data.get(#needs, or: $value.needs),
+    aiUse: data.get(#aiUse, or: $value.aiUse),
   );
 
   @override

@@ -76,6 +76,11 @@ class PublicModDetail with PublicModDetailMappable {
   /// Yes, no or depends on removing, read off [removalCompatibilityText].
   final SaveAnswer? canRemove;
 
+  /// What the author says about using AI tools to make the mod, with their
+  /// own words and the tools they name. Null when the author says nothing,
+  /// which means unknown.
+  final LlmAiUse? aiUse;
+
   /// The shelves the forum's index and Discord's tags file this mod under. The
   /// list page shows the site's own short set instead; these are here so the
   /// mod's own page can still say how the sources file it.
@@ -161,6 +166,7 @@ class PublicModDetail with PublicModDetailMappable {
     this.canAdd,
     this.canUpdate,
     this.canRemove,
+    this.aiUse,
     this.rawCategories = const [],
     this.gallery = const [],
     this.downloads = const [],

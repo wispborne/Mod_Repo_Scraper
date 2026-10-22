@@ -1,0 +1,102 @@
+{
+ "topicId": 31982,
+ "title": "[0.98a] Nightcross Armory Corporation 2.1.4 (Aug 23 2026)",
+ "gameVersion": "0.98a",
+ "author": "YukiM",
+ "authorTitle": "Commander",
+ "authorPostCount": 102,
+ "authorAvatarPath": "https://fractalsoftworks.com/forum/index.php?action=dlattach;attach=13170;type=avatar",
+ "postDate": "March 30, 2025, 11:52:57 AM",
+ "lastEditDate": "August 23, 2026, 08:25:51 PM by YukiM",
+ "contentHtml": "<div align=\"center\"><img src=\"https://i.imgur.com/4J8VUmH.png\" alt=\"\" class=\"bbc_img\"><br><br><a href=\"https://github.com/YukiMonsai/nightcross-armory/releases/latest/download/Nightcross.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><br><img src=\"https://img.shields.io/github/downloads/YukiMonsai/nightcross-armory/total?label=Download&amp;style=for-the-badge\" alt=\"\" class=\"bbc_img\"></a>&nbsp; <a href=\"https://github.com/YukiMonsai/nightcross-armory/releases\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/github/v/release/YukiMonsai/nightcross-armory?label=Changelog&amp;style=for-the-badge\" alt=\"\" class=\"bbc_img\"></a><br><br><strong>Can be added to existing saves, but certain exploration content will not generate. Can not be removed from a save.</strong><br><br><strong>Dependencies:</strong><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=25658\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">LunaLib</a><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=10982.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">GraphicsLib</a><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=25868.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">MagicLib</a><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=5444.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">LazyLib</a><br><br><strong>Optional:</strong><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=24663.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Custom Battle Music</a> (contains custom tracks)<br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=30407.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Second in Command</a> (features two new XO types)<br></div><br>This is a faction I've been working on for some time. I first started modding back in 2019, before going on hiatus and coming back around 0.97, at which point I found out to my amazement that my source code <em>mostly</em> still worked! It's since expanded into exploration content inspired by certain abyssal encounters in .98.<br><br>This mod contains zero AI generated content. All images, music, and code were created by humans (and me, your local friendly robot girl). Many of the features can be turned off, including wandering [VERY_REDACTED] fleets, Nightcross Armory as an independent faction, and the mod's weapons being found in salvage.<br><br>Contains:<br><ul class=\"bbc_list\"><li type=\"disc\">Exploration content with unique ships and weapons (including abyss encounters)</li><li type=\"disc\">A minor faction with one capital, three cruisers, three destroyers, and three frigates. Generally high tech with light armor, high movement speed, high flux capacity, but relatively low flux dissipation, offset by a universal hullmod for shielded ships that reduces flux costs when shields are off for a high risk/reward playstyle. Some faster ships lose their zero-flux bonus when they sustain hull damage, in exchange for powerful movement abilities.</li><li type=\"disc\">5 fighter LPCs</li><li type=\"disc\">About 30 or so factional weapons, including 3 types of missiles and a bunch of energy, synergy, and hybrid types. Energy weapons generally deal less damage with worse efficiency than most energy weapons, but longer range.</li><li type=\"disc\">Several modular hullmods</li><li type=\"disc\">A star system with independent/pirate markets including special submarkets that sell NCA gear (since they don't have any official market)</li><li type=\"disc\">Graphicslib integration (normal maps only), plus fancy lights and doodads.</li><li type=\"disc\">Two Second-in-Command XOs, one hidden and one available from the start.</li><li type=\"disc\">Should be safe to add to existing saves, not to remove ofc.</li></ul><br><div align=\"center\"><img src=\"https://i.imgur.com/xDsdlXC.png\" alt=\"\" class=\"bbc_img\"></div><br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Some action shots</div><div class=\"sp-body folded\"><div align=\"center\"><img src=\"https://i.imgur.com/2kOnoZf.gif\" alt=\"\" width=\"700\" class=\"bbc_img resized\"><br><em>String of Pearls</em><br><br><img src=\"https://i.imgur.com/PsLqVfP.gif\" alt=\"\" width=\"700\" class=\"bbc_img resized\"><br><em>Lo Sulci</em><br><br><img src=\"https://i.imgur.com/3MwBpkX.gif\" alt=\"\" width=\"700\" class=\"bbc_img resized\"><br><em>Corrosion Torpedo</em><br></div><div class=\"sp-foot\">[close]</div></div></div><br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">COMSEC REDACTED</div><div class=\"sp-body folded\"><div align=\"center\"><img src=\"https://i.imgur.com/1gRbYW8.png\" alt=\"\" class=\"bbc_img\"><br><br><img src=\"https://i.imgur.com/KcRLspR.png\" alt=\"\" class=\"bbc_img\"><br></div><div class=\"sp-foot\">[close]</div></div></div><br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Credits</div><div class=\"sp-body folded\">-Music is commissioned for an unreleased game project of mine<br>-Music by <a href=\"https://www.youtube.com/@mekaloton\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Mekaloton</a> and <a href=\"https://www.youtube.com/@prodkomba\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">@prodkomba</a> is used as well<br>-Cycerin for making Blackrock Drive Yards, one of my favorite mods and my inspiration to get into modding<br>-DarkRevenant for making Graphicslib<br>-Lazywizard for making LazyLib<br>-MagicLib contributors for, well, MagicLib<br>-The game Heaven Will Be Mine for a bunch of shameless references, the whole ship naming scheme, and a couple of quotes<br><div class=\"sp-foot\">[close]</div></div></div>",
+ "images": [
+  {
+   "originalUrl": "https://i.imgur.com/4J8VUmH.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://img.shields.io/github/downloads/YukiMonsai/nightcross-armory/total?label=Download&amp;style=for-the-badge",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://img.shields.io/github/v/release/YukiMonsai/nightcross-armory?label=Changelog&amp;style=for-the-badge",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/xDsdlXC.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/2kOnoZf.gif",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/PsLqVfP.gif",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/3MwBpkX.gif",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/1gRbYW8.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/KcRLspR.png",
+   "alt": ""
+  }
+ ],
+ "links": [
+  {
+   "url": "https://github.com/YukiMonsai/nightcross-armory/releases/latest/download/Nightcross.zip",
+   "text": "",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://github.com/YukiMonsai/nightcross-armory/releases",
+   "text": "",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=25658",
+   "text": "LunaLib",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=10982.0",
+   "text": "GraphicsLib",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=25868.0",
+   "text": "MagicLib",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=5444.0",
+   "text": "LazyLib",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=24663.0",
+   "text": "Custom Battle Music",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=30407.0",
+   "text": "Second in Command",
+   "isExternal": false,
+   "isDownloadable": false
+  }
+ ],
+ "extraPosts": [],
+ "isPlaceholderDetail": false
+}

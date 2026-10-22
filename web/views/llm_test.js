@@ -2,6 +2,7 @@
 
 import { api, el, clear, missingPanel, MissingFile, go, noticeDialog, breadcrumbs, expandAllButton } from '../lib.js';
 import * as manager from '../manager.js';
+import { extrasBlock } from './extraction_views.js';
 
 export async function render(root) {
   clear(root);
@@ -111,9 +112,8 @@ function modBlock(mod) {
   if (mod.requires) head.append(' ', el('span', { class: 'field-value', text: `requires ${mod.requires}` }));
   box.append(head);
   if ((mod.downloads || []).length) box.append(downloadsTable(mod.downloads));
-  if (mod.extras && Object.keys(mod.extras).length) {
-    box.append(el('pre', { class: 'raw', text: JSON.stringify(mod.extras, null, 2) }));
-  }
+  // The same layout the thread page uses; the raw answer is in its fold below.
+  if (mod.extras && Object.keys(mod.extras).length) box.append(extrasBlock(mod.extras));
   return box;
 }
 

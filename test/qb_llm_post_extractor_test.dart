@@ -950,6 +950,209 @@ void main() {
     });
   });
 
+  group('AI use', () {
+    // Each answer carries a download, so the mod is kept for what it offers
+    // and the AI-use answer is all that is being tested.
+    const download = '"downloads":[{"url":"https://example.com/m.zip",'
+        '"label":"Download","kind":"direct"}]';
+    const linked = '<a href="https://example.com/m.zip">Download</a>';
+
+    Future<LlmAiUse?> aiUseFor(int id, String aiUse, String html) async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",$download,'
+            '"aiUse":$aiUse}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(_detail(id, '$html$linked'), []);
+      return extrasOf(id)?.aiUse;
+    }
+
+    test('a statement in the post is kept with its sorted uses', () async {
+      final aiUse = await aiUseFor(
+          140,
+          '{"quote":"The optional portraits were generated with DALL·E 3 and '
+              'edited by hand. LLMs were used for code assistance.",'
+              '"usesAi":true,"uses":['
+              '{"area":"portraits","how":"edited","extent":null,"optional":true},'
+              '{"area":"code","how":"assisted","extent":null,"optional":false}],'
+              '"tools":["DALL·E 3"]}',
+          '<p>Credits. The optional portraits were generated with DALL·E 3 and '
+              'edited by hand. LLMs were used for code assistance.</p>');
+      expect(aiUse!.usesAi, isTrue);
+      expect(aiUse.uses, [
+        LlmAiUseEntry(
+            area: AiUseArea.portraits, how: AiUseHow.edited, optional: true),
+        LlmAiUseEntry(area: AiUseArea.code, how: AiUseHow.assisted),
+      ]);
+      expect(aiUse.tools, ['DALL·E 3']);
+      expect(aiUse.uses!.last.toMap().containsKey('optional'), isFalse,
+          reason: 'optional is written only when true');
+    });
+
+    test('a quote running across a link is found without our link note',
+        () async {
+      final aiUse = await aiUseFor(
+          151,
+          '{"quote":"All the portraits were generated using Severian Void\'s '
+              'Stable Diffusion model","usesAi":true,"uses":[{"area":"portraits",'
+              '"how":"generated","extent":"all","optional":false}],'
+              '"tools":["Stable Diffusion"]}',
+          '<p>All the portraits were generated using '
+              '<a href="https://example.com/topic=25550">Severian Void\'s</a> '
+              'Stable Diffusion model for Starsector.</p>');
+      expect(aiUse?.uses, [
+        LlmAiUseEntry(
+            area: AiUseArea.portraits,
+            how: AiUseHow.generated,
+            extent: AiUseExtent.all),
+      ]);
+    });
+
+    test('a quote joining list items without their marks is still found',
+        () async {
+      // Topic 19830 lists each use on its own line starting with "- ", and
+      // the model copied the two lines as one quote without the marks.
+      final aiUse = await aiUseFor(
+          152,
+          '{"quote":"The NPC portraits were created using a LoRa (and then '
+              'hand-edited by me, poorly).\\nIllustrations were created using '
+              'MidJourney.","usesAi":true,"uses":[{"area":"portraits",'
+              '"how":"edited","extent":null,"optional":false}],"tools":[]}',
+          '<p>"AI" Generated Content<br>- The NPC portraits were created '
+              'using a LoRa (and then hand-edited by me, poorly).<br>- '
+              'Illustrations were created using MidJourney.</p>');
+      expect(aiUse, isNotNull);
+    });
+
+    test('a quote must still hold every word, in order', () async {
+      final aiUse = await aiUseFor(
+          153,
+          '{"quote":"Illustrations and portraits were created using '
+              'MidJourney.","usesAi":true,"uses":[],"tools":[]}',
+          '<p>- Portraits were created by hand.<br>- Illustrations were '
+              'created using MidJourney.</p>');
+      expect(aiUse, LlmAiUse.notStated());
+    });
+
+    test('a quote the post does not hold leaves the answer not stated',
+        () async {
+      final aiUse = await aiUseFor(
+          141,
+          '{"quote":"All portraits are AI-generated.","usesAi":true,'
+              '"uses":[{"area":"portraits","how":"generated","extent":"all",'
+              '"optional":false}],"tools":[]}',
+          '<p>A ship pack with some portraits.</p>');
+      expect(aiUse, LlmAiUse.notStated());
+    });
+
+    test('no statement is stored as read and not stated', () async {
+      // Stored, not left out: a missing aiUse means the post has not been
+      // read with a prompt that asks about AI use yet.
+      final aiUse = await aiUseFor(
+          142,
+          '{"quote":"AI Tweaks improves ship AI","usesAi":null,"uses":[],'
+              '"tools":[]}',
+          '<p>AI Tweaks improves ship AI.</p>');
+      expect(aiUse, LlmAiUse.notStated());
+      expect(aiUse!.isStated, isFalse);
+      expect(extrasOf(142)!.toMap()['aiUse'], <String, dynamic>{});
+    });
+
+    test('an answer of null is stored as not stated', () async {
+      expect(await aiUseFor(143, 'null', '<p>A mod.</p>'), LlmAiUse.notStated());
+    });
+
+    test('an answer with no aiUse field is stored as not stated', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",$download}]}'),
+      ]);
+      await makeExtractor(client)
+          .extractForTopic(_detail(154, '<p>A mod.</p>$linked'), []);
+      expect(extrasOf(154)?.aiUse, LlmAiUse.notStated());
+    });
+
+    test('a no-AI statement is kept with no uses', () async {
+      final aiUse = await aiUseFor(
+          144,
+          '{"quote":"This mod contains zero AI generated content.",'
+              '"usesAi":false,"uses":[],"tools":[]}',
+          '<p>This mod contains zero AI generated content.</p>');
+      expect(aiUse!.usesAi, isFalse);
+      expect(aiUse.uses, isNull);
+      expect(aiUse.tools, isNull);
+    });
+
+    test('a no-AI answer that still lists uses is not stated', () async {
+      final aiUse = await aiUseFor(
+          145,
+          '{"quote":"No AI Generation.","usesAi":false,"uses":['
+              '{"area":"music","how":null,"extent":null,"optional":false}],'
+              '"tools":[]}',
+          '<p>No AI Generation.</p>');
+      expect(aiUse, LlmAiUse.notStated());
+    });
+
+    test('AI use that names no part of the mod is one use under other',
+        () async {
+      final aiUse = await aiUseFor(
+          146,
+          '{"quote":"AI was used in making this mod.","usesAi":true,'
+              '"uses":[],"tools":[]}',
+          '<p>AI was used in making this mod.</p>');
+      expect(aiUse!.uses, [LlmAiUseEntry(area: AiUseArea.other)]);
+    });
+
+    test('unknown values are dropped, and an unknown area takes its use with it',
+        () async {
+      final aiUse = await aiUseFor(
+          147,
+          '{"quote":"Most of the art is AI made.","usesAi":true,"uses":['
+              '{"area":"Sprites","how":"upscaled","extent":"MOST","optional":false},'
+              '{"area":"banners","how":"generated","extent":null,"optional":false}],'
+              '"tools":[]}',
+          '<p>Most of the art is AI made.</p>');
+      expect(aiUse!.uses, [
+        LlmAiUseEntry(area: AiUseArea.sprites, extent: AiUseExtent.most),
+      ]);
+    });
+
+    test('only uses with an unknown area left still counts as other',
+        () async {
+      final aiUse = await aiUseFor(
+          148,
+          '{"quote":"Banners were made with AI.","usesAi":true,"uses":['
+              '{"area":"banners","how":"generated","extent":null,"optional":false}],'
+              '"tools":[]}',
+          '<p>Banners were made with AI.</p>');
+      expect(aiUse!.uses, [LlmAiUseEntry(area: AiUseArea.other)]);
+    });
+
+    test('a tool is kept only when the author names it as a whole word',
+        () async {
+      final aiUse = await aiUseFor(
+          149,
+          '{"quote":"Illustrations were created using MidJourney.",'
+              '"usesAi":true,"uses":[{"area":"illustrations","how":"generated",'
+              '"extent":null,"optional":false}],'
+              '"tools":["MidJourney","midjourney","Stable Diffusion","Journey",'
+              '"Suno"]}',
+          '<p>Illustrations were created using MidJourney. Thanks to '
+              '<a href="https://suno.example.com/x">my friend</a>.</p>');
+      expect(aiUse!.tools, ['MidJourney'],
+          reason: 'a repeat in other capitals, a tool the post never names, a '
+              'piece of a longer word and a name found only in a link address '
+              'are all left out');
+    });
+
+    test('at most five tools are kept', () async {
+      final aiUse = await aiUseFor(
+          150,
+          '{"quote":"Made with AI tools","usesAi":true,"uses":[],'
+              '"tools":["A1","B2","C3","D4","E5","F6"]}',
+          '<p>Made with AI tools: A1, B2, C3, D4, E5, F6.</p>');
+      expect(aiUse!.tools, ['A1', 'B2', 'C3', 'D4', 'E5']);
+    });
+  });
+
   group('source code', () {
     test('a repository link in the post is kept', () async {
       final client = _FakeLlmClient([

@@ -148,12 +148,15 @@ export function breadcrumbs(trail = []) {
 }
 
 // Append to the body to avoid clipping by cards. Read dynamic text on hover.
+// `text` may also be a built element, for a tip with parts of its own.
 export function quickTip(node, text) {
   node.addEventListener('pointerenter', () => {
     const words = typeof text === 'function' ? text() : text;
     if (!words) return;
     hideQuickTip();
-    const tip = el('div', { class: 'quick-tip', role: 'tooltip', text: words });
+    const tip = words instanceof Node
+      ? el('div', { class: 'quick-tip rich', role: 'tooltip' }, [words])
+      : el('div', { class: 'quick-tip', role: 'tooltip', text: words });
     document.body.append(tip);
     const at = node.getBoundingClientRect();
     const size = tip.getBoundingClientRect();
@@ -1666,7 +1669,8 @@ const WAYS_TO_SEARCH = [
   {
     name: 'Has / is',
     says: [{ code: 'has:source' }, ', ', { code: 'has:download' }, ', ',
-      { code: 'is:addable' }, ', ', { code: 'is:wip' }, ', ', { code: 'is:tool' },
+      { code: 'is:addable' }, ', ', { code: 'is:wip' }, ', ', { code: 'is:tool' }, ', ',
+      { code: 'has:ai' }, ', ', { code: 'is:noai' },
       '; add ', { code: '-' }, ' to leave those out: ', { code: '-is:wip' }],
   },
 ];

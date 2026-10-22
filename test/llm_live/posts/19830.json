@@ -1,0 +1,102 @@
+{
+ "topicId": 19830,
+ "title": "[0.97a] Persean Chronicles, a quest mod",
+ "gameVersion": "0.97a",
+ "author": "Wispborne",
+ "authorTitle": "Admiral",
+ "authorPostCount": 645,
+ "authorAvatarPath": "https://fractalsoftworks.com/forum/index.php?action=dlattach;attach=6791;type=avatar",
+ "postDate": "February 20, 2021, 11:09:33 AM",
+ "lastEditDate": "March 29, 2024, 06:29:52 PM by Wispborne",
+ "contentHtml": "<div align=\"center\"><img src=\"https://i.imgur.com/1MINnAl.png\" alt=\"\" class=\"bbc_img\"></div><br><div align=\"center\"><span style=\"font-size: 12pt;\" class=\"bbc_size\">v3.0.9</span><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">A collection of one-off quests. </span><br><br><a href=\"https://github.com/wispborne/persean-chronicles/releases/download/3.0.9/Persean-Chronicles-3.0.9.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><strong><span style=\"font-size: 18pt;\" class=\"bbc_size\"><span class=\"bbc_u\"><span style=\"font-family: verdana;\" class=\"bbc_font\">Download</span></span></span></strong></a><br><br>3.0.9 is a compatibility update with no other changes.<br>The next update will be 3.1.0 and contain the next part of the Telos arc.<br><br><span style=\"font-size: 14pt;\" class=\"bbc_size\">requires <a href=\"http://fractalsoftworks.com/forum/index.php?topic=5444.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><strong>LazyLib 2.8 or later</strong></a></span><br><span style=\"font-size: 14pt;\" class=\"bbc_size\">requires <a href=\"https://fractalsoftworks.com/forum/index.php?topic=25868.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><strong>MagicLib 1.1.3 or later</strong></a></span><br>All updates are <strong>save-compatible unless </strong>the first number changes (1.1.x to 1.2.x is ok, but 1.x.x to 2.x.x is not).<br>May be <strong>added </strong>to existing saves, but not removed afterwards.<br><br><a href=\"https://github.com/wispborne/persean-chronicles\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><strong><span style=\"font-size: 10pt;\" class=\"bbc_size\"><span class=\"bbc_u\">Source Code</span></span></strong></a> • <a href=\"https://github.com/wispborne/persean-chronicles/releases\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><span style=\"font-size: 10pt;\" class=\"bbc_size\"><strong><span class=\"bbc_u\">Previous Versions</span></strong></span></a><br><a href=\"https://github.com/wispborne/persean-chronicles\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/github/downloads/wispborne/persean-chronicles/3.0.9/total?color=blue&amp;logo=github\" alt=\"\" class=\"bbc_img\"></a> <a href=\"https://github.com/wispborne/persean-chronicles\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/github/downloads/wispborne/persean-chronicles/total?color=blue&amp;logo=github&amp;label=downloads%40total\" alt=\"\" class=\"bbc_img\"></a><br><br></div><br><br>To get started, simply check around at bars.<br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Features</span><br>- Over <del>7,000</del> 11,000 words.<br>- Various degrees of branching stories (nothing too wild, but some quests can end differently or even base your rewards on your decisions).<br>- A unique ship (Telos quest).<br>- Custom music (Depths &amp; Telos quests).<br>- No anime.<br>2022 edit: or catgirls.<br>2023 edit: or shipgirls.<br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Quests</span><br>- Karengo (questline)<br>&nbsp; - Dragons: A expedition takes you up close and personal with some wildlife.<br>&nbsp; - Depths: Following 'Dragons', an expedition takes you deep underwater.<br>&nbsp; - Telos: Following 'Depths', you investigate an extinct mini-faction - and their ships.<br>&nbsp; &nbsp; &nbsp; - Nexerelin's random systems (Corvus Mode) is not supported for 'Telos' and the quest will not appear.<br>&nbsp; &nbsp; &nbsp; - Will be released in three phases; only the first phase is out currently.<br>- Riley: A woman books a ride with your fleet to visit family.<br>- Nirvana: Some scientists need you to perform a cargo delivery.<br>- Laborer: A down-on-his-luck worker wants off-world.<br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Ship</span><br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Telos Frigate</div><div class=\"sp-body folded\"><img src=\"https://i.imgur.com/fLrsSGk.png\" alt=\"\" class=\"bbc_img\"><div class=\"sp-foot\">[close]</div></div></div><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Writing Samples</span><br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Dragons</div><div class=\"sp-body folded\">A cheer goes up from the men, especially the drunk ones. Karengo starts to hand out death and accident waivers and to collect money for the expedition. Suddenly, his expression darkens and he cocks his head, listening to an earpiece. \"Listen up!\" he yells, \"Seems my regular pilot got in the way of some disreputable folk! We need ourselves a ship and a captain to bring this lot to Jangala! Who's brave enough? Who else wants to make history?\"<br><br>&gt; \"Captain Wisp, at your service. We leave at dawn!\"<br><br>You wake up significantly after dawn with empty bottles and unconscious men strewn all over the ship's mess hall. Karengo peels himself off the floor and offers you a crooked smile, shielding his eyes from the light. \"Alright, Wisp,\" he says, \"let's do this.\"<br><div class=\"sp-foot\">[close]</div></div></div><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Riley</div><div class=\"sp-body folded\">On the way, she told you stories of her past, mostly of time shared with her father.<br>As a young teen, they spent summers riding horse mechs through the forest, looking for beehives to steal honey from; At age 19, she broke her ankle hoverboarding a restricted mountain peak. Her father rescued her, avoiding the police to hike up with a medical kit; She talks about his wild birthday gifts to her each year, always a different piece of clothing with embedded AI that was just beyond what was technically allowed by law.<br>As you watch, she shows how her shirt warms and constricts if it detects stress, mimicking a hug.<br><br>She doesn't mention it, but it's clear she is concerned that she'll arrive too late to say goodbye.<br><div class=\"sp-foot\">[close]</div></div></div><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Nirvana</div><div class=\"sp-body folded\">\"Are you Captain Wisp, captain of the Kestrel?\" asks one of the men, and when you nod in confirmation they all grin. \"Allow me to introduce myself. I'm David Rengel, and these are my associates, Fiona Jeffrey and Mike Robbins. We are members of a scientific team in the employ of the Nirvana Stellar Engineering company, perhaps you have heard of it?\"<div class=\"sp-foot\">[close]</div></div></div><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Telos</div><div class=\"sp-body folded\">At last, the corridor levels out and flares into a small amphitheater. Low, padded benches are arranged in a scattered circle. A blue crest hangs at the far end, with the word ‘TELOS’ embossed beneath. The room is minimally decorated, even accounting for the seismic devastation from the bombardment. Sheaves of paper, music stands and paintings of paradise worlds litter the cracked floor.<br><br>Splayed across the benches are a dozen desiccated bodies. Even in death, they are holding hands, as if in silent prayer.<br><br>Karengo sweeps past the scene to a door on the far side and steps through. \"Here's what we came for!\" he calls. Stepping back out, he hands you one of two capped syringes, the contents gray.<br><br>&lt;paragraph redacted&gt;<br><br>&gt; \"I'm gonna need to know a lot more.\"<br>&gt; \"Right after you.\"<br>&gt; Wait until later<br>&gt;&gt; Inject yourself &lt;&lt;<br><br>You sink the plunger deep into your right leg. The gray liquid drains from the barrel and you feel a wave of cold spreading from the site. Karengo watches intently, uncharacteristically quiet, as you take a seat on a stair and wait.<br><br>You black out.<br><div class=\"sp-foot\">[close]</div></div></div><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Quests &amp; Starting Conditions (minor spoilers)</span><br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\">- Riley: Starts from a planet with pop 6 or greater.<br>- Karengo I - Dragons: Starts from a planet with pop 5 or greater.<br>- Karengo II - Depths: Starts from a planet with pop 5 or greater and 30 days after successfully completing Dragons.<br>- Karengo III - Telos: Starts from an Independent planet with pop 5 or greater and 30 days after successfully completing Depths. <br>&nbsp; - Nexerelin's Random Mode (Corvus Mode) is not supported for Telos and the quest will not show up.<br>&nbsp; - The bar prompt for this is \"Delivery to Earth\".<br>- Nirvana: Starts from an Independent planet with pop 4 or greater once you are at least level 8 (ie not a nobody).<br>- Laborer: Starts from a planet with pop 3 or greater and the Mining industry.<br><div class=\"sp-foot\">[close]</div></div></div><br><br>Bugs? Suggestions? Questions? Want me to talk about why you should be coding in Kotlin instead of Java until you can't take it any more? Ping me on <a href=\"https://fractalsoftworks.com/forum/index.php?topic=11488.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Discord</a> @wispborne, or just leave a comment in this thread.<br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Changelog</span><br><a href=\"https://github.com/wispborne/persean-chronicles/blob/HEAD/changelog.md\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">https://github.com/wispborne/persean-chronicles/blob/HEAD/changelog.md</a><br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Known Issues</span><br>- After the Telos fight, your fleet may appear to fly sideways on the campaign layer. This is purely visual and fixes itself after a fight.<br>- After the Telos fight, all battle sizes are small. This is fixed by saving and restarting the game.<br>- If other mods add systems with hostile patrolling fleets, those systems may still be chosen as quest targets.<br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Current Priorities</span><br>- Finishing Phase 2 of the Telos questline, which includes a new ship, tons of dialog, a new ability, new music, and more.<br>- My modding time is balanced between Persean Chronicles, SMOL, MagicLib, the unofficial mod database, and working on a new comparison tool, so progress is slow (plus, I'm slow).<br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Other Mod Authors</span><br>Supports <a href=\"https://starsector.fandom.com/wiki/Category:Modding#Cross-mod_integration_via_the_modSettings.json_file_and_data.2Fconfig.2FmodFiles_folder\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">modSettings.json</a> for blacklisting systems.<br><br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">Credits</span><br>Avanitia for proof-reading and providing an incredible amount of feedback.<br>Selkie for Telos ship sprites (creator of many boats).<br>Nia for Telos effects and sprites (master of effects).<br>SleepyFish for Telos sprites (transparency consultant).<br><a href=\"https://soundcloud.com/haplogynae\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Haplogynae</a> for Telos music.<br><a href=\"https://soundcloud.com/mesotronik\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">MesoTroniK</a> for Depths music.<br>Inventor Raccoon for Secrets of the Frontier, which was a light in the darkness of 0.95a questbuilding.<br>Market condition code in Depths inspired by Tartiflette's Unknown Skies.<br>President Matt Damon for code help.<br>Many others on Discord for help, support, reports, and being a motivating community<br>And of course Fractal Softworks for this incredible game<br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">\"AI\" Generated Content</span><br>- The NPC portraits were created using SeverianVoid's LoRa and the RPG v4 checkpoint (and then hand-edited by me, poorly).<br>- Illustrations (images shown during dialog) were created using MidJourney (and then hand-edited by me, poorly).<br><br><span style=\"font-size: 12pt;\" class=\"bbc_size\">License</span><br>- Everything except music and images: GPLv3.<br>- Music &amp; Images, including ships, excluding AI art: Do not use any part of without permission, do not redistribute without permission.<br>- AI content: use however you want, I don't own it.<br>- Music may be used with the permission of the artist, without needing my permission.",
+ "images": [
+  {
+   "originalUrl": "https://i.imgur.com/1MINnAl.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://img.shields.io/github/downloads/wispborne/persean-chronicles/3.0.9/total?color=blue&amp;logo=github",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://img.shields.io/github/downloads/wispborne/persean-chronicles/total?color=blue&amp;logo=github&amp;label=downloads%40total",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/fLrsSGk.png",
+   "alt": ""
+  }
+ ],
+ "links": [
+  {
+   "url": "https://github.com/wispborne/persean-chronicles/releases/download/3.0.9/Persean-Chronicles-3.0.9.zip",
+   "text": "Download",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "http://fractalsoftworks.com/forum/index.php?topic=5444.0",
+   "text": "LazyLib 2.8 or later",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=25868.0",
+   "text": "MagicLib 1.1.3 or later",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://github.com/wispborne/persean-chronicles",
+   "text": "Source Code",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://github.com/wispborne/persean-chronicles/releases",
+   "text": "Previous Versions",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=11488.0",
+   "text": "Discord",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://github.com/wispborne/persean-chronicles/blob/HEAD/changelog.md",
+   "text": "https://github.com/wispborne/persean-chronicles/blob/HEAD/changelog.md",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://starsector.fandom.com/wiki/Category:Modding#Cross-mod_integration_via_the_modSettings.json_file_and_data.2Fconfig.2FmodFiles_folder",
+   "text": "modSettings.json",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://soundcloud.com/haplogynae",
+   "text": "Haplogynae",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://soundcloud.com/mesotronik",
+   "text": "MesoTroniK",
+   "isExternal": true,
+   "isDownloadable": false
+  }
+ ],
+ "extraPosts": [
+  {
+   "contentHtml": "Hints for the <em>SPOILER</em>s in the <em>SPOILER</em> quest.<br>Only read on if you are stuck.<br><br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\">Note that answering riddles incorrectly will <strong>not </strong>result in quest failure.<br><br>Riddle 1<br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\">No other path may you take<br>Oiled skins flash and flicker<br>Razer spikes grow from the deep<br>Titanic walls crush and smash<br>Heed the beginnings to live<br><br>Focus on the last line and the words of the riddle itself, rather than trying to figure out any meaning from the riddle.<br><div class=\"sp-foot\">[close]</div></div></div><br>Riddle 2<br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\">There are stingers in the deep<br>A certain death, a dreamless sleep.<br>Go to beast that has no bee<br>No danger there, just open sea.<br><br>\"Bee\" and the letter \"b\" are homophones, meaning that they sound the same. Try reading that line again but swapping those words.<br><div class=\"sp-foot\">[close]</div></div></div><br>Riddle 3<br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\">To the north and to the east<br>Track my movements like a beast.<br>A quick turn right and forward on,<br>Come toward me where danger's gone<br><br>Try to follow the path described in your head, or draw it if that helps.<br><div class=\"sp-foot\">[close]</div></div></div><br><div class=\"sp-foot\">[close]</div></div></div>",
+   "images": [],
+   "links": [],
+   "postDate": "February 20, 2021, 12:03:00 PM",
+   "lastEditDate": "March 08, 2021, 07:01:15 PM by Wispborne"
+  }
+ ],
+ "isPlaceholderDetail": false
+}

@@ -860,6 +860,8 @@ class PublicDataBuilder {
       isWorkInProgress: thread?.isWip ?? false,
       isTool: isTool ? true : null,
       nicknames: _nicknamesFor(chosen, [mod.name, shownName]),
+      usesAi: extras?.aiUse?.usesAi,
+      aiUses: _aiUsesFor(extras?.aiUse),
       lastReleaseDate: releases.isEmpty ? null : _lastReleaseDate(releases),
       addedOn: _addedOn(mod, thread, postDate, id,
           threadNeverRead: topicId != null && !threadWasRead),
@@ -1035,6 +1037,7 @@ class PublicDataBuilder {
       canAdd: addingWords == null ? null : _addAnswer(extras),
       canUpdate: updateNote?.answer,
       canRemove: removingWords == null ? null : extras?.canRemove,
+      aiUse: extras?.aiUse,
       rawCategories: _shelvesFor(mod),
       gallery: _galleryFor(mod, detail, post.pictureSizes),
       downloads: _downloadsFor(mod, chosen, threadDownloads),
@@ -1383,6 +1386,24 @@ class PublicDataBuilder {
         if (taken.add(key(nickname))) nickname,
     ];
     return kept.isEmpty ? null : kept;
+  }
+
+  /// AI uses for the Browse filter: area, how and optional.
+  /// Sorted by area, with duplicates removed. Null unless the author states
+  /// AI use. A missing statement does not mean no AI was used.
+  static List<LlmAiUseEntry>? _aiUsesFor(LlmAiUse? aiUse) {
+    if (aiUse?.usesAi != true) return null;
+    final seen = <String>{};
+    final uses = [
+      for (final use in aiUse!.uses ?? const <LlmAiUseEntry>[])
+        if (seen.add('${use.area.name}/${use.how?.name}/${use.optional}'))
+          LlmAiUseEntry(area: use.area, how: use.how, optional: use.optional),
+    ]..sort((a, b) {
+        final byArea = a.area.name.compareTo(b.area.name);
+        if (byArea != 0) return byArea;
+        return (a.how?.name ?? '').compareTo(b.how?.name ?? '');
+      });
+    return uses.isEmpty ? null : uses;
   }
 
   /// The site's categories for a mod. A tool is always under Utilities, which

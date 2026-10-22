@@ -68,6 +68,55 @@ void main() {
     expect(facts.extras!.canAdd, SaveAnswer.yes);
   });
 
+  test("the forum's AI-use answer wins whole over Discord's", () {
+    final forum = LlmAiUse(quote: 'No AI Generation.', usesAi: false);
+    final discord = LlmAiUse(
+      quote: 'Portraits made with Midjourney.',
+      usesAi: true,
+      uses: [LlmAiUseEntry(area: AiUseArea.portraits)],
+      tools: ['Midjourney'],
+    );
+    final facts = chooseFacts([
+      FactSource(_mod(extras: LlmExtras(aiUse: discord)), SourceKind.discord),
+      FactSource(_mod(extras: LlmExtras(aiUse: forum)), SourceKind.forum),
+    ])!;
+    expect(facts.extras!.aiUse, forum);
+  });
+
+  test("Discord's AI-use answer is used when the forum has none", () {
+    final discord = LlmAiUse(
+      quote: 'Music made with Suno.',
+      usesAi: true,
+      uses: [LlmAiUseEntry(area: AiUseArea.music)],
+    );
+    final facts = chooseFacts([
+      FactSource(_mod(extras: LlmExtras(aiUse: discord)), SourceKind.discord),
+      FactSource(_mod(extras: LlmExtras(license: 'MIT')), SourceKind.forum),
+    ])!;
+    expect(facts.extras!.aiUse, discord);
+  });
+
+  test("a forum post that says nothing about AI leaves it to Discord's", () {
+    final discord = LlmAiUse(
+      quote: 'Portraits made with Midjourney.',
+      usesAi: true,
+      uses: [LlmAiUseEntry(area: AiUseArea.portraits)],
+    );
+    final facts = chooseFacts([
+      FactSource(_mod(extras: LlmExtras(aiUse: discord)), SourceKind.discord),
+      FactSource(_mod(extras: LlmExtras(aiUse: LlmAiUse.notStated())), SourceKind.forum),
+    ])!;
+    expect(facts.extras!.aiUse, discord);
+  });
+
+  test('a mod whose every post says nothing about AI is not stated, not unread', () {
+    final facts = chooseFacts([
+      FactSource(_mod(extras: LlmExtras(license: 'MIT')), SourceKind.discord),
+      FactSource(_mod(extras: LlmExtras(aiUse: LlmAiUse.notStated())), SourceKind.forum),
+    ])!;
+    expect(facts.extras!.aiUse, LlmAiUse.notStated());
+  });
+
   test('no answers, no facts', () {
     expect(chooseFacts(const []), isNull);
   });

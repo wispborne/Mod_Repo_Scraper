@@ -1,5 +1,7 @@
 import 'package:dart_mappable/dart_mappable.dart';
 
+import '../../bot/scraper/qb/models/post_extraction.dart';
+
 part 'public_mod.mapper.dart';
 
 /// `mods.json` — every mod the site can list, plus the day the files were built.
@@ -154,6 +156,17 @@ class PublicMod with PublicModMappable {
   /// Omitted when none are known.
   final List<String>? nicknames;
 
+  /// What the author says about using AI tools: true when they say AI was
+  /// used, false when they say none was. Left out when the author says
+  /// nothing, which means unknown and never means "no AI".
+  final bool? usesAi;
+
+  /// AI uses for the Browse filter: area, how and optional.
+  /// Sorted by area, with duplicates removed. The amount is omitted to keep
+  /// the file small. Written only when [usesAi] is true. The author's quote
+  /// is in the mod's own file.
+  final List<LlmAiUseEntry>? aiUses;
+
   /// The day the mod last put out a new version, as the release feed saw it.
   /// Null when no release has been recorded for it yet.
   final DateTime? lastReleaseDate;
@@ -221,6 +234,8 @@ class PublicMod with PublicModMappable {
     this.isWorkInProgress = false,
     this.isTool,
     this.nicknames,
+    this.usesAi,
+    this.aiUses,
     this.lastReleaseDate,
     this.addedOn,
     this.threadLastPostOn,

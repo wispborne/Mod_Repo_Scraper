@@ -373,6 +373,79 @@ void main() {
     });
   });
 
+  group('what the author says about AI use', () {
+    PublicSiteData withAiUse(LlmAiUse? aiUse) => buildFrom(
+          mods: [forumMod()],
+          bundle: bundleOf(index: [
+            thread(llmMods: [
+              LlmMod(name: 'Nexerelin', extras: LlmExtras(aiUse: aiUse)),
+            ]),
+          ]),
+        );
+
+    test('AI use is published once per use, in order of area', () {
+      final aiUse = LlmAiUse(
+        quote: 'Portraits and code were made with AI.',
+        usesAi: true,
+        uses: [
+          LlmAiUseEntry(area: AiUseArea.portraits, how: AiUseHow.edited),
+          LlmAiUseEntry(area: AiUseArea.code, how: AiUseHow.assisted),
+          LlmAiUseEntry(
+            area: AiUseArea.portraits,
+            how: AiUseHow.generated,
+            extent: AiUseExtent.some,
+            optional: true,
+          ),
+          LlmAiUseEntry(area: AiUseArea.code, how: AiUseHow.assisted),
+        ],
+        tools: ['ChatGPT'],
+      );
+      final data = withAiUse(aiUse);
+
+      final mod = data.list.mods.single;
+      expect(mod.usesAi, isTrue);
+      expect(mod.aiUses!.map((use) => use.toMap()), [
+        {'area': 'code', 'how': 'assisted'},
+        {'area': 'portraits', 'how': 'edited'},
+        {'area': 'portraits', 'how': 'generated', 'optional': true},
+      ], reason: 'the filter reads how and optional, but never the amount');
+      expect(data.details.values.single.aiUse, aiUse,
+          reason: "the mod's own file carries the quote and the tools");
+    });
+
+    test('a no-AI statement is published with no areas', () {
+      final data =
+          withAiUse(LlmAiUse(quote: 'No AI Generation.', usesAi: false));
+
+      final mod = data.list.mods.single;
+      expect(mod.usesAi, isFalse);
+      expect(mod.toMap().containsKey('aiUses'), isFalse);
+      expect(data.details.values.single.aiUse!.quote, 'No AI Generation.');
+    });
+
+    test('a post read for AI use that says nothing is published as not stated',
+        () {
+      final data = withAiUse(LlmAiUse.notStated());
+
+      final mod = data.list.mods.single;
+      expect(mod.toMap().containsKey('usesAi'), isFalse);
+      expect(mod.toMap().containsKey('aiUses'), isFalse);
+      expect(data.details.values.single.toMap()['aiUse'], <String, dynamic>{},
+          reason: "the mod's own file says the post was read, so the page can "
+              'tell it from a post not read for this yet');
+    });
+
+    test('a post not read for AI use yet writes no field at all', () {
+      final data = withAiUse(null);
+
+      final mod = data.list.mods.single;
+      expect(mod.toMap().containsKey('usesAi'), isFalse,
+          reason: 'unknown is never written as false');
+      expect(mod.toMap().containsKey('aiUses'), isFalse);
+      expect(data.details.values.single.aiUse, isNull);
+    });
+  });
+
   group('a program run beside the game', () {
     test('is marked as a tool and shelved under Utilities', () {
       final data = buildFrom(
@@ -2482,7 +2555,9 @@ void main() {
     // ask for either), the day its thread was last posted on, and a TriOS link
     // for its download, is the worst case the browse page has to fetch whole —
     // a TriOS link carries the mod's details packed into the address, and the
-    // longest real one runs to about 850 characters.
+    // longest real one runs to about 850 characters. One mod in ten also says
+    // AI was used for three things; a scan of the real posts found 50 to 75
+    // that say anything about AI use at all.
     final mods = [
       for (var i = 0; i < 1200; i++)
         ScrapedMod(
@@ -2535,6 +2610,15 @@ void main() {
                         'beside its own summary, since the reader can ask for '
                         'either. Mod number $i.',
                   ),
+                  aiUse: i % 10 != 0 ? null : LlmAiUse(
+                    quote: 'Portraits, music and code were made with AI.',
+                    usesAi: true,
+                    uses: [
+                      LlmAiUseEntry(area: AiUseArea.portraits),
+                      LlmAiUseEntry(area: AiUseArea.music),
+                      LlmAiUseEntry(area: AiUseArea.code),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -2553,6 +2637,7 @@ void main() {
     expect(data.list.mods.first.threadLastPostOn, isNotNull,
         reason: 'the day a thread was last posted on is one more field on the '
             'file with the size limit, so the worst case carries it');
+    expect(data.list.mods.first.aiUses, hasLength(3));
   });
 
   test('nothing internal reaches the published files', () async {

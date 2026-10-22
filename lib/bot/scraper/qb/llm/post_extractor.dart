@@ -30,6 +30,26 @@ class _RawDownload {
   _RawDownload(this.url, this.label, this.kind);
 }
 
+/// One use of AI the model sorted out of the author's statement, before its
+/// values are checked against the allowed lists.
+class _RawAiUseEntry {
+  final String? area;
+  final String? how;
+  final String? extent;
+  final bool optional;
+  _RawAiUseEntry(this.area, this.how, this.extent, this.optional);
+}
+
+/// What the model says the author says about AI use, before it is checked
+/// against the post. [usesAi] is null when the model found no statement.
+class _RawAiUse {
+  final String? quote;
+  final bool? usesAi;
+  final List<_RawAiUseEntry> uses;
+  final List<String> tools;
+  _RawAiUse(this.quote, this.usesAi, this.uses, this.tools);
+}
+
 /// One mod the model returned, parsed but not yet checked against the post.
 class _RawMod {
   final String name;
@@ -78,6 +98,10 @@ class _RawMod {
   /// before it is kept.
   final LlmDescriptionAnchors? descriptionAnchors;
 
+  /// What the author says about using AI tools, before it is checked against
+  /// the post.
+  final _RawAiUse? aiUse;
+
   _RawMod({
     required this.name,
     required this.role,
@@ -100,6 +124,7 @@ class _RawMod {
     this.summary,
     this.needs = const [],
     this.descriptionAnchors,
+    this.aiUse,
   });
 }
 
@@ -193,6 +218,7 @@ class PostExtractor {
     'needs',
     'descriptionAnchors',
     'nicknames',
+    'aiUse',
   ];
 
   final LlmClient _client;
@@ -760,6 +786,30 @@ class PostExtractor {
       }
     }
 
+    _RawAiUse? aiUse;
+    final rawAiUse = m['aiUse'];
+    if (rawAiUse is Map<String, dynamic>) {
+      final usesAi = rawAiUse['usesAi'];
+      final rawUses = rawAiUse['uses'];
+      final rawTools = rawAiUse['tools'];
+      aiUse = _RawAiUse(
+        asString(rawAiUse['quote']),
+        usesAi is bool ? usesAi : null,
+        [
+          if (rawUses is List)
+            for (final u in rawUses)
+              if (u is Map)
+                _RawAiUseEntry(asString(u['area']), asString(u['how']),
+                    asString(u['extent']), u['optional'] == true),
+        ],
+        [
+          if (rawTools is List)
+            for (final t in rawTools)
+              if (asString(t) != null) asString(t)!,
+        ],
+      );
+    }
+
     return _RawMod(
       name: asString(m['name']) ?? '',
       role: LlmModRole.orMain(asString(m['role'])),
@@ -792,6 +842,7 @@ class PostExtractor {
       summary: summary,
       needs: needs,
       descriptionAnchors: anchors,
+      aiUse: aiUse,
     );
   }
 
@@ -1082,7 +1133,119 @@ class PostExtractor {
       needs: _groundNeeds(where, mod.needs, corpus, mod.name),
       descriptionAnchors:
           _groundAnchors(where, mod.descriptionAnchors, postTexts, mod.name),
+      aiUse: _groundAiUse(where, mod.aiUse, corpus, authorWords),
     );
+  }
+
+  /// What the author says about AI use, once the post backs it up.
+  ///
+  /// Never null: the post has been read with a prompt that asks, so even no
+  /// answer is an answer, [LlmAiUse.notStated]. That is how the site tells a
+  /// post that says nothing from one that has not been read for this yet,
+  /// which carries no `aiUse` at all.
+  ///
+  /// The quote has to be in the post, or the whole answer is not stated: the
+  /// sorted uses were read off the quote, so they cannot stand without it. A
+  /// "no AI" answer that still lists uses contradicts itself, so it is not
+  /// stated either. Values outside the allowed lists are dropped, and a use
+  /// with no known area goes with them.
+  LlmAiUse _groundAiUse(
+    String where,
+    _RawAiUse? raw,
+    String corpus,
+    String authorWords,
+  ) {
+    if (raw == null || raw.usesAi == null) return LlmAiUse.notStated();
+    final quote = raw.quote;
+    if (quote == null) {
+      _log.warning('Dropped an AI-use answer with no quote ($where)');
+      return LlmAiUse.notStated();
+    }
+    // Compared word by word, because these statements are often a list and
+    // the model joins the items without the "- " marks between them. The
+    // author's words with our link notes taken out count too: a statement
+    // often names the tool's maker as a link ("generated using <a>Severian
+    // Void's</a> Stable Diffusion model"), and the model is told never to copy
+    // a note, so the sentence it copies has none.
+    if (!_wordsInPost(quote, corpus) && !_wordsInPost(quote, authorWords)) {
+      _log.warning('Dropped AI-use text not found in post ($where): $quote');
+      return LlmAiUse.notStated();
+    }
+    final usesAi = raw.usesAi!;
+    if (!usesAi && raw.uses.isNotEmpty) {
+      _log.warning('Dropped an AI-use answer that says no AI was used and '
+          'still lists uses ($where): $quote');
+      return LlmAiUse.notStated();
+    }
+
+    final uses = <LlmAiUseEntry>[];
+    for (final u in raw.uses) {
+      final area = _enumByName(AiUseArea.values, u.area);
+      if (area == null) {
+        _log.warning(
+            'Dropped an AI use with an unknown area ($where): ${u.area}');
+        continue;
+      }
+      final entry = LlmAiUseEntry(
+        area: area,
+        how: _enumByName(AiUseHow.values, u.how),
+        extent: _enumByName(AiUseExtent.values, u.extent),
+        optional: u.optional ? true : null,
+      );
+      if (!uses.contains(entry)) uses.add(entry);
+    }
+    // The author said AI was used but not for what.
+    if (usesAi && uses.isEmpty) uses.add(LlmAiUseEntry(area: AiUseArea.other));
+
+    // A tool list beside "no AI was used" would only confuse, so tools are
+    // kept only for an answer that says AI was used.
+    final tools = usesAi
+        ? _groundAiTools(where, raw.tools, authorWords)
+        : const <String>[];
+    return LlmAiUse(
+      quote: quote,
+      usesAi: usesAi,
+      uses: uses.isEmpty ? null : uses,
+      tools: tools.isEmpty ? null : tools,
+    );
+  }
+
+  /// The AI tools the author really names. Each has to stand as a whole word
+  /// in [authorWords], the same check nicknames get, because a model asked
+  /// which tool made a picture will offer "Stable Diffusion" whether the post
+  /// says so or not. Repeats go, and only the first [_maxNicknames] are kept.
+  List<String> _groundAiTools(
+    String where,
+    List<String> names,
+    String authorWords,
+  ) {
+    final kept = <String>[];
+    final seen = <String>{};
+    final words = _norm(authorWords);
+    for (final raw in names) {
+      final name = raw.trim();
+      if (name.length < 2 || name.length > _maxNicknameLength) continue;
+      final key = _lettersAndDigits(name);
+      if (key.isEmpty || !seen.add(key)) continue;
+      if (_wholeWordIn(_norm(name), words)) {
+        kept.add(name);
+        if (kept.length == _maxNicknames) break;
+      } else {
+        _log.warning(
+            'Dropped an AI tool the post does not name ($where): $name');
+      }
+    }
+    return kept;
+  }
+
+  /// The value in [values] named [name], ignoring case, or null.
+  static T? _enumByName<T extends Enum>(List<T> values, String? name) {
+    final wanted = name?.trim().toLowerCase();
+    if (wanted == null) return null;
+    for (final v in values) {
+      if (v.name.toLowerCase() == wanted) return v;
+    }
+    return null;
   }
 
   /// The description anchors the post really backs up, or null.
@@ -1452,6 +1615,20 @@ class PostExtractor {
     return _norm(postText).contains(n);
   }
 
+  /// True when [needle]'s words appear in [postText] in the same order, as
+  /// whole words, with punctuation, list marks and line breaks ignored.
+  static bool _wordsInPost(String needle, String postText) {
+    final words = _wordsOnly(needle);
+    return words.isNotEmpty && ' ${_wordsOnly(postText)} '.contains(' $words ');
+  }
+
+  static String _wordsOnly(String s) => s
+      .replaceAll(_nbsp, ' ')
+      .toLowerCase()
+      .replaceAll(_notLetterOrDigit, ' ')
+      .replaceAll(_whitespace, ' ')
+      .trim();
+
   static String _norm(String s) => s
       .replaceAll(_nbsp, ' ')
       .toLowerCase()
@@ -1570,6 +1747,7 @@ class PostExtractor {
       canRemove: g.canRemove,
       summary: summary,
       needs: g.needs.isEmpty ? null : g.needs,
+      aiUse: g.aiUse,
     );
     return extras.isEmpty ? null : extras;
   }
@@ -1759,6 +1937,10 @@ class _CheckedMod {
   /// Where the author describes this mod, once found in one of the posts.
   final LlmDescriptionAnchors? descriptionAnchors;
 
+  /// What the author says about AI use, once the quote is found in the post.
+  /// It does not keep a mod on its own (see [isEmpty]).
+  final LlmAiUse? aiUse;
+
   _CheckedMod({
     required this.name,
     required this.role,
@@ -1781,6 +1963,7 @@ class _CheckedMod {
     this.summary,
     this.needs = const [],
     this.descriptionAnchors,
+    this.aiUse,
   });
 
   /// True when nothing downloadable or factual survived grounding. A name alone

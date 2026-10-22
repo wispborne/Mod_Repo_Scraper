@@ -259,6 +259,21 @@ String describe(LlmStoreEntry? entry) {
       for (final link in extras.supportLinks ?? const <LlmSupportLink>[]) {
         b.write('\n      support: ${link.url} "${link.label ?? ''}"');
       }
+      final aiUse = extras.aiUse;
+      if (aiUse != null) {
+        b.write(switch (aiUse.usesAi) {
+          true => '\n      AI use: yes "${aiUse.quote}"',
+          false => '\n      AI use: no "${aiUse.quote}"',
+          null => '\n      AI use: not stated',
+        });
+        for (final use in aiUse.uses ?? const <LlmAiUseEntry>[]) {
+          b.write('\n        ${use.area.name}');
+          if (use.how != null) b.write(' ${use.how!.name}');
+          if (use.extent != null) b.write(', ${use.extent!.name}');
+          if (use.optional == true) b.write(', optional');
+        }
+        if (aiUse.tools != null) b.write('\n        tools: ${aiUse.tools}');
+      }
     }
   }
   return b.toString();

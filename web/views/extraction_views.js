@@ -353,6 +353,22 @@ export function extrasBlock(extras) {
   if (extras.needs && extras.needs.length) {
     list.append(field('Needs', extras.needs.join(', ')));
   }
+  // What the author says about using AI tools: yes or no with their words,
+  // then each use as the model sorted it, then the tools the post names.
+  const aiUse = extras.aiUse;
+  // No aiUse at all means the post was read before the prompt asked, so the
+  // row is left out; an aiUse with no answer means it was read and says nothing.
+  if (aiUse && aiUse.usesAi == null) {
+    list.append(field('AI use', 'Not stated in the post'));
+  } else if (aiUse) {
+    list.append(field('AI use', `${aiUse.usesAi ? 'Yes' : 'No'} — ${aiUse.quote}`));
+    const uses = (aiUse.uses || []).map((use) => {
+      const notes = [use.how, use.extent, use.optional ? 'optional' : null].filter(Boolean);
+      return notes.length ? `${use.area} (${notes.join(', ')})` : use.area;
+    });
+    if (uses.length) list.append(field('AI used for', uses.join(' · ')));
+    if ((aiUse.tools || []).length) list.append(field('AI tools named', aiUse.tools.join(', ')));
+  }
   if (extras.supportLinks && extras.supportLinks.length) {
     const rows = extras.supportLinks.map((s) => el('div', { class: 'support-link' }, [
       el('span', { class: `support-type support-type-${esc(s.type || 'other')}`, text: s.type || 'other' }),

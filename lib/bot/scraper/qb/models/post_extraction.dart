@@ -33,6 +33,87 @@ class LlmUpdateNote with LlmUpdateNoteMappable {
   LlmUpdateNote({this.version, required this.quote, this.answer});
 }
 
+/// Which part of a mod an AI tool was used for, as the author says.
+@MappableEnum()
+enum AiUseArea {
+  portraits,
+  illustrations,
+  sprites,
+  icons,
+  music,
+  voice,
+  writing,
+  translation,
+  code,
+  other,
+}
+
+/// How an AI tool was used for one part of a mod.
+/// - [generated]: made by the tool and used as it came.
+/// - [edited]: made by the tool, then changed by hand.
+/// - [assisted]: made by a person with the tool's help — a grammar pass, code
+///   completion, help with a translation.
+@MappableEnum()
+enum AiUseHow { generated, edited, assisted }
+
+/// How much of one part of a mod was made with an AI tool.
+@MappableEnum()
+enum AiUseExtent { all, most, some }
+
+/// One use of an AI tool the author's statement names. [how], [extent] and
+/// [optional] are left out when the statement does not say; [optional] is
+/// written only when true.
+@MappableClass(ignoreNull: true)
+class LlmAiUseEntry with LlmAiUseEntryMappable {
+  final AiUseArea area;
+  final AiUseHow? how;
+  final AiUseExtent? extent;
+
+  /// True when the player can leave this part of the mod out, such as an
+  /// optional portrait pack.
+  final bool? optional;
+
+  LlmAiUseEntry({required this.area, this.how, this.extent, this.optional});
+}
+
+/// What the author says about using AI tools to make the mod.
+///
+/// Only the author's statement counts: nothing is guessed from the pictures or
+/// the writing. There are three cases, and they must never be confused:
+/// - No [LlmAiUse] at all: the post has not been read with a prompt that asks
+///   about AI use yet. Every answer read before the field existed is this.
+/// - An [LlmAiUse] with [usesAi] null ([LlmAiUse.notStated], written `{}`):
+///   the post was read for it and says nothing usable about AI use.
+/// - [usesAi] true or false: the author says AI was used, or says none was.
+///
+/// "AI" in a Starsector post usually means ship AI or AI cores, which is not
+/// this.
+@MappableClass(ignoreNull: true)
+class LlmAiUse with LlmAiUseMappable {
+  /// The author's own words, copied from the post and checked against it.
+  /// Null when the post says nothing about AI use.
+  final String? quote;
+
+  /// True when the author says AI was used, false when they say none was, and
+  /// null when the post was read and says nothing about it.
+  final bool? usesAi;
+
+  /// What AI was used for. At least one entry when [usesAi] is true, and none
+  /// when it is false.
+  final List<LlmAiUseEntry>? uses;
+
+  /// The AI tools the post names, each found in the author's own words.
+  final List<String>? tools;
+
+  LlmAiUse({this.quote, this.usesAi, this.uses, this.tools});
+
+  /// The post was read for what it says about AI use, and says nothing.
+  factory LlmAiUse.notStated() => LlmAiUse();
+
+  /// True when the author says something about AI use, either way.
+  bool get isStated => usesAi != null;
+}
+
 /// A changelog the LLM found in a post. A post can have both: [link] is a URL
 /// to the mod's changelog when the post offers one, and [entries] holds the
 /// changelog copied word-for-word (never summarized), split by version — keyed
@@ -201,6 +282,8 @@ class LlmModSummary with LlmModSummaryMappable {
 ///   writes them. Nearly every Starsector mod needs LazyLib, MagicLib,
 ///   GraphicsLib or Nexerelin, and the post nearly always says so. Empty when
 ///   the post names none.
+/// - [aiUse]: what the author says about using AI tools to make the mod (see
+///   [LlmAiUse]). Null when the post says nothing about it.
 @MappableClass(ignoreNull: true)
 class LlmExtras with LlmExtrasMappable {
   final String? version;
@@ -218,6 +301,9 @@ class LlmExtras with LlmExtrasMappable {
   /// The other mods this one will not run without, by name.
   final List<String>? needs;
 
+  /// What the author says about using AI tools to make the mod.
+  final LlmAiUse? aiUse;
+
   LlmExtras({
     this.version,
     this.changelog,
@@ -231,6 +317,7 @@ class LlmExtras with LlmExtrasMappable {
     this.canRemove,
     this.summary,
     this.needs,
+    this.aiUse,
   });
 
   /// True when none of the extra fields were produced.
@@ -244,7 +331,8 @@ class LlmExtras with LlmExtrasMappable {
       (updateNotes == null || updateNotes!.isEmpty) &&
       (removalCompatibility == null || removalCompatibility!.isEmpty) &&
       (summary == null || summary!.isEmpty) &&
-      (needs == null || needs!.isEmpty);
+      (needs == null || needs!.isEmpty) &&
+      aiUse == null;
 }
 
 /// Where in the author's post the description of one mod starts and ends.

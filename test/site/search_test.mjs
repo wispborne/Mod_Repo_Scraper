@@ -1022,6 +1022,23 @@ describe('asking about one field', () => {
     assert.deepEqual(found('HAS:Source'), ['open', 'unfinished']);
   });
 
+  test('has:ai and is:noai read what the author says about AI use', () => {
+    const mods = [
+      { id: 'made-with-ai', name: 'Portrait Faction', usesAi: true, aiUses: [{ area: 'portraits' }] },
+      { id: 'no-ai', name: 'Human Faction', usesAi: false },
+      { id: 'unknown', name: 'Quiet Faction' },
+    ];
+    const found = (text) => searchMods(mods, text).map((mod) => mod.id).sort();
+    assert.deepEqual(found('has:ai'), ['made-with-ai']);
+    assert.deepEqual(found('is:ai'), ['made-with-ai']);
+    assert.deepEqual(found('is:noai'), ['no-ai']);
+    assert.deepEqual(found('has:noai'), ['no-ai']);
+    assert.deepEqual(found('faction -has:ai'), ['no-ai', 'unknown'],
+      'a mod whose author says nothing is never treated as having used AI');
+    assert.deepEqual(found('-is:noai'), ['made-with-ai', 'unknown'],
+      'nor as having said it used none');
+  });
+
   test('a flag does not change the order the words give', () => {
     assert.deepEqual(
       ids('magic'),

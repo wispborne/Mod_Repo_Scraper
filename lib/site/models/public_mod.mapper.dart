@@ -161,6 +161,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = PublicModMapper._());
       PublicBestDownloadMapper.ensureInitialized();
+      LlmAiUseEntryMapper.ensureInitialized();
       PublicNeededModMapper.ensureInitialized();
     }
     return _instance!;
@@ -317,6 +318,18 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     _$nicknames,
     opt: true,
   );
+  static bool? _$usesAi(PublicMod v) => v.usesAi;
+  static const Field<PublicMod, bool> _f$usesAi = Field(
+    'usesAi',
+    _$usesAi,
+    opt: true,
+  );
+  static List<LlmAiUseEntry>? _$aiUses(PublicMod v) => v.aiUses;
+  static const Field<PublicMod, List<LlmAiUseEntry>> _f$aiUses = Field(
+    'aiUses',
+    _$aiUses,
+    opt: true,
+  );
   static DateTime? _$lastReleaseDate(PublicMod v) => v.lastReleaseDate;
   static const Field<PublicMod, DateTime> _f$lastReleaseDate = Field(
     'lastReleaseDate',
@@ -376,6 +389,8 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #isWorkInProgress: _f$isWorkInProgress,
     #isTool: _f$isTool,
     #nicknames: _f$nicknames,
+    #usesAi: _f$usesAi,
+    #aiUses: _f$aiUses,
     #lastReleaseDate: _f$lastReleaseDate,
     #addedOn: _f$addedOn,
     #threadLastPostOn: _f$threadLastPostOn,
@@ -412,6 +427,8 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       isWorkInProgress: data.dec(_f$isWorkInProgress),
       isTool: data.dec(_f$isTool),
       nicknames: data.dec(_f$nicknames),
+      usesAi: data.dec(_f$usesAi),
+      aiUses: data.dec(_f$aiUses),
       lastReleaseDate: data.dec(_f$lastReleaseDate),
       addedOn: data.dec(_f$addedOn),
       threadLastPostOn: data.dec(_f$threadLastPostOn),
@@ -494,6 +511,12 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get nicknames;
   ListCopyWith<
     $R,
+    LlmAiUseEntry,
+    LlmAiUseEntryCopyWith<$R, LlmAiUseEntry, LlmAiUseEntry>
+  >?
+  get aiUses;
+  ListCopyWith<
+    $R,
     PublicNeededMod,
     PublicNeededModCopyWith<$R, PublicNeededMod, PublicNeededMod>
   >
@@ -524,6 +547,8 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     bool? isWorkInProgress,
     bool? isTool,
     List<String>? nicknames,
+    bool? usesAi,
+    List<LlmAiUseEntry>? aiUses,
     DateTime? lastReleaseDate,
     String? addedOn,
     String? threadLastPostOn,
@@ -590,6 +615,19 @@ class _PublicModCopyWithImpl<$R, $Out>
   @override
   ListCopyWith<
     $R,
+    LlmAiUseEntry,
+    LlmAiUseEntryCopyWith<$R, LlmAiUseEntry, LlmAiUseEntry>
+  >?
+  get aiUses => $value.aiUses != null
+      ? ListCopyWith(
+          $value.aiUses!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(aiUses: v),
+        )
+      : null;
+  @override
+  ListCopyWith<
+    $R,
     PublicNeededMod,
     PublicNeededModCopyWith<$R, PublicNeededMod, PublicNeededMod>
   >
@@ -625,6 +663,8 @@ class _PublicModCopyWithImpl<$R, $Out>
     bool? isWorkInProgress,
     Object? isTool = $none,
     Object? nicknames = $none,
+    Object? usesAi = $none,
+    Object? aiUses = $none,
     Object? lastReleaseDate = $none,
     Object? addedOn = $none,
     Object? threadLastPostOn = $none,
@@ -658,6 +698,8 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (isWorkInProgress != null) #isWorkInProgress: isWorkInProgress,
       if (isTool != $none) #isTool: isTool,
       if (nicknames != $none) #nicknames: nicknames,
+      if (usesAi != $none) #usesAi: usesAi,
+      if (aiUses != $none) #aiUses: aiUses,
       if (lastReleaseDate != $none) #lastReleaseDate: lastReleaseDate,
       if (addedOn != $none) #addedOn: addedOn,
       if (threadLastPostOn != $none) #threadLastPostOn: threadLastPostOn,
@@ -701,6 +743,8 @@ class _PublicModCopyWithImpl<$R, $Out>
     isWorkInProgress: data.get(#isWorkInProgress, or: $value.isWorkInProgress),
     isTool: data.get(#isTool, or: $value.isTool),
     nicknames: data.get(#nicknames, or: $value.nicknames),
+    usesAi: data.get(#usesAi, or: $value.usesAi),
+    aiUses: data.get(#aiUses, or: $value.aiUses),
     lastReleaseDate: data.get(#lastReleaseDate, or: $value.lastReleaseDate),
     addedOn: data.get(#addedOn, or: $value.addedOn),
     threadLastPostOn: data.get(#threadLastPostOn, or: $value.threadLastPostOn),

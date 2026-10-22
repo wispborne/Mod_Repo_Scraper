@@ -1,0 +1,232 @@
+{
+ "topicId": 18751,
+ "title": "[0.98a] Arma Armatura v3.3.7 - Content/Story Mod [10/5/26]",
+ "gameVersion": "0.98a",
+ "author": "shoi",
+ "authorTitle": "Admiral",
+ "authorPostCount": 841,
+ "authorAvatarPath": "https://fractalsoftworks.com/forum/index.php?action=dlattach;attach=11766;type=avatar",
+ "postDate": "June 25, 2020, 05:09:27 AM",
+ "lastEditDate": "October 05, 2026, 10:37:57 AM by shoi",
+ "contentHtml": "<div align=\"center\"><a href=\"https://github.com/gomarz/SS-armaa/releases/download/v3.3.7/armaa-3.3.7.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><br><img src=\"https://i.imgur.com/zYciRZg.png\" alt=\"\" width=\"350\" height=\"350\" class=\"bbc_img resized\"><br><span style=\"color: red;\" class=\"bbc_color\"><strong>NOT save compatible with versions of ArmaA prior to v3.2.6</strong></span><br></a><br><a href=\"https://github.com/gomarz/ss-armaa/releases\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/github/v/release/gomarz/ss-armaa?label=Changelog&amp;style=for-the-badge\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2Fgomarz%2Fss-armaa%2Fmaster%2Farmaa.version%22%2C%22id%22%3A%22armaa%22%2C%22version%22%3A%223.3.4b%22%7D&amp;dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%7D&amp;dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22MagicLib%22%7D\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trilink.wispborne.com/badges/install-badge-forthebadge.svg\" alt=\"\" class=\"bbc_img\"></a><a href=\"https://github.com/gomarz/SS-armaa/releases/latest\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/github/downloads/gomarz/SS-armaa/total?style=for-the-badge&amp;label=DOWNLOAD\" alt=\"\" class=\"bbc_img\"></a><br><a href=\"https://ko-fi.com/shoi76832\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Support me on Ko-Fi</a> | <a href=\"https://raw.githubusercontent.com/gomarz/SS-armaa/refs/heads/master/changelog.md\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Changelog</a><br></div><br><hr><br><div align=\"center\"><span style=\"font-size: 24pt;\" class=\"bbc_size\"><strong>About</strong></span><br>A story and content mod primarily focused around pilotable strikecraft: fighter-scale ships with own unique mechanics, over 30 pilotable units across 18 chassis families, 7 warships and carriers built to support them, and 9 fighter wings, a fully fleshed out companion officer, a minor faction with campaign layer elements, and a story centering around a system level conflict centuries in the making.<br>&nbsp;<br>Can be added mid-save, but best installed on a new save for the full experience. Not all updates are save-compatible; check the changelog.<br>&nbsp;<br>The mod requires <a href=\"http://fractalsoftworks.com/forum/index.php?topic=5444.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">LazyLib</a> and <a href=\"http://fractalsoftworks.com/forum/index.php?topic=13718.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">MagicLib</a>.<br><br><span style=\"color: red;\" class=\"bbc_color\">Recommended</span>:<br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=9175.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Nexerelin</a> &lt;-- required for custom start<br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=24215.90\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">PAGSM</a><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=19712.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Caymon's Ship Pack</a><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=24274.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Sunrider</a><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=25658.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">LunaLib</a><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=29124.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Knights of Ludd</a><br><a href=\"https://fractalsoftworks.com/forum/index.php?topic=35781.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Project MISTRAL</a><br><br><iframe width=\"640\" height=\"385\" src=\"//www.youtube.com/embed/B1bSBTUprS0?fs=1&amp;start=\" frameborder=\"0\" allowfullscreen=\"\"></iframe> <iframe width=\"640\" height=\"385\" src=\"//www.youtube.com/embed/Yq16EzJ-jQo?fs=1&amp;start=\" frameborder=\"0\" allowfullscreen=\"\"></iframe><br><img src=\"https://i.imgur.com/k1cBYHg.gif\" alt=\"\" width=\"400\" class=\"bbc_img resized\"><br><hr><br><img src=\"https://i.imgur.com/Gnsm4ZB.png\" alt=\"\" width=\"400\" class=\"bbc_img resized\"><br><img src=\"https://i.imgur.com/rvxzHLc.png\" alt=\"\" width=\"600\" class=\"bbc_img resized\"><br><img src=\"https://i.imgur.com/Kn5AIrx.png\" alt=\"\" width=\"600\" class=\"bbc_img resized\"><br><img src=\"https://i.imgur.com/OjIv630.gif\" alt=\"\" width=\"500\" class=\"bbc_img resized\"><img src=\"https://i.imgur.com/xG9C0uE.gif\" alt=\"\" width=\"500\" class=\"bbc_img resized\"><br>In the mod, \"Strikecraft\" refers to a special type of ship that relies on larger ships for travel between systems, crew storage, and maintenance. Most of these can be found in the Gamlin system to the southwest of the core, but some have been added to vanilla factions where appropriate and at halved rates.<br><br><strong>Features</strong><br>- High speed units with good maneuverability and offensive power, but low to mid defensive stats<br>- Possesses a configurable \"repair pool\" that can be used to repair and rearm at most ships/carriers with launch bays during combat<br>- Can fly over ships and other obstacles, but receive up to 25% more damage vs certain weapons and units possessing anti-fighter skills<br>- Defeat is not the end; for more expendable strikecraft, spare chassis will be deployed upon their destruction<br><br><hr><br><img src=\"https://i.imgur.com/ElzNgka.png\" alt=\"\" width=\"600\" class=\"bbc_img resized\"> <br><img src=\"https://i.imgur.com/Et4cR8y.gif\" alt=\"\" width=\"600\" class=\"bbc_img resized\"> <img src=\"https://i.imgur.com/kolixB6.png\" alt=\"\" width=\"600\" class=\"bbc_img resized\"><br><br><img src=\"https://i.imgur.com/DLaQY4I.png\" alt=\"\" class=\"bbc_img\"><img src=\"https://i.imgur.com/yH9bZwK.png\" alt=\"\" class=\"bbc_img\"><br><img src=\"https://i.imgur.com/kPdjD9U.png\" alt=\"\" class=\"bbc_img\"><img src=\"https://i.imgur.com/jMFvbdQ.png\" alt=\"\" class=\"bbc_img\"><br>The Gamlin system is home to the Arma Armatura corporation and the people caught in its orbit; among them Dawn Given-To-God, a recruitable officer with her own beliefs, motives, and opinions on the technologies, locales, and factions of the Sector.<br><br><strong>Features</strong><br>- A small star system on the fringes of Luddic space<br>- A custom start with extra narrative content<br>- A companion officer who reacts to where you go, what you fly, and who you deal with.<br>- A pirate mini-faction that attempts to sow anarchy and chaos throughout the Sector.<br>- Five quests with four uniquely scripted setpiece battles, in locales ranging from high orbit to a city's skies to [REDACTED].<br>- Cross-mod content with <a href=\"http://...\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">PAGSM</a> and <a href=\"http://...\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Sunrider</a><br>- Alternate and optional 90's RPGesque portrait pack for the anime-inclined<br><img src=\"https://i.imgur.com/Wu9CWjq.png\" alt=\"\" class=\"bbc_img\"><img src=\"https://i.imgur.com/duKQgQA.png\" alt=\"\" class=\"bbc_img\"><br><img src=\"https://i.imgur.com/re9uSXf.png\" alt=\"\" class=\"bbc_img\"><br><hr><img src=\"https://i.imgur.com/jm4Y126.png\" alt=\"\" width=\"600\" class=\"bbc_img resized\"><br><img src=\"https://i.imgur.com/HRhYQvi.png\" alt=\"\" width=\"500\" class=\"bbc_img resized\"><br><img src=\"https://i.imgur.com/A2Wya3Q.png\" alt=\"\" width=\"500\" class=\"bbc_img resized\"><br>WINGCOM is an unlockable hullmod that crews your carrier's wings with chatty named pilots. They gain experience over the campaign, learn skills as they level, and a rare few have the latent talent to become Ace Pilots.<br><br><strong>Features</strong><br>- Persistent named pilots with personalities, progression, and skills.<br>- Radio chatter in combat: pilots banter with each other and taunt the enemies they're facing.<br>- Fully customizable squadrons via the Squadron Management intel screen: names, portraits, callsigns.<br>- Veteran pilots can be promoted into fully-fledged Officers.<br><hr><img src=\"https://i.imgur.com/WgCBe8H.png\" alt=\"\" width=\"600\" class=\"bbc_img resized\"><br><img src=\"https://i.imgur.com/qqPEd3L.png\" alt=\"\" width=\"400\" class=\"bbc_img resized\"><br>Units that can provide Strikecraft with extended operational time, additional weapons and protection, and the ability to travel independently without need for a carrier. You can freely switch units in and out of these platforms at your colonies so long as you have the appropriate unit.<br><br><hr><br><strong><span style=\"font-size: 14pt;\" class=\"bbc_size\">Credits</span></strong><br><strong><a href=\"https://maritumix.fanbox.cc/\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">maritumix</a></strong> - Campaign Music, Battle Music<br><strong><a href=\"http://patreon.com/SHOGUNNED\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">BONESAW</a></strong> - Battle Music<br><strong><a href=\"https://soundcloud.com/plrusek-chan\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">+TEK</a></strong> - Music<br><strong>HzDev, Mycophobia, Zeta04, zaz168</strong> - CN Translation<br><strong>MesoTroniK</strong> - Consult, some SFX<br><strong>Tartiflette</strong> - Initial mech script<br><strong>Harupea</strong> - Initial Docking System<br><strong>Nia Tahl</strong> - Scripting, trail patterns, notWhiteBase<br><strong>Dark.Revenant</strong> - Scripting<br><strong> Selkie </strong> - Some sprites<br><strong> Caymon Joestar</strong> - Some sprites<br><strong> Quacken </strong> - Rajanya's binders, some portraits<br><strong> Lukas04 </strong> - I may have copied his forum post format&nbsp; ;)<br><strong>Avanitia,Bass, Alex_Sans, WMGreymind, Randall, Phantasia, Karleen, Finn, Unit9461, TheSoldier, Caymon Joestar, Selkie</strong> - Feedback / Testing<br><br><em>The optional anime-style portraits in this mod were generated with DALL·E 3 and edited by hand. Some voice lines use modified output from ElevenLabs. The illustrations for Jenius and New Meshan were generated with ElevenLabs and edited by hand. LLMs were used for grammar and syntax passes on written text, and code assistance.<br>All sprites, and all portraits credited to individual artists are original human work.</em><br></div>",
+ "images": [
+  {
+   "originalUrl": "https://i.imgur.com/zYciRZg.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://img.shields.io/github/v/release/gomarz/ss-armaa?label=Changelog&amp;style=for-the-badge",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://trilink.wispborne.com/badges/install-badge-forthebadge.svg",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://img.shields.io/github/downloads/gomarz/SS-armaa/total?style=for-the-badge&amp;label=DOWNLOAD",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/k1cBYHg.gif",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/Gnsm4ZB.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/rvxzHLc.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/Kn5AIrx.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/OjIv630.gif",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/xG9C0uE.gif",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/ElzNgka.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/Et4cR8y.gif",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/kolixB6.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/DLaQY4I.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/yH9bZwK.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/kPdjD9U.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/jMFvbdQ.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/Wu9CWjq.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/duKQgQA.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/re9uSXf.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/jm4Y126.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/HRhYQvi.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/A2Wya3Q.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/WgCBe8H.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/qqPEd3L.png",
+   "alt": ""
+  }
+ ],
+ "links": [
+  {
+   "url": "https://github.com/gomarz/SS-armaa/releases/download/v3.3.7/armaa-3.3.7.zip",
+   "text": "NOT save compatible with versions of ArmaA prior to v3.2.6",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://github.com/gomarz/ss-armaa/releases",
+   "text": "",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2Fgomarz%2Fss-armaa%2Fmaster%2Farmaa.version%22%2C%22id%22%3A%22armaa%22%2C%22version%22%3A%223.3.4b%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLazyWizard%2Flazylib%2Fmaster%2Fmod%2Flazylib.version%22%2C%22id%22%3A%22lw_lazylib%22%7D&dep=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FMagicLibStarsector%2FMagicLib%2Fmaster%2Fmagiclib.version%22%2C%22id%22%3A%22MagicLib%22%7D",
+   "text": "",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://github.com/gomarz/SS-armaa/releases/latest",
+   "text": "",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://ko-fi.com/shoi76832",
+   "text": "Support me on Ko-Fi",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://raw.githubusercontent.com/gomarz/SS-armaa/refs/heads/master/changelog.md",
+   "text": "Changelog",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "http://fractalsoftworks.com/forum/index.php?topic=5444.0",
+   "text": "LazyLib",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "http://fractalsoftworks.com/forum/index.php?topic=13718.0",
+   "text": "MagicLib",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=9175.0",
+   "text": "Nexerelin",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=24215.90",
+   "text": "PAGSM",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=19712.0",
+   "text": "Caymon's Ship Pack",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=24274.0",
+   "text": "Sunrider",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=25658.0",
+   "text": "LunaLib",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=29124.0",
+   "text": "Knights of Ludd",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=35781.0",
+   "text": "Project MISTRAL",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "http://...",
+   "text": "PAGSM",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://maritumix.fanbox.cc/",
+   "text": "maritumix",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "http://patreon.com/SHOGUNNED",
+   "text": "BONESAW",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://soundcloud.com/plrusek-chan",
+   "text": "+TEK",
+   "isExternal": true,
+   "isDownloadable": false
+  }
+ ],
+ "extraPosts": [],
+ "isPlaceholderDetail": false
+}

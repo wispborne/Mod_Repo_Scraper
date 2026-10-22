@@ -1,0 +1,100 @@
+{
+ "topicId": 25905,
+ "title": "[0.97a] AI Portraits of AI Cores (As People)",
+ "gameVersion": "0.97a",
+ "author": "bombasticmori",
+ "authorTitle": "Ensign",
+ "authorPostCount": 44,
+ "authorAvatarPath": "https://fractalsoftworks.com/forum/index.php?action=dlattach;attach=8909;type=avatar",
+ "postDate": "January 14, 2023, 03:03:04 PM",
+ "lastEditDate": "January 27, 2025, 04:00:08 PM by bombasticmori",
+ "contentHtml": "<div align=\"center\"><img src=\"https://i.imgur.com/WZRctme.png\" alt=\"\" class=\"bbc_img\"><img src=\"https://i.imgur.com/ra3myk7.png\" alt=\"\" class=\"bbc_img\"></div><div align=\"center\"><span style=\"font-size: 18pt;\" class=\"bbc_size\"><strong>AI Portraits of AI Cores</strong></span></div><hr><div align=\"center\">Hey everyone! This mod is a side project I've been working on while trying to distract myself from bigger projects for other games.<br>&nbsp; The central premise for these portraits is \"What if an AI core created a human avatar for itself?\" but there's nothing restricting anyone from using these with characters that aren't AI.<br>&nbsp; All the portraits were generated using <a href=\"https://fractalsoftworks.com/forum/index.php?topic=25550\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Severian Void's</a> Stable Diffusion model for Starsector portraits, using images of each AI core as a base. The images featured at the top are a selection of Alpha Core portraits.<br><br>There are currently two versions of this mod:<br><br>The <strong>lite version</strong> is an \"Author's Cut\", containing a selection of what I thought were the best and most varied portraits. There are 10 male and female portraits for each core, for a total of <strong>80 new portraits</strong>.<br><br>The <strong>full version</strong> contains all the \"decent\" (read: non-cursed) portraits I generated for this project.&nbsp; It contains <strong>295 new portraits.</strong>&nbsp; This can be a bit overwhelming, which is why I made the lite version.<br><br>Currently, both versions only add portraits to the player faction, so you can use them when selecting new characters, and they'll show up for officers in your faction.&nbsp; However, I'm also posting a patch that also adds the non-Omega based portraits to the vanilla AI portrait list.&nbsp; This is just an extra file, not a mod in and of itself, and should be merged with the base mod folder (the zip file already has the right folder structure).<br><br>Permissions are open, so if you want feel free to use any of these in your own mods.<br></div><hr><br><div align=\"center\"><strong><span style=\"font-size: 14pt;\" class=\"bbc_size\">Downloads</span></strong></div><div align=\"center\"><strong>Downloads links are fixed, sorry about that! Config was updated for 0.97a-RC11.</strong></div><div align=\"center\"><a href=\"https://drive.google.com/file/d/1bLPANNM3MxTPfUBBoted-5TViB8AI5U9/view?usp=sharing\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Full Portrait Pack</a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a href=\"https://drive.google.com/file/d/1AbldzbI_F0X_KssVawSH7oA-KZ6DIBt9/view?usp=sharing\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Lite Portrait Pack</a><br>&nbsp; &nbsp;<a href=\"https://drive.google.com/file/d/1YzXWNTANaSlZBNku3Cylaj1RyUe4VGuG/view?usp=sharing\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Full Remnant Patch</a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href=\"https://drive.google.com/file/d/1WTzJd7nbNSkI6YMsaBpuh3cPnv1tcwHS/view?usp=sharing\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Lite Remnant Patch</a></div><hr><br><div align=\"center\"><strong><span style=\"font-size: 14pt;\" class=\"bbc_size\">Screenshots</span></strong></div><div align=\"center\">Here's a selection of some of the portraits for each core:<br>Alpha Core (In addition to above):<br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\"><img src=\"https://i.imgur.com/yBI8RkI.png\" alt=\"\" class=\"bbc_img\"><img src=\"https://i.imgur.com/oKUe8jV.png\" alt=\"\" class=\"bbc_img\"><div class=\"sp-foot\">[close]</div></div></div>Beta Core:<br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\"><img src=\"https://i.imgur.com/1gum4WK.png\" alt=\"\" class=\"bbc_img\"><img src=\"https://i.imgur.com/UpuIPpX.png\" alt=\"\" class=\"bbc_img\"><div class=\"sp-foot\">[close]</div></div></div>Gamma Core:<br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\"><img src=\"https://i.imgur.com/UDaCUSH.png\" alt=\"\" class=\"bbc_img\"><img src=\"https://i.imgur.com/6jOKB3g.png\" alt=\"\" class=\"bbc_img\"><div class=\"sp-foot\">[close]</div></div></div>Omega Core:<br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\"><img src=\"https://i.imgur.com/ct4yqkQ.png\" alt=\"\" class=\"bbc_img\"><img src=\"https://i.imgur.com/L0zMxPQ.png\" alt=\"\" class=\"bbc_img\"><div class=\"sp-foot\">[close]</div></div></div></div><hr><br><div align=\"center\"><strong><span style=\"font-size: 14pt;\" class=\"bbc_size\">Resources</span></strong></div><div align=\"center\">If you wanted to try your hand at making portraits like this, here's some resources to help!<br>First, you'll need a working version of <a href=\"https://github.com/AUTOMATIC1111/stable-diffusion-webui\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Stable Diffusion</a> and <a href=\"https://fractalsoftworks.com/forum/index.php?topic=25550\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">Severian Void's Stable Diffusion Model</a>.<br>I used a 2K upscaled version of each vanilla AI core to generate these portraits, which you can find <a href=\"https://drive.google.com/file/d/11MrOknexq0vQs2onHJqoIlL2ZZwvjKbk/view?usp=sharing\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener noreferrer\">here</a>.<br>I used the same prompt and settings for each portrait (excepting a few that worked out nice while I was fine-tuning the prompts).<br>Female Portraits:<br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\">a starsectorportrait of a holographic artificial intelligence, cute young adult woman with circuitry in the background, ai core, ai, artificial intelligence, hologram, glitches, visual artifacts, aura, visual corruption, jpeg artifacts, distortion<br>Negative prompt: helmet, eyepiece, earpiece, massive eyes, old, bad anatomy, missing fingers, cameo<br>Steps: 20, CFG scale: 7, Seed: -1, Size: 512x512, Model hash: 35a0bad3, Denoising strength: 0.75, Mask blur: 4<div class=\"sp-foot\">[close]</div></div></div>Male Portraits:<br><div class=\"sp-wrap sp-wrap-default\"><div class=\"sp-head\">Spoiler</div><div class=\"sp-body folded\">a starsectorportrait of a holographic artificial intelligence, handsome young adult man with circuitry in the background, ai core, ai, artificial intelligence, hologram, glitches, visual artifacts, aura, visual corruption, jpeg artifacts, distortion<br>Negative prompt: helmet, eyepiece, earpiece, massive eyes, old, bad anatomy, missing fingers, cameo<br>Steps: 20, CFG scale: 7, Seed: -1, Size: 512x512, Model hash: 35a0bad3, Denoising strength: 0.75, Mask blur: 4<div class=\"sp-foot\">[close]</div></div></div>&nbsp; </div><hr><br><div align=\"center\"><strong><span style=\"font-size: 14pt;\" class=\"bbc_size\">Credits</span></strong></div><div align=\"center\">Severian Void for making the Starsector Portrait SD model in the first place.<br>The Unofficial Starsector Discord off-topic chat for putting up with my sh*t (I love you guys &lt;3)<br>The Starsector team for making a great game!</div>",
+ "images": [
+  {
+   "originalUrl": "https://i.imgur.com/WZRctme.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/ra3myk7.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/yBI8RkI.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/oKUe8jV.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/1gum4WK.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/UpuIPpX.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/UDaCUSH.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/6jOKB3g.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/ct4yqkQ.png",
+   "alt": ""
+  },
+  {
+   "originalUrl": "https://i.imgur.com/L0zMxPQ.png",
+   "alt": ""
+  }
+ ],
+ "links": [
+  {
+   "url": "https://fractalsoftworks.com/forum/index.php?topic=25550",
+   "text": "Severian Void's",
+   "isExternal": false,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://drive.google.com/file/d/1bLPANNM3MxTPfUBBoted-5TViB8AI5U9/view?usp=sharing",
+   "text": "Full Portrait Pack",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://drive.google.com/file/d/1AbldzbI_F0X_KssVawSH7oA-KZ6DIBt9/view?usp=sharing",
+   "text": "Lite Portrait Pack",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://drive.google.com/file/d/1YzXWNTANaSlZBNku3Cylaj1RyUe4VGuG/view?usp=sharing",
+   "text": "Full Remnant Patch",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://drive.google.com/file/d/1WTzJd7nbNSkI6YMsaBpuh3cPnv1tcwHS/view?usp=sharing",
+   "text": "Lite Remnant Patch",
+   "isExternal": true,
+   "isDownloadable": true
+  },
+  {
+   "url": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+   "text": "Stable Diffusion",
+   "isExternal": true,
+   "isDownloadable": false
+  },
+  {
+   "url": "https://drive.google.com/file/d/11MrOknexq0vQs2onHJqoIlL2ZZwvjKbk/view?usp=sharing",
+   "text": "here",
+   "isExternal": true,
+   "isDownloadable": true
+  }
+ ],
+ "extraPosts": [],
+ "isPlaceholderDetail": false
+}

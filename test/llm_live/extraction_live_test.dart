@@ -382,6 +382,153 @@ void main() {
     });
   });
 
+  group('what a post says about AI use', () {
+    // Strict about the areas, because the site's filter hides mods by area.
+    // Loose about "how", which is a judgement call on the author's wording.
+    Set<AiUseArea> areasOf(LlmAiUse? aiUse) =>
+        {for (final use in aiUse?.uses ?? const <LlmAiUseEntry>[]) use.area};
+
+    LlmAiUseEntry? useFor(LlmAiUse? aiUse, AiUseArea area) =>
+        aiUse?.uses?.where((u) => u.area == area).firstOrNull;
+
+    bool namesTool(LlmAiUse? aiUse, String tool) =>
+        (aiUse?.tools ?? const <String>[]).any((t) => nameHolds(t, tool));
+
+    test('AI Tweaks (28428) is about ship AI, which is not AI use', () async {
+      final answer = await read(28428);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.mods, isNotEmpty, reason: why);
+      for (final mod in answer.mods) {
+        expect(mod.extras?.aiUse?.usesAi, isNull,
+            reason: '"ship AI and AI-assisted player support" is what the mod '
+                'does in the game, not how it was made.\n$why');
+      }
+    });
+
+    test('AI-core portraits (25905) were made with Stable Diffusion', () async {
+      final answer = await read(25905);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.mods, isNotEmpty, reason: why);
+      final aiUse = answer.mods.first.extras?.aiUse;
+      expect(aiUse?.usesAi, isTrue,
+          reason: 'the pack is about AI cores, and its post also says the '
+              'portraits were generated with Stable Diffusion.\n$why');
+      expect(areasOf(aiUse), {AiUseArea.portraits}, reason: why);
+      expect(namesTool(aiUse, 'Stable Diffusion'), isTrue, reason: why);
+    });
+
+    test('Arma Armatura (18751) sorts five uses and keeps the sprites out',
+        () async {
+      final answer = await read(18751);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mod = modNamed(answer, 'Arma Armatura') ?? answer.mods.firstOrNull;
+      final aiUse = mod?.extras?.aiUse;
+      expect(aiUse?.usesAi, isTrue, reason: why);
+      expect(
+          areasOf(aiUse),
+          {
+            AiUseArea.portraits,
+            AiUseArea.voice,
+            AiUseArea.illustrations,
+            AiUseArea.writing,
+            AiUseArea.code,
+          },
+          reason: '"All sprites ... are original human work", so sprites must '
+              'not be listed.\n$why');
+      final portraits = useFor(aiUse, AiUseArea.portraits);
+      expect(portraits?.optional, isTrue,
+          reason: 'the post calls them "the optional anime-style '
+              'portraits".\n$why');
+      expect(portraits?.how, isNot(AiUseHow.assisted), reason: why);
+      expect(useFor(aiUse, AiUseArea.writing)?.how, isNot(AiUseHow.generated),
+          reason: 'a grammar and syntax pass is help, not writing.\n$why');
+      expect(useFor(aiUse, AiUseArea.code)?.how, isNot(AiUseHow.generated),
+          reason: why);
+      expect(namesTool(aiUse, 'DALL'), isTrue, reason: why);
+      expect(namesTool(aiUse, 'ElevenLabs'), isTrue, reason: why);
+    });
+
+    test('Persean Chronicles (19830) lists two edited uses, one per line',
+        () async {
+      final answer = await read(19830);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final aiUse = answer.mods.firstOrNull?.extras?.aiUse;
+      expect(aiUse?.usesAi, isTrue,
+          reason: 'each use is its own "- " line, and a quote joining the two '
+              'without the marks must still be found in the post.\n$why');
+      expect(areasOf(aiUse), {AiUseArea.portraits, AiUseArea.illustrations},
+          reason: why);
+      for (final area in [AiUseArea.portraits, AiUseArea.illustrations]) {
+        expect(useFor(aiUse, area)?.how, isNot(AiUseHow.assisted),
+            reason: '"and then hand-edited by me".\n$why');
+      }
+      expect(namesTool(aiUse, 'MidJourney'), isTrue, reason: why);
+    });
+
+    test('Junk Yard Dogs (22826) marks its AI portraits optional', () async {
+      final answer = await read(22826);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final aiUse = answer.mods.firstOrNull?.extras?.aiUse;
+      expect(aiUse?.usesAi, isTrue, reason: why);
+      expect(useFor(aiUse, AiUseArea.portraits)?.optional, isTrue,
+          reason: 'the post has a section headed "Optional AI generated JYD '
+              'Portraits", though its credits line does not say so.\n$why');
+    });
+
+    test('Nightcross Armory (31982) says it has no AI content', () async {
+      final answer = await read(31982);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.mods, isNotEmpty, reason: why);
+      final aiUse = answer.mods.first.extras?.aiUse;
+      expect(aiUse?.usesAi, isFalse,
+          reason: '"This mod contains zero AI generated content."\n$why');
+      expect(aiUse?.uses ?? const [], isEmpty, reason: why);
+    });
+
+    test('Halo Dynamics (33509) used AI only to help translate', () async {
+      final answer = await read(33509);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.mods, isNotEmpty, reason: why);
+      final aiUse = answer.mods.first.extras?.aiUse;
+      expect(aiUse?.usesAi, isTrue, reason: why);
+      expect(areasOf(aiUse), {AiUseArea.translation}, reason: why);
+      expect(useFor(aiUse, AiUseArea.translation)?.how,
+          isNot(AiUseHow.generated),
+          reason: 'every translation "was reviewed for correctness".\n$why');
+      for (final tool in ['DeepL', 'ChatGPT', 'DeepSeek']) {
+        expect(namesTool(aiUse, tool), isTrue, reason: '$tool\n$why');
+      }
+    });
+
+    test('Astral Ascension Renewed (36167) was built by Claude Code', () async {
+      final answer = await read(36167);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.mods, isNotEmpty, reason: why);
+      final aiUse = answer.mods.first.extras?.aiUse;
+      expect(aiUse?.usesAi, isTrue, reason: why);
+      expect(areasOf(aiUse), {AiUseArea.code}, reason: why);
+      expect(useFor(aiUse, AiUseArea.code)?.extent, AiUseExtent.all,
+          reason: '"Claude Code built this anyway" means the whole mod.\n$why');
+      expect(namesTool(aiUse, 'Claude Code'), isTrue, reason: why);
+    });
+  });
+
   group('a Discord announcement thread', () {
     /// [read] for a saved Discord thread.
     Future<LlmStoreEntry?> readDiscord(String threadId) async {

@@ -17,6 +17,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       MapperContainer.globals.use(_instance = PublicModDetailMapper._());
       PublicModMapper.ensureInitialized();
       SaveAnswerMapper.ensureInitialized();
+      LlmAiUseMapper.ensureInitialized();
       PublicImageMapper.ensureInitialized();
       PublicDownloadMapper.ensureInitialized();
       PublicSupportLinkMapper.ensureInitialized();
@@ -111,6 +112,12 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
   static const Field<PublicModDetail, SaveAnswer> _f$canRemove = Field(
     'canRemove',
     _$canRemove,
+    opt: true,
+  );
+  static LlmAiUse? _$aiUse(PublicModDetail v) => v.aiUse;
+  static const Field<PublicModDetail, LlmAiUse> _f$aiUse = Field(
+    'aiUse',
+    _$aiUse,
     opt: true,
   );
   static List<String> _$rawCategories(PublicModDetail v) => v.rawCategories;
@@ -224,6 +231,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     #canAdd: _f$canAdd,
     #canUpdate: _f$canUpdate,
     #canRemove: _f$canRemove,
+    #aiUse: _f$aiUse,
     #rawCategories: _f$rawCategories,
     #gallery: _f$gallery,
     #downloads: _f$downloads,
@@ -260,6 +268,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       canAdd: data.dec(_f$canAdd),
       canUpdate: data.dec(_f$canUpdate),
       canRemove: data.dec(_f$canRemove),
+      aiUse: data.dec(_f$aiUse),
       rawCategories: data.dec(_f$rawCategories),
       gallery: data.dec(_f$gallery),
       downloads: data.dec(_f$downloads),
@@ -342,6 +351,7 @@ extension PublicModDetailValueCopy<$R, $Out>
 abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   PublicModCopyWith<$R, PublicMod, PublicMod> get listing;
+  LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
   get rawCategories;
   ListCopyWith<
@@ -393,6 +403,7 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     SaveAnswer? canAdd,
     SaveAnswer? canUpdate,
     SaveAnswer? canRemove,
+    LlmAiUse? aiUse,
     List<String>? rawCategories,
     List<PublicImage>? gallery,
     List<PublicDownload>? downloads,
@@ -426,6 +437,9 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
   @override
   PublicModCopyWith<$R, PublicMod, PublicMod> get listing =>
       $value.listing.copyWith.$chain((v) => call(listing: v));
+  @override
+  LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse =>
+      $value.aiUse?.copyWith.$chain((v) => call(aiUse: v));
   @override
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
   get rawCategories => ListCopyWith(
@@ -518,6 +532,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     Object? canAdd = $none,
     Object? canUpdate = $none,
     Object? canRemove = $none,
+    Object? aiUse = $none,
     List<String>? rawCategories,
     List<PublicImage>? gallery,
     List<PublicDownload>? downloads,
@@ -555,6 +570,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       if (canAdd != $none) #canAdd: canAdd,
       if (canUpdate != $none) #canUpdate: canUpdate,
       if (canRemove != $none) #canRemove: canRemove,
+      if (aiUse != $none) #aiUse: aiUse,
       if (rawCategories != null) #rawCategories: rawCategories,
       if (gallery != null) #gallery: gallery,
       if (downloads != null) #downloads: downloads,
@@ -604,6 +620,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     canAdd: data.get(#canAdd, or: $value.canAdd),
     canUpdate: data.get(#canUpdate, or: $value.canUpdate),
     canRemove: data.get(#canRemove, or: $value.canRemove),
+    aiUse: data.get(#aiUse, or: $value.aiUse),
     rawCategories: data.get(#rawCategories, or: $value.rawCategories),
     gallery: data.get(#gallery, or: $value.gallery),
     downloads: data.get(#downloads, or: $value.downloads),

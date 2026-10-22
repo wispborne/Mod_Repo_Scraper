@@ -71,6 +71,14 @@ posts written to be easy.
 | 33489 | Draconis Fleet. The credits list a composer, an artist and a playtester, each with "Support him here!" beside their links. Those support somebody else, so `supportLinks` must not take them — only links that support the mod's own author count. |
 | 10982 | GraphicsLib. The author's donate link is a picture button with no words of its own and none around it, on a host no rule recognises. It must still be kept as a support link, and given a `label`, since that label is the only name the button will have. The check against Draconis must not cost this one. |
 | 34645 | A question thread. Not a mod release at all — `isMod` must be false. |
+| 28428 | AI Tweaks. "Improvements focused on ship AI and AI-assisted player support" is what the mod does in the game. It is not a statement about AI tools, so `aiUse` must be empty. |
+| 25905 | AI Portraits of AI Cores. The title is about AI cores, which is game AI. The post also says the portraits were generated with Stable Diffusion, which is AI use. `aiUse` must hold portraits and nothing else. |
+| 18751 | Arma Armatura. One credits paragraph names five uses: optional portraits made with DALL·E 3 and edited, voice lines and illustrations made with ElevenLabs, and LLM help with writing and code. It also says every sprite is human work, so sprites must not be listed. |
+| 31982 | Nightcross Armory. "This mod contains zero AI generated content." `usesAi` must be false with no uses. That is a statement, not an unknown. |
+| 19830 | Persean Chronicles. Two AI uses, each on its own line starting with "- ": portraits and illustrations, both edited by hand. The model joins the two lines without the "- " marks, so this checks the quote is still found in the post. |
+| 22826 | Junk Yard Dogs. Its credits line names the AI tool, and a separate section is headed "Optional AI generated JYD Portraits". The portraits must be marked optional even when the quote is the credits line. |
+| 33509 | Halo Dynamics, an English translation. AI helped with the translation only, and the post names DeepL, ChatGPT and DeepSeek. Translation must be the only area, and it must not be marked as generated. |
+| 36167 | Astral Ascension Renewed. "Claude Code built this anyway." The quote names no amount, but it says the tool made the whole mod, so the code's extent must be "all". |
 
 ## The saved Discord threads
 

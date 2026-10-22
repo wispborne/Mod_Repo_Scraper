@@ -1,4 +1,5 @@
 import '../../../../catalog/source_post.dart';
+import '../models/post_extraction.dart';
 
 /// Prompts and response schema for extracting mod facts.
 ///
@@ -9,8 +10,8 @@ import '../../../../catalog/source_post.dart';
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 24;
-  static const int discordPromptVersion = 2;
+  static const int promptVersion = 25;
+  static const int discordPromptVersion = 3;
 
   /// Cache version for [kind]. Nexus extraction is not supported yet.
   static int promptVersionFor(SourceKind kind) =>
@@ -97,6 +98,10 @@ Hard rules:
   mod that is merely mentioned, recommended, linked as a successor, or that has
   to be downloaded somewhere else. Example: a post for one mod that also links a
   successor mod and recommends a separate tool wouldn't add the successor and tool to this thread.
+  Example: a post lists the author's other mods "that do have their own
+  thread", each with a description and a link to that thread but no download.
+  Those mods are downloaded from their own threads, so none of them is an entry
+  here, even when the post says they are safe to add.
 - A patch for another mod is not a mod. Leave it out, even when its download is
   named after that mod. A patch is a file you copy into another mod's folder to
   change or overwrite that mod's files. Example: a thread for a mod that fixes
@@ -154,6 +159,19 @@ Return this JSON object:
       "descriptionAnchors": {
         "startsWith": "<the first few words of the run of text that describes THIS mod, copied exactly>",
         "endsWith": "<the last few words of that same run of text, copied exactly>"
+      },
+      "aiUse": {
+        "quote": "<the author's own words on whether AI tools were used to make this mod, copied exactly>",
+        "usesAi": <true if the quote says AI tools were used, false if it says none were>,
+        "uses": [
+          {
+            "area": "<portraits | illustrations | sprites | icons | music | voice | writing | translation | code | other>",
+            "how": "<generated | edited | assisted, or null>",
+            "extent": "<all | most | some, or null>",
+            "optional": <true when the quote says the player can leave this part out; else false>
+          }
+        ],
+        "tools": ["<an AI tool the post names, copied exactly>", "..."]
       }$summaryField
     }
   ]
@@ -182,8 +200,9 @@ Guidance:
     thread. Some threads have multiple "main" mods.
   - "addon": a mod that needs another mod FROM THIS THREAD to work. Set
     "requires" to that mod's exact name.
-  - "variant": another build of a main mod on this thread — a lite version, a version
-    for an older game release.
+  - "variant": another build of a main mod on this thread — a lite, basic or
+    stripped-down version, a version for an older game release. A variant is
+    still a variant when it can be installed on its own.
   Example: A thread opens with "MyLib — this must be enabled if you use
   any of the other mods listed here", and then describes five packs of ships.
   That is SIX entries: "MyLib" with role "main", and five with role "addon" and
@@ -392,6 +411,69 @@ Guidance:
     description, or whenever you are unsure. A name, download link, requirements
     or installation instructions alone are not a description of what the mod
     does. Return null rather than pointing at unrelated text just to fill it.
+- "aiUse" is what the author says about using AI tools to MAKE this mod: image
+  generators, voice or music generators, chatbots, code assistants. Most posts
+  say nothing about it, and "aiUse" is then null.
+  - In Starsector, "AI" usually means the game's own AI: ship AI, fleet AI, AI
+    cores, AI-controlled factions. Text about those is NOT about AI use.
+    Examples:
+    - "AI Tweaks provides various improvements focused on ship AI and
+      AI-assisted player support" is about the game. "aiUse" is null.
+    - "AI fleets now use carriers better" is about the game. "aiUse" is null.
+    - A portrait pack called "AI Portraits of AI Cores (As People)" is about AI
+      cores, and its title is not about AI use. But its post also says "All the
+      portraits were generated using Severian Void's Stable Diffusion model".
+      That sentence IS about AI use: "usesAi": true, with one use, "area":
+      "portraits".
+  - "quote" is the author's statement, copied word for word. Give one
+    statement only. When the post has two, take the one that says most plainly
+    which parts were made with AI, such as one under a heading like "AI
+    disclaimer". A thank-you in the credits is the last choice. Your "uses"
+    can still cover both.
+  - "usesAi" is true when the quote says AI tools were used for any part of the
+    mod. It is false when the quote says no AI was used: "This mod contains
+    zero AI generated content" or "No AI Generation". When the post makes
+    neither statement, "aiUse" is null.
+  - "uses" has one entry per part of the mod the quote says AI was used for.
+    It is empty when "usesAi" is false. When the quote says AI was used but not
+    for what, give one entry with "area": "other".
+    - "area": "portraits" (character portraits), "illustrations" (pictures for
+      markets, planets, events or dialogue), "sprites" (ships, weapons and other
+      in-game sprites), "icons", "music", "voice" (voice lines, speech),
+      "writing" (descriptions, dialogue and other text), "translation",
+      "code", or "other".
+    - "how": "generated" when the AI tool made it and it is used as it came;
+      "edited" when the tool made it and a person then changed it by hand,
+      including a picture upscaled with AI; "assisted" when a person made it
+      with the tool's help, such as a grammar pass, code completion or help with
+      a translation. null when the quote does not say.
+    - "extent": "all", "most" or "some", only when the quote says how much:
+      "All images are AI-generated", "most of the images", "a small portion of
+      the portraits". A sentence saying the AI tool made the whole mod also
+      counts as "all", for every area it covers: "Claude Code built this" or
+      "this mod was written entirely by ChatGPT". null when it does not say.
+    - "optional": true only when the post says the player can leave that part
+      out, such as an optional portrait pack. Look for this anywhere in the
+      post, not only in your quote: a heading such as "Optional AI generated
+      portraits", or steps to switch them on ("to enable, unzip..."), make
+      those portraits optional. Otherwise false.
+    - "Upscaled" on its own is not AI use. In these posts it usually just means
+      made bigger.
+  - "tools" is the AI tools the post names, such as Midjourney, Stable
+    Diffusion, DALL-E, ChatGPT or ElevenLabs, copied as the post writes them.
+    Never add a tool the post does not name. Empty when it names none.
+  - Example: "The optional portraits were generated with DALL-E 3 and edited by
+    hand. LLMs were used for grammar passes on written text, and code
+    assistance." gives "usesAi": true, "tools": ["DALL-E 3"] and three uses:
+    "portraits" with "how": "edited" and "optional": true, "writing" with
+    "how": "assisted", and "code" with "how": "assisted".
+  - Example: the credits thank someone for "AI generated versions" of the
+    portraits, and elsewhere a section is headed "Optional AI generated
+    Portraits" and says "To enable, unzip the file". That gives one use,
+    "portraits" with "optional": true.
+  - On a thread offering several mods, a statement written for the whole
+    thread goes on every "main" mod it covers. A statement about one mod stays
+    on that mod.
 - Leave any field null/empty when the post does not state it. Do not guess.$summaryGuidance
 ''';
   }
@@ -498,6 +580,44 @@ Guidance:
         'required': ['startsWith', 'endsWith'],
         'additionalProperties': false,
       },
+      'aiUse': {
+        'type': ['object', 'null'],
+        'properties': {
+          'quote': {'type': 'string'},
+          'usesAi': {
+            'type': ['boolean', 'null']
+          },
+          'uses': {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'area': {
+                  'type': 'string',
+                  'enum': [for (final a in AiUseArea.values) a.name],
+                },
+                'how': {
+                  'type': ['string', 'null'],
+                  'enum': [for (final h in AiUseHow.values) h.name, null],
+                },
+                'extent': {
+                  'type': ['string', 'null'],
+                  'enum': [for (final e in AiUseExtent.values) e.name, null],
+                },
+                'optional': {'type': 'boolean'},
+              },
+              'required': ['area', 'how', 'extent', 'optional'],
+              'additionalProperties': false,
+            },
+          },
+          'tools': {
+            'type': 'array',
+            'items': {'type': 'string'},
+          },
+        },
+        'required': ['quote', 'usesAi', 'uses', 'tools'],
+        'additionalProperties': false,
+      },
     };
 
     final modRequired = <String>[
@@ -520,6 +640,7 @@ Guidance:
       'updateNotes',
       'needs',
       'descriptionAnchors',
+      'aiUse',
     ];
 
     if (includeSummary) {
