@@ -52,7 +52,7 @@ String? cleanPostHtml(String? postHtml) {
   final source = postHtml?.trim();
   if (source == null || source.isEmpty) return null;
 
-  final fragment = html_parser.parseFragment(source);
+  final fragment = html_parser.parseFragment(_spoilerTagsAsHtml(source));
   final out = _Writer();
 
   for (final node in fragment.nodes) {
@@ -431,6 +431,91 @@ bool _writeSpoiler(dom.Element wrap, _Writer out, {required bool inLink}) {
   _writeChildren(body, out, inLink: inLink);
   out.write('</details>');
   return true;
+}
+
+/// A `[spoiler]` or `[spoiler=Title]` tag, or its closing `[/spoiler]`, left as
+/// plain text by the forum. The forum leaves every spoiler tag in a post as text
+/// when they don't pair up (topic 35818 opens four and closes three).
+final RegExp _spoilerTag =
+    RegExp(r'\[(/?)spoiler(?:=([^\]]*))?\]', caseSensitive: false);
+
+/// An HTML tag, for checking that a spoiler's text opens and closes the same
+/// tags.
+final RegExp _htmlTag = RegExp(r'<(/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*>');
+
+/// Tags with no closing tag.
+const Set<String> _voidTags = {
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta',
+  'param', 'source', 'track', 'wbr',
+};
+
+/// [html] with each pair of spoiler tags left as text written in the forum's
+/// own spoiler markup, so [_writeSpoiler] folds it like any other spoiler.
+///
+/// Tags pair up the way they nest: a closing tag closes the latest opening tag
+/// still open. An opening tag that is never closed stays as text, and so does a
+/// closing tag with nothing to close. A pair is also left as text when the HTML
+/// between its tags does not close every tag it opens, because turning it into
+/// a fold would cut through those tags.
+String _spoilerTagsAsHtml(String html) {
+  final tags = _spoilerTag.allMatches(html).toList();
+  if (tags.isEmpty) return html;
+
+  final open = <RegExpMatch>[];
+  final pairs = <(RegExpMatch, RegExpMatch)>[];
+  for (final tag in tags) {
+    if (tag[1]!.isEmpty) {
+      open.add(tag);
+    } else if (open.isNotEmpty) {
+      final start = open.removeLast();
+      if (_closesWhatItOpens(html.substring(start.end, tag.start))) {
+        pairs.add((start, tag));
+      }
+    }
+  }
+  if (pairs.isEmpty) return html;
+
+  final replacements = <int, String>{};
+  for (final (start, end) in pairs) {
+    var title = (start[2] ?? '').trim();
+    if (title.length >= 2 &&
+        (title.startsWith('"') && title.endsWith('"') ||
+            title.startsWith("'") && title.endsWith("'"))) {
+      title = title.substring(1, title.length - 1).trim();
+    }
+    replacements[start.start] = '<div class="sp-wrap"><div class="sp-head">'
+        '${title.replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</div>'
+        '<div class="sp-body">';
+    replacements[end.start] = '</div></div>';
+  }
+
+  final out = StringBuffer();
+  var at = 0;
+  for (final tag in tags) {
+    final replacement = replacements[tag.start];
+    if (replacement == null) continue;
+    out.write(html.substring(at, tag.start));
+    out.write(replacement);
+    at = tag.end;
+  }
+  out.write(html.substring(at));
+  return out.toString();
+}
+
+/// True when [html] closes every tag it opens, in order, and closes none it
+/// did not open.
+bool _closesWhatItOpens(String html) {
+  final open = <String>[];
+  for (final tag in _htmlTag.allMatches(html)) {
+    final name = tag[2]!.toLowerCase();
+    if (_voidTags.contains(name)) continue;
+    if (tag[1]!.isEmpty) {
+      if (!tag[0]!.endsWith('/>')) open.add(name);
+    } else if (open.isEmpty || open.removeLast() != name) {
+      return false;
+    }
+  }
+  return open.isEmpty;
 }
 
 /// The name a quote's header gives, as a `<cite>` at the top of the quote. A

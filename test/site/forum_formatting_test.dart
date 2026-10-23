@@ -42,6 +42,70 @@ void main() {
           '<details class="spoiler"><summary>Inner</summary>B</details>'
           '</details>');
     });
+
+    group('spoiler tags the forum left as text', () {
+      test('a pair with a title is a fold labelled with it', () {
+        expect(
+          cleanPostHtml('<p>Intro</p>[spoiler=SCREENSHOTS]<b>Ships</b>[/spoiler]'),
+          '<p>Intro</p><details class="spoiler"><summary>SCREENSHOTS</summary>'
+          '<b>Ships</b></details>',
+        );
+      });
+
+      test('a pair with no title is called "Spoiler"', () {
+        expect(
+          cleanPostHtml('[SPOILER]Hidden[/Spoiler]'),
+          '<details class="spoiler"><summary>Spoiler</summary>Hidden</details>',
+        );
+      });
+
+      test('quotes round a title are taken off', () {
+        expect(
+          cleanPostHtml('[spoiler="Changelog"]Notes[/spoiler]'),
+          '<details class="spoiler"><summary>Changelog</summary>Notes</details>',
+        );
+      });
+
+      test('a pair inside a pair folds inside it', () {
+        expect(
+          cleanPostHtml('[spoiler=FAQ]Q<br>[spoiler=Name?]A[/spoiler][/spoiler]'),
+          '<details class="spoiler"><summary>FAQ</summary>Q<br>'
+          '<details class="spoiler"><summary>Name?</summary>A</details>'
+          '</details>',
+        );
+      });
+
+      // Topic 35818 opens four spoilers and closes three. The one left open is
+      // the second, and the forum showed all of them as text.
+      test('a tag that is never closed stays as text', () {
+        expect(
+          cleanPostHtml('[spoiler=One]A[/spoiler]<br>[spoiler]<br>B<br>'
+              '[spoiler=Two]C[/spoiler]'),
+          '<details class="spoiler"><summary>One</summary>A</details><br>'
+          '[spoiler]<br>B<br>'
+          '<details class="spoiler"><summary>Two</summary>C</details>',
+        );
+      });
+
+      test('a closing tag with nothing to close stays as text', () {
+        expect(cleanPostHtml('<p>A[/spoiler]</p>'), '<p>A[/spoiler]</p>');
+      });
+
+      test('a pair that would cut through other tags stays as text', () {
+        expect(
+          cleanPostHtml('<p>[spoiler]A</p><p>B[/spoiler]</p>'),
+          '<p>[spoiler]A</p><p>B[/spoiler]</p>',
+        );
+      });
+
+      test('a title cannot add HTML to the page', () {
+        expect(
+          cleanPostHtml('[spoiler=<script>x</script>]A[/spoiler]'),
+          '<details class="spoiler"><summary>&lt;script&gt;x&lt;/script&gt;'
+          '</summary>A</details>',
+        );
+      });
+    });
   });
 
   group('quotes and code', () {
