@@ -72,13 +72,23 @@ class PictureCaptioner {
   List<String> picturesToLookAt(SourcePost source, {DateTime? now}) {
     if (_stopped) return const [];
     final seen = <String>{};
-    return [
-      for (final url in picturesOf(source).take(maxPicturesPerPost))
-        if (seen.add(PictureCaptionStore.keyFor(url)) &&
-            !store.isDone(url, now: now) &&
-            !PictureCaptionStore.discordLinkExpired(url, now: now))
-          url,
-    ];
+    final expired = <String>[];
+    final pictures = <String>[];
+    for (final url in picturesOf(source).take(maxPicturesPerPost)) {
+      if (!seen.add(PictureCaptionStore.keyFor(url)) || store.isDone(url, now: now)) continue;
+      if (PictureCaptionStore.discordLinkExpired(url, now: now)) {
+        expired.add(url);
+      } else {
+        pictures.add(url);
+      }
+    }
+    if (expired.isNotEmpty) {
+      _log.info('Skipped ${expired.length} '
+          '${expired.length == 1 ? 'picture' : 'pictures'} in ${source.label}: '
+          'the Discord address has expired. Fetch Discord again to get working '
+          'addresses.');
+    }
+    return pictures;
   }
 
   /// Looks at [pictures] (from [picturesToLookAt]) and saves what the model

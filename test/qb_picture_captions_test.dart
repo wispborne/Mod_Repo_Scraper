@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:logging/logging.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/download_resolver.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/extraction_store.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/llm_client.dart';
@@ -190,6 +191,20 @@ void main() {
       final post = _post(['https://cdn.discordapp.com/attachments/1/2/a.png?ex=6ad88799&is=1&hm=2']);
       expect(captioner.picturesToLookAt(post, now: DateTime.utc(2026, 10, 22)), isEmpty);
       expect(captioner.picturesToLookAt(post, now: DateTime.utc(2026, 10, 21)), hasLength(1));
+    });
+
+    test('a skipped expired picture is written to the log', () {
+      final logger = Logger.detached('test')..level = Level.ALL;
+      final lines = <String>[];
+      logger.onRecord.listen((record) => lines.add(record.message));
+      final captioner = PictureCaptioner(client: _FakeModel(), store: store, logger: logger);
+      final post = _post(['https://cdn.discordapp.com/attachments/1/2/a.png?ex=6ad88799&is=1&hm=2']);
+
+      captioner.picturesToLookAt(post, now: DateTime.utc(2026, 10, 21));
+      expect(lines, isEmpty, reason: 'the address still works');
+
+      captioner.picturesToLookAt(post, now: DateTime.utc(2026, 10, 22));
+      expect(lines, [contains('Skipped 1 picture')]);
     });
 
     test('an answer is read by picture number, and a picture it leaves out is not saved', () {

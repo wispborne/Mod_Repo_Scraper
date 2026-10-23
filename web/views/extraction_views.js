@@ -160,6 +160,12 @@ export function imageList(images, captions = {}) {
       ]),
       el('a', { href: img.originalUrl, target: '_blank', text: img.originalUrl }),
     ]);
+    if (discordLinkExpired(img.originalUrl)) {
+      value.append(el('div', {
+        class: 'change-note',
+        text: 'This Discord address has expired. Fetch Discord again to get a working one.',
+      }));
+    }
     const seen = captions[img.originalUrl];
     if (seen) value.append(pictureSeen(seen));
     list.append(el('li', {}, [
@@ -168,6 +174,20 @@ export function imageList(images, captions = {}) {
     ]));
   }
   return list;
+}
+
+/// True when [url] is a Discord attachment whose signed address has run out.
+/// Discord writes the end time in `ex`, as seconds in hexadecimal.
+function discordLinkExpired(url) {
+  let address;
+  try {
+    address = new URL(url);
+  } catch {
+    return false;
+  }
+  if (!/(^|\.)discordapp\.(com|net)$/.test(address.hostname)) return false;
+  const ends = parseInt(address.searchParams.get('ex') || '', 16);
+  return Number.isFinite(ends) && ends * 1000 < Date.now();
 }
 
 const FIT_BADGES = {
