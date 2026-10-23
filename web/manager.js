@@ -18,6 +18,7 @@ export const KIND_LABELS = {
   resolveDownloads: 'Recheck downloads',
   extractLlm: 'Re-run LLM extraction',
   llmCoveragePass: 'LLM catch-up',
+  describePictures: 'Scan images',
   llmTest: 'LLM test',
   rebuildBundle: 'Rebuild mod details',
   mergeModRepo: 'Merge from saved files',
@@ -217,6 +218,15 @@ export function describeJob(request) {
       return `Scrape ${describeScope(request.scope)} on ${boards}${llm}. `
         + `This makes network requests.${request.runLlm ? ' LLM calls may cost money.' : ''}`;
     }
+    case 'describePictures':
+      return count
+        ? `Rescan all images in ${topics} and in the Discord threads `
+          + 'joined to the same mods. No post is read again. Then rebuild the catalog, '
+          + 'mod details, and website. LLM calls may cost money.'
+        : 'Scan images in saved forum topics and Discord threads. Scan only images '
+          + 'not yet scanned, or scanned with an older prompt. Stop at the per-run call '
+          + 'limit. No post is read again. Then rebuild the catalog, mod details, and '
+          + 'website. LLM calls may cost money.';
     case 'llmCoveragePass':
       return 'Update missing or outdated LLM results using saved forum topics and Discord '
         + 'threads, up to the per-run call limit. Then rebuild the catalog, mod details, '

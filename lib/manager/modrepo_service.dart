@@ -555,6 +555,7 @@ String jobKindLabel(JobKind kind) => switch (kind) {
       JobKind.resolveDownloads => 'work out downloads',
       JobKind.extractLlm => 'ask the LLM',
       JobKind.llmCoveragePass => 'LLM catch-up',
+      JobKind.describePictures => 'scan images',
       JobKind.llmTest => 'LLM test',
       JobKind.rebuildBundle => 'rebuild the bundle',
       JobKind.mergeModRepo => 'merge from saved files',

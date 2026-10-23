@@ -676,7 +676,8 @@ Guidance:
   }
 
   /// Builds a deterministic user message from the reduced post and scraper hints.
-  /// Its text is part of the cache fingerprint.
+  /// The extractor excludes picture `seen` descriptions from the cache
+  /// fingerprint.
   static String buildUserPrompt({
     required String reducedText,
     required List<({String url, String text, bool isDownloadable})> links,

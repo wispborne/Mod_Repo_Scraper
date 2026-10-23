@@ -367,20 +367,30 @@ class PostExtractor {
     }
 
     // The pictures are looked at first, because what the model sees in them
-    // goes into the prompt, and so into the fingerprint.
+    // goes into the prompt. Descriptions are excluded from the fingerprint,
+    // so changing them does not cause the post to be read again.
     final looked = await _lookAtPictures(source);
     if (looked == null) return false;
     return await _extract(source, ruleCandidates) || looked;
+  }
+
+  /// Describes pictures in [source] without reading the post. [redo] includes
+  /// pictures with saved descriptions. Returns whether an LLM call was made,
+  /// or null if the run was asked to stop or reached its call limit.
+  /// Does nothing without a [captioner].
+  Future<bool?> describePictures(SourcePost source, {bool redo = false}) async {
+    if (source.isPlaceholder) return false;
+    return _lookAtPictures(source, redo: redo);
   }
 
   /// Looks at the post's pictures that have no description yet. Returns
   /// whether a call was spent, or null when the run has been asked to stop or
   /// has no budget left, so the post is not read either. Takes a turn like any
   /// other call, and counts against [maxTopics].
-  Future<bool?> _lookAtPictures(SourcePost source) async {
+  Future<bool?> _lookAtPictures(SourcePost source, {bool redo = false}) async {
     final captioner = this.captioner;
     if (captioner == null) return false;
-    final pictures = captioner.picturesToLookAt(source);
+    final pictures = captioner.picturesToLookAt(source, redo: redo);
     if (pictures.isEmpty) return false;
 
     await _slots.take();
@@ -399,20 +409,23 @@ class PostExtractor {
     List<DownloadCandidate> ruleCandidates,
   ) async {
     final read = _ReadPosts.of(source);
-    final userPrompt = _buildUserPrompt(source, read, ruleCandidates);
+    final prompts = _buildUserPrompt(source, read, ruleCandidates);
+    final userPrompt = prompts.sent;
     final promptVersion = ExtractionPrompt.promptVersionFor(source.kind);
 
-    // A Discord thread's picture addresses carry a signature Discord writes
-    // fresh on every fetch, so it is left out of the fingerprint. The forum's
-    // is left exactly as it was, so no forum answer is paid for again.
+    // The fingerprint excludes picture descriptions, so changing them does
+    // not cause another post read. It also excludes Discord URL signatures,
+    // which change on every fetch. Forum URLs stay unchanged so saved forum
+    // answers can still be reused.
     final isDiscord = source.kind == SourceKind.discord;
-    final fingerprint = LlmExtractionStore.computeFingerprint(
-      userPrompt: isDiscord
-          ? LlmExtractionStore.withoutDiscordSignatures(userPrompt)
-          : userPrompt,
-      promptVersion: promptVersion,
-      fieldSet: _effectiveFieldSet,
-    );
+    String fingerprintOf(String prompt) => LlmExtractionStore.computeFingerprint(
+          userPrompt: prompt,
+          promptVersion: promptVersion,
+          fieldSet: _effectiveFieldSet,
+        );
+    final fingerprint = fingerprintOf(isDiscord
+        ? LlmExtractionStore.withoutDiscordSignatures(prompts.fingerprinted)
+        : prompts.fingerprinted);
 
     // Already done (also lets interrupted runs pick up here): skip the call.
     //
@@ -426,24 +439,27 @@ class PostExtractor {
       return false;
     }
 
-    // An answer saved before the signature was left out carries a fingerprint
-    // of the signed text. While the saved thread still has the signatures it
-    // was read with, that answer is still good: file it under the new
-    // fingerprint instead of reading the thread again. Can go once every
-    // Discord answer has been through here or been read again.
-    if (isDiscord &&
-        await _store.moveFingerprint(
-          source.storeKey,
-          oldFingerprint: LlmExtractionStore.computeFingerprint(
-            userPrompt: userPrompt,
-            promptVersion: promptVersion,
-            fieldSet: _effectiveFieldSet,
-          ),
-          newFingerprint: fingerprint,
-          promptVersion: promptVersion,
-        )) {
-      _log.fine('LLM store hit for ${source.label} (fingerprint updated)');
-      return false;
+    // Older fingerprints include picture descriptions and, for some Discord
+    // answers, URL signatures. If the prompt still matches, move the saved
+    // answer to the new fingerprint without reading the post again. Remove
+    // this migration once all saved answers have been moved or replaced.
+    final olderFingerprints = {
+      fingerprintOf(isDiscord
+          ? LlmExtractionStore.withoutDiscordSignatures(userPrompt)
+          : userPrompt),
+      if (isDiscord) fingerprintOf(userPrompt),
+      if (isDiscord) fingerprintOf(prompts.fingerprinted),
+    }..remove(fingerprint);
+    for (final old in olderFingerprints) {
+      if (await _store.moveFingerprint(
+        source.storeKey,
+        oldFingerprint: old,
+        newFingerprint: fingerprint,
+        promptVersion: promptVersion,
+      )) {
+        _log.fine('LLM store hit for ${source.label} (fingerprint updated)');
+        return false;
+      }
     }
 
     // Wait for a turn. Callers fire a read per topic without waiting for the
@@ -537,7 +553,9 @@ class PostExtractor {
   // Prompt building
   // ---------------------------------------------------------------------------
 
-  String _buildUserPrompt(
+  /// Returns the model prompt and a copy without picture descriptions for
+  /// the fingerprint. Both are identical when no pictures have descriptions.
+  ({String sent, String fingerprinted}) _buildUserPrompt(
     SourcePost source,
     _ReadPosts read,
     List<DownloadCandidate> ruleCandidates,
@@ -605,18 +623,28 @@ class PostExtractor {
           ),
     ];
 
-    return ExtractionPrompt.buildUserPrompt(
-      reducedText: bodyText,
-      links: links,
-      ruleLinks: ruleLinks,
-      images: images,
-      gameVersion: source.gameVersion,
-      // The thread title helps the model name each mod, so it is always sent.
-      modTitle: source.title,
-      followUpTexts: followUpTexts,
-      // Only a Discord thread is told what it is; the forum prompt is left
-      // exactly as it was, so no forum answer is paid for again.
-      isDiscordThread: source.kind == SourceKind.discord,
+    String build(List<({String url, String? alt, String? seen})> images) =>
+        ExtractionPrompt.buildUserPrompt(
+          reducedText: bodyText,
+          links: links,
+          ruleLinks: ruleLinks,
+          images: images,
+          gameVersion: source.gameVersion,
+          // The thread title helps the model name each mod, so it is always
+          // sent.
+          modTitle: source.title,
+          followUpTexts: followUpTexts,
+          // Identify Discord threads in the prompt. Keep forum prompts
+          // unchanged so saved answers can still be reused.
+          isDiscordThread: source.kind == SourceKind.discord,
+        );
+
+    final sent = build(images);
+    return (
+      sent: sent,
+      fingerprinted: images.every((img) => img.seen == null)
+          ? sent
+          : build([for (final img in images) (url: img.url, alt: img.alt, seen: null)]),
     );
   }
 
@@ -1796,7 +1824,7 @@ class PostExtractor {
     if (!await _reserveTestSlot()) return;
 
     final read = _ReadPosts.of(source);
-    final userPrompt = _buildUserPrompt(source, read, ruleCandidates);
+    final userPrompt = _buildUserPrompt(source, read, ruleCandidates).sent;
     final request = LlmRequest(
       systemPrompt:
           ExtractionPrompt.buildSystemPrompt(includeSummary: generateSummaries),

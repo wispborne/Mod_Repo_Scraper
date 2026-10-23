@@ -70,14 +70,19 @@ class PictureCaptioner {
   /// Discord addresses whose signature has already run out (those would come
   /// back "not found" and be wrongly remembered as dead) and addresses that
   /// are not web addresses at all.
-  List<String> picturesToLookAt(SourcePost source, {DateTime? now}) {
+  ///
+  /// [redo] includes pictures with saved descriptions and pictures that
+  /// recently failed to load. A saved description stays until a new one
+  /// replaces it.
+  List<String> picturesToLookAt(SourcePost source, {DateTime? now, bool redo = false}) {
     if (_stopped) return const [];
     final seen = <String>{};
     final expired = <String>[];
     final pictures = <String>[];
     for (final url in picturesOf(source).take(maxPicturesPerPost)) {
       if (!isWebAddress(url)) continue;
-      if (!seen.add(PictureCaptionStore.keyFor(url)) || store.isDone(url, now: now)) continue;
+      if (!seen.add(PictureCaptionStore.keyFor(url))) continue;
+      if (!redo && store.isDone(url, now: now)) continue;
       if (PictureCaptionStore.discordLinkExpired(url, now: now)) {
         expired.add(url);
       } else {

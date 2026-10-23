@@ -24,6 +24,7 @@ import '../bot/scraper/qb/throttled_client.dart';
 import '../catalog/catalog_step.dart';
 import '../catalog/discord_posts.dart';
 import '../catalog/mod_catalog.dart';
+import '../catalog/source_post.dart';
 import '../site/public_site_step.dart';
 import '../utilities/caching_http_client.dart';
 import 'bundle_snapshot_store.dart';
@@ -239,6 +240,8 @@ class ScraperService implements JobRunner {
         return _extractLlm(request, reporter, cancel, runId);
       case JobKind.llmCoveragePass:
         return _llmCoveragePassJob(request, reporter, cancel, runId);
+      case JobKind.describePictures:
+        return _describePictures(request, reporter, cancel, runId);
       case JobKind.llmTest:
         return _llmTest(request, reporter, cancel);
       case JobKind.rebuildBundle:
@@ -558,6 +561,132 @@ class ScraperService implements JobRunner {
       );
     } finally {
       await llm.close();
+    }
+  }
+
+  /// Saves picture descriptions without changing LLM answers about posts.
+  /// Descriptions are excluded from post fingerprints, so changing them
+  /// does not cause another post read on the next LLM pass.
+  ///
+  /// For selected topics, describes their pictures and those in Discord
+  /// threads joined to them in the last catalog again. Without a selection,
+  /// checks all saved forum topics and Discord threads for pictures with
+  /// missing descriptions or descriptions from a different
+  /// [PictureCaptionStore.captionVersion].
+  ///
+  /// Runs even when `llm_caption_pictures` is off. Calls count against
+  /// `llm_max_topics`, so a large backlog may need several runs.
+  Future<JobOutcome> _describePictures(
+    JobRequest request,
+    RunReporter reporter,
+    CancelToken? cancel,
+    String? runId,
+  ) async {
+    final llm = _buildExtractor(request, describePictures: true);
+    final captioner = llm?.extractor.captioner;
+    if (llm == null || captioner == null) {
+      await llm?.close();
+      reporter.log('No LLM service is set up. No images were scanned.');
+      return const JobOutcome();
+    }
+    final extractor = llm.extractor;
+    final chosen = request.topicIds;
+    final redo = chosen.isNotEmpty;
+
+    final List<int> topicIds;
+    final List<DiscordThreadPost> threads;
+    if (redo) {
+      topicIds = chosen;
+      threads = _discordThreadsJoinedTo(chosen, reporter);
+    } else {
+      topicIds = [for (final summary in await store.loadIndex()) summary.topicId];
+      threads = _savedDiscordThreads(reporter);
+    }
+    final total = topicIds.length + threads.length;
+
+    reporter.phase('Scanning images');
+    var done = 0;
+    var errors = 0;
+    var postsLookedAt = 0;
+    var leftOver = 0;
+    String? stopReason;
+
+    Future<void> describe(SourcePost? source, String? label) async {
+      stopReason ??= _llmStopReason(extractor);
+      if (source != null) {
+        if (stopReason != null || captioner.hasStopped) {
+          if (captioner.picturesToLookAt(source, redo: redo).isNotEmpty) {
+            leftOver++;
+          }
+        } else {
+          final spent = await extractor.describePictures(source, redo: redo);
+          if (spent == true) postsLookedAt++;
+          if (spent == null) leftOver++;
+        }
+      }
+      reporter.progress(++done, total,
+          item: label, errors: errors, llmCalls: extractor.liveCallCount);
+    }
+
+    try {
+      await _fewAtATime(topicIds, guardrails.llmMaxConcurrentCalls,
+          () => cancel?.isCancelled ?? false, (id) async {
+        final detail = await store.loadDetail(id);
+        if (detail == null && redo) {
+          errors++;
+          reporter.log('Skipping topic $id. No saved post.');
+        }
+        await describe(
+            detail == null ? null : SourcePost.fromForumDetail(detail),
+            detail?.title);
+      });
+      await _fewAtATime(threads, guardrails.llmMaxConcurrentCalls,
+          () => cancel?.isCancelled ?? false,
+          (thread) => describe(thread.toSourcePost(), thread.name));
+
+      final calls = captioner.callCount;
+      reporter.log('Scanned images from $postsLookedAt '
+          '${postsLookedAt == 1 ? 'post' : 'posts'} in $calls '
+          '${calls == 1 ? 'call' : 'calls'}. ${pictureCaptions!.length} '
+          'image records saved in total. No post was read again.');
+      if (captioner.hasStopped) {
+        reporter.log('Stopped scanning images after repeated call failures.');
+      }
+      if (leftOver > 0) {
+        reporter.log('$leftOver '
+            '${leftOver == 1 ? 'post still has' : 'posts still have'} images '
+            'to scan. Run this again to continue.');
+      }
+
+      // Save descriptions before building the website, which reads them from disk.
+      await pictureCaptions!.flush();
+      await _rebuildBundle(runId: runId, reporter: reporter);
+
+      return JobOutcome(
+        itemsDone: done,
+        itemsTotal: total,
+        errors: errors,
+        llmCalls: extractor.liveCallCount,
+        guardrailStop: stopReason == null || leftOver == 0
+            ? null
+            : '$stopReason Posts with images left to scan: $leftOver.',
+        cancelled: cancel?.isCancelled ?? false,
+      );
+    } finally {
+      await llm.close();
+    }
+  }
+
+  /// Returns Discord threads from the last scrape, sorted by id.
+  /// Returns none if the file is missing, unreadable, or in the old format.
+  List<DiscordThreadPost> _savedDiscordThreads(RunReporter reporter) {
+    final file = io.File(p.join(environment.dataPath, DiscordPostsFile.fileName));
+    try {
+      return DiscordPostsFile.read(file).threads.values.toList()
+        ..sort((a, b) => a.threadId.compareTo(b.threadId));
+    } catch (e) {
+      reporter.log('Could not read ${file.path}. Skipping Discord threads: $e');
+      return const [];
     }
   }
 
@@ -1065,7 +1194,11 @@ class ScraperService implements JobRunner {
   /// Builds the LLM pieces for one job, or null when this job doesn't want the
   /// LLM or no LLM service is set up. Each job gets its own extractor, so the
   /// spend cap counts per run.
-  _JobLlm? _buildExtractor(JobRequest request, {bool testMode = false}) {
+  ///
+  /// [describePictures] gives the extractor a captioner whether or not
+  /// `llm_caption_pictures` is on, for the picture description job.
+  _JobLlm? _buildExtractor(JobRequest request,
+      {bool testMode = false, bool describePictures = false}) {
     final settings = environment.llm;
     if (!request.runLlm || settings == null || llmStore == null) return null;
 
@@ -1074,7 +1207,9 @@ class ScraperService implements JobRunner {
       final client = override();
       return _JobLlm(
         _buildPostExtractor(client, request, settings,
-            testMode: testMode, captionClient: client),
+            testMode: testMode,
+            captionClient: client,
+            describePictures: describePictures),
         captions: pictureCaptions,
       );
     }
@@ -1124,7 +1259,9 @@ class ScraperService implements JobRunner {
       // latch the fallback for the rest of the run, or start spending money
       // on a paid one.
       _buildPostExtractor(client, request, settings,
-          testMode: testMode, captionClient: primary),
+          testMode: testMode,
+          captionClient: primary,
+          describePictures: describePictures),
       primary: primaryClient,
       fallback: fallbackClient,
       captions: pictureCaptions,
@@ -1154,6 +1291,7 @@ class ScraperService implements JobRunner {
     LlmSettings settings, {
     required bool testMode,
     required LlmClient captionClient,
+    bool describePictures = false,
   }) =>
       PostExtractor(
         client: client,
@@ -1171,7 +1309,9 @@ class ScraperService implements JobRunner {
         testTopicIds:
             request.topicIds.isEmpty ? null : request.topicIds.toSet(),
         pictureCaptions: pictureCaptions,
-        captioner: settings.captionPictures && !testMode && pictureCaptions != null
+        captioner: (settings.captionPictures || describePictures) &&
+                !testMode &&
+                pictureCaptions != null
             ? PictureCaptioner(client: captionClient, store: pictureCaptions!)
             : null,
       );

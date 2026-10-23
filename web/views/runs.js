@@ -322,6 +322,20 @@ function savedCard() {
       onclick: () => start({ kind: 'llmCoveragePass', runLlm: true }),
     }),
   ]));
+
+  card.append(el('p', {
+    class: 'run-when',
+    text: 'Scan images not yet scanned, or scanned with an older prompt. '
+      + 'No post is read again. '
+      + 'Then rebuild the catalog, mod details, and website.',
+  }));
+  card.append(el('div', { class: 'job-buttons' }, [
+    el('button', {
+      class: 'btn',
+      text: 'Scan images',
+      onclick: () => start({ kind: 'describePictures', runLlm: true }),
+    }),
+  ]));
   return card;
 }
 

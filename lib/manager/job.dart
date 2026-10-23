@@ -24,6 +24,12 @@ enum JobKind {
   /// Make sure every stored topic has LLM results, without scraping.
   llmCoveragePass,
 
+  /// Describe saved pictures without reading posts or dropping LLM answers.
+  /// For selected topics, describe their pictures and those in Discord threads
+  /// joined to them in the catalog again. Without a selection, describe saved
+  /// pictures with missing or outdated descriptions.
+  describePictures,
+
   /// A small trial of the LLM prompt that writes a report and saves nothing.
   llmTest,
 
@@ -194,6 +200,12 @@ class JobRequest with JobRequestMappable {
   /// missing. No scrape.
   factory JobRequest.llmCoveragePass() =>
       const JobRequest(kind: JobKind.llmCoveragePass, runLlm: true);
+
+  /// Describes pictures for [topicIds] again. With no topics selected,
+  /// describes saved pictures with missing or outdated descriptions.
+  factory JobRequest.describePictures({List<int> topicIds = const []}) =>
+      JobRequest(
+          kind: JobKind.describePictures, topicIds: topicIds, runLlm: true);
 
   /// A trial run of the prompt. Writes a report; touches nothing else.
   factory JobRequest.llmTest({List<int> topicIds = const [], int limit = 5}) =>

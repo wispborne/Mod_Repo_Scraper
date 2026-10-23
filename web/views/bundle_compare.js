@@ -314,6 +314,7 @@ function jobWord(id) {
     resolveDownloads: 'downloads',
     extractLlm: 'LLM extraction',
     llmCoveragePass: 'LLM coverage',
+    describePictures: 'image scan',
     rebuildBundle: 'rebuild',
     fetchAndUpdate: 'fetch and update',
     rebuildFromSaved: 'rebuild from saved',

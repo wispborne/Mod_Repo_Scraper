@@ -45,6 +45,7 @@ export function topicActionBar(topicId) {
     el('button', { class: 'btn', text: 'Re-scrape', onclick: () => run('rescrapeTopics') }),
     el('button', { class: 'btn', text: 'Recheck downloads', onclick: () => run('resolveDownloads') }),
     el('button', { class: 'btn', text: 'Re-run LLM', onclick: () => run('extractLlm') }),
+    el('button', { class: 'btn', text: 'Rescan images', onclick: () => run('describePictures') }),
   ]);
 }
 

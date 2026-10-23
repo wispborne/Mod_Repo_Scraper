@@ -37,6 +37,8 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return JobKind.extractLlm;
       case r'llmCoveragePass':
         return JobKind.llmCoveragePass;
+      case r'describePictures':
+        return JobKind.describePictures;
       case r'llmTest':
         return JobKind.llmTest;
       case r'rebuildBundle':
@@ -69,6 +71,8 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return r'extractLlm';
       case JobKind.llmCoveragePass:
         return r'llmCoveragePass';
+      case JobKind.describePictures:
+        return r'describePictures';
       case JobKind.llmTest:
         return r'llmTest';
       case JobKind.rebuildBundle:

@@ -161,6 +161,7 @@ function selectionBar() {
     ['Re-scrape', 'rescrapeTopics'],
     ['Recheck downloads', 'resolveDownloads'],
     ['Re-run LLM', 'extractLlm'],
+    ['Rescan images', 'describePictures'],
   ].map(([label, kind]) =>
     el('button', {
       class: 'btn',

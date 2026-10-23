@@ -283,6 +283,121 @@ void main() {
       expect(model.pictureCalls, hasLength(1));
       expect(model.readCalls, hasLength(1), reason: 'the second read is a saved answer');
     });
+
+    test('changing a picture description does not reread the post', () async {
+      final model = _FakeModel();
+      final llm = extractor(model);
+      await llm.extractFor(_post([_banner]), const []);
+
+      await store.putCaption(_banner, const PictureCaption(kind: PictureKind.logo, caption: 'Something else.'));
+      await llm.extractFor(_post([_banner]), const []);
+
+      expect(model.readCalls, hasLength(1));
+    });
+
+    test('adding picture descriptions does not reread the post', () async {
+      final model = _FakeModel();
+      final answers = LlmExtractionStore(dir.path, flushEveryN: 1000);
+      PostExtractor withStore({required bool captioning}) => PostExtractor(
+            client: model,
+            store: answers,
+            resolver: QbDownloadResolver(
+              client: MockClient((_) async => http.Response('', 200)),
+              dataPath: dir.path,
+            ),
+            dataPath: dir.path,
+            pictureCaptions: store,
+            captioner: captioning ? PictureCaptioner(client: model, store: store) : null,
+          );
+
+      await withStore(captioning: false).extractFor(_post([_banner]), const []);
+      await withStore(captioning: true).extractFor(_post([_banner]), const []);
+
+      expect(model.pictureCalls, hasLength(1));
+      expect(model.readCalls, hasLength(1));
+    });
+
+    test('reuses a saved answer and updates its old fingerprint', () async {
+      final model = _FakeModel();
+      final answers = LlmExtractionStore(dir.path, flushEveryN: 1000);
+      PostExtractor build() => PostExtractor(
+            client: model,
+            store: answers,
+            resolver: QbDownloadResolver(
+              client: MockClient((_) async => http.Response('', 200)),
+              dataPath: dir.path,
+            ),
+            dataPath: dir.path,
+            pictureCaptions: store,
+          );
+      await store.putCaption(_banner, const PictureCaption(kind: PictureKind.logo, caption: 'The mod name.'));
+      final post = _post([_banner]);
+      await build().extractFor(post, const []);
+      final sent = model.readCalls.single.userPrompt;
+      expect(sent, contains('(seen: logo: The mod name.)'));
+
+      // Restore the old fingerprint, which includes picture descriptions.
+      final saved = answers.getKey(post.storeKey)!;
+      final oldFingerprint = LlmExtractionStore.computeFingerprint(
+        userPrompt: sent,
+        promptVersion: saved.promptVersion,
+        fieldSet: PostExtractor.fieldSet,
+      );
+      expect(oldFingerprint, isNot(saved.fingerprint));
+      await answers.putKey(
+          post.storeKey,
+          LlmStoreEntry(
+            fingerprint: oldFingerprint,
+            schemaVersion: saved.schemaVersion,
+            promptVersion: saved.promptVersion,
+            mods: saved.mods,
+          ));
+
+      expect(await build().extractFor(post, const []), isFalse);
+      expect(model.readCalls, hasLength(1), reason: 'the saved answer is still good');
+      expect(answers.getKey(post.storeKey)!.fingerprint, saved.fingerprint);
+    });
+  });
+
+  group('picture descriptions only', () {
+    PostExtractor extractor(_FakeModel model) => PostExtractor(
+          client: model,
+          store: LlmExtractionStore(dir.path, flushEveryN: 1000),
+          resolver: QbDownloadResolver(
+            client: MockClient((_) async => http.Response('', 200)),
+            dataPath: dir.path,
+          ),
+          dataPath: dir.path,
+          pictureCaptions: store,
+          captioner: PictureCaptioner(client: model, store: store),
+        );
+
+    test('never reads the post', () async {
+      final model = _FakeModel();
+      expect(await extractor(model).describePictures(_post([_banner, _shot])), isTrue);
+      expect(model.pictureCalls, hasLength(1));
+      expect(model.readCalls, isEmpty);
+      expect(store.captionFor(_shot)?.caption, 'Picture shot.png');
+    });
+
+    test('only replaces saved descriptions when requested', () async {
+      await store.putCaption(_banner, const PictureCaption(kind: PictureKind.logo, caption: 'Old words.'));
+      final model = _FakeModel();
+      final llm = extractor(model);
+
+      expect(await llm.describePictures(_post([_banner])), isFalse);
+      expect(model.pictureCalls, isEmpty);
+
+      expect(await llm.describePictures(_post([_banner]), redo: true), isTrue);
+      expect(store.captionFor(_banner)?.caption, 'Picture banner.png');
+    });
+
+    test('retries unreadable pictures when requested', () async {
+      await store.putUnreadable(_dead, 'HTTP Error 404');
+      final model = _FakeModel();
+      await extractor(model).describePictures(_post([_dead]), redo: true);
+      expect(model.pictureCalls.single.imageUrls, [_dead]);
+    });
   });
 
   test('a request with pictures sends them as parts after the words', () async {
