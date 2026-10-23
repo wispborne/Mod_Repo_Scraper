@@ -853,6 +853,29 @@ void main() {
     expect(detail.gallery.first.toMap().containsKey('small'), isFalse);
   });
 
+  test('each gallery picture says which post it came from', () {
+    final data = buildFrom(
+      mods: [forumMod(name: 'Nexerelin', images: const {
+        '1': Image(id: '1', url: 'https://cdn.discordapp.com/attachments/1/2/shot.png'),
+        'banner': Image(id: 'banner', url: 'https://staticdelivery.nexusmods.com/mods/1/banner.png'),
+      })],
+      bundle: bundleOf(index: [thread()], details: {
+        '9175': postOf('<p>Look</p>', images: [
+          ImageRef(originalUrl: 'https://i.imgur.com/shot.png'),
+        ]),
+      }),
+    );
+
+    final sources = {
+      for (final image in data.details['nexerelin']!.gallery) image.url: image.source,
+    };
+    expect(sources, {
+      'https://cdn.discordapp.com/attachments/1/2/shot.png': 'discord',
+      'https://staticdelivery.nexusmods.com/mods/1/banner.png': 'nexus',
+      'https://i.imgur.com/shot.png': 'forum',
+    });
+  });
+
   test(
       'the card picture is the post\'s, and the announcement one rides beside '
       'it', () {

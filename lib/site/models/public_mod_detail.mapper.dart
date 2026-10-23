@@ -700,6 +700,12 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
     _$small,
     opt: true,
   );
+  static String? _$source(PublicImage v) => v.source;
+  static const Field<PublicImage, String> _f$source = Field(
+    'source',
+    _$source,
+    opt: true,
+  );
 
   @override
   final MappableFields<PublicImage> fields = const {
@@ -710,6 +716,7 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
     #aiFit: _f$aiFit,
     #aiUnreadable: _f$aiUnreadable,
     #small: _f$small,
+    #source: _f$source,
   };
   @override
   final bool ignoreNull = true;
@@ -723,6 +730,7 @@ class PublicImageMapper extends ClassMapperBase<PublicImage> {
       aiFit: data.dec(_f$aiFit),
       aiUnreadable: data.dec(_f$aiUnreadable),
       small: data.dec(_f$small),
+      source: data.dec(_f$source),
     );
   }
 
@@ -794,6 +802,7 @@ abstract class PublicImageCopyWith<$R, $In extends PublicImage, $Out>
     String? aiFit,
     bool? aiUnreadable,
     bool? small,
+    String? source,
   });
   PublicImageCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -815,6 +824,7 @@ class _PublicImageCopyWithImpl<$R, $Out>
     Object? aiFit = $none,
     Object? aiUnreadable = $none,
     Object? small = $none,
+    Object? source = $none,
   }) => $apply(
     FieldCopyWithData({
       if (url != null) #url: url,
@@ -824,6 +834,7 @@ class _PublicImageCopyWithImpl<$R, $Out>
       if (aiFit != $none) #aiFit: aiFit,
       if (aiUnreadable != $none) #aiUnreadable: aiUnreadable,
       if (small != $none) #small: small,
+      if (source != $none) #source: source,
     }),
   );
   @override
@@ -835,6 +846,7 @@ class _PublicImageCopyWithImpl<$R, $Out>
     aiFit: data.get(#aiFit, or: $value.aiFit),
     aiUnreadable: data.get(#aiUnreadable, or: $value.aiUnreadable),
     small: data.get(#small, or: $value.small),
+    source: data.get(#source, or: $value.source),
   );
 
   @override

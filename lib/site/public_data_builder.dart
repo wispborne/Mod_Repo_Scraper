@@ -1206,7 +1206,7 @@ class PublicDataBuilder {
     final seen = <String>{};
     final gallery = <PublicImage>[];
 
-    void add(String? url, String? caption) {
+    void add(String? url, String? caption, String source) {
       final cleaned = stripExternalPrefix(url);
       if (cleaned == null || !seen.add(cleaned)) return;
       // The forum's own smileys and theme graphics are not the author's.
@@ -1223,18 +1223,29 @@ class PublicDataBuilder {
         aiFit: looked?.fit.name,
         aiUnreadable: looked == null && pictureCaptions?.isUnreadable(cleaned) == true ? true : null,
         small: small ? true : null,
+        source: source,
       ));
     }
 
     for (final image in mod.getImages().values) {
-      add(image.url ?? image.proxyUrl, image.description);
+      final url = image.url ?? image.proxyUrl;
+      add(url, image.description, _announcementSource(url));
     }
     // Every one of the author's opening posts: a thread that keeps its
     // downloads in a second post usually keeps its screenshots there too.
     for (final image in detail?.allImages ?? const <ImageRef>[]) {
-      add(image.originalUrl, image.alt);
+      add(image.originalUrl, image.alt, 'forum');
     }
     return gallery;
+  }
+
+  /// Where a merged mod's picture came from. Only Discord and Nexus give the
+  /// merge pictures, and Nexus serves its own from nexusmods.com.
+  static String _announcementSource(String? url) {
+    final host = Uri.tryParse(url ?? '')?.host ?? '';
+    return host == 'nexusmods.com' || host.endsWith('.nexusmods.com')
+        ? 'nexus'
+        : 'discord';
   }
 
   /// The picture the site shows, and the picture from the mod's announcement.

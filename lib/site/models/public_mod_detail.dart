@@ -213,6 +213,9 @@ class PublicImage with PublicImageMappable {
   /// Only written when true.
   final bool? small;
 
+  /// Where the picture was posted: `forum`, `discord` or `nexus`.
+  final String? source;
+
   PublicImage({
     required this.url,
     this.caption,
@@ -221,6 +224,7 @@ class PublicImage with PublicImageMappable {
     this.aiFit,
     this.aiUnreadable,
     this.small,
+    this.source,
   });
 }
 

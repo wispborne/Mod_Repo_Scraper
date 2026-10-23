@@ -1526,6 +1526,7 @@ button.check-row { align-items: center; }
 .btn-with-icon .view-icon,
 .btn-with-icon .github-icon,
 .badge.source-link .original-page-icon,
+.big-picture-source .original-page-icon,
 .check-row .tri-box,
 .settings-icon,
 .ai-banner-hide-icon,
@@ -1863,6 +1864,12 @@ body.picture-open { overflow: hidden; }
   overflow-wrap: anywhere;
 }
 .big-picture-original { font-size: var(--type-small); }
+.big-picture-source {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--type-small); white-space: nowrap;
+}
+.big-picture-source[hidden] { display: none; }
+.big-picture-source:not([href]) { color: var(--text-dim); }
 .big-picture-close, .big-picture-step {
   position: absolute; background: none; border: none; cursor: pointer;
   color: var(--text-dim); font-family: inherit; line-height: 1;
