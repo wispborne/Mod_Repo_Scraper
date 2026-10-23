@@ -1430,7 +1430,7 @@ function facts(detail) {
     day('Last release', listing.lastReleaseDate,
       'When this site last noticed a new version.'),
     day('Thread last posted', listing.threadLastPostOn || detail.threadLastPostOn, null),
-    aiUseFact(detail.aiUse, listing.authors),
+    aiUseFact(detail.aiUse),
   ]);
 }
 
@@ -1440,7 +1440,7 @@ function facts(detail) {
 /// "Not checked yet" means the mod's posts have not been read for this (no
 /// `aiUse` at all), and "Unknown" means they were read and say nothing (an
 /// `aiUse` with no `usesAi`).
-function aiUseFact(aiUse, authors = []) {
+function aiUseFact(aiUse) {
   if (!aiUse || aiUse.usesAi == null) {
     return sideFact('AI use', el('span', aiUse
       ? { class: 'dim', text: 'Unknown',
@@ -1453,12 +1453,12 @@ function aiUseFact(aiUse, authors = []) {
     ? (aiUse.uses || []).map(aiUseLabel).join(' · ')
     : 'None';
   const value = quickTip(el('span', { class: 'ai-use has-tip', text }),
-    () => aiUseTip(aiUse, authors));
+    () => aiUseTip(aiUse));
   return sideFact('AI use', value, { beside: !aiUse.usesAi });
 }
 
 // Keep all reported details in the tooltip, alongside the author's quote.
-function aiUseTip(aiUse, authors = []) {
+function aiUseTip(aiUse) {
   const tools = aiUse.tools || [];
   const uses = aiUse.usesAi ? aiUse.uses || [] : [];
   return el('div', { class: 'tip-parts' }, [
@@ -1470,7 +1470,7 @@ function aiUseTip(aiUse, authors = []) {
     tools.length
       ? el('div', { class: 'tip-badges' }, tools.map((tool) => el('span', { class: 'badge', text: tool })))
       : null,
-    el('div', { class: 'tip-label', text: `${authors.length ? joinNames(authors) : 'The author'} says:` }),
+    el('div', { class: 'tip-label', text: 'AI Disclosure' }),
     el('blockquote', { class: 'tip-quote', text: withoutOuterQuotes(aiUse.quote) }),
   ]);
 }
