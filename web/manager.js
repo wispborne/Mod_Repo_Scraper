@@ -208,8 +208,9 @@ export function describeJob(request) {
       return `Recheck downloads for ${topics} using saved posts. `
         + 'This makes network requests to check the links.';
     case 'extractLlm':
-      return `Re-run LLM extraction for ${topics} from saved posts. `
-        + 'LLM calls may cost money.';
+      return `Re-run LLM extraction for ${topics} from saved posts. Discord `
+        + 'threads joined to the same mods are read again only if their saved '
+        + 'answers are out of date. LLM calls may cost money.';
     case 'fullRun': {
       const boards = listBoards(request.boards);
       const llm = request.runLlm ? ' and run LLM extraction' : '';

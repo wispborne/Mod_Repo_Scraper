@@ -131,6 +131,21 @@ class ModCatalog {
         },
       );
 
+  /// The Discord threads of every mod built from one of [topicIds], each once,
+  /// in catalog order.
+  List<String> discordThreadIdsFor(Iterable<int> topicIds) {
+    final topics = {for (final id in topicIds) '$id'};
+    final threadIds = <String>{};
+    for (final mod in mods) {
+      final posts = mod.sourcePosts;
+      if (!posts.any((post) => post.kind == SourceKind.forum && topics.contains(post.id))) continue;
+      for (final post in posts) {
+        if (post.kind == SourceKind.discord) threadIds.add(post.id);
+      }
+    }
+    return threadIds.toList();
+  }
+
   /// Reads [file], or null when there is none.
   static ModCatalog? read(File file) {
     if (!file.existsSync()) return null;

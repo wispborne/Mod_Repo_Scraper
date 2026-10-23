@@ -10,6 +10,11 @@ import 'package:mod_repo_scraper/bot/scraper/qb/llm/llm_client.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_detail.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_summary.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/scrape_job.dart';
+import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
+import 'package:mod_repo_scraper/catalog/discord_posts.dart';
+import 'package:mod_repo_scraper/catalog/listing.dart';
+import 'package:mod_repo_scraper/catalog/mod_catalog.dart';
+import 'package:mod_repo_scraper/catalog/source_post.dart';
 import 'package:mod_repo_scraper/manager/bundle_snapshot_store.dart';
 import 'package:mod_repo_scraper/manager/job.dart';
 import 'package:mod_repo_scraper/manager/merge_snapshot_store.dart';
@@ -138,6 +143,54 @@ void main() {
 
     expect(jsonEncode(readLlmCache()['456']), before);
     expect(llm.calls, 3, reason: 'two topics, then topic 123 again');
+  });
+
+  test('asking the LLM again about a topic reads its Discord threads too',
+      () async {
+    // The last catalog joined thread 900 to topic 123, and thread 901 to 456.
+    await ModCatalog(generatedAt: DateTime.utc(2026, 1, 1), mods: [
+      const CatalogMod(id: 'one', mod: ScrapedMod(name: 'One'), sourcePosts: [
+        CatalogSourcePost(kind: SourceKind.forum, id: '123'),
+        CatalogSourcePost(kind: SourceKind.discord, id: '900'),
+      ]),
+      const CatalogMod(id: 'two', mod: ScrapedMod(name: 'Two'), sourcePosts: [
+        CatalogSourcePost(kind: SourceKind.forum, id: '456'),
+        CatalogSourcePost(kind: SourceKind.discord, id: '901'),
+      ]),
+    ]).write(File(p.join(dir.path, 'outputs', ModCatalog.fileName)));
+    await DiscordPostsFile.write(
+        File(p.join(dir.path, DiscordPostsFile.fileName)), {
+      for (final id in ['900', '901'])
+        id: DiscordThreadPost(
+          threadId: id,
+          name: 'Thread $id',
+          messages: [
+            DiscordOpeningMessage(id: id, content: 'Thread $id v1.0 is out.'),
+          ],
+        ),
+    });
+
+    final llm = FakeLlmClient();
+    final reporter = RecordingRunReporter();
+    final outcome = await makeService(llm: llm).runJob(
+      JobRequest.forTopics(JobKind.extractLlm, [123], runLlm: true),
+      reporter: reporter,
+    );
+
+    expect(llm.calls, 2, reason: 'topic 123, then Discord thread 900');
+    expect(outcome.itemsTotal, 2);
+    expect(readLlmCache().keys, unorderedEquals(['123', 'discord:900']));
+    expect(reporter.logs.join('\n'), contains('Thread 900'));
+
+    // The thread's saved answer is still current, so asking again about the
+    // topic re-reads the topic and costs nothing for the thread.
+    final threadBefore = jsonEncode(readLlmCache()['discord:900']);
+    await makeService(llm: llm).runJob(
+      JobRequest.forTopics(JobKind.extractLlm, [123], runLlm: true),
+      reporter: RecordingRunReporter(),
+    );
+    expect(llm.calls, 3, reason: 'only topic 123 was read again');
+    expect(jsonEncode(readLlmCache()['discord:900']), threadBefore);
   });
 
   test('working out downloads again leaves the LLM results alone', () async {

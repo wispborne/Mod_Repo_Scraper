@@ -23,6 +23,7 @@ import '../bot/scraper/qb/scraper_engine.dart';
 import '../bot/scraper/qb/throttled_client.dart';
 import '../catalog/catalog_step.dart';
 import '../catalog/discord_posts.dart';
+import '../catalog/mod_catalog.dart';
 import '../site/public_site_step.dart';
 import '../utilities/caching_http_client.dart';
 import 'bundle_snapshot_store.dart';
@@ -427,8 +428,14 @@ class ScraperService implements JobRunner {
     }
 
     reporter.phase('Asking the LLM');
-    // Only the LLM's saved answers go; the posts and the download answers for
-    // these topics stay exactly as they are.
+    // The Discord threads the last catalog joined to these topics are the same
+    // mods. Their saved answers are kept: a thread is read again only when its
+    // prompt has changed, which is what describing its pictures does.
+    final threads = _discordThreadsJoinedTo(ids, reporter);
+    final total = ids.length + threads.length;
+
+    // Only the LLM's saved answers for these topics go; the posts and the
+    // download answers stay exactly as they are.
     llmStore!.dropTopics(ids);
 
     var done = 0;
@@ -447,29 +454,73 @@ class ScraperService implements JobRunner {
           await llm.extractor
               .extractForTopic(detail, resolver.getCachedCandidates(id) ?? []);
         }
-        reporter.progress(++done, ids.length,
+        reporter.progress(++done, total,
             item: detail?.title,
+            errors: errors,
+            llmCalls: llm.extractor.liveCallCount);
+      });
+      await _fewAtATime(threads, guardrails.llmMaxConcurrentCalls,
+          () => cancel?.isCancelled ?? false, (thread) async {
+        final source = thread.toSourcePost();
+        final candidates =
+            await resolver.resolveForDiscordThread(thread.threadId, source.allLinks);
+        await llm.extractor.extractFor(source, candidates);
+        reporter.progress(++done, total,
+            item: thread.name,
             errors: errors,
             llmCalls: llm.extractor.liveCallCount);
       });
       await llmStore!.flush();
       // The LLM checks the links it picked through the shared "does this serve
-      // a file?" cache, so save those answers too.
-      await probeCache.saveCache();
+      // a file?" cache, and a Discord thread's download rules may have run for
+      // the first time, so save both.
+      await _saveCaches();
       await _rebuildBundle(runId: runId, reporter: reporter);
 
       return JobOutcome(
         itemsDone: done,
-        itemsTotal: ids.length,
+        itemsTotal: total,
         errors: errors,
         llmCalls: llm.extractor.liveCallCount,
         guardrailStop:
-            _llmStopReason(llm.extractor, leftOver: ids.length - done),
+            _llmStopReason(llm.extractor, leftOver: total - done),
         cancelled: cancel?.isCancelled ?? false,
       );
     } finally {
       await llm.close();
     }
+  }
+
+  /// The saved Discord threads that the last catalog built joined to
+  /// [topicIds]. A thread the catalog names but the Discord scrape did not
+  /// save is left out, and so is everything when either file is missing.
+  List<DiscordThreadPost> _discordThreadsJoinedTo(
+      List<int> topicIds, RunReporter reporter) {
+    final List<String> threadIds;
+    final DiscordPostsFile saved;
+    try {
+      threadIds = ModCatalog.read(catalogStep.outputFile)
+              ?.discordThreadIdsFor(topicIds) ??
+          const [];
+      if (threadIds.isEmpty) return const [];
+      saved = DiscordPostsFile.read(
+          io.File(p.join(environment.dataPath, DiscordPostsFile.fileName)));
+    } catch (e) {
+      reporter.log('Could not read the catalog or the saved Discord posts, '
+          'so no Discord thread is read again: $e');
+      return const [];
+    }
+    final threads = [
+      for (final id in threadIds)
+        if (saved.threads[id] case final thread?) thread,
+    ];
+    if (threads.isNotEmpty) {
+      reporter.log('Also checking ${threads.length} Discord '
+          '${threads.length == 1 ? 'thread' : 'threads'} the catalog joined to '
+          'these topics: ${threads.map((t) => t.name).join(', ')}. Each is read '
+          'again only if its saved answer is out of date.');
+    }
+    return threads;
   }
 
   Future<JobOutcome> _llmCoveragePassJob(
