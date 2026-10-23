@@ -3,7 +3,7 @@
 // Reached from a ModRepo mod that has a Discord link.
 
 import { api, el, clear, breadcrumbs, rawJson } from '../lib.js';
-import { fieldList, llmModsBlock, normUrl } from './extraction_views.js';
+import { fieldList, imageList, llmModsBlock, normUrl } from './extraction_views.js';
 
 export async function render(root, parts) {
   clear(root);
@@ -43,9 +43,10 @@ export async function render(root, parts) {
     for (const message of thread.messages || []) {
       messages.append(el('h3', { text: (message.timestamp || '').slice(0, 10) || 'Message' }));
       messages.append(el('pre', { class: 'raw', text: message.content || '(no text)' }));
-      for (const image of message.images || []) {
-        messages.append(el('a', { href: image.url, target: '_blank', text: image.filename || image.url }));
-      }
+      const images = (message.images || []).map((image) => ({
+        originalUrl: image.url, alt: image.description || image.filename,
+      }));
+      if (images.length) messages.append(imageList(images, body.pictureCaptions || {}));
     }
     page.append(messages);
   } else {

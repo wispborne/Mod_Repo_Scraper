@@ -1,4 +1,4 @@
-// #/bundle — Mod Details: the mod-catalog-details.json browser and TriOS card preview.
+// #/bundle — Mod Details: the mod-catalog-details.json browser and the thread page.
 //   #/bundle              bundle meta + searchable, paged entries
 //   #/bundle/<topicId>    working thread data and a card preview
 //   #/bundle/changes      what changed between two saved bundles
@@ -149,6 +149,7 @@ export async function renderThreadPage(root, topicId, { parent } = {}) {
     downloads: (data.assumedDownloads || []).map(downloadRowFromCandidate),
     llm: data.llm,
     pictureCaptions: data.pictureCaptions || {},
+    discordThreads: data.discordThreads || [],
     raw: data,
     topicId: Number(topicId),
     managerOn,
@@ -189,21 +190,11 @@ function stalenessBanner(staleness, managerOn) {
   return banner;
 }
 
-// The card preview shows the main mod's summary. Prefer the mod tagged `main`,
-// else the first mod. Returns that mod's extras, or null when there is no LLM
-// output.
-function primaryExtras(llm) {
-  const mods = (llm && llm.mods) || [];
-  if (!mods.length) return null;
-  const main = mods.find((m) => m.role === 'main') || mods[0];
-  return main.extras || null;
-}
-
-// Shared thread layout: fields, posts, extracted data and a TriOS card preview.
+// Shared thread layout: extracted data, details, images, the forum post, raw data.
 function renderEntry(root, entry) {
   const {
     index: idx, detail, downloads, llm, raw, topicId, managerOn, staleness,
-    historyBase, pictureCaptions,
+    historyBase, pictureCaptions, discordThreads = [],
   } = entry;
   const mods = (llm && llm.mods) || [];
 
@@ -229,8 +220,49 @@ function renderEntry(root, entry) {
   const banner = stalenessBanner(staleness, managerOn);
   if (banner) page.append(banner);
 
+  page.append(extractedPanel(llm, mods, downloads));
+  page.append(detailsPanel(idx, detail));
+  page.append(imagesPanel(detail, discordThreads, pictureCaptions));
+  page.append(postPanel(detail));
+  if (raw) page.append(rawJson(raw, 'Raw thread data (JSON)'));
+
+  root.append(page);
+}
+
+// What the LLM and the download rules pulled out of the thread.
+function extractedPanel(llm, mods, downloads) {
+  const found = el('div', { class: 'panel' });
+  found.append(el('h2', { text: 'Extracted data' }));
+
+  // A download the LLM lists whose post URL is not in the rule-based list is
+  // one the rules missed — set apart in the table.
+  const ruleUrls = new Set(downloads.map((d) => normUrl(d.url)));
+  if (mods.length) {
+    found.append(el('h3', { text: `Mods found by LLM (${mods.length})` }));
+    found.append(llmModsBlock(mods, ruleUrls));
+  } else {
+    found.append(el('h3', { text: 'Mods found by LLM' }));
+    // Distinguish missing results, non-mod classification, and an empty mod list.
+    let msg;
+    if (!llm) {
+      msg = 'No LLM results saved for this thread.';
+    } else if (llm.isMod === false) {
+      msg = 'The LLM classified this thread as not a downloadable mod.';
+    } else {
+      msg = 'The LLM returned no mods for this thread.';
+    }
+    found.append(el('p', { class: 'loading', text: msg }));
+  }
+  if (llm) found.append(llmSourceLine(llm));
+
+  found.append(el('h3', { text: `Rule-based downloads (${downloads.length})` }));
+  found.append(assumedTable(downloads));
+  return found;
+}
+
+function detailsPanel(idx, detail) {
   const fields = el('div', { class: 'panel' });
-  fields.append(el('h2', { text: 'Thread and post details' }));
+  fields.append(el('h2', { text: 'Details' }));
   const cols = el('div', { class: 'field-cols' });
 
   const thumb = thumbUrl(idx.thumbnailPath);
@@ -284,20 +316,55 @@ function renderEntry(root, entry) {
 
   cols.append(threadCol, postCol);
   fields.append(cols);
-  page.append(fields);
+  return fields;
+}
 
-  // The post itself, beside what was pulled out of it.
-  const bottom = el('div', { class: 'split' });
+// Every picture from the author's posts and the joined Discord threads, one
+// group per post.
+function imagesPanel(detail, discordThreads, pictureCaptions) {
+  const groups = [];
+  if (detail && (detail.images || []).length) {
+    groups.push([el('h3', { text: `First post (${detail.images.length})` }), detail.images]);
+  }
+  for (const [i, extra] of (detail?.extraPosts || []).entries()) {
+    if ((extra.images || []).length) {
+      groups.push([el('h3', { text: `Author’s post ${i + 2} (${extra.images.length})` }), extra.images]);
+    }
+  }
+  for (const thread of discordThreads) {
+    const images = (thread.images || []).map((image) => ({
+      originalUrl: image.url, alt: image.description || image.filename,
+    }));
+    groups.push([el('h3', {}, [
+      'Discord thread: ',
+      el('a', { href: `#/discord/${encodeURIComponent(thread.threadId)}`, text: thread.name }),
+      ` (${images.length})`,
+    ]), images]);
+  }
 
+  const panel = el('div', { class: 'panel' });
+  const count = groups.reduce((n, [, images]) => n + images.length, 0);
+  panel.append(el('h2', { text: `Images (${count})` }));
+  if (!groups.length) {
+    panel.append(el('p', { class: 'loading', text: 'No pictures saved for this thread.' }));
+  }
+  for (const [heading, images] of groups) {
+    panel.append(heading);
+    panel.append(images.length
+      ? imageList(images, pictureCaptions)
+      : el('p', { class: 'loading', text: 'No pictures in this thread.' }));
+  }
+  return panel;
+}
+
+// The author's opening run as the forum showed it, with each post's links.
+function postPanel(detail) {
   const post = el('div', { class: 'panel' });
-  post.append(el('h2', { text: 'Post' }));
+  post.append(el('h2', { text: 'Forum post' }));
   if (detail && detail.contentHtml) {
     post.append(postFrame(detail.contentHtml));
   } else {
     post.append(el('p', { class: 'loading', text: 'No post text saved for this thread.' }));
-  }
-  if (detail && (detail.images || []).length) {
-    post.append(fold(`Images (${detail.images.length})`, imageList(detail.images, pictureCaptions)));
   }
   if (detail && (detail.links || []).length) {
     post.append(fold(`Links (${detail.links.length})`, linkList(detail.links)));
@@ -310,53 +377,11 @@ function renderEntry(root, entry) {
       .filter(Boolean).join(' · ');
     if (when) post.append(el('p', { class: 'change-note', text: when }));
     if (extra.contentHtml) post.append(postFrame(extra.contentHtml));
-    if ((extra.images || []).length) {
-      post.append(fold(`Images (${extra.images.length})`, imageList(extra.images, pictureCaptions)));
-    }
     if ((extra.links || []).length) {
       post.append(fold(`Links (${extra.links.length})`, linkList(extra.links)));
     }
   }
-
-  const found = el('div', { class: 'panel' });
-  found.append(el('h2', { text: 'Extracted data' }));
-
-  // A download the LLM lists whose post URL is not in the rule-based list is
-  // one the rules missed — set apart in the table.
-  const ruleUrls = new Set(downloads.map((d) => normUrl(d.url)));
-  if (mods.length) {
-    found.append(el('h3', { text: `Mods found by LLM (${mods.length})` }));
-    found.append(llmModsBlock(mods, ruleUrls));
-  } else {
-    found.append(el('h3', { text: 'Mods found by LLM' }));
-    // Distinguish missing results, non-mod classification, and an empty mod list.
-    let msg;
-    if (!llm) {
-      msg = 'No LLM results saved for this thread.';
-    } else if (llm.isMod === false) {
-      msg = 'The LLM classified this thread as not a downloadable mod.';
-    } else {
-      msg = 'The LLM returned no mods for this thread.';
-    }
-    found.append(el('p', { class: 'loading', text: msg }));
-  }
-  if (llm) found.append(llmSourceLine(llm));
-
-  found.append(el('h3', { text: `Rule-based downloads (${downloads.length})` }));
-  found.append(assumedTable(downloads));
-
-  bottom.append(post, found);
-  page.append(bottom);
-
-  const cardPanel = el('div', { class: 'panel' });
-  cardPanel.append(el('h2', { text: 'TriOS card preview' }));
-  cardPanel.append(el('div', { class: 'approx-label', text: 'Approximate layout; appearance may differ in TriOS.' }));
-  cardPanel.append(card(idx, detail, downloads, primaryExtras(llm)));
-  page.append(cardPanel);
-
-  if (raw) page.append(rawJson(raw, 'Raw thread data (JSON)'));
-
-  root.append(page);
+  return post;
 }
 
 // Older results may lack model and endpoint metadata.
@@ -373,54 +398,6 @@ function llmSourceLine(llm) {
 function stamp(value) {
   if (!value) return null;
   return String(value).replace('T', ' ').replace(/(\.\d+)?Z$/, ' UTC');
-}
-
-// Approximate TriOS card, with high/medium-confidence downloads and an LLM
-// summary or a short post excerpt when no summary is available.
-function card(idx, detail, downloads, extras) {
-  const wrap = el('div', { class: 'card-wrap' });
-  const card = el('div', { class: 'mod-card' });
-
-  const thumb = thumbUrl(idx.thumbnailPath);
-  // No-referrer so image hosts with hotlink protection (Imgur, in particular)
-  // serve the file instead of answering 403 when it's embedded in this page.
-  if (thumb) {
-    card.append(el('img', {
-      class: 'thumb', src: thumb, alt: idx.title || '', referrerpolicy: 'no-referrer',
-    }));
-  }
-
-  const body = el('div', { class: 'body' });
-  body.append(el('div', { class: 'title', text: idx.title || '(untitled)' }));
-  body.append(el('div', { class: 'author', text: `by ${idx.author || 'unknown'}` }));
-
-  const chips = el('div', { class: 'meta-chips' });
-  if (idx.gameVersion) chips.append(el('span', { class: 'badge badge-primary', text: idx.gameVersion }));
-  chips.append(el('span', { class: 'badge badge-dim', text: `${idx.views ?? 0} views` }));
-  chips.append(el('span', { class: 'badge badge-dim', text: `${idx.replies ?? 0} replies` }));
-  body.append(chips);
-
-  // Match TriOS's summary order: paragraph, sentence, then a post excerpt.
-  const summary = (extras && extras.summary) || {};
-  const summaryText = summary.paragraph || summary.sentence;
-  if (summaryText) {
-    body.append(el('div', { class: 'excerpt', text: summaryText }));
-  } else {
-    const excerpt = plainExcerpt(detail && detail.contentHtml, 200);
-    if (excerpt) body.append(el('div', { class: 'excerpt excerpt-fallback', text: excerpt }));
-  }
-
-  for (const d of downloads) {
-    if (d.confidence !== 'high' && d.confidence !== 'medium') continue;
-    body.append(el('a', {
-      class: 'dl', href: d.directUrl || d.url, target: '_blank',
-      text: `Download${d.fileName ? ' · ' + d.fileName : ''}`,
-    }));
-  }
-
-  card.append(body);
-  wrap.append(card);
-  return wrap;
 }
 
 // Turns a stored thumbnail into a URL an <img> can actually load: drops the
@@ -443,14 +420,6 @@ function imgurDirect(url) {
   const m = url.match(/^https?:\/\/(?:www\.|m\.)?imgur\.com\/([A-Za-z0-9]+)(\.[A-Za-z0-9]+)?(?:[?#].*)?$/);
   if (!m) return url;
   return `https://i.imgur.com/${m[1]}${m[2] || '.png'}`;
-}
-
-function plainExcerpt(html, max) {
-  if (!html) return '';
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  const text = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
-  return text.length > max ? text.slice(0, max) + '…' : text;
 }
 
 function stat(label, value) {

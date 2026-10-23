@@ -128,6 +128,60 @@ void main() {
     expect(seen, containsPair('current', false));
   });
 
+  test('a Discord thread carries what was saved about its pictures', () async {
+    // The thread keeps the signed address; the caption is saved without it.
+    const signed = 'https://cdn.discordapp.com/attachments/1/2/shot.png?ex=1&is=2&hm=3';
+    File('$dataDir/discord-posts.json').writeAsStringSync(jsonEncode({
+      '77': {
+        'threadId': '77', 'name': 'A mod', 'author': 'someone',
+        'url': 'https://discord.com/channels/1/77',
+        'messages': [
+          {'id': '1', 'content': 'Look', 'images': [{'url': signed}]},
+        ],
+      },
+    }));
+    File('$dataDir/picture-captions.json').writeAsStringSync(jsonEncode({
+      'pictures': {
+        'https://cdn.discordapp.com/attachments/1/2/shot.png': {
+          'v': 3, 'kind': 'screenshot', 'caption': 'A ship.', 'fit': 'good',
+          'at': '2026-10-22T13:10:10Z',
+        },
+      },
+    }));
+    final seen = (await get('discord/77'))['pictureCaptions'][signed] as Map;
+    expect(seen, containsPair('kind', 'screenshot'));
+    expect(seen, containsPair('current', true));
+  });
+
+  test('a topic carries the pictures of the Discord threads joined to it', () async {
+    const picture = 'https://cdn.discordapp.com/attachments/1/2/shot.png?ex=1';
+    File('$dataDir/discord-posts.json').writeAsStringSync(jsonEncode({
+      '77': {
+        'threadId': '77', 'name': 'A mod on Discord', 'author': 'someone',
+        'url': 'https://discord.com/channels/1/77',
+        'messages': [
+          {'id': '1', 'content': 'Look', 'images': [{'url': picture}]},
+        ],
+      },
+    }));
+    File('$outputsDir/mod-catalog.json').writeAsStringSync(jsonEncode({
+      'items': [
+        {
+          'name': 'A mod',
+          'sourcePosts': [
+            {'kind': 'forum', 'id': '500'},
+            {'kind': 'discord', 'id': '77'},
+          ],
+        },
+        {'name': 'Another', 'sourcePosts': [{'kind': 'discord', 'id': '88'}]},
+      ],
+    }));
+    final threads = (await get('topics/500'))['discordThreads'] as List;
+    expect(threads, hasLength(1));
+    expect(threads.single['name'], 'A mod on Discord');
+    expect((threads.single['images'] as List).single['url'], picture);
+  });
+
   test('text search matches title or author', () async {
     final byTitle = await get('topics?q=alpha');
     expect((byTitle['items'] as List).length, 1);

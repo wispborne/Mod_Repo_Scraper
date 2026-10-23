@@ -243,6 +243,22 @@ class ViewerApi {
 
   // --- Topic detail ---
 
+  /// The Discord threads of every catalog mod that came from forum topic
+  /// [topicId].
+  List<String> _discordThreadIdsFor(int topicId) {
+    final items = (data.modRepo?['items'] as List?) ?? const [];
+    final ids = <String>[];
+    for (final mod in items.whereType<Map>()) {
+      final posts = ((mod['sourcePosts'] as List?) ?? const []).whereType<Map>();
+      if (!posts.any((p) => p['kind'] == 'forum' && p['id'] == '$topicId')) continue;
+      for (final post in posts) {
+        final id = post['id'];
+        if (post['kind'] == 'discord' && id is String && !ids.contains(id)) ids.add(id);
+      }
+    }
+    return ids;
+  }
+
   Response _topicDetail(Request req, String id) {
     final topicId = int.tryParse(id);
     if (topicId == null) return _notFound('Topic id must be an integer.');
@@ -257,20 +273,40 @@ class ViewerApi {
       return _notFound('No data for topic $topicId.');
     }
 
+    final discordThreads = [
+      for (final threadId in _discordThreadIdsFor(topicId))
+        if (data.discordPosts?.threads[threadId] case final thread?) thread,
+    ];
+    final pictureUrls = [
+      for (final image in detail?.allImages ?? const <ImageRef>[]) image.originalUrl,
+      for (final thread in discordThreads)
+        for (final message in thread.messages)
+          for (final image in message.images) image.url,
+    ];
+
     return _json({
       'index': idx?.toMap(),
       'detail': detail?.toMap(),
-      // What the model saw in each of the opening run's pictures, by address:
-      // the whole saved entry, plus whether it was made with today's caption
-      // prompt. The endpoint is saved with its user name, password and query
-      // already cut off.
+      // The Discord threads the catalog joined to this topic, with each
+      // message's pictures.
+      'discordThreads': [
+        for (final thread in discordThreads)
+          {
+            'threadId': thread.threadId,
+            'name': thread.name,
+            'images': [
+              for (final message in thread.messages)
+                for (final image in message.images) image.toMap(),
+            ],
+          },
+      ],
+      // What the model saw in each picture, by address: the whole saved
+      // entry, plus whether it was made with today's caption prompt. The
+      // endpoint is saved with its user name, password and query already cut
+      // off.
       'pictureCaptions': {
-        for (final image in detail?.allImages ?? const <ImageRef>[])
-          if (data.pictureCaption(image.originalUrl) case final seen?)
-            image.originalUrl: {
-              ...seen,
-              'current': seen['v'] == PictureCaptionStore.captionVersion,
-            },
+        for (final url in pictureUrls)
+          if (data.pictureCaption(url) case final seen?) url: _pictureSeen(seen),
       },
       'assumedDownloads': assumed?.map((c) => c.toJson()).toList(),
       // Use the bundle's LLM shape, with viewer-only classification and model
@@ -783,6 +819,13 @@ class ViewerApi {
 
   /// One saved Discord thread: the author's opening messages as the scrape
   /// saved them, the download rules' answer, and the LLM's answer.
+  /// One saved picture entry as the viewer shows it: everything saved, plus
+  /// whether it was made with today's caption prompt.
+  static Map<String, dynamic> _pictureSeen(Map<String, dynamic> seen) => {
+        ...seen,
+        'current': seen['v'] == PictureCaptionStore.captionVersion,
+      };
+
   Response _discordThread(Request req, String threadId) {
     final thread = data.discordPosts?.threads[threadId];
     final llm = data.discordLlmCache?[threadId];
@@ -792,6 +835,13 @@ class ViewerApi {
     return _json({
       'threadId': threadId,
       if (thread != null) 'thread': thread.toMap(),
+      // Keyed by the address as the thread saved it, signature and all.
+      'pictureCaptions': {
+        for (final message in thread?.messages ?? const <DiscordOpeningMessage>[])
+          for (final image in message.images)
+            if (data.pictureCaption(image.url) case final seen?)
+              image.url: _pictureSeen(seen),
+      },
       'ruleDownloads': [
         for (final c in data.discordAssumedDownloads?[threadId] ?? const [])
           c.toJson(),
