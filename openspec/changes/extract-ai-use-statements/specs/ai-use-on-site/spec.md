@@ -22,11 +22,11 @@ The list record in `mods.json` SHALL include `usesAi`, `true` or `false`, and SH
 - **THEN** its list record SHALL carry neither `usesAi` nor `aiUses`
 
 ### Requirement: Keep unknown AI use distinct from no AI use
-The site SHALL NOT show, filter or search a mod with no AI-use statement as if it had no AI. It SHALL show a mod read with nothing stated as "Not stated", and a mod not read yet as "Not checked yet".
+The site SHALL NOT show, filter or search a mod with no AI-use statement as if it had no AI. It SHALL show a mod read with nothing stated as "Unknown", and a mod not read yet as "Not checked yet".
 
 #### Scenario: The posts say nothing
 - **WHEN** a reader opens the page of a mod whose `aiUse` has no `usesAi`
-- **THEN** the AI use row SHALL read "Not stated"
+- **THEN** the AI use row SHALL read "Unknown"
 
 #### Scenario: Not read yet
 - **WHEN** a reader opens the page of a mod with no `aiUse`
@@ -70,7 +70,7 @@ The search box SHALL accept `has:ai`, which keeps mods whose `usesAi` is `true`,
 
 #### Scenario: Leaving out mods that used AI
 - **WHEN** a reader searches `faction -has:ai`
-- **THEN** the results SHALL match "faction" and SHALL leave out every mod whose `usesAi` is `true`, keeping mods marked "Not stated" or "Not checked yet"
+- **THEN** the results SHALL match "faction" and SHALL leave out every mod whose `usesAi` is `true`, keeping mods marked "Unknown" or "Not checked yet"
 
 #### Scenario: Finding mods with explicit no-AI statements
 - **WHEN** a reader searches `is:noai`

@@ -77,7 +77,7 @@ A thread holding several mods usually has one disclaimer for all of them. The pr
 - Mod page, in the Details card, one row headed "AI use":
   - "Portraits (edited, optional) · Code (assisted)" when AI was used;
   - "None" when `usesAi` is `false`;
-  - "Not stated" when the posts were read and say nothing;
+  - "Unknown" when the posts were read and say nothing;
   - "Not checked yet" when the posts have not been read for this yet.
 - The author's quote shows on hover, through `quickTip`, the way the save rows work.
 - Browse: an "AI use" filter has two modes, "Don't show AI-gen…" and "Only show AI-gen…". The mode buttons are stacked. The filter starts on "Don't show AI-gen…" with nothing checked. This hides nothing. There is no off button. Parts are grouped as Art, Sound, Text, Code and Other. There is no "Parts" heading. Under "If AI did…", readers pick how much AI work counts: "all of the work", "some, but edited by a human" or "anything at all". The All and None links sit in the side panel's heading. In the top layout's box, they sit in a small "AI use" heading row. Pressing them does not fold the panel. A checkbox lets readers ignore optional parts. In this mode, mods with no statement stay visible unless the reader checks that box. The logic is in `site/ai_filter.js`, which has no DOM so Node can test it. The address carries `ai`, `aiparts`, `ailevel`, and `aioptional`, and old `hideai=` links still work. `how` and `optional` are published on the list record because the filter needs them; `extent` is not, to keep `mods.json` small.
@@ -96,7 +96,7 @@ The line explaining Discord threads stays exclusive to the Discord prompt. Only 
 ## Risks / Trade-offs
 
 - [The model reads ship AI as AI use.] → Worked examples in the prompt, the quote check, and live tests on AI Tweaks and on an AI-core portrait pack.
-- [Readers mistake unknown AI use for no AI use.] → The site shows "Not stated" or "Not checked yet" without a mark when there is no statement. These mods stay visible when Browse filters by AI use.
+- [Readers mistake unknown AI use for no AI use.] → The site shows "Unknown" or "Not checked yet" without a mark when there is no statement. These mods stay visible when Browse filters by AI use.
 - [Undisclosed AI use remains unknown.] → The site can only report author statements.
 - [Sorting errors, such as `edited` read as `generated`.] → Readers can hover to see the author's quote. The live tests check the area most strictly because filters depend on it.
 - [Reading every topic again takes a full LLM pass.] → Ship it with the next prompt change, such as `changelog-anchors`, so one pass covers both changes.
