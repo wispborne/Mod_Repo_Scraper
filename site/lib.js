@@ -377,10 +377,12 @@ function readCookie(name) {
 
 // --- The theme setting ---
 
-// Theme ids match style.css. Browser Default follows the browser's colour scheme.
+// Theme ids match style.css. Browser Default follows the browser's colour
+// scheme: Independents on dark pages, the light colours on light pages.
 export const THEMES = [
   { id: 'browser-default', name: 'Browser Default' },
-  { id: 'dark', name: 'Dark' },
+  // Kept as 'dark' so readers who already picked it keep it.
+  { id: 'dark', name: 'TriOS' },
   { id: 'light', name: 'Light' },
   { id: 'sigma', name: 'Sigma' },
   { id: 'redacted', name: '[REDACTED]' },
