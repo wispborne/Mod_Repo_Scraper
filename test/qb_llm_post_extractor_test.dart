@@ -1023,6 +1023,40 @@ void main() {
       expect(aiUse, isNotNull);
     });
 
+    test('a long statement is cut out of the post from its two ends',
+        () async {
+      final aiUse = await aiUseFor(
+          155,
+          '{"quote":null,"startsWith":"AI Generated Content The NPC",'
+              '"endsWith":"were created using MidJourney","usesAi":true,'
+              '"uses":[{"area":"portraits","how":"edited","extent":null,'
+              '"optional":false}],"tools":["MidJourney"]}',
+          '<p>Credits go here.</p><p>"AI" Generated Content<br>- The NPC '
+              'portraits were created using a LoRa (and then hand-edited by '
+              'me, poorly).<br>- Illustrations were created using '
+              'MidJourney.</p><p>Enjoy!</p>');
+      expect(
+          aiUse!.quote,
+          '"AI" Generated Content\n'
+          '- The NPC portraits were created using a LoRa (and then '
+          'hand-edited by me, poorly).\n'
+          '- Illustrations were created using MidJourney.',
+          reason: 'the stored quote is the post\'s own text, line breaks '
+              'and list marks included');
+      expect(aiUse.tools, ['MidJourney']);
+    });
+
+    test('a statement whose ends are not in the post is not stated',
+        () async {
+      final aiUse = await aiUseFor(
+          156,
+          '{"quote":null,"startsWith":"All the portraits were made",'
+              '"endsWith":"with Stable Diffusion today","usesAi":true,'
+              '"uses":[],"tools":[]}',
+          '<p>All the portraits were made by hand.</p>');
+      expect(aiUse, LlmAiUse.notStated());
+    });
+
     test('a quote must still hold every word, in order', () async {
       final aiUse = await aiUseFor(
           153,

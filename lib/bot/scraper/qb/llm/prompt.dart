@@ -10,8 +10,8 @@ import '../models/post_extraction.dart';
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 25;
-  static const int discordPromptVersion = 3;
+  static const int promptVersion = 26;
+  static const int discordPromptVersion = 4;
 
   /// Cache version for [kind]. Nexus extraction is not supported yet.
   static int promptVersionFor(SourceKind kind) =>
@@ -161,14 +161,16 @@ Return this JSON object:
         "endsWith": "<the last few words of that same run of text, copied exactly>"
       },
       "aiUse": {
-        "quote": "<the author's own words on whether AI tools were used to make this mod, copied exactly>",
-        "usesAi": <true if the quote says AI tools were used, false if it says none were>,
+        "quote": "<the author's statement on whether AI tools were used to make this mod, copied exactly, ONLY when it is 12 words or fewer; else null>",
+        "startsWith": "<for a longer statement, its first five to ten words, copied exactly; else null>",
+        "endsWith": "<for a longer statement, its last five to ten words, copied exactly; else null>",
+        "usesAi": <true if the statement says AI tools were used, false if it says none were>,
         "uses": [
           {
             "area": "<portraits | illustrations | sprites | icons | music | voice | writing | translation | code | other>",
             "how": "<generated | edited | assisted, or null>",
             "extent": "<all | most | some, or null>",
-            "optional": <true when the quote says the player can leave this part out; else false>
+            "optional": <true when the post says the player can leave this part out; else false>
           }
         ],
         "tools": ["<an AI tool the post names, copied exactly>", "..."]
@@ -425,17 +427,26 @@ Guidance:
       portraits were generated using Severian Void's Stable Diffusion model".
       That sentence IS about AI use: "usesAi": true, with one use, "area":
       "portraits".
-  - "quote" is the author's statement, copied word for word. Give one
+  - Point at the author's statement; do not copy a long one out. Give one
     statement only. When the post has two, take the one that says most plainly
     which parts were made with AI, such as one under a heading like "AI
     disclaimer". A thank-you in the credits is the last choice. Your "uses"
     can still cover both.
-  - "usesAi" is true when the quote says AI tools were used for any part of the
-    mod. It is false when the quote says no AI was used: "This mod contains
+    - A short statement, 12 words or fewer, is copied whole into "quote", and
+      "startsWith" and "endsWith" are null. "No AI Generation" is a "quote".
+    - A longer statement is given by its two ends, and "quote" is null.
+      "startsWith" is its first five to ten words and "endsWith" is its last
+      five to ten words, each copied letter for letter. We cut the words
+      between them out of the post, so they are looked up there, and anything
+      not found is thrown away. The statement must be one unbroken stretch
+      inside ONE post, and a list of uses under one heading counts as one
+      stretch. Never let an anchor take in a "[link: ...]" marker.
+  - "usesAi" is true when the statement says AI tools were used for any part of
+    the mod. It is false when it says no AI was used: "This mod contains
     zero AI generated content" or "No AI Generation". When the post makes
     neither statement, "aiUse" is null.
-  - "uses" has one entry per part of the mod the quote says AI was used for.
-    It is empty when "usesAi" is false. When the quote says AI was used but not
+  - "uses" has one entry per part of the mod the statement says AI was used
+    for. It is empty when "usesAi" is false. When it says AI was used but not
     for what, give one entry with "area": "other".
     - "area": "portraits" (character portraits), "illustrations" (pictures for
       markets, planets, events or dialogue), "sprites" (ships, weapons and other
@@ -446,15 +457,15 @@ Guidance:
       "edited" when the tool made it and a person then changed it by hand,
       including a picture upscaled with AI; "assisted" when a person made it
       with the tool's help, such as a grammar pass, code completion or help with
-      a translation. null when the quote does not say.
-    - "extent": "all", "most" or "some", only when the quote says how much:
+      a translation. null when the statement does not say.
+    - "extent": "all", "most" or "some", only when the statement says how much:
       "All images are AI-generated", "most of the images", "a small portion of
       the portraits". A sentence saying the AI tool made the whole mod also
       counts as "all", for every area it covers: "Claude Code built this" or
       "this mod was written entirely by ChatGPT". null when it does not say.
     - "optional": true only when the post says the player can leave that part
       out, such as an optional portrait pack. Look for this anywhere in the
-      post, not only in your quote: a heading such as "Optional AI generated
+      post, not only in the statement: a heading such as "Optional AI generated
       portraits", or steps to switch them on ("to enable, unzip..."), make
       those portraits optional. Otherwise false.
     - "Upscaled" on its own is not AI use. In these posts it usually just means
@@ -583,7 +594,9 @@ Guidance:
       'aiUse': {
         'type': ['object', 'null'],
         'properties': {
-          'quote': {'type': 'string'},
+          'quote': nullableString(),
+          'startsWith': nullableString(),
+          'endsWith': nullableString(),
           'usesAi': {
             'type': ['boolean', 'null']
           },
@@ -615,7 +628,14 @@ Guidance:
             'items': {'type': 'string'},
           },
         },
-        'required': ['quote', 'usesAi', 'uses', 'tools'],
+        'required': [
+          'quote',
+          'startsWith',
+          'endsWith',
+          'usesAi',
+          'uses',
+          'tools'
+        ],
         'additionalProperties': false,
       },
     };

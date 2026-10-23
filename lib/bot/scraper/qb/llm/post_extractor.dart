@@ -21,6 +21,7 @@ import 'picture_caption_store.dart';
 import 'picture_captioner.dart';
 import 'post_reducer.dart';
 import 'prompt.dart';
+import 'quote_cut.dart';
 
 /// One download line the model returned, before it is grounded or resolved.
 class _RawDownload {
@@ -42,12 +43,19 @@ class _RawAiUseEntry {
 
 /// What the model says the author says about AI use, before it is checked
 /// against the post. [usesAi] is null when the model found no statement.
+///
+/// A short statement is copied whole in [quote]. A longer one is pointed at by
+/// its first words, [startsWith], and its last words, [endsWith], and cut out
+/// of the post.
 class _RawAiUse {
   final String? quote;
+  final String? startsWith;
+  final String? endsWith;
   final bool? usesAi;
   final List<_RawAiUseEntry> uses;
   final List<String> tools;
-  _RawAiUse(this.quote, this.usesAi, this.uses, this.tools);
+  _RawAiUse(this.quote, this.startsWith, this.endsWith, this.usesAi, this.uses,
+      this.tools);
 }
 
 /// One mod the model returned, parsed but not yet checked against the post.
@@ -822,6 +830,8 @@ class PostExtractor {
       final rawTools = rawAiUse['tools'];
       aiUse = _RawAiUse(
         asString(rawAiUse['quote']),
+        asString(rawAiUse['startsWith']),
+        asString(rawAiUse['endsWith']),
         usesAi is bool ? usesAi : null,
         [
           if (rawUses is List)
@@ -1161,7 +1171,7 @@ class PostExtractor {
       needs: _groundNeeds(where, mod.needs, corpus, mod.name),
       descriptionAnchors:
           _groundAnchors(where, mod.descriptionAnchors, postTexts, mod.name),
-      aiUse: _groundAiUse(where, mod.aiUse, corpus, authorWords),
+      aiUse: _groundAiUse(where, mod.aiUse, corpus, authorWords, postTexts),
     );
   }
 
@@ -1172,8 +1182,8 @@ class PostExtractor {
   /// post that says nothing from one that has not been read for this yet,
   /// which carries no `aiUse` at all.
   ///
-  /// The quote has to be in the post, or the whole answer is not stated: the
-  /// sorted uses were read off the quote, so they cannot stand without it. A
+  /// The statement has to be in the post, or the whole answer is not stated:
+  /// the sorted uses were read off it, so they cannot stand without it. A
   /// "no AI" answer that still lists uses contradicts itself, so it is not
   /// stated either. Values outside the allowed lists are dropped, and a use
   /// with no known area goes with them.
@@ -1182,23 +1192,11 @@ class PostExtractor {
     _RawAiUse? raw,
     String corpus,
     String authorWords,
+    List<String> postTexts,
   ) {
     if (raw == null || raw.usesAi == null) return LlmAiUse.notStated();
-    final quote = raw.quote;
-    if (quote == null) {
-      _log.warning('Dropped an AI-use answer with no quote ($where)');
-      return LlmAiUse.notStated();
-    }
-    // Compared word by word, because these statements are often a list and
-    // the model joins the items without the "- " marks between them. The
-    // author's words with our link notes taken out count too: a statement
-    // often names the tool's maker as a link ("generated using <a>Severian
-    // Void's</a> Stable Diffusion model"), and the model is told never to copy
-    // a note, so the sentence it copies has none.
-    if (!_wordsInPost(quote, corpus) && !_wordsInPost(quote, authorWords)) {
-      _log.warning('Dropped AI-use text not found in post ($where): $quote');
-      return LlmAiUse.notStated();
-    }
+    final quote = _aiUseQuote(where, raw, corpus, authorWords, postTexts);
+    if (quote == null) return LlmAiUse.notStated();
     final usesAi = raw.usesAi!;
     if (!usesAi && raw.uses.isNotEmpty) {
       _log.warning('Dropped an AI-use answer that says no AI was used and '
@@ -1236,6 +1234,48 @@ class PostExtractor {
       uses: uses.isEmpty ? null : uses,
       tools: tools.isEmpty ? null : tools,
     );
+  }
+
+  /// The author's statement about AI use, found in the post, or null.
+  ///
+  /// The two ends are tried first, and what they point at is cut out of one
+  /// post (`cutQuote`). A statement that straddles two posts is not found, the
+  /// same rule description anchors follow. Failing that, a short quote copied
+  /// whole is kept when its words are in the post.
+  String? _aiUseQuote(
+    String where,
+    _RawAiUse raw,
+    String corpus,
+    String authorWords,
+    List<String> postTexts,
+  ) {
+    final startsWith = raw.startsWith;
+    final endsWith = raw.endsWith;
+    if (startsWith != null && endsWith != null) {
+      for (final text in postTexts) {
+        final cut = cutQuote(text, startsWith, endsWith);
+        if (cut != null) return cut;
+      }
+      _log.warning('AI-use anchors not found in any one post, or too far '
+          'apart ($where): "$startsWith" … "$endsWith"');
+    }
+
+    final quote = raw.quote;
+    if (quote == null) {
+      _log.warning('Dropped an AI-use answer with no statement ($where)');
+      return null;
+    }
+    // Compared word by word, because these statements are often a list and
+    // the model joins the items without the "- " marks between them. The
+    // author's words with our link notes taken out count too: a statement
+    // often names the tool's maker as a link ("generated using <a>Severian
+    // Void's</a> Stable Diffusion model"), and the model is told never to copy
+    // a note, so the sentence it copies has none.
+    if (!_wordsInPost(quote, corpus) && !_wordsInPost(quote, authorWords)) {
+      _log.warning('Dropped AI-use text not found in post ($where): $quote');
+      return null;
+    }
+    return quote;
   }
 
   /// The AI tools the author really names. Each has to stand as a whole word
