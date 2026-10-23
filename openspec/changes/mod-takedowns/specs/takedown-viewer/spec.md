@@ -1,21 +1,25 @@
 ## ADDED Requirements
 
 ### Requirement: A corrections group in the sidebar
-The viewer's sidebar SHALL have a new group for manual corrections, holding a Takedowns page at `#/takedowns`. The page SHALL list every entry in `takedowns.json`. Mod entries SHALL show their id, name, blocked posts and date. Author entries SHALL show their names and date. Each entry SHALL show which mods it left out in the last build, read from `takedown-matches.json`.
+The viewer's sidebar SHALL have a new group for manual corrections, holding a Takedowns page at `#/takedowns`. The page SHALL list every entry in `takedowns.json`. Mod entries SHALL show their id, name, blocked posts and date. Author entries SHALL show their names and date. Each entry SHALL show which mods or Collection pages it left out in the last build, read from `takedown-matches.json`. An entry that left out nothing SHALL be marked as a warning. Removing a Collection page counts as a match even though its mods stay published.
 
 #### Scenario: The Tidal fork on the list
 - **WHEN** the list has the entry for `diable-avionics-tidal-fork`
 - **THEN** the Takedowns page shows its id, the name "Diable Avionics (TIDAL FORK)", the post `discord:1507163509224509510` and the day it was added
 
 ### Requirement: Mod pages have a Take down button
-The Mod Catalog mod page and the thread page SHALL each have a "Take down" button when the manager is on. The Takedowns page SHALL have a form for an author entry, taking one or more names. With the manager off, these buttons and the form SHALL NOT be shown. The Takedowns page SHALL still list the entries.
+The Mod Catalog mod page and the thread page SHALL each have a "Take down" button when the manager is on. On the thread page, the button SHALL first list the mods the current `mod-catalog.json` has from that thread, and the reader SHALL pick one before the preview is shown. A thread with one mod SHALL go straight to the preview. A thread with no mod in the catalog SHALL have no button. The Takedowns page SHALL have a form for an author entry, taking one or more names. With the manager off, these buttons and the form SHALL NOT be shown. The Takedowns page SHALL still list the entries.
+
+#### Scenario: A thread with several mods
+- **WHEN** "Take down" is pressed on the thread page for forum topic 34161, which gives four mods
+- **THEN** the viewer lists the four mods by name and id, and shows the preview only for the one the reader picks
 
 #### Scenario: Manager off
 - **WHEN** the manager is off
 - **THEN** the Takedowns page lists the entries with no buttons and no form, and the mod and thread pages have no "Take down" button
 
 ### Requirement: The confirmation dialog shows what would be removed
-Before a takedown is sent, the viewer SHALL show what it would leave out, from the current `mod-catalog.json`. For a mod: its id and name, each post it would block and whether the whole post or only this mod's listing is blocked, the Collections that would lose it, and the old ids that lead to it. For an author: every mod that would be left out, and the credited name that matched for each mod. The dialog SHALL have a "Publish when done" choice. The dialog SHALL say that the takedown list is public.
+Before a takedown is sent, the viewer SHALL show what it would leave out, from the current `mod-catalog.json`. For a mod: its id and name, each post it would block and whether the whole post or only this mod's listing is blocked, the Collections that would lose it, and the old ids that lead to it. For an author: every mod that would be left out, and the credited name that matched for each mod. For a mod entry whose keys cannot be applied to `ModRepo.json`, the dialog SHALL say that TriOS keeps listing the mod until the switch. The dialog SHALL have a "Publish when done" choice, and SHALL say that a publish from the viewer does not send `ModRepo.json`, which goes out with the next cron publish. The dialog SHALL say that the takedown list is public.
 
 #### Scenario: An author takedown matches several credited names
 - **WHEN** an author takedown for "tidal5590" is previewed
