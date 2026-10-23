@@ -186,6 +186,24 @@ void main() {
       expect(store.length, 0);
     });
 
+    test('an address that is not a web address is never sent', () {
+      final captioner = PictureCaptioner(client: _FakeModel(), store: store);
+      // Topic 29956: a Markdown link inside a picture tag.
+      final post = _post(['http://[imgur](https://imgur.com/ioWzjGb)', 'ftp://x.com/a.png', 'https:///a.png', _shot]);
+      expect(captioner.picturesToLookAt(post), [_shot]);
+    });
+
+    test('a server that calls an address invalid has each picture asked about alone', () async {
+      final model = _FakeModel(
+          pictureFailure: LlmException('Error response (status 400): {"error": {"type": '
+              '"invalid_request_error", "message": "Invalid IPv6 URL"}}'));
+      final captioner = PictureCaptioner(client: model, store: store);
+      await captioner.lookAt([_banner, _shot], where: 'topic 29956');
+      expect(model.pictureCalls, hasLength(3));
+      expect(store.isDone(_banner), isTrue);
+      expect(captioner.hasStopped, isFalse);
+    });
+
     test('a Discord picture whose link has run out is left for the next Discord scrape', () {
       final captioner = PictureCaptioner(client: _FakeModel(), store: store);
       final post = _post(['https://cdn.discordapp.com/attachments/1/2/a.png?ex=6ad88799&is=1&hm=2']);

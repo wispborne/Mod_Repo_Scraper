@@ -68,13 +68,15 @@ class PictureCaptioner {
   /// The pictures of [source] that still need looking at: among the first
   /// [maxPicturesPerPost], the ones with no saved description, leaving out
   /// Discord addresses whose signature has already run out (those would come
-  /// back "not found" and be wrongly remembered as dead).
+  /// back "not found" and be wrongly remembered as dead) and addresses that
+  /// are not web addresses at all.
   List<String> picturesToLookAt(SourcePost source, {DateTime? now}) {
     if (_stopped) return const [];
     final seen = <String>{};
     final expired = <String>[];
     final pictures = <String>[];
     for (final url in picturesOf(source).take(maxPicturesPerPost)) {
+      if (!isWebAddress(url)) continue;
       if (!seen.add(PictureCaptionStore.keyFor(url)) || store.isDone(url, now: now)) continue;
       if (PictureCaptionStore.discordLinkExpired(url, now: now)) {
         expired.add(url);
@@ -89,6 +91,16 @@ class PictureCaptioner {
           'addresses.');
     }
     return pictures;
+  }
+
+  /// True when [url] is an http(s) address with a host. Sending anything else
+  /// fails the whole call: topic 29956 has a picture tag holding the Markdown
+  /// link "http://[imgur](https://imgur.com/ioWzjGb)", which the server
+  /// rejected as "Invalid IPv6 URL", so none of that post's ten pictures were
+  /// ever described.
+  static bool isWebAddress(String url) {
+    final uri = Uri.tryParse(url);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
   }
 
   /// Looks at [pictures] (from [picturesToLookAt]) and saves what the model
@@ -203,7 +215,7 @@ class PictureCaptioner {
   static final RegExp _unreadableWords = RegExp(
     r'could not be read|cannot identify|could not (?:fetch|load|download|open)'
     r'|failed to (?:fetch|load|download|open)|unable to (?:fetch|load|download|open)'
-    r'|not found|forbidden|\b40[34]\b',
+    r'|not found|forbidden|\b40[34]\b|invalid (?:\w+ )?(?:url|address)',
     caseSensitive: false,
   );
 
