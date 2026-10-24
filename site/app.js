@@ -22,6 +22,7 @@ import * as mod from './views/mod.js';
 import * as author from './views/author.js';
 import * as about from './views/about.js';
 import * as favoritesView from './views/favorites.js';
+import * as reports from './views/reports.js';
 
 /// Where this site's code lives. The commit in the footer links into it, so
 /// a bug report can name the exact build.
@@ -35,6 +36,7 @@ const NAV = [
   { route: 'home', label: 'Home' },
   { route: 'browse', label: 'Browse mods' },
   { route: 'favorites', label: 'Favorites' },
+  { route: 'reports', label: 'Reports' },
   { route: 'about', label: 'About' },
 ];
 
@@ -45,6 +47,7 @@ const ROUTES = {
   authors: (root, parts) => author.render(root, parts),
   about: (root, parts) => about.render(root, parts),
   favorites: (root, parts) => favoritesView.render(root, parts),
+  reports: (root) => reports.render(root),
   // The old address for the favorites page. Shared links carry it, so it has to
   // keep working.
   list: (root, parts) => favoritesView.render(root, parts),

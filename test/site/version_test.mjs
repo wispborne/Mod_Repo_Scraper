@@ -11,7 +11,9 @@ import { readFile } from 'node:fs/promises';
 import { describe, test } from 'node:test';
 
 const source = await readFile(new URL('../../site/version.js', import.meta.url), 'utf8');
-const { compareVersions, compareGameVersions, gameVersionFamily } = await import(
+const {
+  compareVersions, compareGameVersions, gameVersionFamily, repairGameVersion,
+} = await import(
   `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
 /// TriOS's list, oldest first.
@@ -98,7 +100,7 @@ describe('Starsector game versions', () => {
   test('come out in release order', () => {
     const released = [
       '0.54.1a', '0.6.1a', '0.6.2a', '0.65.1a', '0.65.2a', '0.7.1a', '0.7.2a',
-      '0.8a', '0.8.1a', '0.81a', '0.9a', '0.9.1a', '0.95a', '0.95.1a', '0.96a',
+      '0.8a', '0.8.1a', '0.9a', '0.9.1a', '0.95a', '0.95.1a', '0.96a',
       '0.97a', '0.98a-RC8', '0.98a',
     ];
     assert.deepEqual([...released].reverse().sort(compareGameVersions), released);
@@ -116,5 +118,24 @@ describe('Starsector game versions', () => {
       assert.equal(gameVersionFamily(spelling), '0.98');
     }
     assert.equal(gameVersionFamily('0.95.1a'), '0.95.1');
+  });
+
+  test('fixes typos that match a known release', () => {
+    // An extra dot, a missing dot, and a letter between numbers.
+    assert.equal(repairGameVersion('0.9.8a'), '0.98a');
+    assert.equal(repairGameVersion('0.81a'), '0.8.1a');
+    assert.equal(repairGameVersion('0.95a.1a'), '0.95.1a');
+    assert.equal(gameVersionFamily('0.9.8a'), '0.98');
+    assert.equal(gameVersionFamily('0.81a'), '0.8.1');
+    assert.equal(gameVersionFamily('0.95a.1a'), '0.95.1');
+  });
+
+  test('keeps versions with no known typo', () => {
+    for (const version of ['0.98a-RC8', '0.65.2aRC2', '0.54.1', '0.7a', '0.95a', '0.96']) {
+      assert.equal(repairGameVersion(version), version);
+    }
+    // Keep newer releases that are not in the list.
+    assert.equal(gameVersionFamily('0.99a'), '0.99');
+    assert.equal(gameVersionFamily('0.98.1a'), '0.98.1');
   });
 });

@@ -842,7 +842,8 @@ class PublicDataBuilder {
       otherAuthorNames: _otherNamesFor(mod.getAuthors()),
       categories: _categoriesFor(mod, isTool: isTool),
       sources: _sourcesFor(mod, thread),
-      gameVersion: _firstNonEmpty([mod.gameVersionReq, thread?.gameVersion]),
+      gameVersion: _firstNonEmpty(
+          [mod.gameVersionReq, thread?.gameVersion].where(_namesAVersion).toList()),
       modVersion: _firstNonEmpty([extras?.version, mod.modVersion]),
       imageUrl: pictures.shown,
       announcementImageUrl: pictures.announcement,
@@ -1498,6 +1499,11 @@ class PublicDataBuilder {
     }
     return byAuthor;
   }
+
+  /// Skip versions with no digits, such as "-".
+  /// Use the thread's game version if it has one.
+  static bool _namesAVersion(String? value) =>
+      value != null && value.contains(RegExp(r'\d'));
 
   static String? _firstNonEmpty(List<String?> values) {
     for (final value in values) {

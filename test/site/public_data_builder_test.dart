@@ -482,6 +482,21 @@ void main() {
     });
   });
 
+  test('skips game versions with no digits', () {
+    final fromThread = buildFrom(
+      mods: [forumMod().copyWith(gameVersionReq: '-')],
+      bundle: bundleOf(index: [thread()]),
+    );
+    expect(fromThread.list.mods.single.gameVersion, '0.98a',
+        reason: "uses the thread's game version instead");
+
+    final none = buildFrom(
+      mods: [forumMod().copyWith(gameVersionReq: '-')],
+      bundle: bundleOf(),
+    );
+    expect(none.list.mods.single.gameVersion, isNull);
+  });
+
   test('a name that needs no tidying is not published twice', () {
     final data =
         buildFrom(mods: [forumMod(name: 'Nexerelin')], bundle: bundleOf());

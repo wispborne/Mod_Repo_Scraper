@@ -1626,6 +1626,39 @@ export function countedAcross(mods, pick) {
     .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
 }
 
+/// Match names by letters and digits so "LazyLib" and "Lazy Lib" count as one.
+export function neededModKey(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/// Count how many mods need each mod, highest count first.
+/// Use the most common spelling of each name.
+/// Keep the id if any entry links to the mod's page.
+export function requiredModCounts(mods) {
+  const groups = new Map();
+  for (const mod of mods || []) {
+    const counted = new Set();
+    for (const need of mod.needs || []) {
+      const key = neededModKey(need.name);
+      if (!key || counted.has(key)) continue;
+      counted.add(key);
+      const group = groups.get(key) || { count: 0, id: null, spellings: new Map() };
+      group.count += 1;
+      group.id = group.id || need.id || null;
+      group.spellings.set(need.name, (group.spellings.get(need.name) || 0) + 1);
+      groups.set(key, group);
+    }
+  }
+  return [...groups.values()]
+    .map((group) => ({
+      name: [...group.spellings.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0],
+      id: group.id,
+      count: group.count,
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
 /// The categories as a small table: a name and how many mods are in it on
 /// each line, in as many columns as the page has room for. Each line is a link
 /// to that category on the browse page, or, on Browse, a button that picks it.
@@ -1856,7 +1889,9 @@ export function gameVersions(mods) {
     }
     const entry = families.get(family);
     entry.count += 1;
-    entry.spellings.set(version, (entry.spellings.get(version) || 0) + 1);
+    // Count "0.9.8a" as "0.98a" after fixing the typo.
+    const spelling = repairGameVersion(version);
+    entry.spellings.set(spelling, (entry.spellings.get(spelling) || 0) + 1);
   }
 
   return [...families.values()]
@@ -1864,10 +1899,17 @@ export function gameVersions(mods) {
       family: entry.family,
       count: entry.count,
       // The spelling most mods use, so "0.98a" wins over one stray "0.98".
+      // Break ties with a final letter: "0.54.1a" wins over "0.54.1".
       label: [...entry.spellings.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0],
+        .sort((a, b) => b[1] - a[1]
+          || endsInLetter(b[0]) - endsInLetter(a[0])
+          || a[0].localeCompare(b[0]))[0][0],
     }))
     .sort((a, b) => compareGameVersions(b.family, a.family));
+}
+
+function endsInLetter(text) {
+  return /[a-z]$/i.test(text) ? 1 : 0;
 }
 
 /// The game version the site treats as current: the highest one enough mods
