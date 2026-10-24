@@ -53,6 +53,10 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return JobKind.fetchAndUpdate;
       case r'rebuildFromSaved':
         return JobKind.rebuildFromSaved;
+      case r'takeDown':
+        return JobKind.takeDown;
+      case r'restoreTakedown':
+        return JobKind.restoreTakedown;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -87,6 +91,10 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return r'fetchAndUpdate';
       case JobKind.rebuildFromSaved:
         return r'rebuildFromSaved';
+      case JobKind.takeDown:
+        return r'takeDown';
+      case JobKind.restoreTakedown:
+        return r'restoreTakedown';
     }
   }
 }
@@ -334,6 +342,32 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     opt: true,
     def: false,
   );
+  static String? _$takedownModId(JobRequest v) => v.takedownModId;
+  static const Field<JobRequest, String> _f$takedownModId = Field(
+    'takedownModId',
+    _$takedownModId,
+    opt: true,
+  );
+  static List<String> _$takedownAuthors(JobRequest v) => v.takedownAuthors;
+  static const Field<JobRequest, List<String>> _f$takedownAuthors = Field(
+    'takedownAuthors',
+    _$takedownAuthors,
+    opt: true,
+    def: const [],
+  );
+  static String? _$takedownEntry(JobRequest v) => v.takedownEntry;
+  static const Field<JobRequest, String> _f$takedownEntry = Field(
+    'takedownEntry',
+    _$takedownEntry,
+    opt: true,
+  );
+  static bool _$publishAfter(JobRequest v) => v.publishAfter;
+  static const Field<JobRequest, bool> _f$publishAfter = Field(
+    'publishAfter',
+    _$publishAfter,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<JobRequest> fields = const {
@@ -353,6 +387,10 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     #keepAllGameVersions: _f$keepAllGameVersions,
     #collectMergeDebug: _f$collectMergeDebug,
     #oldRepoOnly: _f$oldRepoOnly,
+    #takedownModId: _f$takedownModId,
+    #takedownAuthors: _f$takedownAuthors,
+    #takedownEntry: _f$takedownEntry,
+    #publishAfter: _f$publishAfter,
   };
 
   static JobRequest _instantiate(DecodingData data) {
@@ -373,6 +411,10 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       keepAllGameVersions: data.dec(_f$keepAllGameVersions),
       collectMergeDebug: data.dec(_f$collectMergeDebug),
       oldRepoOnly: data.dec(_f$oldRepoOnly),
+      takedownModId: data.dec(_f$takedownModId),
+      takedownAuthors: data.dec(_f$takedownAuthors),
+      takedownEntry: data.dec(_f$takedownEntry),
+      publishAfter: data.dec(_f$publishAfter),
     );
   }
 
@@ -437,6 +479,8 @@ extension JobRequestValueCopy<$R, $Out>
 abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   ListCopyWith<$R, int, ObjectCopyWith<$R, int, int>> get topicIds;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get takedownAuthors;
   $R call({
     JobKind? kind,
     List<int>? topicIds,
@@ -454,6 +498,10 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     bool? keepAllGameVersions,
     bool? collectMergeDebug,
     bool? oldRepoOnly,
+    String? takedownModId,
+    List<String>? takedownAuthors,
+    String? takedownEntry,
+    bool? publishAfter,
   });
   JobRequestCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -474,6 +522,13 @@ class _JobRequestCopyWithImpl<$R, $Out>
         (v) => call(topicIds: v),
       );
   @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get takedownAuthors => ListCopyWith(
+    $value.takedownAuthors,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(takedownAuthors: v),
+  );
+  @override
   $R call({
     JobKind? kind,
     List<int>? topicIds,
@@ -491,6 +546,10 @@ class _JobRequestCopyWithImpl<$R, $Out>
     bool? keepAllGameVersions,
     bool? collectMergeDebug,
     bool? oldRepoOnly,
+    Object? takedownModId = $none,
+    List<String>? takedownAuthors,
+    Object? takedownEntry = $none,
+    bool? publishAfter,
   }) => $apply(
     FieldCopyWithData({
       if (kind != null) #kind: kind,
@@ -510,6 +569,10 @@ class _JobRequestCopyWithImpl<$R, $Out>
         #keepAllGameVersions: keepAllGameVersions,
       if (collectMergeDebug != null) #collectMergeDebug: collectMergeDebug,
       if (oldRepoOnly != null) #oldRepoOnly: oldRepoOnly,
+      if (takedownModId != $none) #takedownModId: takedownModId,
+      if (takedownAuthors != null) #takedownAuthors: takedownAuthors,
+      if (takedownEntry != $none) #takedownEntry: takedownEntry,
+      if (publishAfter != null) #publishAfter: publishAfter,
     }),
   );
   @override
@@ -542,6 +605,10 @@ class _JobRequestCopyWithImpl<$R, $Out>
       or: $value.collectMergeDebug,
     ),
     oldRepoOnly: data.get(#oldRepoOnly, or: $value.oldRepoOnly),
+    takedownModId: data.get(#takedownModId, or: $value.takedownModId),
+    takedownAuthors: data.get(#takedownAuthors, or: $value.takedownAuthors),
+    takedownEntry: data.get(#takedownEntry, or: $value.takedownEntry),
+    publishAfter: data.get(#publishAfter, or: $value.publishAfter),
   );
 
   @override

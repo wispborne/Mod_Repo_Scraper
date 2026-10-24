@@ -9,6 +9,7 @@ import '../site/mod_name_match.dart';
 import 'catalog_inputs.dart';
 import 'listing.dart';
 import 'source_post.dart';
+import 'takedowns.dart';
 
 /// One mod in the catalog: its permanent id, the merged mod, and every source
 /// post it was built from.
@@ -100,11 +101,15 @@ class ModCatalog {
   /// joined into. The site keeps such an address leading to that mod's page.
   final Map<String, String> movedIds;
 
+  /// What the takedowns left out of this build. Never written to the file.
+  final TakedownReport takedownReport;
+
   const ModCatalog({
     required this.generatedAt,
     this.mods = const [],
     this.collections = const [],
     this.movedIds = const {},
+    this.takedownReport = const TakedownReport(),
   });
 
   Map<String, dynamic> toMap() => {
@@ -166,18 +171,42 @@ class ModCatalog {
   /// is looked up by its source posts, and by its name only when none of them
   /// has an id. [ids] is changed but not saved; the caller saves it once the
   /// catalog is written.
+  ///
+  /// [takedowns] are applied in two places. A mod entry's posts are blocked
+  /// before the merge, so a taken-down listing can never be joined to another
+  /// mod of the same name and take that mod down too. Author entries are
+  /// checked after the merge, once a mod's credits hold every source's
+  /// spelling. A mod given a mod entry's id is left out as well, which catches
+  /// a mod the LLM renamed too far for its key to match.
   static Future<ModCatalog> build({
     required CatalogListings inputs,
     required ModIdStore ids,
     ModMerger? merger,
     MergeDebugCollector? debugCollector,
     bool keepAllGameVersionsFromSameSource = false,
+    TakedownList takedowns = const TakedownList(),
     void Function(String message)? log,
     DateTime? generatedAt,
   }) async {
+    final matches = {for (final key in takedowns.entryKeys) key: TakedownMatch(key)};
+    final listings = <Listing>[];
+    final blocked = <Listing>[];
+    for (final listing in inputs.listings) {
+      final entry = takedowns.blockingEntry(listing.ref, name: listing.mod.name);
+      if (entry == null) {
+        listings.add(listing);
+        continue;
+      }
+      blocked.add(listing);
+      final noted = matches[entry.id]!.blockedPosts;
+      if (!noted.contains(listing.ref.key)) noted.add(listing.ref.key);
+    }
+
     ids.beginRun(refsThisRun: [
-      for (final listing in inputs.listings) listing.ref,
+      for (final listing in listings) listing.ref,
       for (final collection in inputs.collections) collection.ref,
+    ], blockedRefs: [
+      for (final listing in blocked) listing.ref,
     ]);
     final reserved = <(String, Listing)>[];
     for (final collection in inputs.collections) {
@@ -190,7 +219,7 @@ class ModCatalog {
     }
 
     final merged = await (merger ?? ModMerger()).mergeListings(
-      inputs.listings,
+      listings,
       keepAllGameVersionsFromSameSource: keepAllGameVersionsFromSameSource,
       debugCollector: debugCollector,
       existingIdOf: (post) => post.id.isEmpty ? null : ids.idLinkedTo(post.ref),
@@ -229,10 +258,42 @@ class ModCatalog {
         onRenamed: log,
       );
     }
-    final mods = [
+    final everyMod = [
       for (var i = 0; i < merged.length; i++)
         CatalogMod(id: idOf[i]!, mod: merged[i].mod, sourcePosts: postsOf[i]),
     ];
+
+    // A mod given a mod entry's id, and a mod crediting a person an author
+    // entry names, are left out. Their ids stay in the id file, linked to
+    // their posts, so restoring the entry brings each back at its address.
+    final mods = <CatalogMod>[];
+    final dropped = <CatalogMod>[];
+    for (final mod in everyMod) {
+      final byId = takedowns.modEntry(mod.id);
+      if (byId != null) {
+        matches[byId.id]!.mods.add((id: mod.id, name: mod.mod.name, credit: null));
+        dropped.add(mod);
+        continue;
+      }
+      final byAuthor = takedowns.authorMatch(mod.mod.getAuthors());
+      if (byAuthor != null) {
+        matches[TakedownList.authorKey(byAuthor.entry)]!
+            .mods
+            .add((id: mod.id, name: mod.mod.name, credit: byAuthor.credit));
+        dropped.add(mod);
+        continue;
+      }
+      mods.add(mod);
+    }
+    final droppedIds = {for (final mod in dropped) mod.id};
+    // A mod whose listings were blocked before the merge never got an id this
+    // build, but it is the entry's mod all the same.
+    for (final entry in takedowns.mods) {
+      final match = matches[entry.id]!;
+      if (match.blockedPosts.isNotEmpty && !match.mods.any((mod) => mod.id == entry.id)) {
+        match.mods.add((id: entry.id, name: entry.name, credit: null));
+      }
+    }
 
     // The topics a Collection's mods link to, where they have a thread of
     // their own (see SourcePostListings.combine).
@@ -244,21 +305,26 @@ class ModCatalog {
       };
     }
 
-    final collections = [
-      for (final (id, collection) in reserved)
-        CatalogCollection(
-          id: id,
-          name: collection.mod.name,
-          post: collection.ref.post,
-          modIds: [
-            for (final mod in mods)
-              if (mod.sourcePosts.any((post) =>
-                  (post.kind == collection.ref.kind && post.id == collection.ref.id) ||
-                  pointedFrom(collection.ref).contains(post.ref.post.key)))
-                mod.id,
-          ],
-        ),
-    ];
+    final blockedPosts = {for (final listing in blocked) listing.ref.post.key};
+    final collections = <CatalogCollection>[];
+    for (final (id, collection) in reserved) {
+      final modIds = [
+        for (final mod in everyMod)
+          if (mod.sourcePosts.any((post) =>
+              (post.kind == collection.ref.kind && post.id == collection.ref.id) ||
+              pointedFrom(collection.ref).contains(post.ref.post.key)))
+            mod.id,
+      ];
+      final kept = [for (final modId in modIds) if (!droppedIds.contains(modId)) modId];
+      final page = CatalogCollection(id: id, name: collection.mod.name, post: collection.ref.post, modIds: kept);
+      if (takedowns.modEntry(id) case final entry?) {
+        matches[entry.id]!.collections.add((id: id, name: page.name));
+        continue;
+      }
+      // Every mod it held was taken down, so the page has nothing left to list.
+      if (kept.isEmpty && (modIds.isNotEmpty || blockedPosts.contains(collection.ref.post.key))) continue;
+      collections.add(page);
+    }
 
     final movedIds = ids.movedIds([
       for (final mod in mods)
@@ -268,14 +334,50 @@ class ModCatalog {
           authors: mod.mod.getAuthors(),
           refs: [for (final post in mod.sourcePosts) post.ref],
         ),
-    ], pointers: inputs.pointers, log: log);
+    ], pointers: inputs.pointers, takenDown: {...takedowns.modIds, ...droppedIds}, log: log);
+
+    // The posts with nothing left on them, which the details file leaves out
+    // too. A post that still gives a published mod stays in it whole.
+    final keptPosts = {
+      for (final mod in mods)
+        for (final post in mod.sourcePosts) post.ref.post.key,
+    };
+    final removedPosts = {
+      ...blockedPosts,
+      for (final mod in dropped)
+        for (final post in mod.sourcePosts) post.ref.post.key,
+    }.difference(keptPosts);
+
+    final report = TakedownReport(matches: matches.values.toList(), removedPosts: removedPosts);
+    if (log != null) _logTakedowns(report, log);
 
     return ModCatalog(
       generatedAt: (generatedAt ?? DateTime.now()).toUtc(),
       mods: mods,
       collections: collections,
       movedIds: movedIds,
+      takedownReport: report,
     );
+  }
+
+  static void _logTakedowns(TakedownReport report, void Function(String message) log) {
+    for (final match in report.matches) {
+      final left = [
+        for (final mod in match.mods)
+          '"${mod.name}" (${mod.id}${mod.credit == null ? '' : ', credited to ${mod.credit}'})',
+        for (final c in match.collections) 'the Collection page "${c.name}" (${c.id})',
+      ];
+      if (left.isEmpty) {
+        log('WARNING: the takedown entry "${match.entry}" left out nothing this build. The author may have a '
+            'new name, the mod may be back under a new id, or its post may be gone.');
+      } else {
+        log('Takedown "${match.entry}" left out ${left.length}: ${left.join(', ')}.');
+      }
+    }
+    if (report.removedPosts.isNotEmpty) {
+      log('${report.removedPosts.length} source post(s) had every mod taken down, so the details file leaves '
+          'them out too.');
+    }
   }
 
   /// What tells one mod apart from another of the same name: its forum topic

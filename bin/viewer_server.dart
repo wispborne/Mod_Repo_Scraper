@@ -12,6 +12,7 @@ import 'package:mod_repo_scraper/manager/run_reporter.dart';
 import 'package:mod_repo_scraper/manager/scraper_service.dart';
 import 'package:mod_repo_scraper/manager/scraper_settings.dart';
 import 'package:mod_repo_scraper/manager/self_update.dart';
+import 'package:mod_repo_scraper/manager/takedown_service.dart';
 import 'package:mod_repo_scraper/viewer/api.dart';
 import 'package:mod_repo_scraper/viewer/data_access.dart';
 import 'package:mod_repo_scraper/viewer/server_app.dart';
@@ -178,6 +179,11 @@ Future<_ManagerSetup> _buildManager({
           config,
           outputPath: viewerOutputsDir,
         ),
+      ),
+      // A mod entry's posts come from the catalog this viewer shows.
+      takedowns: TakedownService(
+        dataPath: config.qbDataPath,
+        outputPath: viewerOutputsDir,
       ),
     ),
     history:

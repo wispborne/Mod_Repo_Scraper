@@ -13,6 +13,7 @@
 import 'dart:io';
 
 import 'package:mod_repo_scraper/bot/common.dart';
+import 'package:mod_repo_scraper/catalog/takedown_publish.dart';
 import 'package:mod_repo_scraper/timber/ktx/timber_kt.dart' as timber;
 import 'package:mod_repo_scraper/manager/data_lock.dart';
 import 'package:mod_repo_scraper/manager/delegation_client.dart';
@@ -33,6 +34,24 @@ class MainRepoScraper {
   static Future<void> main(List<String> args) async {
     final config = Common.readConfig();
     if (config == null) return;
+
+    // The cron script's publish step: check the takedown list against the
+    // clone it has just made, and copy it in. Nothing else runs.
+    final at = args.indexOf('--publish-takedowns');
+    if (at >= 0) {
+      if (at + 1 >= args.length) {
+        stderr.writeln('--publish-takedowns needs the clone folder after it.');
+        exitCode = 64;
+        return;
+      }
+      try {
+        publishTakedowns(dataPath: config.qbDataPath, cloneDir: args[at + 1], log: stdout.writeln);
+      } on StateError catch (e) {
+        stderr.writeln(e.message);
+        exitCode = 1;
+      }
+      return;
+    }
 
     final (:logFile, :logOut) = await Common.initTimber(
       botConfig: config,

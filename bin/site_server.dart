@@ -93,6 +93,15 @@ Future<void> main(List<String> args) async {
   // writes, so it is answered from git here in the same way.
   handlers.add(_changelog(p.dirname(p.absolute(siteDir))));
 
+  // Last of all: a missing file gets the built not-found page with status 404,
+  // the way the real host answers it, so the page can be checked here.
+  final notFoundPage = File(p.join(dataDir, '404.html'));
+  handlers.add((request) async {
+    if (!notFoundPage.existsSync()) return Response.notFound('Not found');
+    return Response.notFound(await notFoundPage.readAsString(),
+        headers: {'content-type': 'text/html; charset=utf-8'});
+  });
+
   final liveReload =
       opts['reload'] as bool ? _LiveReload.watch(Directory(siteDir)) : null;
 

@@ -25,6 +25,7 @@ import '../catalog/catalog_step.dart';
 import '../catalog/discord_posts.dart';
 import '../catalog/mod_catalog.dart';
 import '../catalog/source_post.dart';
+import '../catalog/takedowns.dart';
 import '../site/public_site_step.dart';
 import '../utilities/caching_http_client.dart';
 import 'bundle_snapshot_store.dart';
@@ -136,6 +137,10 @@ class ScraperService implements JobRunner {
 
   bool _loaded = false;
 
+  /// The takedown list the running job read when it started. Only one job
+  /// runs at a time, so one field is enough.
+  TakedownList _takedowns = const TakedownList();
+
   /// Builds the store, the caches and the link client once. They are shared by
   /// every job, so the answers read from disk are read once.
   factory ScraperService({
@@ -229,6 +234,11 @@ class ScraperService implements JobRunner {
     String? runId,
   }) async {
     await load();
+    // Read before any step writes a file, so a list that cannot be read stops
+    // the job with every output as it was. The LLM test publishes nothing.
+    if (request.kind != JobKind.llmTest) {
+      _takedowns = TakedownList.read(environment.dataPath);
+    }
     switch (request.kind) {
       case JobKind.fullRun:
         return _fullRun(request, reporter, cancel, runId);
@@ -255,6 +265,8 @@ class ScraperService implements JobRunner {
             'job.');
       case JobKind.fetchAndUpdate:
       case JobKind.rebuildFromSaved:
+      case JobKind.takeDown:
+      case JobKind.restoreTakedown:
         // These run both pipelines, so a JobRouter runs them, handing this
         // service its own half as a fullRun or a rebuildBundle.
         throw ArgumentError(
@@ -1097,26 +1109,36 @@ class ScraperService implements JobRunner {
       String? runId,
       RunReporter? reporter,
       bool collectMergeDebug = false}) async {
+    // The catalog comes first. It reads the store and the LLM's answers, never
+    // the bundle, and it says which posts had every mod taken down, so the
+    // details file can leave them out. A topic the LLM has just found four
+    // mods on is four listings in it. Saved files only; no network.
+    reporter?.phase('Catalog');
+    final collector = collectMergeDebug ? MergeDebugCollector() : null;
+    final catalog = await catalogStep.run(
+        debugCollector: collector,
+        takedowns: _takedowns,
+        log: reporter?.log);
+    if (collector != null) {
+      await mergeDebugWriter.save(
+          collector.data, runId, reporter?.log ?? (_) {});
+    }
+
+    reporter?.phase('Bundle');
     final publisher = BundlePublisher(
       store: store,
       resolver: resolver,
       llmStore: llmStore,
       outputPath: environment.outputPath,
     );
-    final bundle = await publisher.createBundle(scrapeResult: scrapeResult);
+    final removed = catalog?.takedownReport;
+    final bundle = await publisher.createBundle(
+      scrapeResult: scrapeResult,
+      leaveOutTopics: removed?.removedTopicIds ?? const {},
+      leaveOutThreads: removed?.removedThreadIds ?? const {},
+    );
     await publisher.writeLocal(bundle);
     await _saveBundleSnapshot(bundle, runId, reporter);
-
-    // The bundle may have changed what a post holds — a topic the LLM has just
-    // found four mods on is four listings now — so the catalog is merged again
-    // before the website is built from it. Saved files only; no network.
-    reporter?.phase('Catalog');
-    final collector = collectMergeDebug ? MergeDebugCollector() : null;
-    await catalogStep.run(debugCollector: collector, log: reporter?.log);
-    if (collector != null) {
-      await mergeDebugWriter.save(
-          collector.data, runId, reporter?.log ?? (_) {});
-    }
 
     // The bundle is half of what the public website is built from, and the only
     // thing a mod's version can be read from. This is the one place a release

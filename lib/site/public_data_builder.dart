@@ -32,6 +32,7 @@ import 'mod_name_match.dart';
 import 'models/mod_release.dart';
 import 'models/public_mod.dart';
 import 'mod_page_html.dart';
+import 'not_found_page_html.dart';
 import 'models/public_mod_detail.dart';
 import 'update_note.dart';
 import 'post_html.dart';
@@ -704,6 +705,17 @@ class PublicDataBuilder {
     return text;
   }
 
+  /// `404.html`, which the host answers every missing address with. Built from
+  /// the site's own document; a small plain page when that cannot be read.
+  Future<void> _writeNotFoundPage(String? shell) async {
+    final page = shell == null ? null : buildNotFoundPageHtml(shell);
+    if (page == null) {
+      _log.warning('There is no usable site document to build $notFoundFileName from, so it is a small '
+          'plain page instead.');
+    }
+    await File(p.join(siteDir, notFoundFileName)).writeAsString(page ?? plainNotFoundPage());
+  }
+
   /// Writes the three files into `<outputs>/site/`. Per-mod files for mods that
   /// are no longer produced are removed, so the folder holds exactly this run's
   /// mods and nothing older.
@@ -723,6 +735,8 @@ class PublicDataBuilder {
 
     // Read once for the whole run: every mod's page is this same document.
     final shell = _readShell();
+
+    await _writeNotFoundPage(shell);
 
     for (final entry in data.details.entries) {
       await File(p.join(modsDir, '${entry.key}.json'))

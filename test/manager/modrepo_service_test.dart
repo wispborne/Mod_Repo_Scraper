@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 import 'package:mod_repo_scraper/catalog/discord_posts.dart';
+import 'package:mod_repo_scraper/catalog/takedowns.dart';
 import 'package:mod_repo_scraper/manager/cancel_token.dart';
 import 'package:mod_repo_scraper/manager/job.dart';
 import 'package:mod_repo_scraper/manager/merge_snapshot_store.dart';
@@ -466,6 +468,99 @@ void main() {
       () => service.runJob(JobRequest.rebuildBundle(), reporter: reporter),
       throwsA(isA<ArgumentError>()),
     );
+  });
+
+  group('takedowns in ModRepo.json until the switch', () {
+    ScrapedMod scraped(String name, String author, Map<ModUrlType, String> urls) =>
+        ScrapedMod(name: name, authorsList: [author], urls: urls);
+
+    final fork = scraped('Diable Avionics (TIDAL FORK)', 'tidal5590',
+        {ModUrlType.Discord: 'https://discord.com/channels/1/1507163509224509510/1507163509224509510'});
+    final original = scraped('Diable Avionics', 'Tartiflette',
+        {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=10.0'});
+    final flavor = scraped('Diable Avionics: Original Flavor', 'After, Tartiflette, Tidal',
+        {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=14.0'});
+    final hartley = scraped("Hartley's Mods", 'SirHartley',
+        {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=34161.0'});
+
+    test('the Tidal fork leaves and the other Diable Avionics mods stay', () {
+      final log = <String>[];
+      final kept = ModRepoService.withoutTakedowns(
+        [fork, original, flavor],
+        const TakedownList(mods: [
+          ModTakedown(id: 'diable-avionics-tidal-fork', posts: ['discord:1507163509224509510'], on: '2026-10-22'),
+        ]),
+        log.add,
+      );
+      expect(kept.map((m) => m.name), ['Diable Avionics', 'Diable Avionics: Original Flavor']);
+    });
+
+    test('an author entry removes their mods, made with others too', () {
+      final kept = ModRepoService.withoutTakedowns(
+        [fork, original, flavor],
+        const TakedownList(authors: [AuthorTakedown(names: ['tidal5590'], on: '2026-10-22')]),
+        (_) {},
+      );
+      expect(kept.map((m) => m.name), ['Diable Avionics']);
+    });
+
+    test('a named key removes nothing, and says so', () {
+      final log = <String>[];
+      final kept = ModRepoService.withoutTakedowns(
+        [hartley, original],
+        const TakedownList(mods: [
+          ModTakedown(id: 'useful-tithes', posts: ['forum:34161#Useful.Tithes'], on: '2026-10-22'),
+        ]),
+        log.add,
+      );
+      expect(kept, hasLength(2));
+      expect(log.where((line) => line.contains('not applied to ModRepo.json')), hasLength(1));
+    });
+
+    test("a whole Discord post never takes out a shared topic's one old mod", () {
+      // The old merge joined Useful.Tithes' Discord thread to topic 34161,
+      // which in ModRepo.json is one mod standing for all four.
+      final joined = scraped("Hartley's Mods", 'SirHartley', {
+        ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=34161.0',
+        ModUrlType.Discord: 'https://discord.com/channels/1/77/77',
+      });
+      final kept = ModRepoService.withoutTakedowns(
+        [joined],
+        const TakedownList(mods: [
+          ModTakedown(id: 'useful-tithes', posts: ['discord:77', 'forum:34161#Useful.Tithes'], on: '2026-10-22'),
+        ]),
+        (_) {},
+      );
+      expect(kept, [joined]);
+    });
+
+    test('a list that cannot be read stops the job before ModRepo.json is written', () async {
+      writeSourceCaches();
+      final repo = outputFile(p.join('outputs', 'ModRepo.json'))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('{"old": true}');
+      File(p.join(workDir.path, 'qb_data', TakedownList.fileName)).writeAsStringSync('{ broken');
+
+      await expectLater(
+        service.runJob(JobRequest.mergeModRepo(), reporter: reporter),
+        throwsA(isA<StateError>()),
+      );
+      expect(repo.readAsStringSync(), '{"old": true}');
+      expect(outputFile(p.join('outputs', 'mod-catalog.json')).existsSync(), isFalse);
+    });
+
+    test('a merge leaves a taken-down Discord thread out of both files', () async {
+      writeSourceCaches();
+      const TakedownList(mods: [ModTakedown(id: 'discord-only-mod', posts: ['discord:2'], on: '2026-10-22')])
+          .write(p.join(workDir.path, 'qb_data'));
+
+      await service.runJob(JobRequest.mergeModRepo(), reporter: reporter);
+
+      final repo = readJson(outputFile(p.join('outputs', 'ModRepo.json')));
+      expect([for (final m in repo['items'] as List) m['name']], isNot(contains('Discord Only Mod')));
+      final catalog = readJson(outputFile(p.join('outputs', 'mod-catalog.json')));
+      expect([for (final m in catalog['items'] as List) m['name']], isNot(contains('Discord Only Mod')));
+    });
   });
 }
 

@@ -7,6 +7,7 @@ import '../bot/scraper/scraped_mod.dart';
 import '../site/mod_id_store.dart';
 import 'catalog_inputs.dart';
 import 'mod_catalog.dart';
+import 'takedowns.dart';
 
 /// Builds `mod-catalog.json` from saved files: the QB store, the Discord and
 /// Nexus results, `discord-posts.json` and the LLM's answers.
@@ -47,16 +48,23 @@ class CatalogStep {
   ///
   /// [onListings] is handed the listings the catalog was built from, for the
   /// comparison with the published site.
+  ///
+  /// [takedowns] is the list the job read when it started. Left out, it is
+  /// read here, and a list that cannot be read throws before anything is
+  /// written. What the list left out is saved to `takedown-matches.json` for
+  /// the viewer.
   Future<ModCatalog?> run({
     List<ScrapedMod>? discordMods,
     List<ScrapedMod>? nexusMods,
     MergeDebugCollector? debugCollector,
     bool keepAllGameVersionsFromSameSource = false,
+    TakedownList? takedowns,
     bool Function()? isCancelled,
     void Function(String message)? log,
     void Function(CatalogListings listings)? onListings,
   }) async {
     final started = DateTime.now();
+    final list = takedowns ?? TakedownList.read(qbDataPath);
     final inputs = await CatalogInputs.read(
       qbDataPath: qbDataPath,
       discordMods: discordMods ?? _readCache('discord', log),
@@ -75,6 +83,7 @@ class CatalogStep {
       ids: ids,
       debugCollector: debugCollector,
       keepAllGameVersionsFromSameSource: keepAllGameVersionsFromSameSource,
+      takedowns: list,
       log: log,
     );
 
@@ -86,6 +95,11 @@ class CatalogStep {
 
     await catalog.write(outputFile);
     ids.save();
+    try {
+      catalog.takedownReport.write(qbDataPath, catalog.generatedAt);
+    } catch (e) {
+      log?.call('Could not save what the takedowns left out, so the viewer shows the last build\'s: $e');
+    }
     log?.call('Catalog: ${catalog.mods.length} mods and '
         '${catalog.collections.length} Collection pages, saved to '
         '${outputFile.path} in '

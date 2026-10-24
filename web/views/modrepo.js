@@ -7,6 +7,7 @@ import {
   noticeDialog, rawJson, hashQuery, buildHash, replaceHash, breadcrumbs,
 } from '../lib.js';
 import * as manager from '../manager.js';
+import { takeDownModButton } from './takedowns.js';
 
 const state = { q: '', page: 0, pageSize: pageSizePreference() };
 
@@ -106,6 +107,7 @@ async function detail(root, index) {
           }
         },
       }),
+      mod.id ? takeDownModButton(mod.id) : null,
     ]));
   }
 

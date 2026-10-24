@@ -148,6 +148,26 @@ class ModRepoUtils {
     return bestOfGroup.values.map((i) => names[i]).toList()..sort(_byNameIgnoringCase);
   }
 
+  /// Whether the credits [a] and [b] name a person in common, by the same rules
+  /// [tidyAuthorNames] uses to fold spellings together: capitals and
+  /// punctuation, digits on the end of a name, and the rows of
+  /// [authorAliases]. A credit naming several people matches any of them.
+  /// Exact matches only, so "Tidal" is not "Tidalwave".
+  static bool samePerson(String a, String b) {
+    for (final left in _peopleNamedIn(a)) {
+      for (final right in _peopleNamedIn(b)) {
+        final plainLeft = _plainName(left);
+        if (plainLeft != null && plainLeft == _plainName(right)) return true;
+        final withoutTag = _plainNameWithoutTag(left);
+        if (withoutTag != null && withoutTag == _plainNameWithoutTag(right)) return true;
+        final rowLeft = _aliasRowFor(left);
+        final rowRight = _aliasRowFor(right);
+        if (rowLeft.isNotEmpty && rowRight.isNotEmpty && rowLeft.first == rowRight.first) return true;
+      }
+    }
+    return false;
+  }
+
   static final _leadingByRe = RegExp(r'^by\s+', caseSensitive: false);
   static final _endsInDigitsRe = RegExp(r'\d+$');
   static final _capitalRe = RegExp(r'[A-Z]');

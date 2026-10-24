@@ -318,6 +318,8 @@ function jobWord(id) {
     rebuildBundle: 'rebuild',
     fetchAndUpdate: 'fetch and update',
     rebuildFromSaved: 'rebuild from saved',
+    takeDown: 'take down',
+    restoreTakedown: 'restore a takedown',
   }[kind] || kind;
 }
 

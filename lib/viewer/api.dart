@@ -1,13 +1,18 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../bot/scraper/mod_repo_utils.dart';
 import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import '../bot/scraper/qb/models/forum_date.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../catalog/discord_posts.dart';
+import '../catalog/mod_catalog.dart';
+import '../catalog/takedowns.dart';
 import 'bundle_views.dart';
 import 'data_access.dart';
 import 'merge_views.dart';
@@ -54,6 +59,10 @@ class ViewerApi {
     r.get('/log', _log);
 
     r.get('/version', _version);
+
+    r.get('/takedowns', _takedowns);
+    r.get('/takedowns/preview', _takedownPreview);
+    r.get('/takedowns/authors', _takedownAuthors);
 
     return r.call;
   }
@@ -990,6 +999,100 @@ class ViewerApi {
   /// An empty response omits the sidebar version when no build data is available.
   Response _version(Request req) =>
       _json(SiteVersion(data.rootDir).read() ?? const {});
+
+  // --- Takedowns (read only: every change goes through a manager job) ---
+
+  /// The takedown list, and what each entry left out of the last build.
+  Response _takedowns(Request req) {
+    final TakedownList list;
+    try {
+      list = TakedownList.read(data.dataDir);
+    } on StateError catch (e) {
+      // Said on the page, the way a missing file is.
+      return _json({'error': e.message});
+    }
+    final matchesFile = File(p.join(data.dataDir, TakedownList.matchesFileName));
+    Object? matches;
+    if (matchesFile.existsSync()) {
+      try {
+        matches = jsonDecode(matchesFile.readAsStringSync());
+      } catch (_) {
+        matches = null;
+      }
+    }
+    return _json({'list': list.toMap(), 'matches': matches});
+  }
+
+  /// Every person credited in the current catalog, most mods first, for the
+  /// author box's suggestions. Spellings a takedown would treat as one person
+  /// (`ModRepoUtils.samePerson`) are one suggestion: `name` is the spelling
+  /// on the most mods, `others` the rest, `mods` how many mods credit any of
+  /// them.
+  Response _takedownAuthors(Request req) {
+    final repo = data.modRepo;
+    if (repo == null) return _missing('modrepo', 'Build the catalog first.');
+    final modsByName = <String, Set<int>>{};
+    final items = (repo['items'] as List?) ?? const [];
+    for (var i = 0; i < items.length; i++) {
+      for (final name in ((items[i] as Map)['authorsList'] as List?) ?? const []) {
+        final clean = '$name'.trim();
+        if (clean.isNotEmpty) modsByName.putIfAbsent(clean, () => {}).add(i);
+      }
+    }
+
+    final names = modsByName.keys.toList()
+      ..sort((a, b) => modsByName[b]!.length.compareTo(modsByName[a]!.length));
+    final people = <List<String>>[];
+    for (final name in names) {
+      final person = people.where((p) => p.any((other) => ModRepoUtils.samePerson(name, other))).firstOrNull;
+      if (person != null) {
+        person.add(name);
+      } else {
+        people.add([name]);
+      }
+    }
+
+    final rows = [
+      for (final person in people)
+        {
+          'name': person.first,
+          'others': person.skip(1).toList(),
+          'mods': {for (final name in person) ...modsByName[name]!}.length,
+        },
+    ]..sort((a, b) {
+        final byCount = (b['mods'] as int).compareTo(a['mods'] as int);
+        return byCount != 0
+            ? byCount
+            : (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase());
+      });
+    return _json({'authors': rows});
+  }
+
+  /// What a takedown would leave out: `mod=<id>`, or `author=<name>` given
+  /// once per name. `post=<key>` lists the catalog's mods from one source
+  /// post instead, for the thread page. Writes nothing.
+  Response _takedownPreview(Request req) {
+    final repo = data.modRepo;
+    if (repo == null) return _missing('modrepo', 'Build the catalog first.');
+    final catalog = ModCatalog.fromMap(repo);
+    final query = req.url.queryParametersAll;
+    final post = query['post']?.firstOrNull;
+    if (post != null) return _json({'post': post, 'mods': catalogModsOnPost(catalog, post)});
+
+    TakedownList current;
+    try {
+      current = TakedownList.read(data.dataDir);
+    } on StateError {
+      current = const TakedownList();
+    }
+    final preview = previewTakedown(
+      catalog,
+      modId: query['mod']?.firstOrNull,
+      authors: query['author'] ?? const [],
+      current: current,
+    );
+    return _json(preview, status: preview.containsKey('error') ? 400 : 200);
+  }
 }
 
 extension _FirstOrNull<E> on Iterable<E> {

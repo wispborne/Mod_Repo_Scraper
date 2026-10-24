@@ -12,6 +12,7 @@ import '../bot/scraper/nexus_reader.dart';
 import '../bot/scraper/scraped_mod.dart';
 import '../catalog/catalog_step.dart';
 import '../catalog/discord_posts.dart';
+import '../catalog/takedowns.dart';
 import '../site/public_site_step.dart';
 import '../utilities/caching_http_client.dart';
 import '../utilities/jsanity.dart';
@@ -101,6 +102,10 @@ class ModRepoService implements JobRunner {
     String? runId, {
     required bool scrapeFirst,
   }) async {
+    // Read before anything is fetched or written: a list that cannot be read
+    // stops the job with ModRepo.json and the catalog as they were.
+    final takedowns = TakedownList.read(environment.snapshotPath);
+
     final mods = <ScrapedMod>[];
     final bySource = <ModSourceKind, List<ScrapedMod>>{};
     var errors = 0;
@@ -149,9 +154,11 @@ class ModRepoService implements JobRunner {
     }
 
     // The forum half of the job builds the catalog and the website after this.
+    final published = withoutTakedowns(merged, takedowns, reporter.log);
+
     if (request.oldRepoOnly) {
       reporter.phase('Save');
-      await _saveMergedMods(merged, reporter);
+      await _saveMergedMods(published, reporter);
       return JobOutcome(
         itemsDone: merged.length,
         itemsTotal: mods.length,
@@ -167,6 +174,7 @@ class ModRepoService implements JobRunner {
       nexusMods: bySource[ModSourceKind.nexus] ?? const [],
       debugCollector: collector,
       keepAllGameVersionsFromSameSource: request.keepAllGameVersions,
+      takedowns: takedowns,
       isCancelled: () => cancel?.isCancelled ?? false,
       log: reporter.log,
     );
@@ -180,7 +188,7 @@ class ModRepoService implements JobRunner {
     }
 
     reporter.phase('Save');
-    await _saveMergedMods(merged, reporter);
+    await _saveMergedMods(published, reporter);
     if (collector != null) {
       await mergeDebugWriter.save(collector.data, runId, reporter.log);
     }
@@ -417,6 +425,61 @@ class ModRepoService implements JobRunner {
     }
   }
 
+  /// The old merge's mods without the ones taken down, for `ModRepo.json`
+  /// until the switch to the catalog.
+  ///
+  /// A mod is left out when one of its credited authors is named by an author
+  /// entry, or when its forum topic or Discord thread (read from its links) is
+  /// a whole post in a mod entry. A named key cannot be applied here: the old
+  /// merge makes one mod per forum topic and has no LLM names, so blocking the
+  /// topic would take the other mods on it too. Each such entry is logged.
+  static List<ScrapedMod> withoutTakedowns(
+    List<ScrapedMod> merged,
+    TakedownList takedowns,
+    void Function(String message) log,
+  ) {
+    if (takedowns.isEmpty) return merged;
+    // Each whole post, with the shared forum topics its own entry names by
+    // listing. An old mod on one of those topics stands for every mod on it,
+    // so a whole post of the same entry must not take it out either.
+    final wholePosts = <String, Set<String>>{};
+    for (final entry in takedowns.mods) {
+      final named = [for (final key in entry.posts) if (splitPostKey(key).$2 != null) key];
+      if (named.isNotEmpty) {
+        log('The takedown of "${entry.id}" is not applied to ModRepo.json for ${named.join(', ')}: the old merge '
+            'makes one mod per forum topic, so TriOS keeps listing it until the switch.');
+      }
+      final sharedTopics = {for (final key in named) splitPostKey(key).$1};
+      for (final key in entry.posts) {
+        if (splitPostKey(key).$2 == null) wholePosts.putIfAbsent(key, () => {}).addAll(sharedTopics);
+      }
+    }
+
+    final kept = <ScrapedMod>[];
+    var left = 0;
+    for (final mod in merged) {
+      final urls = mod.getUrls();
+      final topic = ModMerger.extractForumTopicId(urls[ModUrlType.Forum]);
+      final thread = discordThreadIdOf(urls[ModUrlType.Discord]);
+      bool blocks(String key) {
+        final shared = wholePosts[key];
+        return shared != null && (topic == null || !shared.contains('forum:$topic'));
+      }
+
+      final byPost = (topic != null && blocks('forum:$topic')) || (thread != null && blocks('discord:$thread'));
+      final byAuthor = takedowns.authorMatch(mod.getAuthors());
+      if (byPost || byAuthor != null) {
+        left++;
+        log('Left "${mod.name}" out of ModRepo.json: '
+            '${byAuthor != null ? 'it credits ${byAuthor.credit}' : 'its post is taken down'}.');
+        continue;
+      }
+      kept.add(mod);
+    }
+    if (left == 0) log('The takedowns left nothing out of ModRepo.json.');
+    return kept;
+  }
+
   Future<void> _saveMergedMods(
       List<ScrapedMod> merged, RunReporter reporter) async {
     final file = File(p.join(environment.outputPath, 'ModRepo.json'));
@@ -456,10 +519,15 @@ class JobRouter implements JobRunner {
   final JobRunner modRepo;
   final JobRunner publish;
 
+  /// Changes `takedowns.json`. Null where nobody set it up, and the takedown
+  /// kinds are then refused.
+  final JobRunner? takedowns;
+
   const JobRouter({
     required this.qb,
     required this.modRepo,
     required this.publish,
+    this.takedowns,
   });
 
   @override
@@ -471,6 +539,9 @@ class JobRouter implements JobRunner {
   }) {
     if (request.isPipelineKind) {
       return _runBoth(request, reporter: reporter, cancel: cancel, runId: runId);
+    }
+    if (request.isTakedownKind) {
+      return _runTakedown(request, reporter: reporter, cancel: cancel, runId: runId);
     }
     return _runnerFor(request)
         .runJob(request, reporter: reporter, cancel: cancel, runId: runId);
@@ -541,6 +612,56 @@ class JobRouter implements JobRunner {
     );
   }
 
+  /// A takedown or a restore, as steps of one job: the list is changed, then
+  /// `ModRepo.json` is merged again from saved files, then the catalog, the
+  /// bundle and the website are rebuilt, and last the outputs are published
+  /// when the request asks. No step scrapes or calls the LLM.
+  ///
+  /// The list is changed first and kept, even when the job is stopped after:
+  /// the next rebuild applies it.
+  Future<JobOutcome> _runTakedown(
+    JobRequest request, {
+    required RunReporter reporter,
+    CancelToken? cancel,
+    String? runId,
+  }) async {
+    final runner = takedowns;
+    if (runner == null) {
+      throw StateError('This manager was set up without a way to change the takedown list.');
+    }
+    await runner.runJob(request, reporter: reporter, cancel: cancel, runId: runId);
+    if (cancel?.isCancelled ?? false) return const JobOutcome(cancelled: true);
+
+    final merge = await modRepo.runJob(
+      const JobRequest(kind: JobKind.mergeModRepo, oldRepoOnly: true),
+      reporter: reporter,
+      cancel: cancel,
+      runId: runId,
+    );
+    if (merge.cancelled || (cancel?.isCancelled ?? false)) return merge;
+
+    final rebuild = await qb.runJob(
+      JobRequest(kind: JobKind.rebuildBundle, collectMergeDebug: request.collectMergeDebug),
+      reporter: reporter,
+      cancel: cancel,
+      runId: runId,
+    );
+    if (rebuild.cancelled || (cancel?.isCancelled ?? false)) return rebuild;
+
+    var errors = merge.errors + rebuild.errors;
+    if (request.publishAfter) {
+      final published = await publish.runJob(
+        JobRequest.publishOutputs(),
+        reporter: reporter,
+        cancel: cancel,
+        runId: runId,
+      );
+      errors += published.errors;
+      if (published.cancelled) return published;
+    }
+    return JobOutcome(itemsDone: rebuild.itemsDone, itemsTotal: rebuild.itemsTotal, errors: errors);
+  }
+
   JobRunner _runnerFor(JobRequest request) {
     if (request.isPublishKind) return publish;
     if (request.isMergeKind) return modRepo;
@@ -563,4 +684,6 @@ String jobKindLabel(JobKind kind) => switch (kind) {
       JobKind.publishOutputs => 'publish to GitHub',
       JobKind.fetchAndUpdate => 'fetch and update',
       JobKind.rebuildFromSaved => 'rebuild from saved files',
+      JobKind.takeDown => 'take down',
+      JobKind.restoreTakedown => 'restore a takedown',
     };

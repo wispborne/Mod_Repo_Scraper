@@ -312,10 +312,15 @@ class PublishEnvironment {
   /// repo is a complete, servable website with no further step.
   final String sitePath;
 
+  /// The data folder holding `takedowns.json`, which every publish checks and
+  /// copies (see `publishTakedowns`).
+  final String dataPath;
+
   const PublishEnvironment({
     required this.outputPath,
     required this.repoUrl,
     required this.cloneDir,
+    required this.dataPath,
     this.sitePath = 'site',
   });
 
@@ -331,6 +336,7 @@ class PublishEnvironment {
         repoUrl: config.publishRepoUrl,
         cloneDir: config.publishCloneDir ??
             p.join(config.qbDataPath, 'publish-clone'),
+        dataPath: config.qbDataPath,
         sitePath: config.publishSitePath,
       );
 }

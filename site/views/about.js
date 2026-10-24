@@ -115,8 +115,17 @@ export async function render(root) {
             'The current setup relies on the moderation teams of the Forum and USC to decide what mods'
             + ' to allow. From the Starmodder side, everything is entirely automated.',
             'Dealing with issues such as: how NSFW is too NSFW, whether a mod stole someone else\'s work,'
-            + ' corporate copyright, what is considered hate speech, takedown requests, political mods, targeted mods etc.'
-            + ' These are not how I\'d like to spend my free time.'
+            + ' corporate copyright, what is considered hate speech, political mods, targeted mods etc.'
+            + ' These are not how I\'d like to spend my free time.',
+            [
+                'Takedown requests are the exception. If you made a mod and want it taken off Starmodder, '
+                + 'open an issue on ',
+                githubLink(`${MOD_REPO_URL}/issues`, 'the StarsectorModRepo repo'),
+                ' or message me. I\'ll remove it. You can ask me to remove one mod or every mod that credits you. '
+                + 'The list of removed mods is public, in ',
+                githubLink(`${MOD_REPO_URL}/blob/main/takedowns.json`, 'takedowns.json'),
+                '.',
+            ],
         ]),
 
         section('How is AI used?', [

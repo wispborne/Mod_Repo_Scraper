@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../catalog/takedown_publish.dart';
 import 'cancel_token.dart';
 import 'job.dart';
 import 'run_reporter.dart';
@@ -58,6 +59,7 @@ class PublishService implements JobRunner {
     'updates.xml',
     'sitemap.xml',
     'robots.txt',
+    '404.html',
   ];
 
   @override
@@ -82,6 +84,14 @@ class PublishService implements JobRunner {
     await _prepareClone(reporter);
     final branch = await _defaultBranch();
     reporter.log('Publishing to ${environment.repoUrl} (branch $branch).');
+
+    // Checked against the clone as fetched, before anything is copied over
+    // it. A lost list stops the publish here, with nothing committed.
+    reporter.phase('Takedown list');
+    publishTakedowns(
+        dataPath: environment.dataPath,
+        cloneDir: environment.cloneDir,
+        log: reporter.log);
 
     reporter.phase('Copy outputs');
     _copyOutputs(reporter);

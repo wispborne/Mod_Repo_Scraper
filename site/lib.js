@@ -51,10 +51,31 @@ export async function data(name) {
   }
 }
 
+/// A fetch that got an answer, but not the file it wanted. [status] is the
+/// answer's status; [notJson] says a successful answer was not JSON, which is
+/// what a host that answers a missing file with the front page sends.
+export class FetchError extends Error {
+  constructor(message, { status = null, notJson = false } = {}) {
+    super(message);
+    this.status = status;
+    this.notJson = notJson;
+  }
+}
+
+/// True when [err] means the file is not there, rather than that fetching it
+/// went wrong: a 404, or a successful answer that is not JSON.
+export function isMissingFile(err) {
+  return err instanceof FetchError && (err.status === 404 || (err.notJson && err.status < 400));
+}
+
 async function fetchJson(url) {
   const res = await fetch(url, { credentials: 'omit' });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
-  return res.json();
+  if (!res.ok) throw new FetchError(`${res.status} ${res.statusText} for ${url}`, { status: res.status });
+  try {
+    return await res.json();
+  } catch {
+    throw new FetchError(`${url} did not come back as JSON`, { status: res.status, notJson: true });
+  }
 }
 
 /// Every mod, as `mods.json` holds it.

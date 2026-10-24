@@ -23,6 +23,7 @@ import * as author from './views/author.js';
 import * as about from './views/about.js';
 import * as favoritesView from './views/favorites.js';
 import * as reports from './views/reports.js';
+import * as notFound from './views/not_found.js';
 import * as changelog from './views/changelog.js';
 
 /// The one place that knows what the address bar means: which page it names,
@@ -94,6 +95,13 @@ function renderNav(viewId) {
   }
 }
 
+/// The path the host answered with `404.html`, when this document is that page.
+/// The address is left as the reader typed it. Moving on from it routes as
+/// usual, and coming back to it shows the not-found view again.
+const notFoundPath = document.querySelector('meta[name="starmodder-page"][content="not-found"]')
+  ? location.pathname
+  : null;
+
 async function route() {
   // Before anything is cleared, so the view being left can still find out where
   // its reader had got to.
@@ -106,6 +114,13 @@ async function route() {
 
   const root = document.getElementById('app');
   clear(root).append(loading());
+
+  if (notFoundPath !== null && location.pathname === notFoundPath) {
+    renderNav('');
+    notFound.render(root);
+    window.scrollTo(0, 0);
+    return;
+  }
 
   const handler = ROUTES[viewId];
   if (!handler) {
@@ -486,6 +501,7 @@ window.addEventListener('DOMContentLoaded', () => {
   site.watch(route);
   // The front document with nothing after it is Home. Saying so in the address
   // costs no history entry and means every page on the site names itself.
-  if (!site.parts().length) site.replace('#/home');
+  // The not-found page keeps the address the reader typed.
+  if (!site.parts().length && notFoundPath === null) site.replace('#/home');
   route();
 });

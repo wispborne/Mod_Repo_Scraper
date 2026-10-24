@@ -145,15 +145,34 @@ class ModIdStore {
   /// [refsThisRun] is every listing's ref in this build. Only with it can a
   /// mod the LLM renamed on a shared post keep its id (see [_renamedEntry]);
   /// without it nothing is re-linked.
-  void beginRun({Iterable<SourcePostRef> refsThisRun = const []}) {
+  ///
+  /// [blockedRefs] are the refs of listings a takedown kept out of the merge.
+  /// They count as present, and so does every name already linked on their
+  /// post that matches theirs by [modNamesMatch], even where the LLM spells it
+  /// differently today. Otherwise a taken-down mod would look gone from its
+  /// post, and [_renamedEntry] could hand its id to another mod there.
+  void beginRun({
+    Iterable<SourcePostRef> refsThisRun = const [],
+    Iterable<SourcePostRef> blockedRefs = const [],
+  }) {
     _givenThisRun.clear();
     _reserved.clear();
+    final all = [...refsThisRun, ...blockedRefs];
     _keysThisRun
       ..clear()
-      ..addAll([for (final ref in refsThisRun) if (ref.id.isNotEmpty) ref.key]);
+      ..addAll([for (final ref in all) if (ref.id.isNotEmpty) ref.key]);
     _postsThisRun
       ..clear()
-      ..addAll([for (final ref in refsThisRun) if (ref.id.isNotEmpty) ref.post.key]);
+      ..addAll([for (final ref in all) if (ref.id.isNotEmpty) ref.post.key]);
+    for (final ref in blockedRefs) {
+      if (ref.id.isEmpty) continue;
+      final post = ref.post.key;
+      for (final entry in _byPostOnly[post] ?? const <_Entry>[]) {
+        for (final name in _oldNamesOn(entry, post)) {
+          if (ref.llmModName == null || modNamesMatch(name, ref.llmModName!)) _keysThisRun.add('$post#$name');
+        }
+      }
+    }
   }
 
   /// The id for a mod made of [refs], found through its source posts first.
@@ -312,9 +331,15 @@ class ModIdStore {
   /// A move is kept in the file, so an old id still leads somewhere after its
   /// posts are gone, for as long as the mod it leads to is still in the build.
   /// An id a mod is given again stops being moved.
+  ///
+  /// [takenDown] are ids a takedown left out of this build. None of them is
+  /// moved, and none is a destination: a taken-down mod's address must not
+  /// lead to whatever is left on its post. Their saved moves are left as they
+  /// were.
   Map<String, String> movedIds(
     List<({String id, List<String> names, List<String> authors, List<SourcePostRef> refs})> mods, {
     Map<String, String> pointers = const {},
+    Set<String> takenDown = const {},
     void Function(String message)? log,
   }) {
     final liveIds = {for (final mod in mods) mod.id};
@@ -327,6 +352,7 @@ class ModIdStore {
 
     final moved = <String, String>{};
     for (final entry in namesOf.keys) {
+      if (takenDown.contains(entry.id)) continue;
       if (liveIds.contains(entry.id) || reservedIds.contains(entry.id)) {
         if (entry.movedTo != null) {
           entry.movedTo = null;

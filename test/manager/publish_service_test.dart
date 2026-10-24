@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:mod_repo_scraper/bot/scraper/qb/models/scrape_job.dart';
+import 'package:mod_repo_scraper/catalog/takedowns.dart';
 import 'package:mod_repo_scraper/manager/cancel_token.dart';
 import 'package:mod_repo_scraper/manager/job.dart';
 import 'package:mod_repo_scraper/manager/modrepo_service.dart';
@@ -54,6 +55,7 @@ void main() {
     late String outputs; // Where the current output files live.
     late String cloneDir; // Where the service keeps its working clone.
     late String siteDir; // The website's own files, as they sit in the repo.
+    late String dataDir; // qb_data, which holds the takedown list.
     late PublishService service;
     late RecordingRunReporter reporter;
 
@@ -77,6 +79,7 @@ void main() {
       outputs = p.join(tmp.path, 'outputs');
       cloneDir = p.join(tmp.path, 'clone');
       siteDir = p.join(tmp.path, 'site-source');
+      dataDir = p.join(tmp.path, 'qb_data');
       Directory(outputs).createSync(recursive: true);
       Directory(p.join(siteDir, 'views')).createSync(recursive: true);
       File(p.join(siteDir, 'index.html')).writeAsStringSync('<html></html>');
@@ -102,6 +105,7 @@ void main() {
           outputPath: outputs,
           repoUrl: remote,
           cloneDir: cloneDir,
+          dataPath: dataDir,
           sitePath: siteDir,
         ),
       );
@@ -182,6 +186,7 @@ void main() {
           outputPath: outputs,
           repoUrl: p.join(tmp.path, 'no-such-repo.git'),
           cloneDir: p.join(tmp.path, 'broken-clone'),
+          dataPath: dataDir,
         ),
       );
 
@@ -282,6 +287,49 @@ void main() {
         throwsA(isA<ArgumentError>()),
       );
     });
+    /// Puts [content] into the remote at [name], as an earlier publish would.
+    void pushToRemote(String name, String content) {
+      final seed = p.join(tmp.path, 'seed');
+      _git(['pull', '--quiet', 'origin', 'main'], cwd: seed);
+      File(p.join(seed, name)).writeAsStringSync(content);
+      _git(['add', '-A'], cwd: seed);
+      _git(['-c', 'user.email=t@t', '-c', 'user.name=Test', 'commit', '-m', 'list'], cwd: seed);
+      _git(['push', 'origin', 'HEAD:main'], cwd: seed);
+    }
+
+    const tidal = TakedownList(mods: [
+      ModTakedown(id: 'diable-avionics-tidal-fork', name: 'Diable Avionics (TIDAL FORK)',
+          posts: ['discord:1507163509224509510'], on: '2026-10-22'),
+    ]);
+
+    test('the takedown list and the not-found page go out with the rest', () async {
+      writeOutputs('new repo', 'new bundle');
+      writeWebsiteData(['nexerelin']);
+      File(p.join(outputs, 'site', '404.html')).writeAsStringSync('<title>Not found</title>');
+      tidal.write(dataDir);
+
+      await service.runJob(JobRequest.publishOutputs(), reporter: reporter);
+
+      expect(remoteContent('404.html'), '<title>Not found</title>');
+      expect(remoteContent('takedowns.json'), contains('diable-avionics-tidal-fork'));
+      expect(remoteContent('ModRepo.json'), 'frozen repo');
+      expect(remoteContent('forum-data-bundle.json'), 'frozen bundle');
+    }, skip: _gitIsThere() ? false : 'git is not installed');
+
+    test('a lost local list stops the publish and pushes nothing', () async {
+      final file = File(p.join(tmp.path, 'published-list.json'));
+      tidal.writeFile(file);
+      pushToRemote('takedowns.json', file.readAsStringSync());
+      writeOutputs('new repo', 'new bundle');
+      final before = remoteCommitCount();
+
+      await expectLater(
+        service.runJob(JobRequest.publishOutputs(), reporter: reporter),
+        throwsA(isA<StateError>().having((e) => e.message, 'message', contains('diable-avionics-tidal-fork'))),
+      );
+      expect(remoteCommitCount(), before);
+      expect(remoteContent('mod-catalog.json'), 'old repo');
+    }, skip: _gitIsThere() ? false : 'git is not installed');
   });
 
   group('JobRouter', () {

@@ -614,6 +614,8 @@ main {
 .notice h3 { margin-top: 0; }
 .notice p { margin: 0; color: var(--text-dim); }
 .notice-action { padding-top: var(--gap); }
+.not-found h2 { margin-top: 0; }
+.not-found .not-found-links { display: flex; flex-wrap: wrap; gap: var(--gap); padding-top: var(--gap); }
 
 .breadcrumbs { font-size: var(--type-small); color: var(--text-dim); margin-bottom: 12px; }
 .crumb-sep { margin: 0 6px; opacity: 0.6; }

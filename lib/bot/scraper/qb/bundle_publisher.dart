@@ -50,12 +50,27 @@ class BundlePublisher {
         _log = logger ?? Logger('BundlePublisher');
 
   /// Assembles a [ForumDataBundle] from the data store and resolver cache.
-  Future<ForumDataBundle> createBundle({ScrapeResult? scrapeResult}) async {
+  ///
+  /// [leaveOutTopics] and [leaveOutThreads] are the forum topics and Discord
+  /// threads whose every mod was taken down. They are left out of the index,
+  /// the details, the rules-only downloads and the Discord answers.
+  Future<ForumDataBundle> createBundle({
+    ScrapeResult? scrapeResult,
+    Set<int> leaveOutTopics = const {},
+    Set<String> leaveOutThreads = const {},
+  }) async {
     _log.info('Creating forum data bundle...');
 
     final rawIndex = await _store.loadIndex();
-    final sortedIndex = rawIndex.toList()
+    final sortedIndex = rawIndex
+        .where((s) => !leaveOutTopics.contains(s.topicId))
+        .toList()
       ..sort((a, b) => a.topicId.compareTo(b.topicId));
+    if (leaveOutTopics.isNotEmpty || leaveOutThreads.isNotEmpty) {
+      _log.info('Leaving out ${leaveOutTopics.length} forum topic(s) and '
+          '${leaveOutThreads.length} Discord thread(s) whose mods were all '
+          'taken down.');
+    }
 
     // The LLM output hangs off each thread. Read each thread's mods list from
     // the store and attach it to the matching index item; a thread that produced
@@ -195,7 +210,10 @@ class BundlePublisher {
       errors: scrapeResult?.errors,
     );
 
-    final discordThreads = _discordThreads();
+    final discordThreads = [
+      for (final thread in _discordThreads())
+        if (!leaveOutThreads.contains(thread.threadId)) thread,
+    ];
 
     final bundle = ForumDataBundle(
       updatedAt: updatedAt,

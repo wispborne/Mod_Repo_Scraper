@@ -57,6 +57,14 @@ enum JobKind {
   /// Rebuild every output from saved files: `ModRepo.json`, the bundle, the
   /// catalog and the website. No network, no LLM.
   rebuildFromSaved,
+
+  /// Add one mod, Collection page or person to `takedowns.json`, then rebuild
+  /// every output from saved files without it, and publish when asked.
+  takeDown,
+
+  /// Remove one entry from `takedowns.json`, then rebuild and publish the same
+  /// way, so the mod comes back at its old address.
+  restoreTakedown,
 }
 
 /// The places ModRepo mods are scraped from. Which of these a job wants is job
@@ -144,6 +152,20 @@ class JobRequest with JobRequestMappable {
   /// [JobKind.rebuildFromSaved].
   final bool oldRepoOnly;
 
+  /// The mod or Collection id a `takeDown` job takes down.
+  final String? takedownModId;
+
+  /// The names of the person a `takeDown` job takes down, when it is not
+  /// [takedownModId].
+  final List<String> takedownAuthors;
+
+  /// The entry a `restoreTakedown` job removes: a mod entry's id, or
+  /// `author:` and an author entry's first name.
+  final String? takedownEntry;
+
+  /// Whether a `takeDown` or `restoreTakedown` job publishes when it is done.
+  final bool publishAfter;
+
   const JobRequest({
     required this.kind,
     this.topicIds = const [],
@@ -165,6 +187,10 @@ class JobRequest with JobRequestMappable {
     this.keepAllGameVersions = false,
     this.collectMergeDebug = false,
     this.oldRepoOnly = false,
+    this.takedownModId,
+    this.takedownAuthors = const [],
+    this.takedownEntry,
+    this.publishAfter = false,
   });
 
   /// A scrape over the boards, the way the CLI has always run.
@@ -286,9 +312,38 @@ class JobRequest with JobRequestMappable {
   factory JobRequest.rebuildFromSaved() => const JobRequest(
       kind: JobKind.rebuildFromSaved, collectMergeDebug: true);
 
+  /// Takes down one mod or Collection page ([modId]) or one person
+  /// ([authors]), then rebuilds every output.
+  factory JobRequest.takeDown({
+    String? modId,
+    List<String> authors = const [],
+    bool publishAfter = false,
+  }) =>
+      JobRequest(
+        kind: JobKind.takeDown,
+        takedownModId: modId,
+        takedownAuthors: authors,
+        publishAfter: publishAfter,
+        collectMergeDebug: true,
+      );
+
+  /// Removes the takedown entry [entry] (see [takedownEntry]), then rebuilds
+  /// every output.
+  factory JobRequest.restoreTakedown(String entry, {bool publishAfter = false}) =>
+      JobRequest(
+        kind: JobKind.restoreTakedown,
+        takedownEntry: entry,
+        publishAfter: publishAfter,
+        collectMergeDebug: true,
+      );
+
   /// True for the two kinds that run both pipelines, one after the other.
   bool get isPipelineKind =>
       kind == JobKind.fetchAndUpdate || kind == JobKind.rebuildFromSaved;
+
+  /// True for the two kinds that change the takedown list.
+  bool get isTakedownKind =>
+      kind == JobKind.takeDown || kind == JobKind.restoreTakedown;
 
   /// True for the two kinds that end in a merge.
   bool get isMergeKind =>

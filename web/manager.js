@@ -24,6 +24,8 @@ export const KIND_LABELS = {
   mergeModRepo: 'Merge from saved files',
   scrapeAndMerge: 'Scrape then merge',
   publishOutputs: 'Publish to GitHub',
+  takeDown: 'Take down',
+  restoreTakedown: 'Restore',
 };
 
 export function kindLabel(kind) {
@@ -247,6 +249,16 @@ export function describeJob(request) {
     case 'publishOutputs':
       return 'Publish the current outputs and website to the GitHub repo TriOS reads. '
         + 'If nothing changed, nothing is pushed.';
+    case 'takeDown': {
+      const what = request.takedownModId
+        ? `"${request.takedownModId}"`
+        : `every mod credited to ${(request.takedownAuthors || []).join(', ')}`;
+      return `Add ${what} to the takedown list. Rebuild every output from saved files using the updated list`
+        + `${request.publishAfter ? '. Then publish' : ''}. No network or LLM calls.`;
+    }
+    case 'restoreTakedown':
+      return `Remove "${request.takedownEntry}" from the takedown list. Rebuild every output from saved files`
+        + `${request.publishAfter ? '. Then publish' : ''}. No network or LLM calls.`;
     default:
       return `Run a "${request.kind}" job.`;
   }

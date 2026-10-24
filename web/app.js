@@ -13,6 +13,7 @@ import * as files from './views/files.js';
 import * as log from './views/log.js';
 import * as runs from './views/runs.js';
 import * as run from './views/run.js';
+import * as takedowns from './views/takedowns.js';
 import { mountHeaderChip } from './manager.js';
 import { mountUpdateNotice } from './update.js';
 import { icon } from './icons.js';
@@ -37,6 +38,12 @@ const NAV_SECTIONS = [
     title: 'Jobs',
     items: [
       { route: ['runs'], label: 'Runs and queue', icon: 'player-play' },
+    ],
+  },
+  {
+    title: 'Corrections',
+    items: [
+      { route: ['takedowns'], label: 'Takedowns', icon: 'eye-off' },
     ],
   },
   {
@@ -69,6 +76,7 @@ const ROUTES = {
   bundle: bundle.render,
   files: files.render,
   log: log.render,
+  takedowns: takedowns.render,
 };
 
 function routeMatches(route, parts) {

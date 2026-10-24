@@ -10,6 +10,7 @@ import {
 import * as manager from '../manager.js';
 import { changesPage } from './bundle_compare.js';
 import { render as renderHistory } from './topic_history.js';
+import { takeDownThreadButton } from './takedowns.js';
 import {
   postFrame, imageList, linkList, fieldList, fold, assumedTable, llmModsBlock,
   downloadRowFromCandidate, normUrl, topicActionBar, topicStaleness,
@@ -214,7 +215,13 @@ function renderEntry(root, entry) {
     text: 'History',
     title: 'Every run that changed this thread.',
   }));
-  if (managerOn) controls.append(topicActionBar(topicId));
+  if (managerOn) {
+    controls.append(topicActionBar(topicId));
+    // Drawn once the catalog says which mods come from this thread.
+    takeDownThreadButton(`forum:${topicId}`).then((button) => {
+      if (button) controls.append(button);
+    }).catch(() => {});
+  }
   if (controls.children.length) page.append(controls);
 
   const banner = stalenessBanner(staleness, managerOn);

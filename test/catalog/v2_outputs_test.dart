@@ -13,6 +13,7 @@ import 'package:mod_repo_scraper/bot/scraper/qb/models/post_extraction.dart';
 import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 import 'package:mod_repo_scraper/catalog/catalog_step.dart';
 import 'package:mod_repo_scraper/catalog/discord_posts.dart';
+import 'package:mod_repo_scraper/catalog/takedowns.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -98,6 +99,58 @@ void main() {
     await publishBundle();
     final old = File(p.join(dir.path, 'outputs', 'forum-data-bundle.json')).readAsStringSync();
     expect((jsonDecode(old) as Map).containsKey('discordThreads'), isFalse);
+  });
+
+  test('a thread whose mod was taken down is left out of the details file; the forum topic stays', () async {
+    const TakedownList(mods: [
+      ModTakedown(id: 'fresh-mod-1-2', name: 'Fresh Mod 1.2', posts: ['discord:900'], on: '2026-10-22'),
+    ]).write(dir.path);
+    final catalog = (await CatalogStep(
+      qbDataPath: dir.path,
+      sourceCachePath: dir.path,
+      outputPath: p.join(dir.path, 'outputs'),
+    ).run())!;
+    expect(catalog.mods.map((m) => m.mod.name), ['Forum Mod']);
+    expect(catalog.takedownReport.removedThreadIds, {'900'});
+
+    final llm = LlmExtractionStore(dir.path);
+    await llm.load();
+    final publisher = BundlePublisher(
+      store: JsonDataStore(dir.path),
+      resolver: QbDownloadResolver(client: MockClient((_) async => http.Response('', 404)), dataPath: dir.path),
+      outputPath: p.join(dir.path, 'outputs'),
+      llmStore: llm,
+    );
+    await publisher.writeLocal(await publisher.createBundle(
+      leaveOutTopics: catalog.takedownReport.removedTopicIds,
+      leaveOutThreads: catalog.takedownReport.removedThreadIds,
+    ));
+    final details = jsonDecode(File(p.join(dir.path, 'outputs', BundlePublisher.detailsFileName)).readAsStringSync()) as Map;
+    expect(details['discordThreads'], isEmpty);
+    expect((details['details'] as Map).keys, ['1']);
+    expect(File(p.join(dir.path, TakedownList.matchesFileName)).existsSync(), isTrue);
+  });
+
+  test('a topic whose mod was taken down is left out of both bundles', () async {
+    const TakedownList(authors: [AuthorTakedown(names: ['Someone'], on: '2026-10-22')]).write(dir.path);
+    final catalog = (await CatalogStep(
+      qbDataPath: dir.path,
+      sourceCachePath: dir.path,
+      outputPath: p.join(dir.path, 'outputs'),
+    ).run())!;
+    expect(catalog.takedownReport.removedTopicIds, {1});
+
+    final publisher = BundlePublisher(
+      store: JsonDataStore(dir.path),
+      resolver: QbDownloadResolver(client: MockClient((_) async => http.Response('', 404)), dataPath: dir.path),
+      outputPath: p.join(dir.path, 'outputs'),
+    );
+    await publisher.writeLocal(await publisher.createBundle(leaveOutTopics: catalog.takedownReport.removedTopicIds));
+    for (final name in ['forum-data-bundle.json', BundlePublisher.detailsFileName]) {
+      final bundle = jsonDecode(File(p.join(dir.path, 'outputs', name)).readAsStringSync()) as Map;
+      expect(bundle['index'], isEmpty, reason: name);
+      expect(bundle['details'], isEmpty, reason: name);
+    }
   });
 
   test('neither new file holds a local path, a run id, a token or message text', () async {

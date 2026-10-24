@@ -103,6 +103,11 @@ cp -a site/. "$PUBLISH_DIR/"
 rm -rf "$PUBLISH_DIR/mods"
 cp -a outputs/site/. "$PUBLISH_DIR/"
 
+# The takedown list. The scraper checks it against the copy just cloned and
+# refuses when an entry has gone missing, which would put that mod back.
+./mod_repo_scraper --publish-takedowns "$PUBLISH_DIR" ||
+  fail "The takedown list did not pass its check. Not publishing."
+
 git -C "$PUBLISH_DIR" add -A
 
 if git -C "$PUBLISH_DIR" diff --cached --quiet; then

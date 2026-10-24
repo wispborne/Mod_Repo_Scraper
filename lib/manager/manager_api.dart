@@ -150,6 +150,17 @@ class ManagerApi {
       throw _BadRequest('A "${request.kind.name}" job needs at least one topic '
           'id in "topicIds".');
     }
+    if (request.kind == JobKind.takeDown &&
+        (request.takedownModId?.trim() ?? '').isEmpty &&
+        !request.takedownAuthors.any((name) => name.trim().isNotEmpty)) {
+      throw _BadRequest('A takedown needs a mod id in "takedownModId" or at '
+          'least one name in "takedownAuthors".');
+    }
+    if (request.kind == JobKind.restoreTakedown &&
+        (request.takedownEntry?.trim() ?? '').isEmpty) {
+      throw _BadRequest('A restore needs the entry to remove in '
+          '"takedownEntry".');
+    }
     return request;
   }
 

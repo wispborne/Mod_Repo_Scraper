@@ -2475,6 +2475,60 @@ void main() {
     }
   });
 
+  group('a taken-down mod', () {
+    // The catalog leaves a taken-down mod out, so the site is built without it.
+    // These check nothing of it is left anywhere the site publishes.
+    final bundle = bundleOf(index: [
+      thread(llmMods: [
+        LlmMod(name: 'Nexerelin', extras: LlmExtras(needs: const ['LazyLib'])),
+      ]),
+      thread(topicId: 5444, title: '[0.98a] LazyLib 3.0', author: 'LazyWizard'),
+      thread(topicId: 5445, title: '[0.98a] LazyLib 2.0', author: 'Somebody'),
+    ]);
+    final releases = [
+      const ThreadRelease(topicId: 5444, modName: 'LazyLib', seenOn: '2026-08-14', newVersion: '3.0'),
+      const ThreadRelease(topicId: 9175, modName: 'Nexerelin', seenOn: '2026-08-14', newVersion: '0.12.2'),
+    ];
+    final everyMod = [
+      forumMod(name: 'Nexerelin', topicId: 9175),
+      forumMod(name: 'LazyLib', topicId: 5444, authors: ['LazyWizard']),
+      forumMod(name: 'LazyLib', topicId: 5445, authors: ['Somebody']),
+    ];
+
+    test('is in no list, page, feed, link or same-name panel', () async {
+      final before = builder.build(mods: catalogOf(everyMod, bundle: bundle), bundle: bundle, threadReleases: releases);
+      final takenDown = before.list.mods.firstWhere((m) => m.name == 'LazyLib' && m.authors.contains('LazyWizard')).id;
+      final other = before.list.mods.firstWhere((m) => m.name == 'LazyLib' && m.id != takenDown).id;
+      expect(before.details[other]!.sameNameMods.map((m) => m.id), contains(takenDown));
+
+      final kept = [for (final mod in catalogOf(everyMod, bundle: bundle)) if (mod.id != takenDown) mod];
+      final data = builder.build(
+        mods: kept,
+        bundle: bundle,
+        threadReleases: releases,
+        movedIds: {'old-lazylib': takenDown},
+      );
+      await builder.write(data);
+
+      expect(data.list.mods.map((m) => m.id), isNot(contains(takenDown)));
+      expect(data.details.containsKey(takenDown), isFalse);
+      expect(File(p.join(builder.modsDir, '$takenDown.json')).existsSync(), isFalse);
+      expect(Directory(p.join(builder.modsDir, takenDown)).existsSync(), isFalse);
+      expect(data.movedIds, isEmpty, reason: 'no old address leads to it');
+
+      final nexerelin = data.list.mods.firstWhere((m) => m.id == 'nexerelin');
+      expect(nexerelin.needs.map((n) => n.name), ['LazyLib']);
+      expect(nexerelin.needs.single.id, isNot(takenDown), reason: 'named as plain text or pointed elsewhere');
+
+      expect(data.details[other]!.sameNameMods.map((m) => m.id), isNot(contains(takenDown)));
+      expect(data.feed.releases.map((r) => r.modId), ['nexerelin']);
+      for (final file in ['updates.json', 'updates.xml', 'sitemap.xml', 'mods.json']) {
+        expect(File(p.join(builder.siteDir, file)).readAsStringSync(), isNot(contains(RegExp('\\b$takenDown(?![-\\w])'))),
+            reason: file);
+      }
+    });
+  });
+
   test('writing puts the files where the site asks for them', () async {
     final data = buildFrom(
       mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],

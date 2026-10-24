@@ -261,6 +261,8 @@ function jobWord(id) {
     scrapeAndMerge: 'scrape and merge',
     fetchAndUpdate: 'fetch and update',
     rebuildFromSaved: 'rebuild from saved',
+    takeDown: 'take down',
+    restoreTakedown: 'restore a takedown',
     imported: 'imported',
   }[kind] || kind;
 }
