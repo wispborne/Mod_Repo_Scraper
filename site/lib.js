@@ -1924,6 +1924,9 @@ export function currentGameVersion(mods) {
 /// mod to be taken down. Everything here is collected off other people's posts
 /// by a machine, so some of it will be wrong and there has to be one obvious
 /// place to say so.
+/// Where the website's own code lives. Commit links on the site point into it.
+export const SITE_CODE_URL = 'https://github.com/wispborne/Mod_Repo_Scraper';
+
 export const PROBLEM_REPORT_BASE =
   'https://github.com/wispborne/StarsectorModRepo/issues/new';
 

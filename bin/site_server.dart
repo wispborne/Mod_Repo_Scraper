@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
+import 'package:mod_repo_scraper/site/site_changelog.dart';
 import 'package:mod_repo_scraper/viewer/site_version.dart';
 
 /// Serves the public website against the data a real run built.
@@ -88,6 +89,9 @@ Future<void> main(List<String> args) async {
   // results viewer does (`SiteVersion`). A real `site/version.json` is served
   // by the static handler above and wins.
   handlers.add(_buildVersion(p.dirname(p.absolute(siteDir))));
+  // The changelog page reads `changelog.json`, which only the release workflow
+  // writes, so it is answered from git here in the same way.
+  handlers.add(_changelog(p.dirname(p.absolute(siteDir))));
 
   final liveReload =
       opts['reload'] as bool ? _LiveReload.watch(Directory(siteDir)) : null;
@@ -237,5 +241,15 @@ Handler _buildVersion(String rootDir) => (request) {
       final version = SiteVersion(rootDir).read();
       if (version == null) return Response.notFound('');
       return Response.ok(jsonEncode(version),
+          headers: {'content-type': 'application/json'});
+    };
+
+/// Answers `changelog.json` with the website's changelog, read by
+/// [SiteChangelog] from the release file or from git. Nothing else.
+Handler _changelog(String rootDir) => (request) {
+      if (request.url.path != 'changelog.json') return Response.notFound('');
+      final entries = SiteChangelog(rootDir).read();
+      if (entries == null) return Response.notFound('');
+      return Response.ok(jsonEncode(entries),
           headers: {'content-type': 'application/json'});
     };

@@ -9,7 +9,7 @@ import {
   formatMoment, go, imageChoice, imageUrlOf, inlinePictures,
   loading,
   favorites, modHref, modList, modName,
-  preparePageScroll, restorePageScroll, searchHelpField, setAiSummaryMode,
+  preparePageScroll, restorePageScroll, searchHelpField, setAiSummaryMode, SITE_CODE_URL,
   setAiNoteChoice, setImageChoice, setInlinePictures,
   THEMES, applyTheme, setThemePreference, themePreference,
   thumbnail, watchFavorites,
@@ -23,10 +23,7 @@ import * as author from './views/author.js';
 import * as about from './views/about.js';
 import * as favoritesView from './views/favorites.js';
 import * as reports from './views/reports.js';
-
-/// Where this site's code lives. The commit in the footer links into it, so
-/// a bug report can name the exact build.
-const REPO_URL = 'https://github.com/wispborne/Mod_Repo_Scraper';
+import * as changelog from './views/changelog.js';
 
 /// The one place that knows what the address bar means: which page it names,
 /// how to build a link to another, and when the reader has moved.
@@ -48,6 +45,7 @@ const ROUTES = {
   about: (root, parts) => about.render(root, parts),
   favorites: (root, parts) => favoritesView.render(root, parts),
   reports: (root) => reports.render(root),
+  changelog: (root) => changelog.render(root),
   // The old address for the favorites page. Shared links carry it, so it has to
   // keep working.
   list: (root, parts) => favoritesView.render(root, parts),
@@ -170,7 +168,7 @@ async function showBuild() {
 
     const commit = el('a', {
       text: build.commit,
-      href: `${REPO_URL}/commit/${build.commit}`,
+      href: `${SITE_CODE_URL}/commit/${build.commit}`,
       rel: 'nofollow noopener',
     });
     line.replaceChildren(`v${build.build} · `, commit, ` · ${build.date}`);

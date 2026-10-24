@@ -54,3 +54,5 @@ QBMBAMM
 
 # The website version file, written by the release workflow at build time.
 /site/version.json
+# The website changelog, written from git by the release workflow.
+/site/changelog.json

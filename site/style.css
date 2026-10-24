@@ -674,7 +674,7 @@ main {
   display: inline-flex; align-items: center; gap: 7px;
 }
 .btn-with-icon:hover { text-decoration: none; }
-.github-icon { display: inline-flex; }
+.github-icon, .button-icon { display: inline-flex; }
 
 /* On a card it sits at the foot, under the badges, and spans the card: a
    download is the card's main action and belongs in the reader's line of sight,
@@ -1525,12 +1525,16 @@ button.check-row { align-items: center; }
 .btn-with-icon .original-page-icon,
 .btn-with-icon .view-icon,
 .btn-with-icon .github-icon,
+.btn-with-icon .button-icon,
 .badge.source-link .original-page-icon,
 .big-picture-source .original-page-icon,
 .check-row .tri-box,
 .settings-icon,
 .ai-banner-hide-icon,
 .post-switch-icon { transform: translateY(0.06em); }
+/* The speech bubble's tail makes it reach further down than up, so it sits a
+   little higher than the rest. */
+.btn-with-icon .report-icon { transform: translateY(0.04em); }
 /* The Discord post under the forum post: a little more room than between
    the parts of one group, so the two read as two posts. */
 #section-discord-post { margin-top: calc((var(--gap-wide) - var(--gap)) / 2); }
@@ -1771,6 +1775,12 @@ a.chip.needed:hover { background: var(--primary-bar); text-decoration: none; }
 .feed-note { color: var(--text-dim); font-size: var(--type-small); margin: 0; }
 .about-line { margin: 0 0 10px; }
 .about-line:last-child { margin-bottom: 0; }
+.about-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap); }
+
+.changelog-entry + .changelog-entry { margin-top: var(--gap-wide); }
+.changelog-entry h3 { margin: 0 0 4px; }
+.changelog-entry p, .changelog-entry ul { margin: 0 0 6px; }
+.changelog-build { color: var(--text-dim); font-size: var(--type-tiny); }
 
 /* A mod's name is plain text until you point at it. Said once here rather than
    four times, once per place a name turns up. */
