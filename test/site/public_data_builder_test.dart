@@ -22,6 +22,7 @@ import 'package:mod_repo_scraper/site/mod_id_store.dart';
 import 'package:mod_repo_scraper/site/models/public_mod.dart';
 import 'package:mod_repo_scraper/site/post_html.dart';
 import 'package:mod_repo_scraper/site/public_data_builder.dart';
+import 'package:mod_repo_scraper/site/public_site_step.dart';
 import 'package:mod_repo_scraper/site/release_state_store.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
@@ -1944,6 +1945,70 @@ void main() {
     await builder.write(data);
     expect(file.existsSync(), isTrue);
     expect(Directory(p.join(builder.modsDir, 'old-page')).existsSync(), isTrue);
+  });
+
+  test('a taken-down mod keeps a not-found file and page at its old address, and they are kept between writes',
+      () async {
+    final bundle = bundleOf();
+    final mods = catalogOf([forumMod()], bundle: bundle);
+    final id = mods.single.id;
+    final data = builder.build(
+      mods: mods,
+      bundle: bundle,
+      movedIds: {'old-page': id},
+      // One with a page this build and one that is a moved address: neither
+      // is replaced.
+      goneIds: {'taken-down', id, 'old-page'},
+    );
+    expect(data.goneIds, {'taken-down'});
+    expect(data.list.mods.map((m) => m.id), isNot(contains('taken-down')));
+
+    await builder.write(data);
+    final file = File(p.join(builder.modsDir, 'taken-down.json'));
+    expect(jsonDecode(file.readAsStringSync()), {'gone': true});
+    final page = File(p.join(builder.modsDir, 'taken-down', 'index.html')).readAsStringSync();
+    expect(page, contains('Not found | Starmodder'));
+    expect(page, isNot(contains('taken-down')));
+
+    await builder.write(data);
+    expect(file.existsSync(), isTrue);
+    expect(Directory(p.join(builder.modsDir, 'taken-down')).existsSync(), isTrue);
+  });
+
+  test('the site step gives a not-found page to mod-entry ids and to ids the last build took down by author',
+      () async {
+    final dataPath = p.join(dir.path, 'data');
+    Directory(dataPath).createSync(recursive: true);
+    File(p.join(dataPath, 'takedowns.json')).writeAsStringSync(jsonEncode({
+      'mods': [
+        {'id': 'by-entry', 'name': 'By Entry', 'posts': <String>[], 'on': '2026-10-25'},
+      ],
+      'authors': <Object>[],
+    }));
+    File(p.join(dataPath, 'takedown-matches.json')).writeAsStringSync(jsonEncode({
+      'builtAt': '2026-10-25T00:00:00Z',
+      'matches': [
+        {
+          'entry': 'author:Someone',
+          'mods': [
+            {'id': 'by-author', 'name': 'By Author', 'credit': 'Someone'},
+          ],
+          'collections': [
+            {'id': 'a-collection', 'name': 'A Collection'},
+          ],
+          'blockedPosts': <String>[],
+        },
+      ],
+      'removedPosts': <String>[],
+    }));
+    final mods = catalogOf([forumMod()], bundle: bundleOf());
+    final step = PublicSiteStep(dataPath: dataPath, outputPath: p.join(dir.path, 'outputs'));
+    await step.afterMerge(catalog: ModCatalog(generatedAt: DateTime.utc(2026, 10, 25), mods: mods));
+
+    for (final id in ['by-entry', 'by-author', 'a-collection']) {
+      expect(jsonDecode(File(p.join(builder.modsDir, '$id.json')).readAsStringSync()), {'gone': true}, reason: id);
+      expect(File(p.join(builder.modsDir, id, 'index.html')).existsSync(), isTrue, reason: id);
+    }
   });
 
   group('a thread only QB knows about', () {

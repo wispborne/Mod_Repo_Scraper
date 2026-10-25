@@ -8,6 +8,7 @@ import '../bot/scraper/qb/bundle_publisher.dart';
 import '../bot/scraper/qb/models/forum_data_bundle.dart';
 import '../catalog/discord_posts.dart';
 import '../catalog/mod_catalog.dart';
+import '../catalog/takedowns.dart';
 import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import 'mod_id_store.dart';
 import 'public_data_builder.dart';
@@ -145,10 +146,12 @@ class PublicSiteStep {
         requirementNames: requirementNames);
 
     final discordPosts = _readDiscordPosts();
+    final goneIds = _takenDownIds();
     PublicSiteData buildData() => builder.build(
           mods: catalog.mods,
           collections: catalog.collections,
           movedIds: catalog.movedIds,
+          goneIds: goneIds,
           bundle: bundle,
           threadReleases: releases,
           discordPosts: discordPosts,
@@ -206,6 +209,36 @@ class PublicSiteStep {
   /// yet.
   ModCatalog? _readCatalog() =>
       ModCatalog.read(File(p.join(outputPath, ModCatalog.fileName)));
+
+  /// Collects mod ids from `takedowns.json`.
+  /// Also collects mod and Collection ids from `takedown-matches.json`.
+  /// That file includes mods removed by an author entry.
+  /// Read failures may leave out not-found files but do not stop the build.
+  /// The job has already read the takedown list.
+  Set<String> _takenDownIds() {
+    final ids = <String>{};
+    try {
+      ids.addAll(TakedownList.read(dataPath).modIds);
+    } catch (e) {
+      _log.warning('Could not read the takedown list. Some removed mods may have no not-found page: $e');
+    }
+    final matchesFile = File(p.join(dataPath, TakedownList.matchesFileName));
+    if (matchesFile.existsSync()) {
+      try {
+        final report = jsonDecode(matchesFile.readAsStringSync()) as Map<String, dynamic>;
+        for (final match in (report['matches'] as List?) ?? const []) {
+          for (final key in const ['mods', 'collections']) {
+            for (final item in ((match as Map)[key] as List?) ?? const []) {
+              if ((item as Map)['id'] case final String id) ids.add(id);
+            }
+          }
+        }
+      } catch (e) {
+        _log.warning('Could not read ${matchesFile.path}. Mods removed by an author entry may have no not-found page: $e');
+      }
+    }
+    return ids;
+  }
 
   File get _discordPostsFile =>
       File(p.join(dataPath, DiscordPostsFile.fileName));

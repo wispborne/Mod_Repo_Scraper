@@ -171,6 +171,12 @@ class PublicSiteData {
   /// mod. Only ids whose mod has a page here.
   final Map<String, String> movedIds;
 
+  /// Ids of taken-down mods and Collections with no page or redirect here.
+  /// Each gets files that show the not-found view.
+  /// Cloudflare Pages keeps serving deleted files for up to a week.
+  /// Changed files are served right away.
+  final Set<String> goneIds;
+
   /// Requirement names with no rule match or saved match to one of our mods.
   /// Keyed by [requirementKey]. Each entry has the first spelling seen and the
   /// number of mods that used it. Includes names the LLM said match none of ours.
@@ -191,6 +197,7 @@ class PublicSiteData {
     required this.feed,
     this.collections = const [],
     this.movedIds = const {},
+    this.goneIds = const {},
     this.unmatchedNeeds = const {},
     this.requiredMods = const [],
     this.requirementNames = const {},
@@ -308,10 +315,14 @@ class PublicDataBuilder {
   /// forum topic ids. Joining them to mods is this builder's job, through each
   /// mod's forum post. Pass an empty list when the detector has not run — the
   /// feed file is still written, just with nothing in it.
+  ///
+  /// [goneIds] are the ids removed by a takedown.
+  /// Ids with no page or redirect get not-found files (see [PublicSiteData.goneIds]).
   PublicSiteData build({
     required List<CatalogMod> mods,
     List<CatalogCollection> collections = const [],
     Map<String, String> movedIds = const {},
+    Set<String> goneIds = const {},
     ForumDataBundle? bundle,
     List<ThreadRelease> threadReleases = const [],
     DiscordPostsFile discordPosts = const DiscordPostsFile(),
@@ -471,14 +482,19 @@ class PublicDataBuilder {
     final collectionPages = _collectionPages(collections, listRecords, takenIds);
     final pageIds = {...details.keys, for (final page in collectionPages) page.id};
     _logUnmatchedNeeds(requirements.unmatched);
+    final moved = {
+      for (final MapEntry(key: old, value: to) in movedIds.entries)
+        if (!pageIds.contains(old) && details.containsKey(to)) old: to,
+    };
     return PublicSiteData(
       list: PublicModList(generatedAt: builtAt, mods: listRecords),
       details: details,
       feed: ModReleaseFeed(generatedAt: builtAt, releases: feed),
       collections: collectionPages,
-      movedIds: {
-        for (final MapEntry(key: old, value: to) in movedIds.entries)
-          if (!pageIds.contains(old) && details.containsKey(to)) old: to,
+      movedIds: moved,
+      goneIds: {
+        for (final id in goneIds)
+          if (!pageIds.contains(id) && !moved.containsKey(id)) id,
       },
       unmatchedNeeds: Map.of(requirements.unmatched),
       requiredMods: _requiredMods(joined, listRecords),
@@ -886,8 +902,22 @@ class PublicDataBuilder {
           .writeAsString(buildMovedPageHtml(to: data.details[to]!.listing));
     }
 
+    // Replace a taken-down mod's files to show the not-found view.
+    // Cloudflare Pages keeps serving deleted files for up to a week.
+    // Changed files are served right away.
+    final notFoundPage = (shell == null ? null : buildNotFoundPageHtml(shell)) ?? plainNotFoundPage();
+    for (final id in data.goneIds) {
+      await File(p.join(modsDir, '$id.json')).writeAsString(encoder.convert({'gone': true}));
+      final folder = Directory(p.join(modsDir, id));
+      if (!folder.existsSync()) folder.createSync(recursive: true);
+      await File(p.join(folder.path, 'index.html')).writeAsString(notFoundPage);
+    }
+
     bool kept(String id) =>
-        data.details.containsKey(id) || collectionIds.contains(id) || data.movedIds.containsKey(id);
+        data.details.containsKey(id) ||
+        collectionIds.contains(id) ||
+        data.movedIds.containsKey(id) ||
+        data.goneIds.contains(id);
 
     var dropped = 0;
     for (final fileOrFolder in mods.listSync()) {
