@@ -308,8 +308,10 @@ bool _writeForumFormatting(
 }) {
   final classes = _classesOf(node);
 
-  // The site's own fold, read back when HTML is cleaned a second time.
-  if (tag == 'details' && classes.contains('spoiler')) {
+  // SMF 2.1's spoiler, and the site's own fold read back when HTML is cleaned
+  // a second time. Both are a `<details>` with the title in its `<summary>`.
+  if (tag == 'details' &&
+      (classes.contains('spoiler') || classes.contains('bbc_spoiler'))) {
     final head = node.children.where((c) => c.localName == 'summary').firstOrNull;
     final title = _oneLine(head?.text ?? '');
     out.write('<details class="spoiler"><summary>'

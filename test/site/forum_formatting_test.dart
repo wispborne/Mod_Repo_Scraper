@@ -23,6 +23,17 @@ void main() {
       );
     });
 
+    test('an SMF 2.1 spoiler is a fold labelled with its title', () {
+      // Topic 36202: the title used to run into the words ("LicenseThis mod…").
+      expect(
+        cleanPostHtml('<details class="bbc_spoiler"><summary>License</summary>'
+            '<div class="spoiler_content">This mod is under CC0.<br>'
+            '</div></details>'),
+        '<details class="spoiler"><summary>License</summary>'
+        'This mod is under CC0.</details>',
+      );
+    });
+
     test('a spoiler with no title is called "Spoiler"', () {
       expect(
         cleanPostHtml('<div class="sp-wrap"><div class="sp-head">&nbsp;</div>'
