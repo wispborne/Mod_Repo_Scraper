@@ -9,7 +9,8 @@ import { GUIDE_ICON, GUIDE_ROUTE, GUIDE_TITLE, openGuide } from './guide.js';
 const MOD_REPO_URL = 'https://github.com/wispborne/StarsectorModRepo';
 const SCRAPER_URL = SITE_CODE_URL;
 const WISP_URL = 'https://github.com/wispborne';
-const TRIOS_URL = 'https://fractalsoftworks.com/forum/index.php?topic=29674';
+// TriOS's own page on this site.
+const TRIOS_PAGE = 'mods/trios-launcher-mod-manager-toolkit/';
 const QBMBAMM_URL = 'https://github.com/theRoastSuckling/QBMBAMM';
 
 // Inline GitHub mark; inherits the button colour.
@@ -84,7 +85,7 @@ export async function render(root) {
         'Starmodder is made by ',
         githubLink(WISP_URL, 'Wisp'),
         ' (developer of ',
-        githubLink(TRIOS_URL, 'TriOS'),
+        el('a', {href: TRIOS_PAGE, text: 'TriOS'}),
         '). Its scraper combines code written by Wisp with a Dart port and fork of ',
         githubLink(QBMBAMM_URL, 'QBMBAMM'),
         ', originally made by theRoastSuckling aka kyuubi_.',
@@ -163,7 +164,6 @@ export async function render(root) {
                 ' in front of either to leave those mods out.',
             ],
         ]),
-
     ]));
 }
 
