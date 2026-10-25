@@ -63,6 +63,7 @@ class ViewerApi {
     r.get('/takedowns', _takedowns);
     r.get('/takedowns/preview', _takedownPreview);
     r.get('/takedowns/authors', _takedownAuthors);
+    r.get('/takedowns/mods', _takedownMods);
 
     return r.call;
   }
@@ -1066,6 +1067,35 @@ class ViewerApi {
             : (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase());
       });
     return _json({'authors': rows});
+  }
+
+  /// Every mod and Collection page in the current catalog, for the mod box's
+  /// suggestions: id, name, credited authors and source post keys
+  /// (`forum:34161`), so a pasted thread link finds its mods too. Collection
+  /// pages carry `collection: true`.
+  Response _takedownMods(Request req) {
+    final repo = data.modRepo;
+    if (repo == null) return _missing('modrepo', 'Build the catalog first.');
+    final catalog = ModCatalog.fromMap(repo);
+    return _json({
+      'mods': [
+        for (final mod in catalog.mods)
+          {
+            'id': mod.id,
+            'name': mod.mod.name,
+            'authors': mod.mod.getAuthors(),
+            'posts': [for (final post in mod.sourcePosts) if (post.id.isNotEmpty) post.ref.post.key],
+          },
+        for (final c in catalog.collections)
+          {
+            'id': c.id,
+            'name': c.name,
+            'authors': const <String>[],
+            'posts': [c.post.post.key],
+            'collection': true,
+          },
+      ],
+    });
   }
 
   /// What a takedown would leave out: `mod=<id>`, or `author=<name>` given

@@ -800,3 +800,17 @@ dialog.ask-dialog.takedown-dialog[open] { display: flex; flex-direction: column;
 .td-footer { padding: 14px 22px 0; border-top: 1px solid var(--border); background: rgba(14, 22, 43, 0.35); }
 .takedown-dialog .td-footer .dialog-buttons { padding: 12px 0 16px; }
 .td-body .td-rows-scroll { max-height: none; overflow: visible; }
+
+/* The Take down card's tabs */
+.takedown-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; flex-wrap: wrap; }
+.takedown-tab {
+  border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font: inherit; font-size: 0.88rem;
+  padding: 6px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.takedown-tab:hover { color: var(--text); }
+.takedown-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.takedown-tab-body > p.dim { margin: 0 0 12px; font-size: 0.85rem; max-width: 760px; }
+.takedown-suggestion.is-disabled { opacity: 0.5; cursor: default; }
+.takedown-suggestion.is-disabled:hover { background: transparent; }
+.takedown-suggestion-more { padding: 6px 10px; font-size: 0.78rem; color: var(--text-dim); }
+.takedown-no-match { color: var(--warning); }

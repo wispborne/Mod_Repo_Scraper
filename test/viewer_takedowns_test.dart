@@ -122,6 +122,15 @@ void main() {
     expect(authors['SirHartley']['mods'], 2);
   });
 
+  test('every mod and Collection page is offered, with its posts', () async {
+    final body = await get('takedowns/mods');
+    final byId = {for (final m in body['mods'] as List) m['id']: m};
+    expect(byId['useful-tithes']['posts'], ['forum:34161']);
+    expect(byId['diable-avionics-tidal-fork']['authors'], ['tidal5590']);
+    expect(byId['hartleys-mods']['collection'], isTrue);
+    expect(byId['useful-tithes'].containsKey('collection'), isFalse);
+  });
+
   test('an unknown id is a plain error', () async {
     final res = await handler(Request('GET', Uri.parse('http://localhost/takedowns/preview?mod=no-such-mod')));
     expect(res.statusCode, 400);

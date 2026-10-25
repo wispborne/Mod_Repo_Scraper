@@ -57,14 +57,14 @@ export async function render(root) {
     ]));
   }
 
-  if (managerOn) page.append(authorForm(list));
+  if (managerOn) page.append(takedownCard(list));
 
   if (!mods.length && !authors.length) {
     page.append(el('div', { class: 'takedown-empty' }, [
       el('h3', { text: 'Nothing is taken down' }),
       el('p', {
         text: managerOn
-          ? 'Take down a mod from its Mod Catalog page or its thread page, or take down an author\'s mods above.'
+          ? 'Use the Take down box above, or the "Take down" button on a Mod Catalog or thread page.'
           : 'Takedowns are added from the viewer when the manager is on.',
       }),
     ]));
@@ -230,6 +230,197 @@ function backCount(match) {
   ].filter(Boolean).join(', ');
 }
 
+/// The "Take down" card: one tab for a mod or Collection page, one for an
+/// author's mods.
+function takedownCard(list) {
+  const tabs = [
+    { label: 'A mod or Collection page', body: modForm(list) },
+    { label: 'An author\'s mods', body: authorForm(list) },
+  ];
+  const bar = el('div', { class: 'takedown-tabs', role: 'tablist' });
+  const holder = el('div', { class: 'takedown-tab-holder' });
+  const show = (i) => {
+    [...bar.children].forEach((tab, n) => {
+      tab.classList.toggle('active', n === i);
+      tab.setAttribute('aria-selected', String(n === i));
+    });
+    holder.replaceChildren(tabs[i].body);
+    const field = tabs[i].body.querySelector('input');
+    if (field) field.focus();
+  };
+  tabs.forEach((tab, i) => bar.append(el('button', {
+    type: 'button', role: 'tab', class: 'takedown-tab', text: tab.label, onclick: () => show(i),
+  })));
+  const card = el('div', { class: 'panel takedown-form' }, [el('h3', { text: 'Take down' }), bar, holder]);
+  [...bar.children].forEach((tab, n) => {
+    tab.classList.toggle('active', n === 0);
+    tab.setAttribute('aria-selected', String(n === 0));
+  });
+  holder.append(tabs[0].body);
+  return card;
+}
+
+/// The post a pasted forum or Discord link (or a `forum:123` key) points at,
+/// as a post key, or null.
+function postKeyOf(text) {
+  const t = text.trim();
+  const key = t.match(/^(forum|discord|nexus):(\d+)$/i);
+  if (key) return `${key[1].toLowerCase()}:${key[2]}`;
+  const topic = t.match(/[?&;]topic=(\d+)/);
+  if (topic) return `forum:${topic[1]}`;
+  const thread = t.match(/\/channels\/\d+\/(\d+)/);
+  if (thread) return `discord:${thread[1]}`;
+  const nexus = t.match(/nexusmods\.com\/starsector\/mods\/(\d+)/);
+  if (nexus) return `nexus:${nexus[1]}`;
+  return null;
+}
+
+/// The form for taking down one mod or Collection page. Typing finds mods by
+/// name, id or author; a pasted thread link lists that thread's mods.
+function modForm(list) {
+  const takenDown = new Set((list.mods || []).map((m) => m.id));
+  let known = [];
+  api('takedowns/mods').then((body) => {
+    if (body && Array.isArray(body.mods)) known = body.mods;
+  }).catch(() => {});
+
+  const input = el('input', {
+    type: 'text', class: 'takedown-names', autocomplete: 'off',
+    placeholder: 'Mod name, id, author, or a thread link',
+    role: 'combobox', 'aria-label': 'Mod to take down', 'aria-autocomplete': 'list',
+    'aria-controls': 'takedown-mod-suggestions', 'aria-expanded': 'false',
+  });
+  const box = el('div', { class: 'takedown-name-box' }, [input]);
+  const suggestions = el('ul', {
+    class: 'takedown-suggestions', id: 'takedown-mod-suggestions', role: 'listbox', hidden: '',
+  });
+  const empty = el('p', { class: 'takedown-form-hint takedown-no-match', hidden: '' });
+  let shown = [];
+  let active = -1;
+
+  const hide = () => {
+    suggestions.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    shown = [];
+    active = -1;
+  };
+
+  const highlight = (i) => {
+    active = i;
+    [...suggestions.children].forEach((li, n) => li.classList.toggle('active', n === i));
+    if (i >= 0) input.setAttribute('aria-activedescendant', `takedown-mod-suggestion-${i}`);
+    else input.removeAttribute('aria-activedescendant');
+  };
+
+  const pick = async (mod) => {
+    if (takenDown.has(mod.id)) return;
+    hide();
+    input.value = '';
+    await previewAndConfirm({ modId: mod.id });
+  };
+
+  const suggest = () => {
+    const text = input.value.trim();
+    const q = text.toLowerCase();
+    empty.hidden = true;
+    if (!q) return hide();
+    const post = postKeyOf(text);
+    let found;
+    if (post) {
+      found = known.filter((m) => (m.posts || []).includes(post));
+    } else {
+      const ranked = [];
+      for (const mod of known) {
+        const name = mod.name.toLowerCase();
+        const id = mod.id.toLowerCase();
+        let rank = -1;
+        if (name.startsWith(q) || id.startsWith(q)) rank = 0;
+        else if (name.includes(q) || id.includes(q)) rank = 1;
+        else if ((mod.authors || []).some((a) => a.toLowerCase().includes(q))) rank = 2;
+        if (rank >= 0) ranked.push([rank, mod]);
+      }
+      ranked.sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name));
+      found = ranked.map(([, mod]) => mod);
+    }
+    shown = found.slice(0, SUGGESTION_COUNT);
+    clear(suggestions);
+    if (!shown.length) {
+      hide();
+      empty.textContent = post
+        ? `No mod in the catalog comes from ${post}.`
+        : 'No mod or Collection page in the catalog matches.';
+      empty.hidden = false;
+      return;
+    }
+    shown.forEach((mod, i) => {
+      const already = takenDown.has(mod.id);
+      const authors = mod.authors || [];
+      const li = el('li', {
+        id: `takedown-mod-suggestion-${i}`, role: 'option',
+        class: `takedown-suggestion${already ? ' is-disabled' : ''}`,
+        'aria-disabled': already ? 'true' : null,
+      }, [
+        el('span', { class: 'takedown-suggestion-name' }, [
+          mod.name,
+          el('span', { class: 'takedown-suggestion-others', text: mod.id }),
+        ]),
+        el('span', {
+          class: 'takedown-suggestion-count',
+          text: already
+            ? 'already taken down'
+            : mod.collection
+              ? 'Collection page'
+              : authors.slice(0, 2).join(', ') + (authors.length > 2 ? ` +${authors.length - 2}` : ''),
+        }),
+      ]);
+      // Before the input loses focus, so the pick is not lost to the blur.
+      li.addEventListener('mousedown', (e) => { e.preventDefault(); pick(mod); });
+      suggestions.append(li);
+    });
+    if (found.length > shown.length) {
+      suggestions.append(el('li', {
+        class: 'takedown-suggestion-more', role: 'presentation',
+        text: `${found.length - shown.length} more. Keep typing to narrow it down.`,
+      }));
+    }
+    suggestions.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    highlight(shown.findIndex((m) => !takenDown.has(m.id)));
+  };
+
+  input.addEventListener('input', suggest);
+  input.addEventListener('focus', () => { if (input.value.trim()) suggest(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' && shown.length) {
+      e.preventDefault();
+      highlight((active + 1) % shown.length);
+    } else if (e.key === 'ArrowUp' && shown.length) {
+      e.preventDefault();
+      highlight((active - 1 + shown.length) % shown.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active >= 0 && shown[active]) pick(shown[active]);
+    } else if (e.key === 'Escape') {
+      hide();
+    }
+  });
+  input.addEventListener('blur', () => hide());
+
+  return el('div', { class: 'takedown-tab-body' }, [
+    el('p', {
+      class: 'dim',
+      text: 'Excludes one mod, and blocks only the posts it comes from. Other mods on a shared post stay published. '
+        + 'A Collection page can be taken down too; the mods it lists stay published.',
+    }),
+    el('div', { class: 'takedown-combo' }, [box, suggestions]),
+    empty,
+    el('p', {
+      class: 'takedown-form-hint',
+      text: 'Pick a mod to see exactly what would be removed. Nothing changes until you confirm.',
+    }),
+  ]);
+}
+
 /// How many suggestions the author box shows at once.
 const SUGGESTION_COUNT = 8;
 
@@ -372,8 +563,7 @@ function authorForm(list) {
   input.addEventListener('blur', () => hide());
   box.addEventListener('click', () => input.focus());
 
-  const form = el('form', { class: 'panel takedown-form' }, [
-    el('h3', { text: 'Take down an author\'s mods' }),
+  const form = el('form', { class: 'takedown-tab-body' }, [
     el('p', {
       class: 'dim',
       text: 'Excludes every mod that credits this person, including mods added later and mods made with others. '
