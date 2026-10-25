@@ -61,6 +61,10 @@ class PublicMod with PublicModMappable {
   /// published as a category called "Discord Only".
   final List<String> sources;
 
+  /// True when the forum's current mod index lists the mod's thread. The old
+  /// index posts for past game versions do not count. Left out otherwise.
+  final bool? onModIndex;
+
   /// The game version the mod is for, e.g. "0.98a".
   final String? gameVersion;
 
@@ -216,6 +220,7 @@ class PublicMod with PublicModMappable {
     this.otherAuthorNames = const {},
     this.categories = const [],
     this.sources = const [],
+    this.onModIndex,
     this.gameVersion,
     this.modVersion,
     this.imageUrl,

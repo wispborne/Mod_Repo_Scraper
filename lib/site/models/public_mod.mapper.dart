@@ -205,6 +205,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     opt: true,
     def: const [],
   );
+  static bool? _$onModIndex(PublicMod v) => v.onModIndex;
+  static const Field<PublicMod, bool> _f$onModIndex = Field(
+    'onModIndex',
+    _$onModIndex,
+    opt: true,
+  );
   static String? _$gameVersion(PublicMod v) => v.gameVersion;
   static const Field<PublicMod, String> _f$gameVersion = Field(
     'gameVersion',
@@ -371,6 +377,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #otherAuthorNames: _f$otherAuthorNames,
     #categories: _f$categories,
     #sources: _f$sources,
+    #onModIndex: _f$onModIndex,
     #gameVersion: _f$gameVersion,
     #modVersion: _f$modVersion,
     #imageUrl: _f$imageUrl,
@@ -409,6 +416,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       otherAuthorNames: data.dec(_f$otherAuthorNames),
       categories: data.dec(_f$categories),
       sources: data.dec(_f$sources),
+      onModIndex: data.dec(_f$onModIndex),
       gameVersion: data.dec(_f$gameVersion),
       modVersion: data.dec(_f$modVersion),
       imageUrl: data.dec(_f$imageUrl),
@@ -529,6 +537,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     Map<String, List<String>>? otherAuthorNames,
     List<String>? categories,
     List<String>? sources,
+    bool? onModIndex,
     String? gameVersion,
     String? modVersion,
     String? imageUrl,
@@ -645,6 +654,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     Map<String, List<String>>? otherAuthorNames,
     List<String>? categories,
     List<String>? sources,
+    Object? onModIndex = $none,
     Object? gameVersion = $none,
     Object? modVersion = $none,
     Object? imageUrl = $none,
@@ -679,6 +689,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (otherAuthorNames != null) #otherAuthorNames: otherAuthorNames,
       if (categories != null) #categories: categories,
       if (sources != null) #sources: sources,
+      if (onModIndex != $none) #onModIndex: onModIndex,
       if (gameVersion != $none) #gameVersion: gameVersion,
       if (modVersion != $none) #modVersion: modVersion,
       if (imageUrl != $none) #imageUrl: imageUrl,
@@ -716,6 +727,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     otherAuthorNames: data.get(#otherAuthorNames, or: $value.otherAuthorNames),
     categories: data.get(#categories, or: $value.categories),
     sources: data.get(#sources, or: $value.sources),
+    onModIndex: data.get(#onModIndex, or: $value.onModIndex),
     gameVersion: data.get(#gameVersion, or: $value.gameVersion),
     modVersion: data.get(#modVersion, or: $value.modVersion),
     imageUrl: data.get(#imageUrl, or: $value.imageUrl),

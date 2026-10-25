@@ -991,6 +991,7 @@ class PublicDataBuilder {
       otherAuthorNames: _otherNamesFor(mod.getAuthors()),
       categories: _categoriesFor(mod, isTool: isTool),
       sources: _sourcesFor(mod, thread),
+      onModIndex: thread != null && thread.inModIndex && !thread.isArchivedModIndex ? true : null,
       gameVersion: _firstNonEmpty(
           [mod.gameVersionReq, thread?.gameVersion].where(_namesAVersion).toList()),
       modVersion: _firstNonEmpty([extras?.version, mod.modVersion]),

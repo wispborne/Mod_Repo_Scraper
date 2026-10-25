@@ -331,6 +331,25 @@ void main() {
             'old spelling finds the mod');
   });
 
+  group('whether the mod index lists the mod', () {
+    bool? onIndex(QbModSummary listed) => buildFrom(
+          mods: [forumMod(name: 'Nexerelin')],
+          bundle: bundleOf(index: [listed]),
+        ).list.mods.single.onModIndex;
+
+    test('today\'s index counts', () {
+      expect(onIndex(thread().copyWith(inModIndex: true)), isTrue);
+    });
+
+    test('an old index post for a past game version does not', () {
+      expect(onIndex(thread().copyWith(inModIndex: true, isArchivedModIndex: true)), isNull);
+    });
+
+    test('a thread the index leaves out is left out', () {
+      expect(onIndex(thread()), isNull);
+    });
+  });
+
   group('other names the post uses', () {
     test('are published for the search', () {
       final data = buildFrom(

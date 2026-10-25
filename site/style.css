@@ -1046,7 +1046,7 @@ button.check-row { align-items: center; }
 }
 .home-filters-head::-webkit-details-marker { display: none; }
 .home-filters-title { font-weight: 600; }
-.home-filters .btn.confirming { border-color: var(--warning); color: var(--warning); }
+.btn.confirming { border-color: var(--warning); color: var(--warning); }
 .home-filters-icon { display: inline-flex; margin-right: 6px; vertical-align: -0.135em; }
 .home-filters-title::after { content: ' \25BE'; color: var(--text-dim); }
 .home-filters[open] .home-filters-title::after { content: ' \25B4'; }

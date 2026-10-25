@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import {
   ANY_GAME, describeFilters, filterQuery, filtersAreOff, keepFilters, matchingSaved,
-  noFilters, readFilters, readSavedFilters, restoreSaved, sameFilters, savedFiltersJson,
+  noFilters, postedOn, readFilters, readSavedFilters, restoreSaved, sameFilters, savedFiltersJson,
   withSaved, withoutSaved,
 } from '../../site/filter_set.js';
 
@@ -74,6 +74,31 @@ test('a set in a few words', () => {
   assert.equal(describeFilters(readFilters('game=any&not=addable&ai=noai', CURRENT), label),
     'Not safe to add mid-game · AI use: No AI');
   assert.equal(describeFilters(noFilters(), label), '');
+});
+
+test('where a mod was posted', () => {
+  const indexed = { sources: ['forum'], onModIndex: true };
+  const forumOnly = { sources: ['forum'] };
+  const discordOnly = { sources: ['discord'] };
+  const both = { sources: ['forum', 'discord'] };
+  const kept = (from) => [indexed, forumOnly, discordOnly, both]
+    .filter((mod) => postedOn(mod, from));
+  assert.deepEqual(kept('index'), [indexed]);
+  assert.deepEqual(kept('forum'), [indexed, forumOnly, both]);
+  assert.deepEqual(kept('discord'), [discordOnly, both]);
+  assert.equal(kept('').length, 4);
+});
+
+test('the from choice is kept in the address', () => {
+  assert.equal(keepFilters('from=index&only=download', CURRENT), 'from=index&only=download');
+  assert.equal(readFilters('from=discord', CURRENT).from, 'discord');
+  // An unknown choice is dropped rather than hiding every mod.
+  assert.equal(keepFilters('from=reddit', CURRENT), '');
+  assert.ok(!filtersAreOff(readFilters('game=any&from=forum', CURRENT)));
+  assert.equal(describeFilters(readFilters('game=any&from=index', CURRENT)),
+    'Forum: mod index');
+  assert.equal(describeFilters(readFilters('game=any&from=discord', CURRENT)),
+    'From Discord');
 });
 
 test('an unreadable saved list is empty', () => {
