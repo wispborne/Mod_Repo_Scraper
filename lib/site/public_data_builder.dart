@@ -1542,7 +1542,9 @@ class PublicDataBuilder {
     return kept.isEmpty ? null : kept;
   }
 
-  /// AI uses for the Browse filter: area, how and optional.
+  /// AI uses for the Browse filter: area, how and optional, and the amount
+  /// only when AI did all of that part, which "No vibecode" needs. Other
+  /// amounts are left out to keep `mods.json` small.
   /// Sorted by area, with duplicates removed. Null unless the author states
   /// AI use. A missing statement does not mean no AI was used.
   static List<LlmAiUseEntry>? _aiUsesFor(LlmAiUse? aiUse) {
@@ -1550,9 +1552,17 @@ class PublicDataBuilder {
     final seen = <String>{};
     final uses = [
       for (final use in aiUse!.uses ?? const <LlmAiUseEntry>[])
-        if (seen.add('${use.area.name}/${use.how?.name}/${use.optional}'))
-          LlmAiUseEntry(area: use.area, how: use.how, optional: use.optional),
-    ]..sort((a, b) {
+        LlmAiUseEntry(
+          area: use.area,
+          how: use.how,
+          extent: use.extent == AiUseExtent.all ? AiUseExtent.all : null,
+          optional: use.optional,
+        ),
+    ]
+        .where((use) => seen.add('${use.area.name}/${use.how?.name}/'
+            '${use.extent?.name}/${use.optional}'))
+        .toList()
+      ..sort((a, b) {
         final byArea = a.area.name.compareTo(b.area.name);
         if (byArea != 0) return byArea;
         return (a.how?.name ?? '').compareTo(b.how?.name ?? '');

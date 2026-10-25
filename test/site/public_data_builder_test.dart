@@ -397,6 +397,11 @@ void main() {
             optional: true,
           ),
           LlmAiUseEntry(area: AiUseArea.code, how: AiUseHow.assisted),
+          LlmAiUseEntry(
+            area: AiUseArea.music,
+            how: AiUseHow.generated,
+            extent: AiUseExtent.all,
+          ),
         ],
         tools: ['ChatGPT'],
       );
@@ -406,9 +411,11 @@ void main() {
       expect(mod.usesAi, isTrue);
       expect(mod.aiUses!.map((use) => use.toMap()), [
         {'area': 'code', 'how': 'assisted'},
+        {'area': 'music', 'how': 'generated', 'extent': 'all'},
         {'area': 'portraits', 'how': 'edited'},
         {'area': 'portraits', 'how': 'generated', 'optional': true},
-      ], reason: 'the filter reads how and optional, but never the amount');
+      ], reason: 'the filter reads how and optional, and the amount only when '
+          'AI did all of that part');
       expect(data.details.values.single.aiUse, aiUse,
           reason: "the mod's own file carries the quote and the tools");
     });

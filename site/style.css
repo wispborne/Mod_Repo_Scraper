@@ -975,7 +975,7 @@ button.check-row { align-items: center; }
   font-size: var(--type-tiny); font-weight: 400;
 }
 /* Show All and None only when the parts they change are visible. */
-.filter-panel:not([open]) .ai-all-none { display: none; }
+.filter-panel:not([open]) .ai-all-none, .ai-all-none.unused { display: none; }
 .ai-filter-box-head {
   display: flex; align-items: baseline; margin-bottom: 8px; font-weight: 600;
 }

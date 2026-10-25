@@ -151,8 +151,10 @@ export async function render(root) {
             + 'means they have not been read for this yet. The site does not '
             + 'guess from the pictures or the writing.',
             [
-                'On Browse, "Hide AI use" hides mods by what AI was used for. '
-                + 'Mods that do not say, or have not been checked, stay visible. '
+                'On Browse, the "AI use" filter has presets such as "No AI images" '
+                + 'and "No vibecode", or Custom to choose what AI was used for. '
+                + 'Most presets keep mods that do not say, or have not been checked. '
+                + '"Absolutely no AI" shows only mods whose author says no AI was used. '
                 + 'In the search box, ',
                 el('code', {text: 'has:ai'}),
                 ' finds mods whose author says AI was used, and ',
