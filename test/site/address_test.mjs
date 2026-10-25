@@ -41,6 +41,13 @@ test('a mod under a deployment folder does too', () => {
   assert.deepEqual(siteAddress(browser).parts(), ['mods', 'A mod']);
 });
 
+test('the install guide takes its route from its own folder', () => {
+  const browser = fakeBrowser('https://example.test/how-to-install-mods/', {
+    baseHref: '../',
+  });
+  assert.deepEqual(siteAddress(browser).parts(), ['how-to-install-mods']);
+});
+
 test('the front document with nothing after it is the home page', () => {
   const browser = fakeBrowser('https://example.test/catalog/index.html');
   assert.deepEqual(siteAddress(browser).parts(), []);

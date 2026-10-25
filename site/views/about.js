@@ -4,6 +4,7 @@
 import {
     clear, el, formatDay, modList, PROBLEM_REPORT_BASE, SITE_CODE_URL,
 } from '../lib.js';
+import { GUIDE_ICON, GUIDE_ROUTE, GUIDE_TITLE, openGuide } from './guide.js';
 
 const MOD_REPO_URL = 'https://github.com/wispborne/StarsectorModRepo';
 const SCRAPER_URL = SITE_CODE_URL;
@@ -41,7 +42,9 @@ export async function render(root) {
         el('div', {class: 'page-head'}, [
             el('h1', {text: 'About Starmodder'}),
         ]),
+        // The guide is always here, even with its top-bar button hidden.
         el('div', {class: 'about-actions'}, [
+            guideButton(),
             iconButton('updates.xml', FEED_ICON, 'Release feed'),
             iconButton('#/changelog', CHANGELOG_ICON, 'Changelog'),
             // The site's own code.
@@ -195,6 +198,18 @@ function iconButton(href, icon, label) {
         el('span', {class: 'button-icon', html: icon}),
         label,
     ]);
+}
+
+function guideButton() {
+    // A link, so it is the same height as the links beside it. A plain click
+    // opens the guide in a box, the same as the top bar's button.
+    const link = iconButton(`${GUIDE_ROUTE}/`, GUIDE_ICON, GUIDE_TITLE);
+    link.addEventListener('click', (e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        openGuide();
+    });
+    return link;
 }
 
 function githubLink(href, text) {

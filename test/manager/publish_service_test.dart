@@ -122,6 +122,10 @@ void main() {
           .writeAsStringSync('{"releases": []}');
       File(p.join(outputs, 'site', 'updates.xml'))
           .writeAsStringSync('<feed/>');
+      Directory(p.join(outputs, 'site', 'how-to-install-mods'))
+          .createSync(recursive: true);
+      File(p.join(outputs, 'site', 'how-to-install-mods', 'index.html'))
+          .writeAsStringSync('<title>How to install mods</title>');
       for (final id in modIds) {
         File(p.join(site.path, '$id.json')).writeAsStringSync('{"id": "$id"}');
         Directory(p.join(site.path, id)).createSync(recursive: true);
@@ -240,6 +244,8 @@ void main() {
       expect(inRemote('updates.json'), isTrue);
       expect(inRemote('updates.xml'), isTrue,
           reason: 'the feed people subscribe to has to go out too');
+      expect(inRemote('how-to-install-mods/index.html'), isTrue,
+          reason: 'the install guide is a page of its own');
       expect(inRemote('mods/nexerelin.json'), isTrue);
       expect(inRemote('mods/nexerelin/index.html'), isTrue,
           reason: 'a link shared in Discord has to land on the mod, not on the '
@@ -287,6 +293,7 @@ void main() {
         throwsA(isA<ArgumentError>()),
       );
     });
+
     /// Puts [content] into the remote at [name], as an earlier publish would.
     void pushToRemote(String name, String content) {
       final seed = p.join(tmp.path, 'seed');

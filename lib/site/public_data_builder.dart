@@ -27,12 +27,13 @@ import 'discord_download.dart';
 import 'display_name.dart';
 import 'download_order.dart';
 import 'gallery_filter.dart';
+import 'guide_page_html.dart';
+import 'not_found_page_html.dart';
 import 'mod_id_store.dart';
 import 'mod_name_match.dart';
 import 'models/mod_release.dart';
 import 'models/public_mod.dart';
 import 'mod_page_html.dart';
-import 'not_found_page_html.dart';
 import 'models/public_mod_detail.dart';
 import 'update_note.dart';
 import 'post_html.dart';
@@ -786,6 +787,28 @@ class PublicDataBuilder {
     return text;
   }
 
+  /// The "How to install mods" page, built from the site's own document with
+  /// the guide's words from `site/` in its body. A missing words file still
+  /// gives a page, which the script fills in; a missing shell gives none, and
+  /// says so.
+  Future<void> _writeGuidePage(String? shell) async {
+    if (shell == null) {
+      _log.warning('There is no site document to build the $guideFolder page from.');
+      return;
+    }
+    final wordsFile = File(p.join(sitePath, guideWordsFile));
+    final words = wordsFile.existsSync() ? wordsFile.readAsStringSync() : null;
+    if (words == null) {
+      _log.warning('There is no ${wordsFile.path}, so the $guideFolder page '
+          'has no words in it for search engines.');
+    }
+    final page = buildGuidePageHtml(shell: shell, words: words);
+    if (page == null) return;
+    final folder = Directory(p.join(siteDir, guideFolder));
+    if (!folder.existsSync()) folder.createSync(recursive: true);
+    await File(p.join(folder.path, 'index.html')).writeAsString(page);
+  }
+
   /// `404.html`, which the host answers every missing address with. Built from
   /// the site's own document; a small plain page when that cannot be read.
   Future<void> _writeNotFoundPage(String? shell) async {
@@ -817,6 +840,7 @@ class PublicDataBuilder {
     // Read once for the whole run: every mod's page is this same document.
     final shell = _readShell();
 
+    await _writeGuidePage(shell);
     await _writeNotFoundPage(shell);
 
     for (final entry in data.details.entries) {

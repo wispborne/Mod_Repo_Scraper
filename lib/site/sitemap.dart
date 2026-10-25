@@ -1,3 +1,4 @@
+import 'guide_page_html.dart';
 import 'models/public_mod.dart';
 
 /// Where the public website is served from. A sitemap has to give whole
@@ -5,8 +6,9 @@ import 'models/public_mod.dart';
 /// Everything else on the site uses addresses relative to the page.
 const String siteAddress = 'https://starmodder.wispborne.com/';
 
-/// `sitemap.xml`: the front page and every mod's own page, so a search engine
-/// finds every mod without having to run the site's script and follow links.
+/// `sitemap.xml`: the front page, the install guide and every mod's own page,
+/// so a search engine finds every mod without having to run the site's script
+/// and follow links.
 ///
 /// Each mod carries the day it last changed where we know one — its newest
 /// release or the last post on its forum thread, whichever is later — so a
@@ -15,7 +17,8 @@ String buildSitemapXml(PublicModList list) {
   final out = StringBuffer()
     ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
     ..writeln('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
-    ..writeln('  <url><loc>$siteAddress</loc></url>');
+    ..writeln('  <url><loc>$siteAddress</loc></url>')
+    ..writeln('  <url><loc>$siteAddress$guideFolder/</loc></url>');
 
   for (final mod in list.mods) {
     final address = '${siteAddress}mods/${Uri.encodeComponent(mod.id)}/';

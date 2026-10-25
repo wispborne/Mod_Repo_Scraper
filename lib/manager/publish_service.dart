@@ -60,6 +60,7 @@ class PublishService implements JobRunner {
     'sitemap.xml',
     'robots.txt',
     '404.html',
+    'how-to-install-mods/index.html',
   ];
 
   @override
@@ -204,7 +205,9 @@ class PublishService implements JobRunner {
     for (final name in websiteFiles) {
       final source = File(p.join(from.path, name));
       if (!source.existsSync()) continue;
-      source.copySync(p.join(environment.cloneDir, name));
+      final target = File(p.join(environment.cloneDir, name));
+      target.parent.createSync(recursive: true);
+      source.copySync(target.path);
       copied++;
     }
 
