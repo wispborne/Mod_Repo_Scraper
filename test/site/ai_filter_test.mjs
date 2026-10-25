@@ -81,7 +81,7 @@ test('"No AI images" hides AI art and nothing else', () => {
     ['assisted-code', 'unsaid-how', 'all-code', 'edited-all-code', 'no-ai', 'silent']);
 });
 
-test('"No vibecode" hides only mods whose code AI wrote all of', () => {
+test('"No vibecoded mods" hides only mods whose code AI wrote all of', () => {
   assert.deepEqual(kept(preset('novibecode')),
     mods.map((mod) => mod.id).filter((id) => id !== 'all-code'));
 });
