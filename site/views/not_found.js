@@ -14,7 +14,7 @@ export function render(root) {
     el('h2', { text: 'Not found' }),
     el('p', { text: NOT_FOUND_MESSAGE }),
     el('p', { class: 'not-found-links' }, [
-      el('a', { href: '#/home', text: 'Front page' }),
+      el('a', { href: '#/home', text: 'Go Home' }),
       el('a', { href: '#/browse', text: 'Browse mods' }),
     ]),
   ]));
