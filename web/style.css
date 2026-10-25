@@ -801,6 +801,26 @@ dialog.ask-dialog.takedown-dialog[open] { display: flex; flex-direction: column;
 .takedown-dialog .td-footer .dialog-buttons { padding: 12px 0 16px; }
 .td-body .td-rows-scroll { max-height: none; overflow: visible; }
 
+/* Dependencies page */
+.req-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.req-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.req-search, .req-pick {
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 9px; font-size: 0.85rem;
+}
+.req-search { min-width: 220px; padding: 7px 10px; }
+.req-search:focus, .req-pick:focus { outline: none; border-color: var(--primary); }
+.req-small { padding: 3px 9px; font-size: 0.8rem; white-space: nowrap; }
+.req-table td { vertical-align: middle; }
+.req-edit { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.req-pick { width: 150px; }
+.req-pending { font-size: 0.8rem; color: var(--primary); margin-top: 2px; }
+.req-changed td { background: rgba(73, 252, 255, 0.05); }
+.req-save-bar:not(:empty) {
+  position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--surface-container); border: 1px solid var(--primary); border-radius: 8px;
+}
+
 /* The Take down card's tabs */
 .takedown-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; flex-wrap: wrap; }
 .takedown-tab {

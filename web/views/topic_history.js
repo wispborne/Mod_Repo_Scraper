@@ -257,6 +257,8 @@ function jobWord(id) {
     extractLlm: 'LLM extraction',
     llmCoveragePass: 'LLM coverage',
     describePictures: 'image scan',
+    matchRequirements: 'dependency names',
+    setRequirementNames: 'dependency names',
     rebuildBundle: 'rebuild',
     scrapeAndMerge: 'scrape and merge',
     fetchAndUpdate: 'fetch and update',

@@ -30,6 +30,14 @@ enum JobKind {
   /// pictures with missing or outdated descriptions.
   describePictures,
 
+  /// Ask the LLM to match unmatched requirement names to mods.
+  /// Then rebuild the bundle, the catalog and the website. No post is read again.
+  matchRequirements,
+
+  /// Save hand entries in `requirement-names.json` or remove saved answers.
+  /// Then rebuild the website. No network or LLM calls.
+  setRequirementNames,
+
   /// A small trial of the LLM prompt that writes a report and saves nothing.
   llmTest,
 
@@ -65,6 +73,22 @@ enum JobKind {
   /// Remove one entry from `takedowns.json`, then rebuild and publish the same
   /// way, so the mod comes back at its old address.
   restoreTakedown,
+}
+
+/// One change a `setRequirementNames` job makes to `requirement-names.json`.
+@MappableClass()
+class RequirementChange with RequirementChangeMappable {
+  /// The requirement name as a post writes it.
+  final String written;
+
+  /// The mod it means, by permanent id. Null means none of our mods.
+  final String? id;
+
+  /// True removes the saved answer for [written]. The rules apply again.
+  /// The LLM may be asked again. [id] is ignored.
+  final bool forget;
+
+  const RequirementChange({required this.written, this.id, this.forget = false});
 }
 
 /// The places ModRepo mods are scraped from. Which of these a job wants is job
@@ -166,6 +190,9 @@ class JobRequest with JobRequestMappable {
   /// Whether a `takeDown` or `restoreTakedown` job publishes when it is done.
   final bool publishAfter;
 
+  /// The hand entries a `setRequirementNames` job saves or removes.
+  final List<RequirementChange> requirementChanges;
+
   const JobRequest({
     required this.kind,
     this.topicIds = const [],
@@ -191,6 +218,7 @@ class JobRequest with JobRequestMappable {
     this.takedownAuthors = const [],
     this.takedownEntry,
     this.publishAfter = false,
+    this.requirementChanges = const [],
   });
 
   /// A scrape over the boards, the way the CLI has always run.
@@ -232,6 +260,15 @@ class JobRequest with JobRequestMappable {
   factory JobRequest.describePictures({List<int> topicIds = const []}) =>
       JobRequest(
           kind: JobKind.describePictures, topicIds: topicIds, runLlm: true);
+
+  /// Asks the LLM about requirement names the rules could not match.
+  /// Then rebuilds the website.
+  factory JobRequest.matchRequirements() =>
+      const JobRequest(kind: JobKind.matchRequirements, runLlm: true);
+
+  /// Saves or removes the hand entries in [changes]. Then rebuilds the website.
+  factory JobRequest.setRequirementNames(List<RequirementChange> changes) =>
+      JobRequest(kind: JobKind.setRequirementNames, requirementChanges: changes);
 
   /// A trial run of the prompt. Writes a report; touches nothing else.
   factory JobRequest.llmTest({List<int> topicIds = const [], int limit = 5}) =>

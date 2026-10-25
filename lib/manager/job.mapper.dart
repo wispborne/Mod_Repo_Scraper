@@ -39,6 +39,10 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return JobKind.llmCoveragePass;
       case r'describePictures':
         return JobKind.describePictures;
+      case r'matchRequirements':
+        return JobKind.matchRequirements;
+      case r'setRequirementNames':
+        return JobKind.setRequirementNames;
       case r'llmTest':
         return JobKind.llmTest;
       case r'rebuildBundle':
@@ -77,6 +81,10 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return r'llmCoveragePass';
       case JobKind.describePictures:
         return r'describePictures';
+      case JobKind.matchRequirements:
+        return r'matchRequirements';
+      case JobKind.setRequirementNames:
+        return r'setRequirementNames';
       case JobKind.llmTest:
         return r'llmTest';
       case JobKind.rebuildBundle:
@@ -218,6 +226,160 @@ extension RunStateMapperExtension on RunState {
   }
 }
 
+class RequirementChangeMapper extends ClassMapperBase<RequirementChange> {
+  RequirementChangeMapper._();
+
+  static RequirementChangeMapper? _instance;
+  static RequirementChangeMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = RequirementChangeMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'RequirementChange';
+
+  static String _$written(RequirementChange v) => v.written;
+  static const Field<RequirementChange, String> _f$written = Field(
+    'written',
+    _$written,
+  );
+  static String? _$id(RequirementChange v) => v.id;
+  static const Field<RequirementChange, String> _f$id = Field(
+    'id',
+    _$id,
+    opt: true,
+  );
+  static bool _$forget(RequirementChange v) => v.forget;
+  static const Field<RequirementChange, bool> _f$forget = Field(
+    'forget',
+    _$forget,
+    opt: true,
+    def: false,
+  );
+
+  @override
+  final MappableFields<RequirementChange> fields = const {
+    #written: _f$written,
+    #id: _f$id,
+    #forget: _f$forget,
+  };
+
+  static RequirementChange _instantiate(DecodingData data) {
+    return RequirementChange(
+      written: data.dec(_f$written),
+      id: data.dec(_f$id),
+      forget: data.dec(_f$forget),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static RequirementChange fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<RequirementChange>(map);
+  }
+
+  static RequirementChange fromJson(String json) {
+    return ensureInitialized().decodeJson<RequirementChange>(json);
+  }
+}
+
+mixin RequirementChangeMappable {
+  String toJson() {
+    return RequirementChangeMapper.ensureInitialized()
+        .encodeJson<RequirementChange>(this as RequirementChange);
+  }
+
+  Map<String, dynamic> toMap() {
+    return RequirementChangeMapper.ensureInitialized()
+        .encodeMap<RequirementChange>(this as RequirementChange);
+  }
+
+  RequirementChangeCopyWith<
+    RequirementChange,
+    RequirementChange,
+    RequirementChange
+  >
+  get copyWith =>
+      _RequirementChangeCopyWithImpl<RequirementChange, RequirementChange>(
+        this as RequirementChange,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return RequirementChangeMapper.ensureInitialized().stringifyValue(
+      this as RequirementChange,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return RequirementChangeMapper.ensureInitialized().equalsValue(
+      this as RequirementChange,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return RequirementChangeMapper.ensureInitialized().hashValue(
+      this as RequirementChange,
+    );
+  }
+}
+
+extension RequirementChangeValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, RequirementChange, $Out> {
+  RequirementChangeCopyWith<$R, RequirementChange, $Out>
+  get $asRequirementChange => $base.as(
+    (v, t, t2) => _RequirementChangeCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class RequirementChangeCopyWith<
+  $R,
+  $In extends RequirementChange,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? written, String? id, bool? forget});
+  RequirementChangeCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _RequirementChangeCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, RequirementChange, $Out>
+    implements RequirementChangeCopyWith<$R, RequirementChange, $Out> {
+  _RequirementChangeCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<RequirementChange> $mapper =
+      RequirementChangeMapper.ensureInitialized();
+  @override
+  $R call({String? written, Object? id = $none, bool? forget}) => $apply(
+    FieldCopyWithData({
+      if (written != null) #written: written,
+      if (id != $none) #id: id,
+      if (forget != null) #forget: forget,
+    }),
+  );
+  @override
+  RequirementChange $make(CopyWithData data) => RequirementChange(
+    written: data.get(#written, or: $value.written),
+    id: data.get(#id, or: $value.id),
+    forget: data.get(#forget, or: $value.forget),
+  );
+
+  @override
+  RequirementChangeCopyWith<$R2, RequirementChange, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _RequirementChangeCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class JobRequestMapper extends ClassMapperBase<JobRequest> {
   JobRequestMapper._();
 
@@ -229,6 +391,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       ScopeTypeMapper.ensureInitialized();
       ScrapeBoardMapper.ensureInitialized();
       ModSourceKindMapper.ensureInitialized();
+      RequirementChangeMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -368,6 +531,15 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     opt: true,
     def: false,
   );
+  static List<RequirementChange> _$requirementChanges(JobRequest v) =>
+      v.requirementChanges;
+  static const Field<JobRequest, List<RequirementChange>>
+  _f$requirementChanges = Field(
+    'requirementChanges',
+    _$requirementChanges,
+    opt: true,
+    def: const [],
+  );
 
   @override
   final MappableFields<JobRequest> fields = const {
@@ -391,6 +563,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     #takedownAuthors: _f$takedownAuthors,
     #takedownEntry: _f$takedownEntry,
     #publishAfter: _f$publishAfter,
+    #requirementChanges: _f$requirementChanges,
   };
 
   static JobRequest _instantiate(DecodingData data) {
@@ -415,6 +588,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       takedownAuthors: data.dec(_f$takedownAuthors),
       takedownEntry: data.dec(_f$takedownEntry),
       publishAfter: data.dec(_f$publishAfter),
+      requirementChanges: data.dec(_f$requirementChanges),
     );
   }
 
@@ -481,6 +655,12 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
   ListCopyWith<$R, int, ObjectCopyWith<$R, int, int>> get topicIds;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
   get takedownAuthors;
+  ListCopyWith<
+    $R,
+    RequirementChange,
+    RequirementChangeCopyWith<$R, RequirementChange, RequirementChange>
+  >
+  get requirementChanges;
   $R call({
     JobKind? kind,
     List<int>? topicIds,
@@ -502,6 +682,7 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     List<String>? takedownAuthors,
     String? takedownEntry,
     bool? publishAfter,
+    List<RequirementChange>? requirementChanges,
   });
   JobRequestCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -529,6 +710,17 @@ class _JobRequestCopyWithImpl<$R, $Out>
     (v) => call(takedownAuthors: v),
   );
   @override
+  ListCopyWith<
+    $R,
+    RequirementChange,
+    RequirementChangeCopyWith<$R, RequirementChange, RequirementChange>
+  >
+  get requirementChanges => ListCopyWith(
+    $value.requirementChanges,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(requirementChanges: v),
+  );
+  @override
   $R call({
     JobKind? kind,
     List<int>? topicIds,
@@ -550,6 +742,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
     List<String>? takedownAuthors,
     Object? takedownEntry = $none,
     bool? publishAfter,
+    List<RequirementChange>? requirementChanges,
   }) => $apply(
     FieldCopyWithData({
       if (kind != null) #kind: kind,
@@ -573,6 +766,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
       if (takedownAuthors != null) #takedownAuthors: takedownAuthors,
       if (takedownEntry != $none) #takedownEntry: takedownEntry,
       if (publishAfter != null) #publishAfter: publishAfter,
+      if (requirementChanges != null) #requirementChanges: requirementChanges,
     }),
   );
   @override
@@ -609,6 +803,10 @@ class _JobRequestCopyWithImpl<$R, $Out>
     takedownAuthors: data.get(#takedownAuthors, or: $value.takedownAuthors),
     takedownEntry: data.get(#takedownEntry, or: $value.takedownEntry),
     publishAfter: data.get(#publishAfter, or: $value.publishAfter),
+    requirementChanges: data.get(
+      #requirementChanges,
+      or: $value.requirementChanges,
+    ),
   );
 
   @override

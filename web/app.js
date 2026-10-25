@@ -14,6 +14,7 @@ import * as log from './views/log.js';
 import * as runs from './views/runs.js';
 import * as run from './views/run.js';
 import * as takedowns from './views/takedowns.js';
+import * as requirementNames from './views/requirement_names.js';
 import { mountHeaderChip } from './manager.js';
 import { mountUpdateNotice } from './update.js';
 import { icon } from './icons.js';
@@ -44,6 +45,7 @@ const NAV_SECTIONS = [
     title: 'Corrections',
     items: [
       { route: ['takedowns'], label: 'Takedowns', icon: 'eye-off' },
+      { route: ['dependency-names'], label: 'Dependencies', icon: 'link' },
     ],
   },
   {
@@ -77,6 +79,9 @@ const ROUTES = {
   files: files.render,
   log: log.render,
   takedowns: takedowns.render,
+  'dependency-names': requirementNames.render,
+  // The page's first address, kept so old links still open it.
+  'requirement-names': requirementNames.render,
 };
 
 function routeMatches(route, parts) {

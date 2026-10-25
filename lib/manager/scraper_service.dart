@@ -27,6 +27,8 @@ import '../catalog/mod_catalog.dart';
 import '../catalog/source_post.dart';
 import '../catalog/takedowns.dart';
 import '../site/public_site_step.dart';
+import '../site/requirement_asker.dart';
+import '../site/requirement_names.dart';
 import '../utilities/caching_http_client.dart';
 import 'bundle_snapshot_store.dart';
 import 'cancel_token.dart';
@@ -252,6 +254,10 @@ class ScraperService implements JobRunner {
         return _llmCoveragePassJob(request, reporter, cancel, runId);
       case JobKind.describePictures:
         return _describePictures(request, reporter, cancel, runId);
+      case JobKind.matchRequirements:
+        return _matchRequirements(request, reporter, runId);
+      case JobKind.setRequirementNames:
+        return _setRequirementNames(request, reporter);
       case JobKind.llmTest:
         return _llmTest(request, reporter, cancel);
       case JobKind.rebuildBundle:
@@ -323,6 +329,7 @@ class ScraperService implements JobRunner {
           '${result.errors} errors.');
 
       await _rebuildBundle(
+          extractor: llm?.extractor,
           scrapeResult: result,
           runId: runId,
           reporter: reporter,
@@ -365,7 +372,8 @@ class ScraperService implements JobRunner {
 
       if (llm != null) await llmStore!.flush();
       await _saveCaches();
-      await _rebuildBundle(runId: runId, reporter: reporter);
+      await _rebuildBundle(
+          runId: runId, reporter: reporter, extractor: llm?.extractor);
 
       return JobOutcome(
         itemsDone: result.modsScraped,
@@ -490,7 +498,8 @@ class ScraperService implements JobRunner {
       // a file?" cache, and a Discord thread's download rules may have run for
       // the first time, so save both.
       await _saveCaches();
-      await _rebuildBundle(runId: runId, reporter: reporter);
+      await _rebuildBundle(
+          runId: runId, reporter: reporter, extractor: llm.extractor);
 
       return JobOutcome(
         itemsDone: done,
@@ -560,6 +569,7 @@ class ScraperService implements JobRunner {
       await llmStore!.flush();
       await probeCache.saveCache();
       await _rebuildBundle(
+          extractor: llm.extractor,
           runId: runId,
           reporter: reporter,
           collectMergeDebug: request.collectMergeDebug);
@@ -772,6 +782,76 @@ class ScraperService implements JobRunner {
         reporter: reporter,
         collectMergeDebug: request.collectMergeDebug);
     return const JobOutcome();
+  }
+
+  /// Asks the LLM about requirement names the rules could not match.
+  /// Then rebuilds the bundle, the catalog and the website. No post is read again.
+  /// The LLM calls run during the website step.
+  Future<JobOutcome> _matchRequirements(
+      JobRequest request, RunReporter reporter, String? runId) async {
+    final llm = _buildExtractor(request);
+    if (llm == null) {
+      reporter.log('No LLM service is set up. No names were sent to the LLM. '
+          'The website was rebuilt with the saved answers.');
+      await _rebuildBundle(runId: runId, reporter: reporter);
+      return const JobOutcome();
+    }
+    try {
+      await _rebuildBundle(
+          runId: runId, reporter: reporter, extractor: llm.extractor);
+      return JobOutcome(
+        llmCalls: llm.extractor.liveCallCount,
+        guardrailStop: _llmStopReason(llm.extractor),
+      );
+    } finally {
+      await llm.close();
+    }
+  }
+
+  /// Saves or removes hand entries in `requirement-names.json`. Then rebuilds
+  /// the website from the saved catalog and bundle. If a mod is missing from
+  /// the catalog, all changes are refused.
+  Future<JobOutcome> _setRequirementNames(
+      JobRequest request, RunReporter reporter) async {
+    reporter.phase('Dependency names');
+    final changes = [
+      for (final change in request.requirementChanges)
+        if (requirementKey(change.written).isNotEmpty) change,
+    ];
+    if (changes.isEmpty) {
+      throw StateError('No dependency names to change. Nothing was changed.');
+    }
+    final catalog = ModCatalog.read(catalogStep.outputFile);
+    final ids = {for (final mod in catalog?.mods ?? const <CatalogMod>[]) mod.id};
+    for (final change in changes) {
+      final id = change.id;
+      if (!change.forget && id != null && !ids.contains(id)) {
+        throw StateError('No mod in ${ModCatalog.fileName} has the id "$id". '
+            '"${change.written}" cannot match it. Nothing was changed.');
+      }
+    }
+
+    final store = RequirementNameStore(environment.dataPath)..load();
+    if (store.isUnreadable) {
+      throw StateError('${RequirementNameStore.fileName} could not be read. Fix '
+          'or remove it first. Nothing was changed.');
+    }
+    for (final change in changes) {
+      if (change.forget) {
+        store.forget(change.written);
+        reporter.log('Removed the saved answer for "${change.written}".');
+      } else {
+        store.putHandAnswer(change.written, change.id);
+        reporter.log('"${change.written}" now means '
+            '${change.id == null ? 'none of our mods' : '"${change.id}"'}.');
+      }
+    }
+    await store.save();
+    reporter.log('Saved ${RequirementNameStore.fileName}.');
+
+    reporter.phase('Website files');
+    await siteStep.afterMerge(log: reporter.log);
+    return JobOutcome(itemsDone: changes.length, itemsTotal: changes.length);
   }
 
   // ---------------------------------------------------------------------------
@@ -1104,11 +1184,16 @@ class ScraperService implements JobRunner {
   ///
   /// [collectMergeDebug] also saves the data behind the Merge view and Catalog
   /// diff, from the catalog built here.
+  ///
+  /// Jobs with the LLM on provide [extractor]. It asks the LLM to match
+  /// requirement names the rules could not match. These calls count against
+  /// the same budget.
   Future<void> _rebuildBundle(
       {ScrapeResult? scrapeResult,
       String? runId,
       RunReporter? reporter,
-      bool collectMergeDebug = false}) async {
+      bool collectMergeDebug = false,
+      PostExtractor? extractor}) async {
     // The catalog comes first. It reads the store and the LLM's answers, never
     // the bundle, and it says which posts had every mod taken down, so the
     // details file can leave them out. A topic the LLM has just found four
@@ -1144,7 +1229,15 @@ class ScraperService implements JobRunner {
     // thing a mod's version can be read from. This is the one place a release
     // is ever recorded.
     reporter?.phase('Website files');
-    await siteStep.afterBundle(bundle, bundleId: runId, log: reporter?.log);
+    await siteStep.afterBundle(
+      bundle,
+      bundleId: runId,
+      requirementAsker: extractor == null
+          ? null
+          : RequirementAsker(
+              client: extractor.client, takeCall: extractor.takeCall),
+      log: reporter?.log,
+    );
   }
 
   /// Keeps a copy of the bundle just published, minus the posts' text.

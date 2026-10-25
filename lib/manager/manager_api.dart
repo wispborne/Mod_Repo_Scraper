@@ -156,6 +156,11 @@ class ManagerApi {
       throw _BadRequest('A takedown needs a mod id in "takedownModId" or at '
           'least one name in "takedownAuthors".');
     }
+    if (request.kind == JobKind.setRequirementNames &&
+        !request.requirementChanges.any((c) => c.written.trim().isNotEmpty)) {
+      throw _BadRequest('A setRequirementNames job needs at least one change in '
+          '"requirementChanges".');
+    }
     if (request.kind == JobKind.restoreTakedown &&
         (request.takedownEntry?.trim() ?? '').isEmpty) {
       throw _BadRequest('A restore needs the entry to remove in '

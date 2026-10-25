@@ -336,6 +336,20 @@ function savedCard() {
       onclick: () => start({ kind: 'describePictures', runLlm: true }),
     }),
   ]));
+
+  card.append(el('p', {
+    class: 'run-when',
+    text: 'Ask the LLM to match unmatched dependency names to mods. '
+      + 'No post is read again. '
+      + 'Then rebuild the catalog, mod details, and website.',
+  }));
+  card.append(el('div', { class: 'job-buttons' }, [
+    el('button', {
+      class: 'btn',
+      text: 'Match dependency names',
+      onclick: () => start({ kind: 'matchRequirements', runLlm: true }),
+    }),
+  ]));
   return card;
 }
 

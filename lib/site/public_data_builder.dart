@@ -40,6 +40,7 @@ import 'public_categories.dart';
 import 'release_feed_xml.dart';
 import 'sitemap.dart';
 import 'release_state_store.dart';
+import 'requirement_names.dart';
 import 'summary_text.dart';
 
 /// One catalog mod with its forum thread and its facts looked up.
@@ -169,12 +170,29 @@ class PublicSiteData {
   /// mod. Only ids whose mod has a page here.
   final Map<String, String> movedIds;
 
+  /// Requirement names with no rule match or saved match to one of our mods.
+  /// Keyed by [requirementKey]. Each entry has the first spelling seen and the
+  /// number of mods that used it. Includes names the LLM said match none of ours.
+  final Map<String, ({String written, int count})> unmatchedNeeds;
+
+  /// Every library and every mod required by at least
+  /// [PublicDataBuilder.requiredByAtLeast] other mods. The LLM chooses from
+  /// this list when asked to match a requirement name.
+  final List<RequiredModNames> requiredMods;
+
+  /// Every requirement name the build looked up, by [requirementKey], and
+  /// which mod it was matched to and how. Written to the viewer's report.
+  final Map<String, RequirementNameSeen> requirementNames;
+
   const PublicSiteData({
     required this.list,
     required this.details,
     required this.feed,
     this.collections = const [],
     this.movedIds = const {},
+    this.unmatchedNeeds = const {},
+    this.requiredMods = const [],
+    this.requirementNames = const {},
   });
 }
 
@@ -245,6 +263,14 @@ class PublicDataBuilder {
   /// looked at.
   final PictureCaptionStore? pictureCaptions;
 
+  /// Saved matches for requirement names the rules cannot match.
+  /// If omitted, only the rules are used.
+  final RequirementNameStore? requirementNames;
+
+  /// The minimum number of mods that must require a non-library mod
+  /// for it to be included in the list of required mods.
+  static const requiredByAtLeast = 3;
+
   final Logger _log;
 
   PublicDataBuilder({
@@ -252,6 +278,7 @@ class PublicDataBuilder {
     this.idStore,
     this.sitePath = 'site',
     this.pictureCaptions,
+    this.requirementNames,
     Logger? logger,
   }) : _log = logger ?? Logger('PublicDataBuilder');
 
@@ -359,10 +386,10 @@ class PublicDataBuilder {
 
     // Which mod each name belongs to, so "Requires LazyLib" can be a link.
     // Built from every mod at once, so it has to wait until they all have ids.
-    final modsByName = <String, _JoinedMod>{};
-    for (final entry in joined) {
-      modsByName.putIfAbsent(ModIdStore.cleanName(entry.mod.name), () => entry);
-    }
+    final requirements = RequirementResolver(
+      [for (final entry in joined) _namesOf(entry)],
+      store: requirementNames,
+    );
 
     final releasesByMod = _releasesByMod(threadReleases, joined);
     final feed = _feedOrder(releasesByMod);
@@ -406,7 +433,7 @@ class PublicDataBuilder {
         ownSection: ownSection,
         threadDownloads: threadDownloads,
         releases: modReleases,
-        modsByName: modsByName,
+        requirements: requirements,
         partOfThreadTitle: entry.partOfThreadTitle,
         shownName: entry.shownName,
         discordPosts: discordPosts,
@@ -441,6 +468,7 @@ class PublicDataBuilder {
 
     final collectionPages = _collectionPages(collections, listRecords, takenIds);
     final pageIds = {...details.keys, for (final page in collectionPages) page.id};
+    _logUnmatchedNeeds(requirements.unmatched);
     return PublicSiteData(
       list: PublicModList(generatedAt: builtAt, mods: listRecords),
       details: details,
@@ -450,7 +478,59 @@ class PublicDataBuilder {
         for (final MapEntry(key: old, value: to) in movedIds.entries)
           if (!pageIds.contains(old) && details.containsKey(to)) old: to,
       },
+      unmatchedNeeds: Map.of(requirements.unmatched),
+      requiredMods: _requiredMods(joined, listRecords),
+      requirementNames: Map.of(requirements.seen),
     );
+  }
+
+  /// All names for [entry], used to match requirement names.
+  static RequiredModNames _namesOf(_JoinedMod entry) => RequiredModNames(
+        id: entry.id,
+        shownName: entry.shownName,
+        names: [entry.mod.name, if (entry.facts?.name case final name?) name],
+        nicknames: entry.facts?.nicknames ?? const [],
+      );
+
+  /// The mods other mods need. See [PublicSiteData.requiredMods].
+  static List<RequiredModNames> _requiredMods(
+      List<_JoinedMod> joined, List<PublicMod> records) {
+    final neededBy = <String, int>{};
+    for (final record in records) {
+      for (final need in record.needs) {
+        if (need.id case final id?) neededBy[id] = (neededBy[id] ?? 0) + 1;
+      }
+    }
+    final libraries = {
+      for (final record in records)
+        if (record.categories.contains('Libraries')) record.id,
+    };
+    // Two mods can share a name, such as a fork or an old thread. Show the LLM
+    // only the one required by more mods. It does not have to tell them apart.
+    final byName = <String, _JoinedMod>{};
+    for (final entry in joined) {
+      if (!libraries.contains(entry.id) &&
+          (neededBy[entry.id] ?? 0) < requiredByAtLeast) {
+        continue;
+      }
+      final key = requirementKey(entry.shownName);
+      final there = byName[key];
+      if (there == null || (neededBy[entry.id] ?? 0) > (neededBy[there.id] ?? 0)) {
+        byName[key] = entry;
+      }
+    }
+    return [for (final entry in byName.values) _namesOf(entry)];
+  }
+
+  /// Logs requirement names that matched none of our mods, most-used first.
+  /// This helps find new misspellings of library names.
+  void _logUnmatchedNeeds(Map<String, ({String written, int count})> unmatched) {
+    if (unmatched.isEmpty) return;
+    final names = unmatched.values.toList()
+      ..sort((a, b) => b.count.compareTo(a.count));
+    _log.info('${names.length} dependency names match none of our mods: '
+        '${names.take(30).map((n) => '"${n.written}" (${n.count})').join(', ')}'
+        '${names.length > 30 ? ' and more' : ''}.');
   }
 
   /// The pages of Collections that keep an old address. A Collection whose id
@@ -823,7 +903,7 @@ class PublicDataBuilder {
     required String? ownSection,
     required List<AssumedDownloadCandidate> threadDownloads,
     required List<ModRelease> releases,
-    required Map<String, _JoinedMod> modsByName,
+    required RequirementResolver requirements,
     required String? partOfThreadTitle,
     required String shownName,
     required DiscordPostsFile discordPosts,
@@ -881,7 +961,7 @@ class PublicDataBuilder {
       addedOn: _addedOn(mod, thread, postDate, id,
           threadNeverRead: topicId != null && !threadWasRead),
       threadLastPostOn: lastPost == null ? null : writeDay(lastPost),
-      needs: _neededMods(extras?.needs, id, modsByName),
+      needs: _neededMods(extras?.needs, id, requirements),
       partOfThreadTitle: partOfThreadTitle,
     );
   }
@@ -958,7 +1038,7 @@ class PublicDataBuilder {
   static List<PublicNeededMod> _neededMods(
     List<String>? names,
     String ownId,
-    Map<String, _JoinedMod> modsByName,
+    RequirementResolver requirements,
   ) {
     if (names == null || names.isEmpty) return const [];
 
@@ -968,10 +1048,10 @@ class PublicDataBuilder {
       final written = raw.trim();
       if (written.isEmpty) continue;
 
-      final known = modsByName[ModIdStore.cleanName(written)];
+      final known = requirements.resolve(written);
       if (known != null && known.id == ownId) continue;
 
-      final name = known == null ? written : known.shownName;
+      final name = known == null ? written : known.name;
       if (!seen.add((known?.id ?? name).toLowerCase())) continue;
       needed.add(PublicNeededMod(name: name, id: known?.id));
     }

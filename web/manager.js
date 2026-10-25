@@ -19,6 +19,8 @@ export const KIND_LABELS = {
   extractLlm: 'Re-run LLM extraction',
   llmCoveragePass: 'LLM catch-up',
   describePictures: 'Scan images',
+  matchRequirements: 'Match dependency names',
+  setRequirementNames: 'Change dependency names',
   llmTest: 'LLM test',
   rebuildBundle: 'Rebuild mod details',
   mergeModRepo: 'Merge from saved files',
@@ -229,6 +231,15 @@ export function describeJob(request) {
           + 'not yet scanned, or scanned with an older prompt. Stop at the per-run call '
           + 'limit. No post is read again. Then rebuild the catalog, mod details, and '
           + 'website. LLM calls may cost money.';
+    case 'setRequirementNames': {
+      const n = (request.requirementChanges || []).length;
+      return `Save ${n} dependency ${n === 1 ? 'change' : 'changes'}. `
+        + 'Rebuild the website from saved files. No network or LLM calls.';
+    }
+    case 'matchRequirements':
+      return 'Ask the LLM to match unmatched dependency names, such as '
+        + '"Graphic Lib", to mods. No post is read again. Then rebuild the catalog, mod details, '
+        + 'and website. LLM calls may cost money.';
     case 'llmCoveragePass':
       return 'Update missing or outdated LLM results using saved forum topics and Discord '
         + 'threads, up to the per-run call limit. Then rebuild the catalog, mod details, '

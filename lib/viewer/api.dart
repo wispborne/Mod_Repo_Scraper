@@ -13,6 +13,7 @@ import '../bot/scraper/qb/models/post_extraction.dart';
 import '../catalog/discord_posts.dart';
 import '../catalog/mod_catalog.dart';
 import '../catalog/takedowns.dart';
+import '../site/requirement_names.dart';
 import 'bundle_views.dart';
 import 'data_access.dart';
 import 'merge_views.dart';
@@ -64,6 +65,8 @@ class ViewerApi {
     r.get('/takedowns/preview', _takedownPreview);
     r.get('/takedowns/authors', _takedownAuthors);
     r.get('/takedowns/mods', _takedownMods);
+
+    r.get('/requirement-names', _requirementNames);
 
     return r.call;
   }
@@ -1022,6 +1025,32 @@ class ViewerApi {
       }
     }
     return _json({'list': list.toMap(), 'matches': matches});
+  }
+
+  // --- Requirement names (read only: changes go through a manager job) ---
+
+  /// The last website build's requirement name matches and the answers
+  /// saved in `requirement-names.json`.
+  Response _requirementNames(Request req) {
+    final reportFile = File(p.join(data.dataDir, RequirementNameStore.reportFileName));
+    Object? report;
+    if (reportFile.existsSync()) {
+      try {
+        report = jsonDecode(reportFile.readAsStringSync());
+      } catch (_) {
+        report = null;
+      }
+    }
+    final store = RequirementNameStore(data.dataDir)..load();
+    return _json({
+      'report': report,
+      if (store.isUnreadable)
+        'error': '${RequirementNameStore.fileName} could not be read. No saved '
+            'answers are shown. Fix the file before saving changes.',
+      'saved': [
+        for (final MapEntry(:key, :value) in store.answers.entries) {'key': key, ...value.toJson()},
+      ],
+    });
   }
 
   /// Every person credited in the current catalog, most mods first, for the

@@ -331,6 +331,15 @@ class PostExtractor {
   /// has budget left and report how much of it was used.
   int get liveCallCount => _processed;
 
+  /// The client used to send posts. Other small jobs in the same run use
+  /// this client to share its fallback and delay between calls.
+  LlmClient get client => _client;
+
+  /// Reserves one call from this run's budget for another task,
+  /// such as matching a requirement name. Returns false if the run has stopped
+  /// calling or has no calls left. The call counts in [liveCallCount].
+  Future<bool> takeCall() async => !_stopAsked && await _reserveSlot();
+
   /// The field set for the current settings: [fieldSet], plus 'summary' when
   /// summaries are on. Part of the cache key, so flipping summaries on re-runs
   /// posts and flipping it off returns to the earlier cached results.

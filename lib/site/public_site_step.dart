@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
@@ -12,6 +13,8 @@ import 'mod_id_store.dart';
 import 'public_data_builder.dart';
 import 'release_detector.dart';
 import 'release_state_store.dart';
+import 'requirement_asker.dart';
+import 'requirement_names.dart';
 
 /// The step at the end of a run that rebuilds the public website's files.
 ///
@@ -57,9 +60,13 @@ class PublicSiteStep {
   /// [bundleId] is the run's own id, which is also what the bundle's snapshot is
   /// named after — so a bundle is never counted twice, whichever way it is
   /// reached.
+  ///
+  /// Jobs with the LLM on provide [requirementAsker]. It asks about requirement
+  /// names the rules could not match to one of our mods.
   Future<void> afterBundle(
     ForumDataBundle bundle, {
     String? bundleId,
+    RequirementAsker? requirementAsker,
     void Function(String message)? log,
   }) async {
     final store = ReleaseStateStore(dataPath);
@@ -79,6 +86,7 @@ class PublicSiteStep {
       catalog: _readCatalog(),
       bundle: bundle,
       releases: state.newestFirst,
+      requirementAsker: requirementAsker,
       log: log,
     );
   }
@@ -109,6 +117,7 @@ class PublicSiteStep {
     required ModCatalog? catalog,
     required ForumDataBundle? bundle,
     required List<ThreadRelease> releases,
+    RequirementAsker? requirementAsker,
     void Function(String message)? log,
   }) async {
     if (catalog == null || catalog.mods.isEmpty) {
@@ -126,26 +135,71 @@ class PublicSiteStep {
     // the card picture is chosen from that.
     final pictureCaptions = PictureCaptionStore(dataPath);
     await pictureCaptions.load();
+    // Saved matches for requirement names the rules could not match.
+    final requirementNames = RequirementNameStore(dataPath)..load();
     final builder = PublicDataBuilder(
         outputPath: outputPath,
         idStore: idStore,
         sitePath: sitePath,
-        pictureCaptions: pictureCaptions);
+        pictureCaptions: pictureCaptions,
+        requirementNames: requirementNames);
 
-    final data = builder.build(
-      mods: catalog.mods,
-      collections: catalog.collections,
-      movedIds: catalog.movedIds,
-      bundle: bundle,
-      threadReleases: releases,
-      discordPosts: _readDiscordPosts(),
-    );
+    final discordPosts = _readDiscordPosts();
+    PublicSiteData buildData() => builder.build(
+          mods: catalog.mods,
+          collections: catalog.collections,
+          movedIds: catalog.movedIds,
+          bundle: bundle,
+          threadReleases: releases,
+          discordPosts: discordPosts,
+        );
+
+    var data = buildData();
+    if (requirementAsker != null) {
+      final matched = await requirementAsker.ask(
+        unmatched: data.unmatchedNeeds,
+        candidates: data.requiredMods,
+        store: requirementNames,
+        log: log,
+      );
+      // Build again only when an answer changes a page. Building takes less time
+      // than writing a thousand files. The files are written once either way.
+      if (matched > 0) data = buildData();
+    }
     await builder.write(data);
+    await _writeRequirementReport(data);
 
     _say(
         log,
         'Built the website files: ${data.list.mods.length} mods and '
         '${data.feed.releases.length} releases in ${builder.siteDir}.');
+  }
+
+  /// Saves this build's requirement name matches for the viewer's
+  /// Requirement names page. Includes every published mod for choosing a
+  /// match. The report is never published.
+  Future<void> _writeRequirementReport(PublicSiteData data) async {
+    final names = data.requirementNames.entries.toList()
+      ..sort((a, b) => b.value.count.compareTo(a.value.count));
+    final mods = [
+      for (final mod in data.list.mods) {'id': mod.id, 'name': mod.displayName ?? mod.name},
+    ]..sort((a, b) => a['name']!.toLowerCase().compareTo(b['name']!.toLowerCase()));
+    final file = File(p.join(dataPath, RequirementNameStore.reportFileName));
+    try {
+      await file.parent.create(recursive: true);
+      final temp = File('${file.path}.tmp');
+      await temp.writeAsString(jsonEncode({
+        'builtAt': data.list.generatedAt.toIso8601String(),
+        'names': [
+          for (final MapEntry(:key, :value) in names) {'key': key, ...value.toJson()},
+        ],
+        'mods': mods,
+      }));
+      await temp.rename(file.path);
+    } catch (e) {
+      _log.warning('Could not save ${file.path}. The viewer\'s Dependency '
+          'names page shows the previous build: $e');
+    }
   }
 
   /// The catalog from `mod-catalog.json`, or null when there is no such file
