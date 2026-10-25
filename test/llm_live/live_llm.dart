@@ -151,6 +151,12 @@ Future<LlmStoreEntry?> readDiscordWithTheModel(
     _readWithTheModel(loadDiscordThread(threadId).toSourcePost(),
         summaries: summaries);
 
+/// How the last read's changelog entries came back: cut out of the post from
+/// the model's first and last words, copied whole, or dropped. The stored
+/// answer only holds the notes, so this is the one way to tell a long entry
+/// the model pointed at from one it copied anyway.
+({int cut, int copied, int dropped})? lastChangelogCounts;
+
 Future<LlmStoreEntry?> _readWithTheModel(
   SourcePost source, {
   bool summaries = true,
@@ -183,6 +189,7 @@ Future<LlmStoreEntry?> _readWithTheModel(
       maxConcurrentCalls: 1,
     );
     await extractor.extractFor(source, []);
+    lastChangelogCounts = extractor.changelogCounts;
     return store.getKey(source.storeKey);
   } finally {
     httpClient.close();
@@ -278,7 +285,19 @@ String describe(LlmStoreEntry? entry) {
         }
         if (aiUse.tools != null) b.write('\n        tools: ${aiUse.tools}');
       }
+      final changelog = extras.changelog;
+      if (changelog?.link != null) b.write('\n      changelog: ${changelog!.link}');
+      for (final e in (changelog?.entries ?? const <String, String>{}).entries) {
+        final notes = e.value.replaceAll('\n', ' / ');
+        b.write('\n      changelog ${e.key}: '
+            '"${notes.length > 160 ? '${notes.substring(0, 160)}…' : notes}"');
+      }
     }
+  }
+  final counts = lastChangelogCounts;
+  if (counts != null) {
+    b.write('\nchangelog entries: ${counts.cut} cut, ${counts.copied} copied, '
+        '${counts.dropped} dropped');
   }
   return b.toString();
 }

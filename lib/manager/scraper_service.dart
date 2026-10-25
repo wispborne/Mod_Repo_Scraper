@@ -1089,6 +1089,13 @@ class ScraperService implements JobRunner {
           '${captioner.hasStopped ? '. Stopped early after calls kept failing' : ''}.');
     }
 
+    final changelogs = extractor.changelogCounts;
+    if (changelogs.cut + changelogs.copied + changelogs.dropped > 0) {
+      reporter.log('Changelogs: ${changelogs.cut} entries cut out of posts, '
+          '${changelogs.copied} short ones copied, ${changelogs.dropped} '
+          'dropped because they could not be found in the post.');
+    }
+
     return _CoverageTally(
       seen: seen + discord.seen,
       total: index.length + discord.total,

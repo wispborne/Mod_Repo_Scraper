@@ -7,7 +7,7 @@
 /// is always the author's own text, never the model's copy of it.
 library;
 
-import '../../../../site/description_slice.dart';
+import 'anchor_key.dart';
 
 /// The longest statement kept. Two anchors make it cheap to point at half a
 /// post by mistake, and a statement that long is not one statement.
@@ -31,21 +31,7 @@ String? cutQuote(String postText, String startsWith, String endsWith) {
   final start = anchorKey(startsWith);
   final end = anchorKey(endsWith);
 
-  // The letters and numbers of the text, lower case, and where each one sits
-  // in the text.
-  final key = StringBuffer();
-  final at = <int>[];
-  var i = 0;
-  for (final rune in text.runes) {
-    final char = String.fromCharCode(rune);
-    final kept = anchorKey(char);
-    for (var k = 0; k < kept.length; k++) {
-      at.add(i);
-    }
-    key.write(kept);
-    i += char.length;
-  }
-  final haystack = key.toString();
+  final (key: haystack, :at) = anchorKeyWithPlaces(text);
 
   final startAt = haystack.indexOf(start);
   if (startAt < 0) return null;

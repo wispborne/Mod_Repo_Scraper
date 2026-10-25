@@ -11,39 +11,10 @@
 /// words or it does not appear at all.
 library;
 
+import '../bot/scraper/qb/llm/anchor_key.dart';
 import 'post_html.dart';
 
-/// How short an anchor may be before it is thrown out. A very short one matches
-/// almost anywhere, and a wrong cut is worse than no description.
-const int _shortestAnchor = 8;
-
-/// A piece of writing with everything but its letters and numbers taken out,
-/// lower case.
-///
-/// Punctuation, spacing, capitals and HTML entities all differ between what the
-/// model copies and what the post holds, and none of those differences mean the
-/// model pointed somewhere else. Letters and numbers are what is left when they
-/// are all gone. Letters in any alphabet count, so a description in Russian or
-/// Chinese anchors the same way an English one does.
-String anchorKey(String text) =>
-    text.toLowerCase().replaceAll(_notLetterOrNumber, '');
-
-/// True when the post holds both anchors, the start at or before the end.
-///
-/// [postText] is one post's plain words. Anchors that straddle two posts are
-/// not a match: the description has to sit in one of them.
-bool anchorsFoundIn(String postText, String startsWith, String endsWith) {
-  final start = anchorKey(startsWith);
-  final end = anchorKey(endsWith);
-  if (start.length < _shortestAnchor || end.length < _shortestAnchor) {
-    return false;
-  }
-
-  final haystack = anchorKey(postText);
-  final startAt = haystack.indexOf(start);
-  if (startAt < 0) return false;
-  return haystack.indexOf(end, startAt) >= 0;
-}
+export '../bot/scraper/qb/llm/anchor_key.dart' show anchorKey, anchorsFoundIn;
 
 /// The stretch of [cleanedHtml] between the two anchors, rebuilt as its own
 /// small piece of HTML — or null when either anchor cannot be found.
@@ -63,7 +34,7 @@ String? sliceDescriptionHtml(
 
   final start = anchorKey(startsWith);
   final end = anchorKey(endsWith);
-  if (start.length < _shortestAnchor || end.length < _shortestAnchor) {
+  if (start.length < shortestAnchor || end.length < shortestAnchor) {
     return null;
   }
 
@@ -123,5 +94,3 @@ final RegExp _lineBreak = RegExp(
   r'</p>|</div>|</summary>|</li>|</h[3-6]>|</blockquote>|</pre>|<br\s*/?>',
   caseSensitive: false,
 );
-
-final RegExp _notLetterOrNumber = RegExp(r'[^\p{L}\p{N}]+', unicode: true);

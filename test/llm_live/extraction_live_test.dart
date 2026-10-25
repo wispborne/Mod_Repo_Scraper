@@ -180,6 +180,59 @@ void main() {
     });
   });
 
+  group('a long changelog', () {
+    // Tiandong Heavy Industries keeps several versions' notes in a spoiler.
+    // "1.2.1" first appears inside the 1.2.1a notes ("a save made on 1.2.1"),
+    // before its own heading, so a careless search cuts 1.2.1 from the wrong
+    // place. The model points at each entry; the notes are cut from the post.
+    // The post's two downloads are its first two links, followed by a dozen
+    // bit.ly links to other mods, so a wrong link number shows up here too.
+    test('Tiandong (9583) points at each version and gets its own notes',
+        () async {
+      final answer = await read(9583);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final entries = {
+        for (final mod in answer.mods)
+          ...?mod.extras?.changelog?.entries,
+      };
+      expect(entries.keys, containsAll(['1.2.1a', '1.2.1']), reason: why);
+
+      final newest = flatten(entries['1.2.1a']!);
+      final older = flatten(entries['1.2.1']!);
+      expect(newest, contains('shanghairetrofittingsubmarket'), reason: why);
+      expect(newest, isNot(contains('campaignstuff')),
+          reason: '1.2.1a took in the 1.2.1 notes.\n$why');
+      expect(older, contains('campaignrigingeneral'), reason: why);
+      expect(older, isNot(contains('shanghairetrofittingsubmarkethadaseriousbug')),
+          reason: '1.2.1 was cut from inside the 1.2.1a notes.\n$why');
+
+      // No entry runs on under another listed version's heading.
+      for (final e in entries.entries) {
+        final lines = e.value.split('\n').map((l) => l.trim());
+        for (final other in entries.keys.where((k) => k != e.key)) {
+          expect(lines, isNot(contains(other)),
+              reason: '${e.key} holds the heading of $other.\n$why');
+        }
+      }
+
+      // Both long entries came back as pointers, not copies.
+      expect(lastChangelogCounts!.cut, greaterThanOrEqualTo(2), reason: why);
+
+      final downloads = allDownloadUrls(answer);
+      expect(downloads, contains('http://bit.ly/2NCLCwm'), reason: why);
+      for (final requirement in [
+        'http://bit.ly/1TUOykD',
+        'http://bit.ly/1rGgVqq',
+        'http://bit.ly/2orpgpg'
+      ]) {
+        expect(downloads, isNot(contains(requirement)),
+            reason: 'a link to a required mod became a download.\n$why');
+      }
+    });
+  });
+
   group('a thread that is several mods', () {
     // The thread this whole change was made for. Every download is a
     // shields.io badge inside a link with no words of its own, and they all

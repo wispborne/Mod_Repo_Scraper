@@ -1,5 +1,6 @@
 import '../../../../catalog/source_post.dart';
 import '../models/post_extraction.dart';
+import 'post_reducer.dart';
 
 /// Prompts and response schema for extracting mod facts.
 ///
@@ -10,8 +11,8 @@ import '../models/post_extraction.dart';
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 27;
-  static const int discordPromptVersion = 5;
+  static const int promptVersion = 28;
+  static const int discordPromptVersion = 6;
 
   /// Cache version for [kind]. Nexus extraction is not supported yet.
   static int promptVersionFor(SourceKind kind) =>
@@ -80,8 +81,11 @@ together. The number of posts does not determine the number of mods. Below,
 The post text has "[link: <url>]" written into it, marking where each link sat.
 That is our note, not the author's words. Use it to see which mod a download
 belongs to: a link written right by a mod's name is that mod's download. Never
-copy a marker into "name", "descriptionAnchors", a changelog entry, or any other
-field of copied text.
+copy a marker into "name", "descriptionAnchors", a changelog entry's words, or
+any other field of copied text.
+
+Each link in the "LINKS IN THE POST" list starts with a number in square
+brackets, such as [3]. Give a download as that number, not as its address.
 
 Hard rules:
 - Copy text exactly as it appears. NEVER summarize, paraphrase, translate, or
@@ -91,7 +95,7 @@ Hard rules:
 - The mod's own version is NOT the game version it targets. If the post says it
   targets a game version, do not report that as the mod's version.
 - Write every version without a leading "v": "3.0.2", not "v3.0.2". This
-  applies to "version", the changelog's version keys and each update note's
+  applies to "version", each changelog entry's "version" and each update note's
   "version". Keep the rest exactly as the post writes it, so "0.12.2c" and
   "1.0-rc1" stay as they are.
 - List ONLY mods that can actually be downloaded from THIS thread. Do NOT add a
@@ -122,18 +126,22 @@ Return this JSON object:
       "requires": "<for an addon, the exact name of the mod it needs; else null>",
       "downloads": [
         {
-          "url": "<a download link exactly as it appears in the post>",
-          "label": "<the link's text, copied word-for-word; or \\"\\" if it had none>",
+          "link": <the number of the link in the LINKS IN THE POST list, e.g. 3; or null>,
+          "url": "<ONLY when the link is not in that list: the address exactly as it appears in the post; else null>",
           "kind": "<direct | mirror | trios>"
         }
       ],
       "image": "<the URL of an image from the post that clearly belongs to THIS mod, copied exactly from the images list; else null>",
       "changelog": {
         "link": "<a changelog URL from the post, or null>",
-        "entries": {
-          "<version string, e.g. 1.2.3>": "<that version's notes, copied word-for-word from the post>",
-          "<next version>": "<its notes>"
-        }
+        "entries": [
+          {
+            "version": "<the version as the post writes it, without a leading v, e.g. 1.2.3>",
+            "text": "<ONLY when that version's notes are 15 words or fewer: the notes, copied exactly; else null>",
+            "startsWith": "<for longer notes, their first five or six words, copied exactly; else null>",
+            "endsWith": "<for longer notes, their last five or six words, copied exactly; else null>"
+          }
+        ]
       },
       "version": "<the mod's own current version, without a leading v, or null>",
       "supportLinks": [
@@ -250,20 +258,43 @@ Guidance:
   scraper already auto-detected: confirm the real ones, add any it missed
   (including links inside spoiler boxes or on hosts it does not know), and leave
   out anything that is not a download of the mod. A mod may offer more than one
-  link — list each. Use "kind":
+  link — list each.
+  - Give each download as its number in the LINKS IN THE POST list: the line
+    "- [3] https://example.com/mod.zip" is "link": 3, with "url": null. Check
+    the number against the address on that line before you answer. We fill in
+    the address and the link's text ourselves.
+  - A number in the list is not a download by itself. A link to another forum
+    thread, a wiki, or a page about a mod is never a download, and a mod whose
+    only link goes to its own thread is not an entry here at all. Example:
+    "Content Pack Downloads: Achievements Pack [link to another forum thread]"
+    is a pointer to that pack's own thread, so the pack is not an entry.
+  - Only when the address is written in the post but is NOT in that list (an
+    address typed out as plain text) copy it into "url" exactly, with "link":
+    null.
+  Use "kind":
   - "direct": a normal download of the mod's file.
   - "mirror": the same file (incl version) offered on another host.
   - "trios": an "Install with TriOS" link.
 - The changelog has two parts, and a post can have BOTH — return each part that
-  the post actually has. Copy changelog text and URLs exactly;
-  paraphrased notes and altered URLs are rejected.
+  the post actually has.
   - "link": a changelog URL copied from the post (e.g. a GitHub releases page or a
     changelog file). Leave null when the post links none.
-  - "entries": changelog text copied from the post, as a map keyed by the
-    version string, valued by that version's notes copied word-for-word
-    including typos and whitespace. Include only the highest three versions, in
-    descending order. Leave "entries" out (or null) when the post shows no
-    changelog text.
+  - "entries": the post's changelog notes, one entry per version. Include only
+    the highest three versions, in descending order. Leave "entries" empty (or
+    null) when the post shows no changelog text. For each entry:
+    - "version": the version exactly as the post writes it, without a leading
+      "v". It must appear in the post.
+    - Do NOT copy long notes. Point at them instead: "startsWith" is the first
+      five or six words of that version's notes and "endsWith" is the last five
+      or six words, each copied exactly, and "text" is null. We cut the notes out
+      of the post between those words. Leave the version heading itself out of
+      "startsWith": for "1.2.1 - Fixed the shields", start at "Fixed".
+      "endsWith" must be the end of THIS version's notes, before the next
+      version's heading.
+    - Only when a version's notes are 15 words or fewer, copy them whole into
+      "text" exactly, and leave "startsWith" and "endsWith" null.
+    - Notes that cannot be found in the post are thrown away, so copy every word
+      you give exactly, typos included.
   Return a link when the post links one, entries when the post shows changelog
   text, and both when the post has both.
 - "image" is a picture for the mod, taken from the images list below:
@@ -337,7 +368,10 @@ Guidance:
       release, or sits in that release's announcement or changelog entry:
       "Minor patch v1.0.1 is out. It is save-compatible." gives "version":
       "1.0.1", and "NOT save compatible" inside the changelog entry for 0.8.0
-      gives "version": "0.8.0".
+      gives "version": "0.8.0". A note on a release's own heading counts too:
+      "v1.1.7 - Save compatible" above that release's changes gives "quote":
+      "Save compatible", "version": "1.1.7". The heading stays out of the
+      changelog entry, but its note still goes here.
     - "version" is null when the note is not tied to one release: a rule about
       every update ("All updates are save-compatible"), or a statement about the
       mod as it is now ("Not save compatible with versions prior to 2.0.0" says
@@ -536,14 +570,16 @@ Guidance:
         'items': {
           'type': 'object',
           'properties': {
-            'url': {'type': 'string'},
-            'label': {'type': 'string'},
+            'link': {
+              'type': ['integer', 'null']
+            },
+            'url': nullableString(),
             'kind': {
               'type': 'string',
               'enum': ['direct', 'mirror', 'trios'],
             },
           },
-          'required': ['url', 'label', 'kind'],
+          'required': ['link', 'url', 'kind'],
           'additionalProperties': false,
         },
       },
@@ -553,9 +589,18 @@ Guidance:
         'properties': {
           'link': nullableString(),
           'entries': {
-            'type': ['object', 'null'],
-            // Version keys come from the post, so additional properties are allowed.
-            'additionalProperties': {'type': 'string'},
+            'type': ['array', 'null'],
+            'items': {
+              'type': 'object',
+              'properties': {
+                'version': {'type': 'string'},
+                'text': nullableString(),
+                'startsWith': nullableString(),
+                'endsWith': nullableString(),
+              },
+              'required': ['version', 'text', 'startsWith', 'endsWith'],
+              'additionalProperties': false,
+            },
           },
         },
         'required': ['link', 'entries'],
@@ -762,14 +807,20 @@ Guidance:
       buffer.writeln();
     }
 
+    // Each link is numbered by its place in [links], and the model answers a
+    // download with that number. The extractor reads it back from the same
+    // list, so the two must stay in the same order.
     buffer.writeln('=== LINKS IN THE POST ===');
+    final numberOf = <String, int>{};
     if (links.isEmpty) {
       buffer.writeln('(none)');
     } else {
-      for (final l in links) {
+      for (var i = 0; i < links.length; i++) {
+        final l = links[i];
+        numberOf.putIfAbsent(PostReducer.normalizeForMatching(l.url), () => i + 1);
         final flag = l.isDownloadable ? ' [flagged downloadable]' : '';
         final text = l.text.trim().isEmpty ? '' : '  "${l.text.trim()}"';
-        buffer.writeln('- ${l.url}$text$flag');
+        buffer.writeln('- [${i + 1}] ${l.url}$text$flag');
       }
     }
     buffer.writeln();
@@ -779,7 +830,8 @@ Guidance:
       buffer.writeln('(none)');
     } else {
       for (final u in ruleLinks) {
-        buffer.writeln('- $u');
+        final n = numberOf[PostReducer.normalizeForMatching(u)];
+        buffer.writeln(n == null ? '- $u' : '- [$n] $u');
       }
     }
     buffer.writeln();

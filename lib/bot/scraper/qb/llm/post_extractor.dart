@@ -13,7 +13,8 @@ import '../models/mod_detail.dart';
 import '../../../../catalog/source_post.dart';
 import '../models/post_extraction.dart';
 import '../url_normalizer.dart';
-import '../../../../site/description_slice.dart';
+import 'anchor_key.dart';
+import 'changelog_slice.dart';
 import '../../../../site/gallery_filter.dart';
 import 'extraction_store.dart';
 import 'llm_client.dart';
@@ -25,10 +26,27 @@ import 'quote_cut.dart';
 
 /// One download line the model returned, before it is grounded or resolved.
 class _RawDownload {
+  /// The address as the model copied it. Empty when it gave only [link].
   final String url;
   final String label;
   final String kind;
-  _RawDownload(this.url, this.label, this.kind);
+
+  /// The download's number in the prompt's list of links, when the model
+  /// named it that way.
+  final int? link;
+  _RawDownload(this.url, this.label, this.kind, {this.link});
+}
+
+/// One version's changelog notes as the model pointed at them, before they
+/// are cut out of the post: either [text], copied whole, or the first and
+/// last few words of the notes.
+class _RawChangelogEntry {
+  final String version;
+  final String? text;
+  final String? startsWith;
+  final String? endsWith;
+  _RawChangelogEntry(this.version,
+      {this.text, this.startsWith, this.endsWith});
 }
 
 /// One use of AI the model sorted out of the author's statement, before its
@@ -78,9 +96,9 @@ class _RawMod {
   final String? image;
   final String? changelogLink;
 
-  /// Changelog notes keyed by version string. Empty when the model returned a
-  /// link or no changelog text.
-  final Map<String, String> changelogEntries;
+  /// One entry per version the model pointed at. Empty when the model returned
+  /// a link or no changelog text.
+  final List<_RawChangelogEntry> changelogEntries;
   final String? version;
   final List<LlmSupportLink> supportLinks;
   final String? license;
@@ -336,6 +354,15 @@ class PostExtractor {
   /// This is what [maxTopics] caps, so a caller can tell whether the run still
   /// has budget left and report how much of it was used.
   int get liveCallCount => _processed;
+
+  /// This run's changelog entries: how many were cut out of a post, how many
+  /// short ones were copied whole, and how many were dropped because they
+  /// could not be found. The drop count says whether the prompt needs work.
+  ({int cut, int copied, int dropped}) get changelogCounts =>
+      (cut: _changelogCut, copied: _changelogCopied, dropped: _changelogDropped);
+  int _changelogCut = 0;
+  int _changelogCopied = 0;
+  int _changelogDropped = 0;
 
   /// The client used to send posts. Other small jobs in the same run use
   /// this client to share its fallback and delay between calls.
@@ -751,35 +778,55 @@ class PostExtractor {
     String? asString(Object? v) =>
         v is String && v.trim().isNotEmpty ? v.trim() : null;
 
+    // A download is the number of a link in the prompt's list, or an address
+    // the list does not have. The address and label shape the model answered
+    // in before links were numbered is still read.
     final downloads = <_RawDownload>[];
     final rawDownloads = m['downloads'];
     if (rawDownloads is List) {
       for (final d in rawDownloads) {
         if (d is! Map<String, dynamic>) continue;
-        final url = d['url'];
-        if (url is! String || url.trim().isEmpty) continue;
+        final link = _linkNumber(d['link']);
+        final url = asString(d['url']) ?? '';
+        if (link == null && url.isEmpty) continue;
         final label = d['label'];
         final kind = d['kind'];
         downloads.add(_RawDownload(
-          url.trim(),
+          url,
           label is String ? label.trim() : '',
           LlmDownloadKind.orDirect(kind is String ? kind.trim() : null),
+          link: link,
         ));
       }
     }
 
+    // Each entry is copied notes or the two ends of longer notes. A map of
+    // version to copied notes, the shape before entries were pointed at, is
+    // still read.
     String? changelogLink;
-    final changelogEntries = <String, String>{};
+    final changelogEntries = <_RawChangelogEntry>[];
     final changelog = m['changelog'];
     if (changelog is Map<String, dynamic>) {
       changelogLink = asString(changelog['link']);
       final rawEntries = changelog['entries'];
-      if (rawEntries is Map) {
+      if (rawEntries is List) {
+        for (final e in rawEntries) {
+          if (e is! Map) continue;
+          final version = asString(e['version']);
+          if (version == null) continue;
+          changelogEntries.add(_RawChangelogEntry(
+            version,
+            text: asString(e['text']),
+            startsWith: asString(e['startsWith']),
+            endsWith: asString(e['endsWith']),
+          ));
+        }
+      } else if (rawEntries is Map) {
         for (final e in rawEntries.entries) {
           final version = e.key;
           final text = asString(e.value);
           if (version is String && version.trim().isNotEmpty && text != null) {
-            changelogEntries[version.trim()] = text;
+            changelogEntries.add(_RawChangelogEntry(version.trim(), text: text));
           }
         }
       }
@@ -899,6 +946,21 @@ class PostExtractor {
     );
   }
 
+  /// A download's number in the prompt's list of links: a whole number, or a
+  /// string holding one the way the list writes it ("3", "[3]"). Null for
+  /// anything else.
+  static int? _linkNumber(Object? value) {
+    if (value is int) return value;
+    if (value is num && value == value.roundToDouble()) return value.toInt();
+    if (value is String) {
+      final m = _linkNumberText.firstMatch(value.trim());
+      if (m != null) return int.parse(m.group(1)!);
+    }
+    return null;
+  }
+
+  static final RegExp _linkNumberText = RegExp(r'^\[?(\d+)\]?$');
+
   /// A version written the one way every stored version is written: without a
   /// leading "v". The model writes "v3.0.2" on one run and "3.0.2" on the next
   /// for the same post, and every flip shows up as a change. Only a "v" (or
@@ -997,9 +1059,9 @@ class PostExtractor {
 
     final checked = <_CheckedMod>[];
     for (final mod in answer.mods) {
-      final c = _checkMod(where, mod, postUrls, postImages, postRepoUrls,
-          corpus, postTexts, authorWords,
-          truncated: truncated);
+      final c = _checkMod(where, mod, read.combined.links, postUrls, postImages,
+          postRepoUrls, corpus, postTexts, authorWords,
+          truncated: truncated, postTitle: postTitle);
       if (!c.isEmpty) checked.add(c);
     }
     return checked;
@@ -1008,6 +1070,7 @@ class PostExtractor {
   _CheckedMod _checkMod(
     String where,
     _RawMod mod,
+    List<ReducedLink> links,
     Set<String> postUrls,
     Map<String, String> postImages,
     List<Uri> postRepoUrls,
@@ -1015,10 +1078,14 @@ class PostExtractor {
     List<String> postTexts,
     String authorWords, {
     required bool truncated,
+    required String postTitle,
   }) {
-    // Downloads: every URL must appear in the post.
+    // Downloads: a link number becomes that link's address, and every address
+    // must appear in the post.
     final downloads = <_RawDownload>[];
-    for (final d in mod.downloads) {
+    for (final named in mod.downloads) {
+      final d = _fromLinkList(where, named, links);
+      if (d == null) continue;
       if (_urlInPost(d.url, postUrls)) {
         downloads.add(d);
       } else {
@@ -1053,21 +1120,18 @@ class PostExtractor {
       }
     }
 
-    // Changelog entries: exact matching of long copied text is fragile, so we
-    // keep every entry and only flag ones we can't find in the post. On
-    // truncation the last entry may be cut off, so drop the whole map instead.
+    // Changelog entries: each is cut out of the post, or copied whole when it
+    // is short, and dropped when it cannot be found. On truncation the last
+    // entry may be cut off, so drop them all instead.
     final changelogEntries = <String, String>{};
     if (mod.changelogEntries.isNotEmpty) {
       if (truncated) {
         _log.warning(
             'Answer truncated ($where); dropping changelog entries');
       } else {
-        for (final e in mod.changelogEntries.entries) {
-          changelogEntries[plainVersion(e.key)] = e.value;
-          if (!_textInPost(e.value, corpus)) {
-            _log.warning(
-                'Changelog entry "${e.key}" not found verbatim in post ($where); keeping anyway');
-          }
+        for (final e in mod.changelogEntries) {
+          final notes = _changelogNotes(where, e, postTexts, corpus, postTitle);
+          if (notes != null) changelogEntries[plainVersion(e.version)] = notes;
         }
       }
     }
@@ -1699,6 +1763,100 @@ class PostExtractor {
       caseSensitive: false);
   static final RegExp _whitespace = RegExp(r'\s+');
 
+  /// [named] with its address and label filled in from the prompt's list of
+  /// links, or null when it names a number the list does not have.
+  ///
+  /// A number is that list item's address and its text. An address the model
+  /// copied keeps the label it came with (the shape before links were
+  /// numbered), else takes the text of the listed link it matches, else none.
+  _RawDownload? _fromLinkList(
+      String where, _RawDownload named, List<ReducedLink> links) {
+    final number = named.link;
+    if (number != null) {
+      if (number >= 1 && number <= links.length) {
+        final link = links[number - 1];
+        return _RawDownload(link.url, link.text.trim(), named.kind);
+      }
+      if (named.url.isEmpty) {
+        _log.warning('Dropped download with link number $number, which the '
+            'list of ${links.length} link(s) does not have ($where)');
+        return null;
+      }
+    }
+    if (named.label.isNotEmpty) return named;
+    final key = PostReducer.normalizeForMatching(named.url);
+    for (final link in links) {
+      if (PostReducer.normalizeForMatching(link.url) == key) {
+        return _RawDownload(named.url, link.text.trim(), named.kind);
+      }
+    }
+    return named;
+  }
+
+  /// One version's notes: cut out of the post between the first and last
+  /// words the model gave, or its short copy when that is found in the post.
+  /// Null, logged and counted when neither works.
+  String? _changelogNotes(String where, _RawChangelogEntry entry,
+      List<String> postTexts, String corpus, String title) {
+    // One long end and no other is the model copying the notes whole into it,
+    // which it does for notes a little over the length it was told to copy.
+    // A short one may be a pointer that lost its other half, and keeping it
+    // as the notes would store part of an entry as the whole.
+    final lone = entry.endsWith == null
+        ? entry.startsWith
+        : (entry.startsWith == null ? entry.endsWith : null);
+    final text = entry.text ??
+        (lone != null && _wordCount(lone) > _longestPointer ? lone : null);
+    if (text != null) {
+      if (_textInPost(text, corpus)) {
+        _changelogCopied++;
+        return text;
+      }
+      _changelogDropped++;
+      _log.warning('Dropped changelog entry "${entry.version}" ($where): its '
+          'copied notes are not in the post');
+      return null;
+    }
+
+    final startsWith = entry.startsWith;
+    final endsWith = entry.endsWith;
+    if (startsWith == null || endsWith == null) {
+      _changelogDropped++;
+      _log.warning('Dropped changelog entry "${entry.version}" ($where): no '
+          'notes and no first and last words');
+      return null;
+    }
+
+    final cut = cutChangelogEntry(
+        postTexts, entry.version, startsWith, endsWith,
+        title: title);
+    final notes = cut.notes;
+    if (notes != null) {
+      _changelogCut++;
+      return notes;
+    }
+    _changelogDropped++;
+    final why = switch (cut.failure!) {
+      ChangelogCutFailure.pointerTooShort =>
+        'its first or last words are too short',
+      ChangelogCutFailure.versionNotFound => 'the version is not in the post',
+      ChangelogCutFailure.firstWordsNotFound =>
+        'its first words do not follow the version',
+      ChangelogCutFailure.lastWordsNotFound =>
+        'its last words do not follow its first words',
+    };
+    _log.warning(
+        'Dropped changelog entry "${entry.version}" ($where): $why');
+    return null;
+  }
+
+  /// More words than the model is asked to give for one end of a changelog
+  /// entry (five or six), with room for a model that gives a few more.
+  static const int _longestPointer = 10;
+
+  static int _wordCount(String text) =>
+      text.split(_whitespace).where((w) => w.isNotEmpty).length;
+
   bool _textInPost(String needle, String postText) {
     final n = _norm(needle);
     if (n.isEmpty) return false;
@@ -1954,8 +2112,12 @@ class PostExtractor {
                   if (m.nicknames.isNotEmpty) 'nicknames': m.nicknames,
                   if (m.requires != null) 'requires': m.requires,
                   'downloads': m.downloads
-                      .map((d) =>
-                          {'url': d.url, 'label': d.label, 'kind': d.kind})
+                      .map((d) => {
+                            if (d.link != null) 'link': d.link,
+                            if (d.url.isNotEmpty) 'url': d.url,
+                            if (d.label.isNotEmpty) 'label': d.label,
+                            'kind': d.kind,
+                          })
                       .toList(),
                 })
             .toList(),

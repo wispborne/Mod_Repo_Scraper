@@ -53,7 +53,9 @@ class PostReducer {
   );
 
   static final RegExp _blockBreak = RegExp(
-    r'</(?:p|div|li|tr|h[1-6]|blockquote)>|<br\s*/?>',
+    // A Discord post's code blocks are <pre>, and without a break after them
+    // the last line of one ran into whatever came next.
+    r'</(?:p|div|li|tr|h[1-6]|blockquote|pre)>|<br\s*/?>',
     caseSensitive: false,
   );
 

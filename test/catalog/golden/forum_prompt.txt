@@ -11,11 +11,11 @@ Kwin's Sector Industry Compilation
 Download [link: https://github.com/x/kwin/releases/download/1.2/kwin.zip]
 
 === LINKS IN THE POST ===
-- https://fractalsoftworks.com/forum/index.php?topic=5444.0  "LazyLib"
-- https://github.com/x/kwin/releases/download/1.2/kwin.zip  "Download" [flagged downloadable]
+- [1] https://fractalsoftworks.com/forum/index.php?topic=5444.0  "LazyLib"
+- [2] https://github.com/x/kwin/releases/download/1.2/kwin.zip  "Download" [flagged downloadable]
 
 === LINKS THE SCRAPER AUTO-DETECTED AS DOWNLOADS ===
-- https://github.com/x/kwin/releases/download/1.2/kwin.zip
+- [2] https://github.com/x/kwin/releases/download/1.2/kwin.zip
 
 === IMAGES IN THE POST (use only these URLs for "image") ===
 - https://i.imgur.com/shot.png  "A screenshot"
@@ -24,4 +24,4 @@ Download [link: https://github.com/x/kwin/releases/download/1.2/kwin.zip]
 0.98a
 
 --- fingerprint ---
-1c7963d39c56e7f52e39548341087559f5ef224dfee191d65caf9ffa0de172b3
+535ac429ba2bca4f7966487d86b5bfd61a5fe174fff317b63df936c3d160b930

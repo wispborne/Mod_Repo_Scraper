@@ -7,6 +7,7 @@ import 'package:mod_repo_scraper/bot/scraper/qb/llm/extraction_store.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/llm_client.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/post_extractor.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/post_reducer.dart';
+import 'package:mod_repo_scraper/bot/scraper/qb/llm/prompt.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_detail.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/post_extraction.dart';
 import 'package:test/test.dart';
@@ -121,6 +122,14 @@ void main() {
       final reduced = PostReducer.reduce(html);
       expect(reduced.links.map((l) => l.url), contains('https://example.com/mod.zip'));
       expect(reduced.urlSet, contains('https://example.com/mod.zip'));
+    });
+
+    test('a code block ends its line', () {
+      // A Discord post's last list item sat in a code block, and ran into the
+      // download line after it.
+      final reduced = PostReducer.reduce(
+          '<pre><code>* Some code refactors</code></pre><p>Download here</p>');
+      expect(reduced.text, contains('* Some code refactors\n'));
     });
 
     test('a link is left where it sat, beside its own words', () {
@@ -756,8 +765,174 @@ void main() {
     });
   });
 
+  group('downloads by link number', () {
+    const readme = 'https://example.com/readme';
+    const zip = 'https://example.com/mod-1.0.zip';
+    const html = '<a href="$readme">Read me first</a> '
+        '<a href="$zip">Download v1.0</a> '
+        'Mirror: https://mirror.test/mod-1.0.zip';
+
+    test('a number gets its address and label from the list', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","downloads":['
+            '{"link":2,"url":null,"kind":"direct"}]}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(_detail(60, html), []);
+
+      final d = downloadsOf(60).single;
+      expect(d.url, zip);
+      expect(d.label, 'Download v1.0');
+    });
+
+    test('the list is numbered in the prompt', () async {
+      final prompt = ExtractionPrompt.buildUserPrompt(
+        reducedText: 'text',
+        links: [
+          (url: readme, text: 'Read me first', isDownloadable: false),
+          (url: zip, text: 'Download v1.0', isDownloadable: true),
+        ],
+        ruleLinks: [zip],
+      );
+      expect(prompt, contains('- [1] $readme  "Read me first"'));
+      expect(prompt, contains('- [2] $zip  "Download v1.0" [flagged downloadable]'));
+      expect(prompt, contains('AS DOWNLOADS ===\n- [2] $zip'));
+    });
+
+    test('a number the list does not have is dropped', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","downloads":['
+            '{"link":7,"url":null,"kind":"direct"},'
+            '{"link":2,"url":null,"kind":"direct"}]}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(_detail(61, html), []);
+
+      expect(downloadsOf(61).map((d) => d.url), [zip]);
+    });
+
+    test('an address written out in the post is kept with no label', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","downloads":['
+            '{"link":null,"url":"https://mirror.test/mod-1.0.zip","kind":"mirror"}]}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(_detail(62, html), []);
+
+      final d = downloadsOf(62).single;
+      expect(d.url, 'https://mirror.test/mod-1.0.zip');
+      expect(d.label, '');
+      expect(d.kind, 'mirror');
+    });
+
+    test('a copied address that is in the list takes its label', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","downloads":['
+            '{"link":null,"url":"$zip","kind":"direct"}]}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(_detail(63, html), []);
+
+      expect(downloadsOf(63).single.label, 'Download v1.0');
+    });
+
+    test('the old address-and-label shape still parses', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","downloads":['
+            '{"url":"$zip","label":"Get it","kind":"direct"}]}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(_detail(64, html), []);
+
+      final d = downloadsOf(64).single;
+      expect(d.url, zip);
+      expect(d.label, 'Get it');
+    });
+  });
+
   group('changelog', () {
-    test('keeps every copied version (changelog matching is lenient)', () async {
+    const post = '<p>Changelog</p>'
+        '<p>1.2.0<br>- Added the Hammerhead variant<br>- Fixed a crash on load</p>'
+        '<p>1.1.0<br>- Rebalanced the missiles<br>- Fixed typos everywhere</p>';
+
+    test('a pointed-at entry is cut out of the post', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","changelog":{"link":null,'
+            '"entries":[{"version":"1.2.0","text":null,'
+            '"startsWith":"Added the Hammerhead","endsWith":"a crash on load"}]}}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(_detail(52, post), []);
+
+      final notes = extrasOf(52)!.changelog!.entries!['1.2.0']!;
+      expect(notes, contains('- Added the Hammerhead variant'));
+      expect(notes, contains('- Fixed a crash on load'));
+      expect(notes, isNot(contains('1.1.0')));
+      expect(notes, isNot(contains('1.2.0')));
+      expect(extractor.changelogCounts, (cut: 1, copied: 0, dropped: 0));
+    });
+
+    test('a short copied entry is kept, a reworded one is dropped', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","changelog":{"link":null,'
+            '"entries":['
+            '{"version":"1.2.0","text":"Fixed a crash on load","startsWith":null,"endsWith":null},'
+            '{"version":"1.1.0","text":"Fixed some typos","startsWith":null,"endsWith":null}]}}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(_detail(53, post), []);
+
+      expect(extrasOf(53)!.changelog!.entries,
+          {'1.2.0': 'Fixed a crash on load'});
+      expect(extractor.changelogCounts, (cut: 0, copied: 1, dropped: 1));
+    });
+
+    test('pointers that cannot be found drop only their own entry', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","changelog":{"link":null,'
+            '"entries":['
+            '{"version":"1.2.0","text":null,"startsWith":"Not in this post at all","endsWith":"a crash on load"},'
+            '{"version":"v1.1.0","text":null,"startsWith":"Rebalanced the missiles","endsWith":"typos everywhere"}]}}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(_detail(54, post), []);
+
+      final entries = extrasOf(54)!.changelog!.entries!;
+      expect(entries.keys, ['1.1.0']);
+      expect(entries['1.1.0'], contains('Fixed typos everywhere'));
+      expect(extractor.changelogCounts, (cut: 1, copied: 0, dropped: 1));
+    });
+
+    test('a long lone first end is read as notes copied whole', () async {
+      // Show Encounter Stats: the model put each entry's whole notes in
+      // startsWith and left endsWith empty.
+      const html = '<p>1.1.2<br>BUGFIX: Officer count is now fully functional and '
+          'no longer counts AI cores twice when it adds up the fleet.</p>';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","changelog":{"link":null,'
+            '"entries":['
+            '{"version":"1.1.2","text":null,"startsWith":"BUGFIX: Officer count is now '
+            'fully functional and no longer counts AI cores twice when it adds up the fleet.",'
+            '"endsWith":null}]}}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(_detail(55, html), []);
+
+      expect(extrasOf(55)!.changelog!.entries!['1.1.2'],
+          startsWith('BUGFIX: Officer count'));
+      expect(extractor.changelogCounts, (cut: 0, copied: 1, dropped: 0));
+    });
+
+    test('a short lone end is not taken for the whole notes', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","changelog":{"link":null,'
+            '"entries":['
+            '{"version":"1.2.0","text":null,"startsWith":"Added the Hammerhead variant",'
+            '"endsWith":null}]}}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(_detail(56, post), []);
+
+      expect(extrasOf(56)?.changelog?.entries, isNull);
+      expect(extractor.changelogCounts, (cut: 0, copied: 0, dropped: 1));
+    });
+
+    test('the old map of copied notes still parses', () async {
       final client = _FakeLlmClient([
         _json('''
 {"mods":[{"name":"m","role":"main","changelog":{"entries":{
