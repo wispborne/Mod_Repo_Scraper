@@ -20,6 +20,7 @@ globalThis.window = new EventTarget();
 globalThis.location = { search: '' };
 globalThis.history = {};
 globalThis.document = { cookie: '' };
+globalThis.matchMedia = () => Object.assign(new EventTarget(), { matches: false });
 const { imageCaption, imageAiFacts, imageHoverText, setAiSummaryMode, setAiOnModPages } =
   await import(await moduleUrl(new URL('../../site/lib.js', import.meta.url)));
 
