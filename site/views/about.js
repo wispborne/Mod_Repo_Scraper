@@ -2,7 +2,7 @@
 // problem.
 
 import {
-    clear, el, formatDay, modList, PROBLEM_REPORT_BASE, SITE_CODE_URL,
+    clear, el, formatDay, modList, PROBLEM_REPORT_BASE, SITE_CODE_URL, takedownButton,
 } from '../lib.js';
 import { GUIDE_ICON, GUIDE_ROUTE, GUIDE_TITLE, openGuide } from './guide.js';
 
@@ -120,15 +120,14 @@ export async function render(root) {
             'Dealing with issues such as: how NSFW is too NSFW, whether a mod stole someone else\'s work,'
             + ' corporate copyright, what is considered hate speech, political mods, targeted mods etc.'
             + ' These are not how I\'d like to spend my free time.',
-            [
-                'Takedown requests are the exception. If you made a mod and want it taken off Starmodder, '
-                + 'open an issue on ',
-                githubLink(`${MOD_REPO_URL}/issues`, 'the StarsectorModRepo repo'),
-                ' or message me. I\'ll remove it. You can ask me to remove one mod or every mod that credits you. '
-                + 'The list of removed mods is public, in ',
-                githubLink(`${MOD_REPO_URL}/blob/main/takedowns.json`, 'takedowns.json'),
-                '.',
-            ],
+        ]),
+
+        section('Removing your mods', [
+            'If you made a mod, you can ask me to remove it from Starmodder. You can ask for one mod '
+            + 'or all your mods.',
+            'I only remove mods at the author\'s request. The button below explains how to contact me '
+            + 'and confirm you\'re the author.',
+            [takedownButton()],
         ]),
 
         section('How is AI used?', [

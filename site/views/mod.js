@@ -13,7 +13,7 @@ import {
   setAiOnModPages, setInlinePictures, summaryToShow,
   modDetail, modHref, modList, modName, MOD_VERSION_NOTE,
   NO_DESCRIPTION, pageIcon, picture, showPicture, summaryTitle,
-  versionStanding, versionStandingNote, withSource,
+  takedownButton, versionStanding, versionStandingNote, withSource,
 } from '../lib.js';
 import { address } from '../address.js';
 import { SUPPORT_ICONS } from '../support_icons.js';
@@ -160,6 +160,7 @@ export async function render(root, parts) {
       ]),
     ]),
     rawInfo(detail, id),
+    el('div', {}, [takedownButton()]),
   ]));
 }
 
