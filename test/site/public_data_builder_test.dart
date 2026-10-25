@@ -1212,6 +1212,89 @@ void main() {
         hasLength(1));
   });
 
+  test('a requirement written with spaces or by a nickname is the same mod',
+      () {
+    final data = buildFrom(
+      mods: [
+        forumMod(name: 'Nexerelin', topicId: 9175),
+        forumMod(name: 'LazyLib', topicId: 5444),
+        forumMod(name: 'Industrial Evolution', topicId: 15000),
+      ],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            extras: LlmExtras(needs: const ['Lazy Lib', 'IndEvo', 'Kadur']),
+          ),
+        ]),
+        thread(
+          topicId: 15000,
+          title: 'Industrial Evolution',
+          llmMods: [
+            LlmMod(name: 'Industrial Evolution', nicknames: const ['IndEvo']),
+          ],
+        ),
+      ]),
+    );
+
+    final nexerelin = data.list.mods.firstWhere((m) => m.id == 'nexerelin');
+    expect(nexerelin.needs.map((n) => n.id),
+        ['lazylib', 'industrial-evolution', null]);
+    expect(nexerelin.needs.first.name, 'LazyLib',
+        reason: 'the site calls a mod it has by its own name');
+    expect(data.unmatchedNeeds.values.map((n) => n.written), ['Kadur']);
+  });
+
+  test('optional mods go on the mod page only, never beside a required one', () {
+    final data = buildFrom(
+      mods: [
+        forumMod(name: 'Nexerelin', topicId: 9175),
+        forumMod(name: 'LazyLib', topicId: 5444),
+        forumMod(name: 'GraphicsLib', topicId: 10982),
+      ],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            extras: LlmExtras(
+              needs: const ['LazyLib'],
+              optionalNeeds: const ['Graphics Lib', 'lazylib', 'Kadur Remnant'],
+            ),
+          ),
+        ]),
+      ]),
+    );
+
+    final page = data.details['nexerelin']!;
+    expect(page.optionalNeeds!.map((n) => (n.name, n.id)),
+        [('GraphicsLib', 'graphicslib'), ('Kadur Remnant', null)]);
+    expect(page.listing.needs.map((n) => n.id), ['lazylib']);
+    expect(jsonEncode(data.list.mods.firstWhere((m) => m.id == 'nexerelin').toMap()),
+        isNot(contains('optional')),
+        reason: 'mods.json lists only what a mod cannot run without');
+  });
+
+  test('a mod three others need is one the LLM may match names to', () {
+    final data = buildFrom(
+      mods: [
+        forumMod(name: 'LazyLib', topicId: 5444),
+        for (final topic in [1, 2, 3]) forumMod(name: 'Mod $topic', topicId: topic),
+      ],
+      bundle: bundleOf(index: [
+        for (final topic in [1, 2, 3])
+          thread(
+            topicId: topic,
+            title: 'Mod $topic',
+            llmMods: [
+              LlmMod(name: 'Mod $topic', extras: LlmExtras(needs: const ['LazyLib'])),
+            ],
+          ),
+      ]),
+    );
+
+    expect(data.requiredMods.map((m) => m.id), ['lazylib']);
+  });
+
   test('the site has its own categories, and keeps the raw names on the page',
       () {
     final data = buildFrom(

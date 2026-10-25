@@ -1588,6 +1588,10 @@ button.check-row { align-items: center; }
 }
 a.chip.needed:hover { background: var(--primary-bar); text-decoration: none; }
 .chip.needed.unknown { background: var(--surface-container); color: var(--text-dim); }
+/* Outlines show that these mods are optional. */
+.chip.needed.optional { background: none; box-shadow: inset 0 0 0 1px var(--primary-soft); }
+a.chip.needed.optional:hover { background: var(--primary-soft); }
+.chip.needed.optional.unknown { box-shadow: inset 0 0 0 1px var(--border); }
 
 /* Where the code is kept: a badge in the text colour that links to it, or a
    grey one. The text colour is white on dark themes and dark on Light, which

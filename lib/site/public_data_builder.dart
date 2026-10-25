@@ -452,6 +452,7 @@ class PublicDataBuilder {
         releases: modReleases,
         discordPosts: discordPosts,
         addonSource: addonSource,
+        requirements: requirements,
       );
     }
 
@@ -1071,6 +1072,7 @@ class PublicDataBuilder {
     required List<ModRelease> releases,
     required DiscordPostsFile discordPosts,
     required QbModSummary? addonSource,
+    required RequirementResolver requirements,
   }) {
     final extras = chosen?.extras;
 
@@ -1156,8 +1158,26 @@ class PublicDataBuilder {
       // Filled once every mod has a record — see [_fillSameNameMods].
       sameNameMods: const [],
       addons: _addonsFor(chosen, addonSource),
+      optionalNeeds: _optionalMods(extras?.optionalNeeds, listing, requirements),
       partOfThreadTitle: listing.partOfThreadTitle,
     );
+  }
+
+  /// Matches optional or recommended mods from the post to our mods, as in
+  /// [_neededMods]. Excludes required mods so a page never lists a mod as both.
+  static List<PublicNeededMod>? _optionalMods(
+    List<String>? names,
+    PublicMod listing,
+    RequirementResolver requirements,
+  ) {
+    final required = {
+      for (final need in listing.needs) (need.id ?? need.name).toLowerCase(),
+    };
+    final optional = [
+      for (final mod in _neededMods(names, listing.id, requirements))
+        if (!required.contains((mod.id ?? mod.name).toLowerCase())) mod,
+    ];
+    return optional.isEmpty ? null : optional;
   }
 
   /// True when this thread is several mods at once — more than one mod the LLM

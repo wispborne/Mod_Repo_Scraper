@@ -10,8 +10,8 @@ import '../models/post_extraction.dart';
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 26;
-  static const int discordPromptVersion = 4;
+  static const int promptVersion = 27;
+  static const int discordPromptVersion = 5;
 
   /// Cache version for [kind]. Nexus extraction is not supported yet.
   static int promptVersionFor(SourceKind kind) =>
@@ -156,6 +156,7 @@ Return this JSON object:
         }
       ],
       "needs": ["<the name of another mod this one will not run without>", "..."],
+      "optionalNeeds": ["<the name of another mod the post says is optional or recommended with this one>", "..."],
       "descriptionAnchors": {
         "startsWith": "<the first few words of the run of text that describes THIS mod, copied exactly>",
         "endsWith": "<the last few words of that same run of text, copied exactly>"
@@ -190,7 +191,8 @@ Guidance:
     launcher, a ship or save editor.
   - false: the thread is NOT a mod or tool release. Examples: a discussion or
     question, a guide or tutorial, a modding-help request, a list or index that
-    only points to other threads, or artwork.
+    only points to other threads, artwork, or an example post for authors to
+    copy.
   When unsure, say true. It is safer to keep a borderline thread than to drop a
   real mod.
 - Most threads are about exactly one mod, so "mods" is usually a one-item list
@@ -387,6 +389,19 @@ Guidance:
     the game itself or a Java version.
   - Leave it as an empty list when the post names no requirement. Do not guess a
     library from what the mod appears to do.
+- "optionalNeeds" is the other mods the post says are optional or recommended
+  with this one:
+  - A mod listed under an "Optional" or "Recommended" heading, or in a line like
+    "Optional: Nexerelin", "Recommended: GraphicsLib for the lighting" or "Adds
+    extra content when Nexerelin is installed".
+  - Give the mod's NAME only, as the post writes it, one entry per mod, the
+    same way as "needs".
+  - A mod is in "needs" or "optionalNeeds", never both. When the post says a
+    mod is required, it goes in "needs".
+  - Not a mod the post only says this one is compatible with, should work with,
+    or does not work with. Not a successor, a mod the author also made, or a mod
+    on THIS thread.
+  - Leave it as an empty list when the post names no optional mod.
 - "descriptionAnchors" is optional and points at the author's own words about
   ONE mod. You do not write a description — you say where the author's already is:
   - Use it when a suitable description exists, on single-mod threads as well
@@ -582,6 +597,10 @@ Guidance:
         'type': 'array',
         'items': {'type': 'string'},
       },
+      'optionalNeeds': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
       'descriptionAnchors': {
         'type': ['object', 'null'],
         'properties': {
@@ -659,6 +678,7 @@ Guidance:
       'canRemove',
       'updateNotes',
       'needs',
+      'optionalNeeds',
       'descriptionAnchors',
       'aiUse',
     ];

@@ -68,6 +68,7 @@ LlmMod? chooseFacts(List<FactSource> sources) {
     canRemove: removing.canRemove,
     summary: firstOf((e) => e.summary, (s) => !s.isEmpty),
     needs: firstOf((e) => e.needs, (l) => l.isNotEmpty),
+    optionalNeeds: firstOf((e) => e.optionalNeeds, (l) => l.isNotEmpty),
     // Taken whole from one answer. A forum "no AI" and a Discord "AI
     // portraits" are two statements, and joining them would misquote both.
     // A post that says nothing leaves the field to one that does; only when

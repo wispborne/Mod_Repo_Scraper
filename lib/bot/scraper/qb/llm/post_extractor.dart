@@ -101,6 +101,10 @@ class _RawMod {
   /// The other mods this one needs, before they are checked against the post.
   final List<String> needs;
 
+  /// Mods the post calls optional or recommends.
+  /// Their names have not yet been checked against the post.
+  final List<String> optionalNeeds;
+
   /// Where in the post the author describes this mod: the first few words and
   /// the last few words of that stretch of text. Checked against the posts
   /// before it is kept.
@@ -131,6 +135,7 @@ class _RawMod {
     this.canRemove,
     this.summary,
     this.needs = const [],
+    this.optionalNeeds = const [],
     this.descriptionAnchors,
     this.aiUse,
   });
@@ -224,6 +229,7 @@ class PostExtractor {
     'canRemove',
     'updateNotes',
     'needs',
+    'optionalNeeds',
     'descriptionAnchors',
     'nicknames',
     'aiUse',
@@ -792,14 +798,13 @@ class PostExtractor {
       }
     }
 
-    final needs = <String>[];
-    final rawNeeds = m['needs'];
-    if (rawNeeds is List) {
-      for (final n in rawNeeds) {
-        final name = asString(n);
-        if (name != null) needs.add(name);
-      }
-    }
+    List<String> names(Object? raw) => [
+          if (raw is List)
+            for (final n in raw)
+              if (asString(n) case final name?) name,
+        ];
+    final needs = names(m['needs']);
+    final optionalNeeds = names(m['optionalNeeds']);
 
     final nicknames = <String>[];
     final rawNicknames = m['nicknames'];
@@ -888,6 +893,7 @@ class PostExtractor {
       canRemove: _saveAnswer(asString(m['canRemove'])),
       summary: summary,
       needs: needs,
+      optionalNeeds: optionalNeeds,
       descriptionAnchors: anchors,
       aiUse: aiUse,
     );
@@ -1154,6 +1160,8 @@ class PostExtractor {
       }
     }
 
+    final needs = _groundNeeds(where, mod.needs, corpus, mod.name);
+
     return _CheckedMod(
       name: mod.name,
       role: mod.role,
@@ -1177,7 +1185,10 @@ class PostExtractor {
       // Passed through as-is: the summary is written, not copied, so there is
       // nothing to find in the post.
       summary: mod.summary,
-      needs: _groundNeeds(where, mod.needs, corpus, mod.name),
+      needs: needs,
+      // A mod in both lists is required because the post says it is.
+      optionalNeeds: _groundNeeds(where, mod.optionalNeeds, corpus, mod.name,
+          leaveOut: needs),
       descriptionAnchors:
           _groundAnchors(where, mod.descriptionAnchors, postTexts, mod.name),
       aiUse: _groundAiUse(where, mod.aiUse, corpus, authorWords, postTexts),
@@ -1357,15 +1368,17 @@ class PostExtractor {
   /// A name the post never mentions is dropped: nearly every Starsector mod
   /// needs LazyLib, so a model asked what a mod needs will happily say LazyLib
   /// whether the post did or not, and a wrong requirement sends a reader off to
-  /// install something they do not need.
+  /// install something they do not need. Optional mods use the same check.
+  /// Required mods are passed as [leaveOut].
   List<String> _groundNeeds(
     String where,
     List<String> names,
     String corpus,
-    String ownName,
-  ) {
+    String ownName, {
+    List<String> leaveOut = const [],
+  }) {
     final kept = <String>[];
-    final seen = <String>{};
+    final seen = {for (final name in leaveOut) name.trim().toLowerCase()};
     for (final raw in names) {
       final name = raw.trim();
       if (name.length < 2) continue;
@@ -1824,6 +1837,7 @@ class PostExtractor {
       canRemove: g.canRemove,
       summary: summary,
       needs: g.needs.isEmpty ? null : g.needs,
+      optionalNeeds: g.optionalNeeds.isEmpty ? null : g.optionalNeeds,
       aiUse: g.aiUse,
     );
     return extras.isEmpty ? null : extras;
@@ -2011,6 +2025,10 @@ class _CheckedMod {
   /// The other mods this one needs, once checked against the post.
   final List<String> needs;
 
+  /// Mods the post calls optional or recommends, with names checked against
+  /// the post. Excludes mods already in [needs].
+  final List<String> optionalNeeds;
+
   /// Where the author describes this mod, once found in one of the posts.
   final LlmDescriptionAnchors? descriptionAnchors;
 
@@ -2039,6 +2057,7 @@ class _CheckedMod {
     this.canRemove,
     this.summary,
     this.needs = const [],
+    this.optionalNeeds = const [],
     this.descriptionAnchors,
     this.aiUse,
   });
@@ -2059,6 +2078,7 @@ class _CheckedMod {
       updateNotes.isEmpty &&
       removalCompatibility == null &&
       needs.isEmpty &&
+      optionalNeeds.isEmpty &&
       (summary == null || summary!.isEmpty);
 }
 

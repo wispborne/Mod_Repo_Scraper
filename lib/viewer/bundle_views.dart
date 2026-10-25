@@ -426,6 +426,7 @@ const Map<String, String> _extraNames = {
   'canAdd': 'can add to a save',
   'canRemove': 'can remove from a save',
   'needs': 'what it needs',
+  'optionalNeeds': 'optional mods',
   'summary.sentence': 'summary — one line',
   'summary.paragraph': 'summary — paragraph',
   'changelog.link': 'changelog link',

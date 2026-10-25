@@ -62,6 +62,7 @@ posts written to be easy.
 | --- | --- |
 | 9175 | Nexerelin. One mod, plainly written. The control: if this one goes wrong, something big is broken. Also checks the mod's own version is not the game version, and that `needs` is read off the requirements line. |
 | 25868 | MagicLib. One mod, and the post names exactly one requirement — a model asked what a mod needs will happily add the rest of the usual libraries. The post also writes `MagicRender … (aka "SpriteRenderManager")`, another name for one *part* of the library, which must not become a nickname for MagicLib. |
+| 36165 | People's Commons. "Requires LazyLib 3.0.0 and MagicLib 1.5.6. Optional: Nexerelin, Combat Chatter." The two optional mods must be in `optionalNeeds` and absent from `needs`. Required mods must be absent from `optionalNeeds`. |
 | 34161 | Hartley's Miscellaneous Mods. Four mods, each with a name, a paragraph and a download, all in one post. |
 | 35651 | Computica's Faction Forks. Seven mods, and every download is a badge image inside a link with no words of its own, in the author's *second* post. The first post also lists forks that are not out yet, which must not become mods. |
 | 21968 | Yunru Mods. A library plus five add-ons that each name it, and a paragraph per add-on for `descriptionAnchors` to point at. One pack is "Formerly known as the Pirate Collection", so that old name must land in that pack's `nicknames` and no other mod's. |

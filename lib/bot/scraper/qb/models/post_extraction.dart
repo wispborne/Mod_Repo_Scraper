@@ -301,6 +301,10 @@ class LlmExtras with LlmExtrasMappable {
   /// The other mods this one will not run without, by name.
   final List<String>? needs;
 
+  /// Names of other mods the post calls optional or recommends with this one.
+  /// Excludes mods already in [needs].
+  final List<String>? optionalNeeds;
+
   /// What the author says about using AI tools to make the mod.
   final LlmAiUse? aiUse;
 
@@ -317,6 +321,7 @@ class LlmExtras with LlmExtrasMappable {
     this.canRemove,
     this.summary,
     this.needs,
+    this.optionalNeeds,
     this.aiUse,
   });
 
@@ -332,6 +337,7 @@ class LlmExtras with LlmExtrasMappable {
       (removalCompatibility == null || removalCompatibility!.isEmpty) &&
       (summary == null || summary!.isEmpty) &&
       (needs == null || needs!.isEmpty) &&
+      (optionalNeeds == null || optionalNeeds!.isEmpty) &&
       aiUse == null;
 }
 

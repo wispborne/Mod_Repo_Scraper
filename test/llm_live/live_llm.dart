@@ -233,6 +233,10 @@ String describe(LlmStoreEntry? entry) {
     }
     final needs = mod.extras?.needs;
     if (needs != null && needs.isNotEmpty) b.write('\n      needs: $needs');
+    final optionalNeeds = mod.extras?.optionalNeeds;
+    if (optionalNeeds != null && optionalNeeds.isNotEmpty) {
+      b.write('\n      optional: $optionalNeeds');
+    }
     final version = mod.extras?.version;
     if (version != null) b.write('\n      version: $version');
     final extras = mod.extras;

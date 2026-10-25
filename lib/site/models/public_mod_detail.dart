@@ -146,6 +146,12 @@ class PublicModDetail with PublicModDetailMappable {
   /// only one mod on it.
   final List<PublicAddon> addons;
 
+  /// Other mods the post calls optional or recommends with this one.
+  /// Each links to its own page if available. Excludes [PublicMod.needs].
+  /// Not included in `mods.json`, which only lists what a mod cannot run
+  /// without. The field is left out when empty.
+  final List<PublicNeededMod>? optionalNeeds;
+
   /// The title of the shared thread this mod was found on. The same field as
   /// [PublicMod.partOfThreadTitle], repeated here so the page stands alone.
   /// Null when this is the only mod on its thread and for every merged mod.
@@ -182,6 +188,7 @@ class PublicModDetail with PublicModDetailMappable {
     this.threadLastPostOn,
     this.sameNameMods = const [],
     this.addons = const [],
+    this.optionalNeeds,
     this.partOfThreadTitle,
   });
 }

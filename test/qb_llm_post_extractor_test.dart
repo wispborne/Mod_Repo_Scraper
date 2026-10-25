@@ -362,6 +362,22 @@ void main() {
       expect(extrasOf(73)?.needs, hasLength(1));
     });
 
+    test('the mods a post says are optional are kept apart from the needed ones',
+        () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main","needs":["LazyLib"],'
+            '"optionalNeeds":["Nexerelin","LazyLib","GraphicsLib"]}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(74, 'My cool mod. Requires LazyLib. Optional: Nexerelin.'),
+        [],
+      );
+      expect(extrasOf(74)?.needs, ['LazyLib']);
+      expect(extrasOf(74)?.optionalNeeds, ['Nexerelin'],
+          reason: 'LazyLib is required, and the post never names GraphicsLib');
+    });
+
     test('version found only in the thread title still grounds', () async {
       final client = _FakeLlmClient([
         _json('{"mods":[{"name":"My Mod","role":"main","version":"1.2.3"}]}'),

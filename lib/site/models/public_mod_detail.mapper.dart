@@ -24,6 +24,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       ModReleaseMapper.ensureInitialized();
       PublicSameNameModMapper.ensureInitialized();
       PublicAddonMapper.ensureInitialized();
+      PublicNeededModMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -208,6 +209,10 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     opt: true,
     def: const [],
   );
+  static List<PublicNeededMod>? _$optionalNeeds(PublicModDetail v) =>
+      v.optionalNeeds;
+  static const Field<PublicModDetail, List<PublicNeededMod>> _f$optionalNeeds =
+      Field('optionalNeeds', _$optionalNeeds, opt: true);
   static String? _$partOfThreadTitle(PublicModDetail v) => v.partOfThreadTitle;
   static const Field<PublicModDetail, String> _f$partOfThreadTitle = Field(
     'partOfThreadTitle',
@@ -247,6 +252,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     #threadLastPostOn: _f$threadLastPostOn,
     #sameNameMods: _f$sameNameMods,
     #addons: _f$addons,
+    #optionalNeeds: _f$optionalNeeds,
     #partOfThreadTitle: _f$partOfThreadTitle,
   };
   @override
@@ -284,6 +290,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       threadLastPostOn: data.dec(_f$threadLastPostOn),
       sameNameMods: data.dec(_f$sameNameMods),
       addons: data.dec(_f$addons),
+      optionalNeeds: data.dec(_f$optionalNeeds),
       partOfThreadTitle: data.dec(_f$partOfThreadTitle),
     );
   }
@@ -388,6 +395,12 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     PublicAddonCopyWith<$R, PublicAddon, PublicAddon>
   >
   get addons;
+  ListCopyWith<
+    $R,
+    PublicNeededMod,
+    PublicNeededModCopyWith<$R, PublicNeededMod, PublicNeededMod>
+  >?
+  get optionalNeeds;
   $R call({
     DateTime? generatedAt,
     PublicMod? listing,
@@ -419,6 +432,7 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     String? threadLastPostOn,
     List<PublicSameNameMod>? sameNameMods,
     List<PublicAddon>? addons,
+    List<PublicNeededMod>? optionalNeeds,
     String? partOfThreadTitle,
   });
   PublicModDetailCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -517,6 +531,19 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     (v) => call(addons: v),
   );
   @override
+  ListCopyWith<
+    $R,
+    PublicNeededMod,
+    PublicNeededModCopyWith<$R, PublicNeededMod, PublicNeededMod>
+  >?
+  get optionalNeeds => $value.optionalNeeds != null
+      ? ListCopyWith(
+          $value.optionalNeeds!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(optionalNeeds: v),
+        )
+      : null;
+  @override
   $R call({
     DateTime? generatedAt,
     PublicMod? listing,
@@ -548,6 +575,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     Object? threadLastPostOn = $none,
     List<PublicSameNameMod>? sameNameMods,
     List<PublicAddon>? addons,
+    Object? optionalNeeds = $none,
     Object? partOfThreadTitle = $none,
   }) => $apply(
     FieldCopyWithData({
@@ -586,6 +614,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       if (threadLastPostOn != $none) #threadLastPostOn: threadLastPostOn,
       if (sameNameMods != null) #sameNameMods: sameNameMods,
       if (addons != null) #addons: addons,
+      if (optionalNeeds != $none) #optionalNeeds: optionalNeeds,
       if (partOfThreadTitle != $none) #partOfThreadTitle: partOfThreadTitle,
     }),
   );
@@ -636,6 +665,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     threadLastPostOn: data.get(#threadLastPostOn, or: $value.threadLastPostOn),
     sameNameMods: data.get(#sameNameMods, or: $value.sameNameMods),
     addons: data.get(#addons, or: $value.addons),
+    optionalNeeds: data.get(#optionalNeeds, or: $value.optionalNeeds),
     partOfThreadTitle: data.get(
       #partOfThreadTitle,
       or: $value.partOfThreadTitle,

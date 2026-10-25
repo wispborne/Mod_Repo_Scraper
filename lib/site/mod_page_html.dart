@@ -185,9 +185,13 @@ String _bodyText(PublicMod mod, PublicModDetail detail, String name) {
   ].whereType<String>().toList();
   if (links.isNotEmpty) out.write('<p>${links.join(' · ')}</p>');
 
-  if (mod.needs.isNotEmpty) {
-    out.write('<h2>Requires</h2><ul>');
-    for (final needed in mod.needs) {
+  for (final (heading, mods) in [
+    ('Requires', mod.needs),
+    ('Optional', detail.optionalNeeds ?? const <PublicNeededMod>[]),
+  ]) {
+    if (mods.isEmpty) continue;
+    out.write('<h2>$heading</h2><ul>');
+    for (final needed in mods) {
       final words = _escape(needed.name);
       out.write(needed.id == null
           ? '<li>$words</li>'

@@ -1242,6 +1242,12 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     _$needs,
     opt: true,
   );
+  static List<String>? _$optionalNeeds(LlmExtras v) => v.optionalNeeds;
+  static const Field<LlmExtras, List<String>> _f$optionalNeeds = Field(
+    'optionalNeeds',
+    _$optionalNeeds,
+    opt: true,
+  );
   static LlmAiUse? _$aiUse(LlmExtras v) => v.aiUse;
   static const Field<LlmExtras, LlmAiUse> _f$aiUse = Field(
     'aiUse',
@@ -1263,6 +1269,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     #canRemove: _f$canRemove,
     #summary: _f$summary,
     #needs: _f$needs,
+    #optionalNeeds: _f$optionalNeeds,
     #aiUse: _f$aiUse,
   };
   @override
@@ -1282,6 +1289,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
       canRemove: data.dec(_f$canRemove),
       summary: data.dec(_f$summary),
       needs: data.dec(_f$needs),
+      optionalNeeds: data.dec(_f$optionalNeeds),
       aiUse: data.dec(_f$aiUse),
     );
   }
@@ -1360,6 +1368,8 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
   get updateNotes;
   LlmModSummaryCopyWith<$R, LlmModSummary, LlmModSummary>? get summary;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get needs;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>?
+  get optionalNeeds;
   LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse;
   $R call({
     String? version,
@@ -1374,6 +1384,7 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
     SaveAnswer? canRemove,
     LlmModSummary? summary,
     List<String>? needs,
+    List<String>? optionalNeeds,
     LlmAiUse? aiUse,
   });
   LlmExtrasCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
@@ -1429,6 +1440,15 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
         )
       : null;
   @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>?
+  get optionalNeeds => $value.optionalNeeds != null
+      ? ListCopyWith(
+          $value.optionalNeeds!,
+          (v, t) => ObjectCopyWith(v, $identity, t),
+          (v) => call(optionalNeeds: v),
+        )
+      : null;
+  @override
   LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse =>
       $value.aiUse?.copyWith.$chain((v) => call(aiUse: v));
   @override
@@ -1445,6 +1465,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     Object? canRemove = $none,
     Object? summary = $none,
     Object? needs = $none,
+    Object? optionalNeeds = $none,
     Object? aiUse = $none,
   }) => $apply(
     FieldCopyWithData({
@@ -1461,6 +1482,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
       if (canRemove != $none) #canRemove: canRemove,
       if (summary != $none) #summary: summary,
       if (needs != $none) #needs: needs,
+      if (optionalNeeds != $none) #optionalNeeds: optionalNeeds,
       if (aiUse != $none) #aiUse: aiUse,
     }),
   );
@@ -1484,6 +1506,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     canRemove: data.get(#canRemove, or: $value.canRemove),
     summary: data.get(#summary, or: $value.summary),
     needs: data.get(#needs, or: $value.needs),
+    optionalNeeds: data.get(#optionalNeeds, or: $value.optionalNeeds),
     aiUse: data.get(#aiUse, or: $value.aiUse),
   );
 

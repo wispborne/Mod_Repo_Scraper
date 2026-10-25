@@ -119,6 +119,25 @@ void main() {
       expect(needs, isNot(contains('graphicslib')), reason: why);
       expect(needs, isNot(contains('nexerelin')), reason: why);
     });
+
+    test("People's Commons (36165) keeps its optional mods apart from its needs",
+        () async {
+      final answer = await read(36165);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mod = answer.mods.firstWhere((m) => m.role == 'main');
+      // "Requires LazyLib 3.0.0 and MagicLib 1.5.6. Optional: Nexerelin,
+      // Combat Chatter."
+      final needs = (mod.extras?.needs ?? const <String>[]).map(flatten).toList();
+      final optional =
+          (mod.extras?.optionalNeeds ?? const <String>[]).map(flatten).toList();
+      expect(needs, containsAll(['lazylib', 'magiclib']), reason: why);
+      expect(needs, isNot(contains('nexerelin')), reason: why);
+      expect(needs, isNot(contains('combatchatter')), reason: why);
+      expect(optional, containsAll(['nexerelin', 'combatchatter']), reason: why);
+      expect(optional, isNot(contains('lazylib')), reason: why);
+    });
   });
 
   group('what a post says about saves', () {
