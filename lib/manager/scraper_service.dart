@@ -25,6 +25,7 @@ import '../catalog/catalog_step.dart';
 import '../catalog/discord_posts.dart';
 import '../catalog/mod_catalog.dart';
 import '../catalog/source_post.dart';
+import '../bot/scraper/author_aliases.dart';
 import '../catalog/takedowns.dart';
 import '../site/public_site_step.dart';
 import '../site/requirement_asker.dart';
@@ -240,6 +241,7 @@ class ScraperService implements JobRunner {
     // the job with every output as it was. The LLM test publishes nothing.
     if (request.kind != JobKind.llmTest) {
       _takedowns = TakedownList.read(environment.dataPath);
+      AuthorAliasFile.install(environment.dataPath);
     }
     switch (request.kind) {
       case JobKind.fullRun:
@@ -273,6 +275,7 @@ class ScraperService implements JobRunner {
       case JobKind.rebuildFromSaved:
       case JobKind.takeDown:
       case JobKind.restoreTakedown:
+      case JobKind.setAuthorAliases:
         // These run both pipelines, so a JobRouter runs them, handing this
         // service its own half as a fullRun or a rebuildBundle.
         throw ArgumentError(

@@ -26,48 +26,112 @@ String stripVersionNoise(String name) {
 }
 
 class ModRepoUtils {
-  static const List<List<String>> authorAliases = [
-    ["Soren", "Søren", "Harmful Mechanic"],
+  /// One row per person, every name they go by. The first name in a row is the
+  /// one published for them.
+  ///
+  /// These are the defaults. The viewer's Author aliases page saves its own
+  /// copy to `author-aliases.json`, and [useAuthorAliases] puts that in force.
+  static const List<List<String>> builtInAuthorAliases = [
+    ["Harmful Mechanic", "Soren", "Søren"],
     ["RustyCabbage", "rubi", "ceruleanpancake"],
-    ["Wisp", "Wispborne", "Tartiflette and Wispborne"],
+    ["Wispborne", "Wisp", "Tartiflette and Wispborne"],
     ["DesperatePeter", "Jannes"],
     ["shoi", "gettag"],
     ["Dark.Revenant", "DR"],
     ["LazyWizard", "Lazy", "arkmagius"],
-    ["Techpriest", "Timid"],
+    ["Timid", "Techpriest"],
     ["Nick XR", "Nick", "nick7884"],
-    ["PMMeCuteBugPhotos", "MrFluffster"],
+    ["MrFluffster", "PMMeCuteBugPhotos"],
     ["Dazs", "Spiritfox", "spiritfox_"],
-    ["Histidine, Zaphide", "Histidine", "histidine_my"],
+    ["Histidine", "Histidine, Zaphide", "histidine_my"],
     ["Snrasha", "Snrasha, the tinkerer"],
     ["Hotpics", "jackwolfskin"],
     ["cptdash", "SpeedRacer"],
     ["Elseud", "Elseudo"],
     ["TobiaF", "Toby"],
-    ["Mephyr", "Liral"],
+    ["Liral", "Mephyr"],
     ["Tranquility", "tranquil_light"],
-    ["FasterThanSleepyfish", "Sleepyfish"],
+    ["Sleepyfish", "FasterThanSleepyfish"],
     ["Nerzhull_AI", "nerzhulai"],
     ["theDragn", "iryx.gay"],
     // "AudaxI" ends in a capital i, "Audaxl" in a lowercase L. Same person,
     // and the two are impossible to tell apart in most fonts.
     ["Audax", "Audaxl", "AudaxI"],
-    ["Pogre", "noof"],
-    ["lord_dalton", "Epta Consortium", "Dalton"],
+    ["noof", "Pogre"],
+    ["lord_dalton", "Dalton", "Epta Consortium"],
     ["Genir", "halke1986"],
-    ["hakureireimu", "LngA7Gw"],
+    ["LngA7Gw", "hakureireimu"],
     ["Nes", "nescom"],
     ["float", "this_is_a_username"],
     ["AERO", "aero.assault"],
     ["Fellout", "felloutwastaken"],
     ["Mr. THG", "thog"],
     ["Derelict_Surveyor", "jdt15"],
-    ["astarat.", "Astarat", "Astarat and PureTilt"],
-    ["Yogurt Fox", "YogurtFox", "Mycophobia"],
+    ["Astarat", "astarat.", "Astarat and PureTilt"],
+    ["Mycophobia", "YogurtFox", "Yogurt Fox"],
     ["Belt", "woetothee"],
     ["DeCell", ".7556"],
     ["TresDisco", "arjanvelly."],
+    ["zoeythegirlgal", "NikoTheGuyDude"],
+    ["Protonus", "xprotonus"],
+    ["Vexlia Artemiss", "vexlia.un_artist"],
+    ["Himemiko", "himemi"],
+    ["kemptastic", "ktastic"],
+    ["Bangle", "bangle_bangle"],
+    ["Kissa_Mies", "kissa.x3"],
+    ["Kris", "kris.dream_in_red"],
+    ["lili", "lililowo"],
+    ["MiniRockytheOracle", "minirockythesheeporacle"],
+    ["Simbach Vazo", "simbach.a.vazo"],
+    ["Spectros", "i_spectros_i"],
+    ["ThunderCTA", "thundercocktheannihilator"],
   ];
+
+  static List<List<String>> _authorAliases = builtInAuthorAliases;
+  static Map<String, List<String>> _rowByName = _indexRows(builtInAuthorAliases);
+  static Map<String, String> _shownByName = _indexShownNames(builtInAuthorAliases);
+
+  /// The rows in force: [builtInAuthorAliases] unless [useAuthorAliases] said
+  /// otherwise.
+  static List<List<String>> get authorAliases => _authorAliases;
+
+  /// Makes [rows] the aliases every merge, tidy-up and takedown uses.
+  static void useAuthorAliases(List<List<String>> rows) {
+    _authorAliases = [for (final row in rows) List.unmodifiable(row)];
+    _rowByName = _indexRows(_authorAliases);
+    _shownByName = _indexShownNames(_authorAliases);
+  }
+
+  /// Each listed name, in lowercase, to the first name of its row as written.
+  static Map<String, String> _indexShownNames(List<List<String>> rows) {
+    final shown = <String, String>{};
+    for (final row in rows) {
+      if (row.isEmpty) continue;
+      for (final name in row) {
+        shown.putIfAbsent(name.toLowerCase(), () => row.first);
+      }
+    }
+    return shown;
+  }
+
+  /// The name [name] is published as: the first name of its row in
+  /// [authorAliases], or [name] itself when it is in no row.
+  static String shownName(String name) {
+    final row = _aliasRowFor(name);
+    if (row.isEmpty) return name;
+    return _shownByName[row.first] ?? name;
+  }
+
+  static Map<String, List<String>> _indexRows(List<List<String>> rows) {
+    final byName = <String, List<String>>{};
+    for (final row in rows) {
+      final lower = [for (final name in row) name.toLowerCase()];
+      for (final name in lower) {
+        byName.putIfAbsent(name, () => lower);
+      }
+    }
+    return byName;
+  }
 
   /// Splits an author credit like "Ed, Nick XR & Foo and Bar" into the
   /// individual names. The credit itself is not included in the result.
@@ -92,8 +156,9 @@ class ModRepoUtils {
   /// names, then names that mean the same person are folded together — the
   /// same name in different capitals or punctuation ("Kaysaar" / "kaysaar"),
   /// a name with a tag on the end ("Sundog" / "sundog3161"), and names listed
-  /// together in [authorAliases] ("Nes" / "nescom"). The best-looking spelling
-  /// of each person is the one kept.
+  /// together in [authorAliases] ("Nes" / "nescom"). A person in
+  /// [authorAliases] is published under the first name of their row; anyone
+  /// else under the best-looking spelling.
   static List<String> tidyAuthorNames(List<String> authors) {
     final names = <String>[];
     for (final credit in authors) {
@@ -145,7 +210,14 @@ class ModRepoUtils {
       }
     }
 
-    return bestOfGroup.values.map((i) => names[i]).toList()..sort(_byNameIgnoringCase);
+    // A listed person is always published under their row's first name, even
+    // when the mod only names them another way.
+    final tidied = <String>[];
+    for (final i in bestOfGroup.values) {
+      final shown = shownName(names[i]);
+      if (!tidied.contains(shown)) tidied.add(shown);
+    }
+    return tidied..sort(_byNameIgnoringCase);
   }
 
   /// Whether the credits [a] and [b] name a person in common, by the same rules
@@ -212,12 +284,13 @@ class ModRepoUtils {
   }
 
   /// Whether [candidate] is a nicer way of writing the person's name than
-  /// [current]. In order: one with capitals in it beats one without
-  /// ("Kaysaar" over "kaysaar"), one without digits on the end beats one with
-  /// ("Sundog" over "sundog3161"), fewer odd characters beats more
-  /// ("vicegrip" over ".vicegrip"), then the order the name is listed in
-  /// [authorAliases], then the shorter name, then alphabetical so the answer
-  /// never depends on which name happened to arrive first.
+  /// [current]. In order: the name listed earlier in its row of
+  /// [authorAliases] (the first is the one the row asks for, and any listed
+  /// name beats one that is not), then one with capitals in it beats one
+  /// without ("Kaysaar" over "kaysaar"), one without digits on the end beats
+  /// one with ("Sundog" over "sundog3161"), fewer odd characters beats more
+  /// ("vicegrip" over ".vicegrip"), then the shorter name, then alphabetical so
+  /// the answer never depends on which name happened to arrive first.
   static bool _isBetterSpelling(String candidate, String current) {
     final candidateRank = _spellingRank(candidate);
     final currentRank = _spellingRank(current);
@@ -229,10 +302,10 @@ class ModRepoUtils {
 
   /// How good a spelling looks, lower being better, compared piece by piece.
   static List<int> _spellingRank(String name) => [
+        _aliasRank(name),
         name.contains(_capitalRe) ? 0 : 1,
         _endsInDigitsRe.hasMatch(name) ? 1 : 0,
         _notALetterOrDigitRe.allMatches(name).length,
-        _aliasRank(name),
         name.length,
       ];
 
@@ -268,8 +341,6 @@ class ModRepoUtils {
     bool fuzzyMatchAliases = false,
     int matchScoreNeeded = 150,
   }) {
-    final aliasesFormatted =
-        authorAliases.map((aliases) => aliases.map((alias) => alias.toLowerCase()).toList()).toList();
     final authorFormatted = author.toLowerCase();
 
     // fuzzyMatchAliases is slower, more flexible, but risks false positives.
@@ -277,6 +348,8 @@ class ModRepoUtils {
     // Without fuzzy merge: Total time to merge 726 mods: 2565ms
     // With fuzzy merge: Total time to merge 726 mods: 4938ms
     if (fuzzyMatchAliases) {
+      final aliasesFormatted =
+          authorAliases.map((aliases) => aliases.map((alias) => alias.toLowerCase()).toList()).toList();
       for (final aliases in aliasesFormatted) {
         for (final alias in aliases) {
           final match1 = Fuzzy.fuzzyMatch(authorFormatted.toLowerCase(), alias.toLowerCase());
@@ -302,15 +375,10 @@ class ModRepoUtils {
       }
       return [];
     } else {
-      for (final aliasesRow in aliasesFormatted) {
-        for (final alias in aliasesRow) {
-          if (alias == authorFormatted) {
-            timber.v(message: () => "Matched author '$author' with alias list '${aliasesRow.join(', ')}'.");
-            return aliasesRow;
-          }
-        }
-      }
-      return [];
+      final row = _rowByName[authorFormatted];
+      if (row == null) return [];
+      timber.v(message: () => "Matched author '$author' with alias list '${row.join(', ')}'.");
+      return row;
     }
   }
 

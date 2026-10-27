@@ -15,6 +15,7 @@ import * as runs from './views/runs.js';
 import * as run from './views/run.js';
 import * as takedowns from './views/takedowns.js';
 import * as requirementNames from './views/requirement_names.js';
+import * as authorAliases from './views/author_aliases.js';
 import { mountHeaderChip } from './manager.js';
 import { mountUpdateNotice } from './update.js';
 import { icon } from './icons.js';
@@ -46,6 +47,7 @@ const NAV_SECTIONS = [
     items: [
       { route: ['takedowns'], label: 'Takedowns', icon: 'eye-off' },
       { route: ['dependency-names'], label: 'Dependencies', icon: 'link' },
+      { route: ['author-aliases'], label: 'Author aliases', icon: 'users' },
     ],
   },
   {
@@ -80,6 +82,7 @@ const ROUTES = {
   log: log.render,
   takedowns: takedowns.render,
   'dependency-names': requirementNames.render,
+  'author-aliases': authorAliases.render,
   // The page's first address, kept so old links still open it.
   'requirement-names': requirementNames.render,
 };

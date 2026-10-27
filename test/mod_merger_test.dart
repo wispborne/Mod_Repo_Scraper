@@ -1004,7 +1004,7 @@ void main() {
 
     test('folds together the aliases added for known pairs', () {
       expect(ModRepoUtils.tidyAuthorNames(['Genir', 'halke1986']), equals(['Genir']));
-      expect(ModRepoUtils.tidyAuthorNames(['Dalton', 'lord_dalton']), equals(['Dalton']));
+      expect(ModRepoUtils.tidyAuthorNames(['Dalton', 'lord_dalton']), equals(['lord_dalton']));
       expect(ModRepoUtils.tidyAuthorNames(['Audax', 'AudaxI', 'Audaxl']), equals(['Audax']));
     });
 

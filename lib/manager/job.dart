@@ -38,6 +38,10 @@ enum JobKind {
   /// Then rebuild the website. No network or LLM calls.
   setRequirementNames,
 
+  /// Save the author aliases to `author-aliases.json`, then rebuild every
+  /// output from saved files. No network, no LLM.
+  setAuthorAliases,
+
   /// A small trial of the LLM prompt that writes a report and saves nothing.
   llmTest,
 
@@ -197,6 +201,14 @@ class JobRequest with JobRequestMappable {
   /// The hand entries a `setRequirementNames` job saves or removes.
   final List<RequirementChange> requirementChanges;
 
+  /// The whole alias list a `setAuthorAliases` job saves: one row per person,
+  /// the name to publish first.
+  final List<List<String>> authorAliasPeople;
+
+  /// Pairs of names a `setAuthorAliases` job saves as different people, so
+  /// the viewer stops suggesting them.
+  final List<List<String>> authorAliasNotSame;
+
   const JobRequest({
     required this.kind,
     this.topicIds = const [],
@@ -224,6 +236,8 @@ class JobRequest with JobRequestMappable {
     this.takedownEntry,
     this.publishAfter = false,
     this.requirementChanges = const [],
+    this.authorAliasPeople = const [],
+    this.authorAliasNotSame = const [],
   });
 
   /// A scrape over the boards, the way the CLI has always run.
@@ -274,6 +288,16 @@ class JobRequest with JobRequestMappable {
   /// Saves or removes the hand entries in [changes]. Then rebuilds the website.
   factory JobRequest.setRequirementNames(List<RequirementChange> changes) =>
       JobRequest(kind: JobKind.setRequirementNames, requirementChanges: changes);
+
+  /// Saves the alias list, then rebuilds every output from saved files.
+  factory JobRequest.setAuthorAliases(List<List<String>> people,
+          {List<List<String>> notSame = const []}) =>
+      JobRequest(
+        kind: JobKind.setAuthorAliases,
+        authorAliasPeople: people,
+        authorAliasNotSame: notSame,
+        collectMergeDebug: true,
+      );
 
   /// A trial run of the prompt. Writes a report; touches nothing else.
   factory JobRequest.llmTest({List<int> topicIds = const [], int limit = 5}) =>
@@ -386,6 +410,10 @@ class JobRequest with JobRequestMappable {
   /// True for the two kinds that change the takedown list.
   bool get isTakedownKind =>
       kind == JobKind.takeDown || kind == JobKind.restoreTakedown;
+
+  /// True for the kinds that change a list of corrections and then rebuild
+  /// every output from saved files.
+  bool get isCorrectionKind => isTakedownKind || kind == JobKind.setAuthorAliases;
 
   /// True for the two kinds that end in a merge.
   bool get isMergeKind =>

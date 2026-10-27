@@ -12,6 +12,7 @@ import '../bot/scraper/nexus_reader.dart';
 import '../bot/scraper/scraped_mod.dart';
 import '../catalog/catalog_step.dart';
 import '../catalog/discord_posts.dart';
+import '../bot/scraper/author_aliases.dart';
 import '../catalog/takedowns.dart';
 import '../site/public_site_step.dart';
 import '../utilities/caching_http_client.dart';
@@ -105,6 +106,7 @@ class ModRepoService implements JobRunner {
     // Read before anything is fetched or written: a list that cannot be read
     // stops the job with ModRepo.json and the catalog as they were.
     final takedowns = TakedownList.read(environment.snapshotPath);
+    AuthorAliasFile.install(environment.snapshotPath);
 
     final mods = <ScrapedMod>[];
     final bySource = <ModSourceKind, List<ScrapedMod>>{};
@@ -523,11 +525,16 @@ class JobRouter implements JobRunner {
   /// kinds are then refused.
   final JobRunner? takedowns;
 
+  /// Saves `author-aliases.json`. Null where nobody set it up, and
+  /// `setAuthorAliases` is then refused.
+  final JobRunner? authorAliases;
+
   const JobRouter({
     required this.qb,
     required this.modRepo,
     required this.publish,
     this.takedowns,
+    this.authorAliases,
   });
 
   @override
@@ -540,8 +547,8 @@ class JobRouter implements JobRunner {
     if (request.isPipelineKind) {
       return _runBoth(request, reporter: reporter, cancel: cancel, runId: runId);
     }
-    if (request.isTakedownKind) {
-      return _runTakedown(request, reporter: reporter, cancel: cancel, runId: runId);
+    if (request.isCorrectionKind) {
+      return _runCorrection(request, reporter: reporter, cancel: cancel, runId: runId);
     }
     return _runnerFor(request)
         .runJob(request, reporter: reporter, cancel: cancel, runId: runId);
@@ -612,22 +619,26 @@ class JobRouter implements JobRunner {
     );
   }
 
-  /// A takedown or a restore, as steps of one job: the list is changed, then
-  /// `ModRepo.json` is merged again from saved files, then the catalog, the
-  /// bundle and the website are rebuilt, and last the outputs are published
-  /// when the request asks. No step scrapes or calls the LLM.
+  /// A takedown, a restore or new author aliases, as steps of one job: the
+  /// list is changed, then `ModRepo.json` is merged again from saved files,
+  /// then the catalog, the bundle and the website are rebuilt, and last the
+  /// outputs are published when the request asks. No step scrapes or calls
+  /// the LLM.
   ///
   /// The list is changed first and kept, even when the job is stopped after:
   /// the next rebuild applies it.
-  Future<JobOutcome> _runTakedown(
+  Future<JobOutcome> _runCorrection(
     JobRequest request, {
     required RunReporter reporter,
     CancelToken? cancel,
     String? runId,
   }) async {
-    final runner = takedowns;
+    final aliases = request.kind == JobKind.setAuthorAliases;
+    final runner = aliases ? authorAliases : takedowns;
     if (runner == null) {
-      throw StateError('This manager was set up without a way to change the takedown list.');
+      throw StateError(aliases
+          ? 'This manager was set up without a way to change the author aliases.'
+          : 'This manager was set up without a way to change the takedown list.');
     }
     await runner.runJob(request, reporter: reporter, cancel: cancel, runId: runId);
     if (cancel?.isCancelled ?? false) return const JobOutcome(cancelled: true);
@@ -679,6 +690,7 @@ String jobKindLabel(JobKind kind) => switch (kind) {
       JobKind.describePictures => 'scan images',
       JobKind.matchRequirements => 'match dependency names',
       JobKind.setRequirementNames => 'change dependency names',
+      JobKind.setAuthorAliases => 'change author aliases',
       JobKind.llmTest => 'LLM test',
       JobKind.rebuildBundle => 'rebuild the bundle',
       JobKind.mergeModRepo => 'merge from saved files',

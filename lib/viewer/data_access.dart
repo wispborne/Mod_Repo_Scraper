@@ -163,6 +163,25 @@ class DataAccess {
     },
   );
 
+  /// The names the Discord reader gave each thread, keyed by thread id, from
+  /// the ModRepo pipeline's `discord_cache.json`.
+  late final _MtimeCache<Map<String, List<String>>> _discordAuthorsCache = _MtimeCache(
+    File(p.join(rootDir, 'discord_cache.json')),
+    (s) {
+      final out = <String, List<String>>{};
+      final items = (jsonDecode(s) as Map<String, dynamic>)['items'] as List<dynamic>? ?? const [];
+      for (final item in items.whereType<Map<String, dynamic>>()) {
+        final url = '${(item['urls'] as Map?)?['Discord'] ?? ''}';
+        final thread = RegExp(r'/channels/\d+/(\d+)').firstMatch(url)?.group(1);
+        if (thread == null) continue;
+        out.putIfAbsent(thread, () => []).addAll([
+          for (final name in item['authorsList'] as List<dynamic>? ?? const []) '$name',
+        ]);
+      }
+      return out;
+    },
+  );
+
   late final _MtimeCache<Map<String, dynamic>> _modRepoCache =
       _MtimeCache(_modRepoFile, (s) => jsonDecode(s) as Map<String, dynamic>);
   late final _MtimeCache<Map<String, dynamic>> _bundleCache =
@@ -226,6 +245,10 @@ class DataAccess {
       _assumedCache.get();
 
   Map<String, dynamic>? get modRepo => _modRepoCache.get();
+
+  /// The names the Discord reader gave each thread, or null when Discord has
+  /// never been scraped here.
+  Map<String, List<String>>? get discordAuthors => _discordAuthorsCache.get();
 
   /// The Discord threads the last Discord scrape saved, or null when there is
   /// no such file yet.

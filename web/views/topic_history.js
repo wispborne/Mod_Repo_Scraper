@@ -259,6 +259,7 @@ function jobWord(id) {
     describePictures: 'image scan',
     matchRequirements: 'dependency names',
     setRequirementNames: 'dependency names',
+    setAuthorAliases: 'author aliases',
     rebuildBundle: 'rebuild',
     scrapeAndMerge: 'scrape and merge',
     fetchAndUpdate: 'fetch and update',

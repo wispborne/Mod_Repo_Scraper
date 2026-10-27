@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:mod_repo_scraper/bot/common.dart';
+import 'package:mod_repo_scraper/manager/author_alias_service.dart';
 import 'package:mod_repo_scraper/manager/data_lock.dart';
 import 'package:mod_repo_scraper/manager/job_manager.dart';
 import 'package:mod_repo_scraper/manager/manager_api.dart';
@@ -185,6 +186,7 @@ Future<_ManagerSetup> _buildManager({
         dataPath: config.qbDataPath,
         outputPath: viewerOutputsDir,
       ),
+      authorAliases: AuthorAliasService(dataPath: config.qbDataPath),
     ),
     history:
         RunHistoryStore(config.qbDataPath, runsToKeep: config.qbRunsToKeep),

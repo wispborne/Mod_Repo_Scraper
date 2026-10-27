@@ -5,15 +5,18 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../bot/scraper/author_aliases.dart';
 import '../bot/scraper/mod_repo_utils.dart';
 import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import '../bot/scraper/qb/models/forum_date.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
+import '../bot/scraper/qb/models/mod_summary.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
 import '../catalog/discord_posts.dart';
 import '../catalog/mod_catalog.dart';
 import '../catalog/takedowns.dart';
 import '../site/requirement_names.dart';
+import 'author_alias_views.dart';
 import 'bundle_views.dart';
 import 'data_access.dart';
 import 'merge_views.dart';
@@ -67,6 +70,8 @@ class ViewerApi {
     r.get('/takedowns/mods', _takedownMods);
 
     r.get('/requirement-names', _requirementNames);
+
+    r.get('/author-aliases', _authorAliases);
 
     return r.call;
   }
@@ -1050,6 +1055,44 @@ class ViewerApi {
       'saved': [
         for (final MapEntry(:key, :value) in store.answers.entries) {'key': key, ...value.toJson()},
       ],
+    });
+  }
+
+  // --- Author aliases (read only: changes go through a manager job) ---
+
+  /// The aliases in force, the built-in ones, how many mods each name is on,
+  /// and pairs of names that might be one person.
+  Response _authorAliases(Request req) {
+    final AuthorAliasFile file;
+    try {
+      // The same file every job reads, so suggestions use what a build uses.
+      file = AuthorAliasFile.install(data.dataDir);
+    } on StateError catch (e) {
+      return _json({'error': e.message});
+    }
+    final forumAuthors = <String, List<String>>{};
+    for (final topic in data.index ?? const <QbModSummary>[]) {
+      forumAuthors['${topic.topicId}'] = [
+        if (topic.author.trim().isNotEmpty) topic.author,
+        for (final line in topic.indexLines ?? const <QbIndexLine>[])
+          if (line.author.trim().isNotEmpty) line.author,
+      ];
+    }
+    final catalog = data.modRepo;
+    return _json({
+      'rows': file.rowsToUse(),
+      'builtIn': ModRepoUtils.builtInAuthorAliases,
+      'saved': file.saved,
+      'notSame': file.notSame,
+      'hasCatalog': catalog != null,
+      ...authorAliasReport(
+        catalogItems: [
+          for (final item in (catalog?['items'] as List?) ?? const []) item as Map<String, dynamic>,
+        ],
+        forumAuthors: forumAuthors,
+        discordAuthors: data.discordAuthors ?? const {},
+        notSame: file.notSame,
+      ),
     });
   }
 

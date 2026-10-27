@@ -821,6 +821,45 @@ dialog.ask-dialog.takedown-dialog[open] { display: flex; flex-direction: column;
   padding: 10px 14px; background: var(--surface-container); border: 1px solid var(--primary); border-radius: 8px;
 }
 
+/* Author aliases page */
+.alias-section-head { display: flex; align-items: center; gap: 8px; }
+.alias-section-head h2 { margin: 0; }
+.alias-table td { vertical-align: middle; }
+.alias-suggestions td.alias-who { white-space: nowrap; overflow-wrap: normal; }
+.alias-table td.alias-shown { width: 1%; white-space: nowrap; }
+.alias-table td.alias-row-actions { width: 1%; text-align: right; }
+.alias-names { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.alias-name {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 4px 2px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2); font-size: 0.82rem;
+}
+.alias-name.shown { border-color: var(--primary); color: var(--primary); font-weight: 600; }
+.alias-name > span.alias-name-text { padding-right: 2px; }
+.alias-name-text { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: default; }
+button.alias-name-text { cursor: pointer; }
+button.alias-name-text:hover { color: var(--primary); text-decoration: underline; }
+.alias-count { color: var(--text-dim); font-size: 0.72rem; font-weight: 400; }
+.alias-name.unused { border-style: dashed; color: var(--text-dim); }
+.alias-name.unused.shown { color: var(--primary); }
+.alias-add-open {
+  background: none; border: 1px dashed var(--border); border-radius: 999px; color: var(--text-dim);
+  cursor: pointer; font: inherit; font-size: 0.78rem; padding: 2px 10px;
+}
+.alias-add-open:hover { color: var(--primary); border-color: var(--primary); }
+.alias-remove {
+  background: none; border: 0; color: var(--text-dim); cursor: pointer;
+  font-size: 1rem; line-height: 1; width: 20px; height: 20px; border-radius: 50%; padding: 0;
+}
+.alias-remove:hover { color: var(--error); background: rgba(255, 100, 100, 0.12); }
+.alias-name:not(:has(.alias-remove)) { padding-right: 10px; }
+.alias-add-box { display: inline-flex; gap: 4px; align-items: center; }
+.alias-add { width: 170px; }
+.alias-message:not(:empty) { font-size: 0.8rem; color: var(--warning); margin-top: 4px; }
+.alias-focus td { background: rgba(73, 252, 255, 0.07); }
+.alias-actions { justify-content: flex-end; flex-wrap: nowrap; }
+.alias-more { align-self: flex-start; }
+
 /* The Take down card's tabs */
 .takedown-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; flex-wrap: wrap; }
 .takedown-tab {

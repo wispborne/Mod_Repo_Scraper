@@ -43,6 +43,8 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return JobKind.matchRequirements;
       case r'setRequirementNames':
         return JobKind.setRequirementNames;
+      case r'setAuthorAliases':
+        return JobKind.setAuthorAliases;
       case r'llmTest':
         return JobKind.llmTest;
       case r'rebuildBundle':
@@ -85,6 +87,8 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return r'matchRequirements';
       case JobKind.setRequirementNames:
         return r'setRequirementNames';
+      case JobKind.setAuthorAliases:
+        return r'setAuthorAliases';
       case JobKind.llmTest:
         return r'llmTest';
       case JobKind.rebuildBundle:
@@ -547,6 +551,19 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     opt: true,
     def: const [],
   );
+  static List<List<String>> _$authorAliasPeople(JobRequest v) =>
+      v.authorAliasPeople;
+  static const Field<JobRequest, List<List<String>>> _f$authorAliasPeople =
+      Field('authorAliasPeople', _$authorAliasPeople, opt: true, def: const []);
+  static List<List<String>> _$authorAliasNotSame(JobRequest v) =>
+      v.authorAliasNotSame;
+  static const Field<JobRequest, List<List<String>>> _f$authorAliasNotSame =
+      Field(
+        'authorAliasNotSame',
+        _$authorAliasNotSame,
+        opt: true,
+        def: const [],
+      );
 
   @override
   final MappableFields<JobRequest> fields = const {
@@ -572,6 +589,8 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     #takedownEntry: _f$takedownEntry,
     #publishAfter: _f$publishAfter,
     #requirementChanges: _f$requirementChanges,
+    #authorAliasPeople: _f$authorAliasPeople,
+    #authorAliasNotSame: _f$authorAliasNotSame,
   };
 
   static JobRequest _instantiate(DecodingData data) {
@@ -598,6 +617,8 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       takedownEntry: data.dec(_f$takedownEntry),
       publishAfter: data.dec(_f$publishAfter),
       requirementChanges: data.dec(_f$requirementChanges),
+      authorAliasPeople: data.dec(_f$authorAliasPeople),
+      authorAliasNotSame: data.dec(_f$authorAliasNotSame),
     );
   }
 
@@ -672,6 +693,10 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     RequirementChangeCopyWith<$R, RequirementChange, RequirementChange>
   >
   get requirementChanges;
+  ListCopyWith<$R, List<String>, ObjectCopyWith<$R, List<String>, List<String>>>
+  get authorAliasPeople;
+  ListCopyWith<$R, List<String>, ObjectCopyWith<$R, List<String>, List<String>>>
+  get authorAliasNotSame;
   $R call({
     JobKind? kind,
     List<int>? topicIds,
@@ -695,6 +720,8 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     String? takedownEntry,
     bool? publishAfter,
     List<RequirementChange>? requirementChanges,
+    List<List<String>>? authorAliasPeople,
+    List<List<String>>? authorAliasNotSame,
   });
   JobRequestCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -740,6 +767,20 @@ class _JobRequestCopyWithImpl<$R, $Out>
     (v) => call(requirementChanges: v),
   );
   @override
+  ListCopyWith<$R, List<String>, ObjectCopyWith<$R, List<String>, List<String>>>
+  get authorAliasPeople => ListCopyWith(
+    $value.authorAliasPeople,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(authorAliasPeople: v),
+  );
+  @override
+  ListCopyWith<$R, List<String>, ObjectCopyWith<$R, List<String>, List<String>>>
+  get authorAliasNotSame => ListCopyWith(
+    $value.authorAliasNotSame,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(authorAliasNotSame: v),
+  );
+  @override
   $R call({
     JobKind? kind,
     List<int>? topicIds,
@@ -763,6 +804,8 @@ class _JobRequestCopyWithImpl<$R, $Out>
     Object? takedownEntry = $none,
     bool? publishAfter,
     List<RequirementChange>? requirementChanges,
+    List<List<String>>? authorAliasPeople,
+    List<List<String>>? authorAliasNotSame,
   }) => $apply(
     FieldCopyWithData({
       if (kind != null) #kind: kind,
@@ -788,6 +831,8 @@ class _JobRequestCopyWithImpl<$R, $Out>
       if (takedownEntry != $none) #takedownEntry: takedownEntry,
       if (publishAfter != null) #publishAfter: publishAfter,
       if (requirementChanges != null) #requirementChanges: requirementChanges,
+      if (authorAliasPeople != null) #authorAliasPeople: authorAliasPeople,
+      if (authorAliasNotSame != null) #authorAliasNotSame: authorAliasNotSame,
     }),
   );
   @override
@@ -828,6 +873,14 @@ class _JobRequestCopyWithImpl<$R, $Out>
     requirementChanges: data.get(
       #requirementChanges,
       or: $value.requirementChanges,
+    ),
+    authorAliasPeople: data.get(
+      #authorAliasPeople,
+      or: $value.authorAliasPeople,
+    ),
+    authorAliasNotSame: data.get(
+      #authorAliasNotSame,
+      or: $value.authorAliasNotSame,
     ),
   );
 

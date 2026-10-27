@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../bot/scraper/author_aliases.dart';
 import 'job.dart';
 import 'job_manager.dart';
 import 'self_update.dart';
@@ -168,6 +169,15 @@ class ManagerApi {
         !request.requirementChanges.any((c) => c.written.trim().isNotEmpty)) {
       throw _BadRequest('A setRequirementNames job needs at least one change in '
           '"requirementChanges".');
+    }
+    if (request.kind == JobKind.setAuthorAliases) {
+      // Checked here too, so a list that cannot be saved never waits in the
+      // queue only to be refused.
+      try {
+        checkAliasRows(request.authorAliasPeople, request.authorAliasNotSame);
+      } on StateError catch (e) {
+        throw _BadRequest(e.message);
+      }
     }
     if (request.kind == JobKind.restoreTakedown &&
         (request.takedownEntry?.trim() ?? '').isEmpty) {

@@ -21,6 +21,7 @@ export const KIND_LABELS = {
   describePictures: 'Scan images',
   matchRequirements: 'Match dependency names',
   setRequirementNames: 'Change dependency names',
+  setAuthorAliases: 'Change author aliases',
   llmTest: 'LLM test',
   rebuildBundle: 'Rebuild mod details',
   mergeModRepo: 'Merge from saved files',
@@ -242,6 +243,11 @@ export function describeJob(request) {
       const n = (request.requirementChanges || []).length;
       return `Save ${n} dependency ${n === 1 ? 'change' : 'changes'}. `
         + 'Rebuild the website from saved files. No network or LLM calls.';
+    }
+    case 'setAuthorAliases': {
+      const n = (request.authorAliasPeople || []).length;
+      return `Save the author aliases (${n} ${n === 1 ? 'person' : 'people'}). `
+        + 'Rebuild every output from saved files. No network or LLM calls.';
     }
     case 'matchRequirements':
       return 'Ask the LLM to match unmatched dependency names, such as '

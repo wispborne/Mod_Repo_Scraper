@@ -317,6 +317,7 @@ function jobWord(id) {
     describePictures: 'image scan',
     matchRequirements: 'dependency names',
     setRequirementNames: 'dependency names',
+    setAuthorAliases: 'author aliases',
     rebuildBundle: 'rebuild',
     fetchAndUpdate: 'fetch and update',
     rebuildFromSaved: 'rebuild from saved',
