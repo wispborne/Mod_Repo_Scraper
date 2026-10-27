@@ -286,7 +286,7 @@ export async function render(root, parts) {
         render(root, parts);
       },
       () => {
-        shown.ai = aiFilterOff();
+        Object.assign(shown, withoutOtherFilters(shown));
         saveState(shown, true);
         render(root, parts);
       });
@@ -328,7 +328,7 @@ export function sortInUse(state) {
 ///
 /// It fills a line that is already on the page rather than making a new one,
 /// because that is what gets it read out.
-function fillResultLine(line, all, matches, state, onShowEveryRelease, onAiFilterOff) {
+function fillResultLine(line, all, matches, state, onShowEveryRelease, onOtherFiltersOff) {
   clear(line);
   line.append(el('span', {
     text: matches.length === all.length
@@ -336,17 +336,18 @@ function fillResultLine(line, all, matches, state, onShowEveryRelease, onAiFilte
       : `${matches.length} of ${all.length} mods shown.`,
   }));
 
-  // Show the hidden count even when the filter panel is closed.
-  if (aiFilterIsOn(state.ai)) {
-    const left = all.filter((mod) => matchesFilters(mod, { ...state, ai: aiFilterOff() })).length
-      - matches.length;
-    if (left > 0) {
-      const off = el('button', { class: 'link-button', text: 'Clear AI filter' });
-      off.addEventListener('click', onAiFilterOff);
-      line.append(el('span', {
-        text: ` ${left} hidden by the AI use filter. `,
-      }), off);
-    }
+  // Shown even when the filter panel is closed. The search and the game
+  // version are left out: the box shows the search, and the game version
+  // has its own link below.
+  const unfiltered = withoutOtherFilters(state);
+  const hidden = all.filter((mod) => matchesFilters(mod, unfiltered)).length
+    - matches.length;
+  if (hidden > 0) {
+    const off = el('button', { class: 'link-button', text: 'Clear filters' });
+    off.addEventListener('click', onOtherFiltersOff);
+    line.append(el('span', {
+      text: ` ${hidden} hidden by your filters. `,
+    }), off);
   }
 
   if (!state.currentVersion || state.game !== state.currentVersion) return;
@@ -1289,6 +1290,22 @@ function clearFilters(state) {
   state.ai = aiFilterOff();
   state.dates = noDates();
   state.page = 0;
+}
+
+/// The filters with every one turned off except the search and the game
+/// version, which the result line does not count as filters.
+function withoutOtherFilters(state) {
+  return {
+    ...state,
+    needs: '',
+    category: '',
+    from: '',
+    author: '',
+    switches: new Map(),
+    ai: aiFilterOff(),
+    dates: noDates(),
+    page: 0,
+  };
 }
 
 function nothingMatched(onClear) {
