@@ -178,6 +178,22 @@ void main() {
       expect(body, contains('</article><div class="loading">Loading…</div>'));
     });
 
+    test('the mod\'s Nexus Mods page is not linked', () {
+      final mod = modOf();
+      final detail = PublicModDetail(
+        generatedAt: DateTime.utc(2026, 10, 13),
+        listing: mod,
+        forumUrl: 'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+        nexusUrl: 'https://www.nexusmods.com/starsector/mods/42',
+      );
+      final body =
+          bodyOf(buildModPageHtml(mod, shell: shell, detail: detail));
+
+      expect(body, contains('topic=9175.0'));
+      expect(body, isNot(contains('nexusmods.com')));
+      expect(body, isNot(contains('Nexus')));
+    });
+
     test('a mod it needs links to that mod\'s page', () {
       final mod = PublicMod(
         id: 'nexerelin',

@@ -179,7 +179,6 @@ String _bodyText(PublicMod mod, PublicModDetail detail, String name) {
       _link(mod.bestDownload!.url, _downloadWords(mod.bestDownload!)),
     if (detail.forumUrl != null) _link(detail.forumUrl!, 'Forum thread'),
     if (detail.discordUrl != null) _link(detail.discordUrl!, 'Discord post'),
-    if (detail.nexusUrl != null) _link(detail.nexusUrl!, 'Nexus Mods page'),
     if (detail.sourceCodeUrl != null)
       _link(detail.sourceCodeUrl!, 'Source code'),
   ].whereType<String>().toList();
