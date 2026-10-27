@@ -279,10 +279,15 @@ class DiscordReader {
     return (cleanedMods, threadPosts);
   }
 
-  /// The author's opening run of a thread: the first message with text, then
-  /// each message straight after it by the same author, stopping at the first
-  /// message by anybody else or after [DiscordThreadPost.maxMessages]. Null
-  /// when no message has text.
+  /// The author's opening run of a thread: the first message with text or an
+  /// attachment, then each message straight after it by the same author,
+  /// stopping at the first message by anybody else or after
+  /// [DiscordThreadPost.maxMessages]. Null when no message has either.
+  ///
+  /// A message of nothing but attachments counts, because some threads have no
+  /// words at all: Delta Cores' only message is three pictures. Attached files
+  /// that are not pictures, videos or sounds are kept too, because a mod's zip
+  /// is often attached straight to its post rather than linked.
   ///
   /// [mod] is the mod the rules read from the same messages, for the link to
   /// the post and the forum link found in it. A post that is not in a thread
@@ -291,7 +296,9 @@ class DiscordReader {
   static DiscordThreadPost? openingRunOf(List<Message> messages, {ScrapedMod? mod}) {
     final ordered = messages.toList()
       ..sort((a, b) => (a.timestamp ?? DateTime(0)).compareTo(b.timestamp ?? DateTime(0)));
-    final start = ordered.indexWhere((m) => m.content?.trim().isNotEmpty == true);
+    final start = ordered.indexWhere((m) =>
+        m.content?.trim().isNotEmpty == true ||
+        (m.attachments ?? const <Attachment>[]).any((a) => a.url != null));
     if (start < 0) return null;
 
     final first = ordered[start];
@@ -323,10 +330,26 @@ class DiscordReader {
                 if ((a.contentType?.startsWith('image/') ?? false) && a.url != null)
                   DiscordImage(url: a.url!, filename: a.filename, description: a.description),
             ],
+            files: _filesOf(message),
           ),
       ],
     );
   }
+
+  /// The files attached to [message] that are not pictures, videos or sounds,
+  /// or null when there are none.
+  static List<DiscordFile>? _filesOf(Message message) {
+    final files = [
+      for (final a in message.attachments ?? const <Attachment>[])
+        if (a.url != null && !_isMedia(a.contentType))
+          DiscordFile(url: a.url!, filename: a.filename, size: a.size, contentType: a.contentType),
+    ];
+    return files.isEmpty ? null : files;
+  }
+
+  static bool _isMedia(String? contentType) =>
+      contentType != null &&
+      (contentType.startsWith('image/') || contentType.startsWith('video/') || contentType.startsWith('audio/'));
 
   @visibleForTesting
   static Future<ScrapedMod> parseAsSingleMessage(String serverId, String forumChannelId, Message message) async {

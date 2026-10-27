@@ -186,6 +186,68 @@ void main() {
     expect(llm.prompts.length, calls + 1);
   });
 
+  group('Re-run LLM on named Discord threads', () {
+    test('reads a named thread again even when its saved answer is good, and no other', () async {
+      final llm = _FakeLlm();
+      await service(llm).runJob(JobRequest.llmCoveragePass(), reporter: RecordingRunReporter());
+      final calls = llm.prompts.length;
+
+      final reporter = RecordingRunReporter();
+      final record = await service(llm).runJob(
+          const JobRequest(kind: JobKind.extractLlm, discordThreadIds: ['900'], runLlm: true),
+          reporter: reporter);
+
+      expect(llm.prompts.length, calls + 1, reason: reporter.logs.join('\n'));
+      expect(llm.prompts.last, contains('Discord announcement thread'));
+      expect(record.errors, 0);
+      expect(llmCache().keys, containsAll(['discord:900', 'discord:901']));
+    });
+
+    test('a thread that was never saved is logged and counted as an error', () async {
+      final reporter = RecordingRunReporter();
+      final record = await service(_FakeLlm()).runJob(
+          const JobRequest(kind: JobKind.extractLlm, discordThreadIds: ['404'], runLlm: true),
+          reporter: reporter);
+
+      expect(record.errors, 1);
+      expect(reporter.logs.any((l) => l.contains('Discord thread 404 is not in')), isTrue,
+          reason: reporter.logs.join('\n'));
+    });
+  });
+
+  test('a file attached to the post reaches the model, and is never published', () async {
+    const zip = 'https://cdn.discordapp.com/attachments/902/555/FreshMod.zip?ex=6ae03df6&is=6adeec76&hm=d72c&';
+    await DiscordPostsFile.write(File(p.join(dir.path, DiscordPostsFile.fileName)), {
+      '902': const DiscordThreadPost(
+        threadId: '902',
+        name: 'Fresh Mod',
+        author: 'Author',
+        url: 'https://discord.com/channels/1/902/902',
+        messages: [
+          DiscordOpeningMessage(id: '902', content: 'Fresh Mod: a full translation.', files: [
+            DiscordFile(url: zip, filename: 'FreshMod.zip', contentType: 'application/zip'),
+          ]),
+        ],
+      ),
+    });
+    final llm = _FakeLlm(downloadUrl: zip);
+    await service(llm).runJob(JobRequest.llmCoveragePass(), reporter: RecordingRunReporter());
+
+    expect(llm.prompts.firstWhere((prompt) => prompt.contains('Discord announcement thread')),
+        contains('FreshMod.zip'));
+    final saved = (llmCache()['discord:902'] as Map<String, dynamic>)['mods'] as List;
+    expect((saved.single['downloads'] as List).single['url'], zip,
+        reason: 'the saved answer keeps the address it was read with');
+
+    final details = File(p.join(dir.path, 'outputs', 'mod-catalog-details.json')).readAsStringSync();
+    expect(details, isNot(contains('cdn.discordapp.com/attachments/902')));
+    final thread = ((jsonDecode(details) as Map)['discordThreads'] as List).single as Map;
+    final mod = (thread['mods'] as List).single as Map;
+    expect(mod['name'], 'Fresh Mod', reason: 'the mod and its other facts still go out');
+    expect(mod['downloads'] ?? const [], isEmpty,
+        reason: "the mod's Discord link is how the reader gets the file");
+  });
+
   group('withoutDiscordSignatures', () {
     test('takes off only the signature', () {
       expect(

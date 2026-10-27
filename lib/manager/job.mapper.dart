@@ -408,6 +408,13 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     opt: true,
     def: const [],
   );
+  static List<String> _$discordThreadIds(JobRequest v) => v.discordThreadIds;
+  static const Field<JobRequest, List<String>> _f$discordThreadIds = Field(
+    'discordThreadIds',
+    _$discordThreadIds,
+    opt: true,
+    def: const [],
+  );
   static ScopeType _$scope(JobRequest v) => v.scope;
   static const Field<JobRequest, ScopeType> _f$scope = Field(
     'scope',
@@ -545,6 +552,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
   final MappableFields<JobRequest> fields = const {
     #kind: _f$kind,
     #topicIds: _f$topicIds,
+    #discordThreadIds: _f$discordThreadIds,
     #scope: _f$scope,
     #boards: _f$boards,
     #maxPagesMain: _f$maxPagesMain,
@@ -570,6 +578,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     return JobRequest(
       kind: data.dec(_f$kind),
       topicIds: data.dec(_f$topicIds),
+      discordThreadIds: data.dec(_f$discordThreadIds),
       scope: data.dec(_f$scope),
       boards: data.dec(_f$boards),
       maxPagesMain: data.dec(_f$maxPagesMain),
@@ -654,6 +663,8 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   ListCopyWith<$R, int, ObjectCopyWith<$R, int, int>> get topicIds;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get discordThreadIds;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
   get takedownAuthors;
   ListCopyWith<
     $R,
@@ -664,6 +675,7 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
   $R call({
     JobKind? kind,
     List<int>? topicIds,
+    List<String>? discordThreadIds,
     ScopeType? scope,
     Set<ScrapeBoard>? boards,
     int? maxPagesMain,
@@ -704,6 +716,13 @@ class _JobRequestCopyWithImpl<$R, $Out>
       );
   @override
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get discordThreadIds => ListCopyWith(
+    $value.discordThreadIds,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(discordThreadIds: v),
+  );
+  @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
   get takedownAuthors => ListCopyWith(
     $value.takedownAuthors,
     (v, t) => ObjectCopyWith(v, $identity, t),
@@ -724,6 +743,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
   $R call({
     JobKind? kind,
     List<int>? topicIds,
+    List<String>? discordThreadIds,
     ScopeType? scope,
     Set<ScrapeBoard>? boards,
     Object? maxPagesMain = $none,
@@ -747,6 +767,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
     FieldCopyWithData({
       if (kind != null) #kind: kind,
       if (topicIds != null) #topicIds: topicIds,
+      if (discordThreadIds != null) #discordThreadIds: discordThreadIds,
       if (scope != null) #scope: scope,
       if (boards != null) #boards: boards,
       if (maxPagesMain != $none) #maxPagesMain: maxPagesMain,
@@ -773,6 +794,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
   JobRequest $make(CopyWithData data) => JobRequest(
     kind: data.get(#kind, or: $value.kind),
     topicIds: data.get(#topicIds, or: $value.topicIds),
+    discordThreadIds: data.get(#discordThreadIds, or: $value.discordThreadIds),
     scope: data.get(#scope, or: $value.scope),
     boards: data.get(#boards, or: $value.boards),
     maxPagesMain: data.get(#maxPagesMain, or: $value.maxPagesMain),

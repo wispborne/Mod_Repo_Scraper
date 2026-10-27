@@ -5,7 +5,9 @@ import 'package:dart_mappable/dart_mappable.dart';
 import 'package:html/parser.dart' as html_parser;
 
 import '../bot/scraper/download_link_detector.dart';
+import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
+import '../bot/scraper/qb/models/post_extraction.dart';
 import '../site/discord_markdown.dart';
 import 'source_post.dart';
 
@@ -21,8 +23,22 @@ class DiscordImage with DiscordImageMappable {
   const DiscordImage({required this.url, this.filename, this.description});
 }
 
+/// One file attached to a Discord message that is not a picture, a video or a
+/// sound: usually the mod's zip. Its [url] is signed and stops working about a
+/// day after the fetch, so it is shown to the LLM but never published (see
+/// [isDiscordAttachmentDownload]).
+@MappableClass(ignoreNull: true)
+class DiscordFile with DiscordFileMappable {
+  final String url;
+  final String? filename;
+  final int? size;
+  final String? contentType;
+
+  const DiscordFile({required this.url, this.filename, this.size, this.contentType});
+}
+
 /// One message of a thread's opening run, as Discord gave it: the markdown
-/// text, when it was posted, and its picture attachments.
+/// text, when it was posted, its picture attachments and its other files.
 @MappableClass(ignoreNull: true)
 class DiscordOpeningMessage with DiscordOpeningMessageMappable {
   final String id;
@@ -31,12 +47,17 @@ class DiscordOpeningMessage with DiscordOpeningMessageMappable {
   final DateTime? editedTimestamp;
   final List<DiscordImage> images;
 
+  /// Null rather than empty when the message has none, so a message with no
+  /// files is saved exactly as it was before files were kept.
+  final List<DiscordFile>? files;
+
   const DiscordOpeningMessage({
     required this.id,
     this.content = '',
     this.timestamp,
     this.editedTimestamp,
     this.images = const [],
+    this.files,
   });
 }
 
@@ -44,9 +65,10 @@ class DiscordOpeningMessage with DiscordOpeningMessageMappable {
 /// name, who started it, the link to its first message, the forum link the
 /// rules found in it, and the author's opening run.
 ///
-/// The opening run starts at the first message with text and keeps each
-/// message straight after it by the same author, stopping at the first message
-/// by anybody else or after [DiscordThreadPost.maxMessages] messages.
+/// The opening run starts at the first message with text or an attachment and
+/// keeps each message straight after it by the same author, stopping at the
+/// first message by anybody else or after [DiscordThreadPost.maxMessages]
+/// messages.
 @MappableClass(ignoreNull: true)
 class DiscordThreadPost with DiscordThreadPostMappable {
   static const int maxMessages = 10;
@@ -67,17 +89,22 @@ class DiscordThreadPost with DiscordThreadPostMappable {
     this.messages = const [],
   });
 
-  /// The first message's text: what the site shows as the mod's Discord post.
+  /// The first text in the opening run: what the site shows as the mod's
+  /// Discord post. The run can start with a message that is only attachments.
   String? get firstText {
-    final text = messages.isEmpty ? null : messages.first.content.trim();
-    return text == null || text.isEmpty ? null : text;
+    for (final message in messages) {
+      final text = message.content.trim();
+      if (text.isNotEmpty) return text;
+    }
+    return null;
   }
 
   /// The thread as the LLM extractor reads it. Each message's markdown goes
   /// through the site's own Discord renderer and HTML cleaner, so a link stays
   /// where it sat in the words — which is what ties a download to the mod
   /// written beside it. Links are read back out of that HTML; pictures come
-  /// from the message's attachments.
+  /// from the message's attachments. Each attached file follows as a link
+  /// named after the file, so the LLM can offer it as a download.
   SourcePost toSourcePost() => SourcePost(
         kind: SourceKind.discord,
         id: threadId,
@@ -88,7 +115,16 @@ class DiscordThreadPost with DiscordThreadPostMappable {
           for (final message in messages)
             QbForumPost(
               contentHtml: discordMarkdownAsHtml(message.content) ?? '',
-              links: _linksIn(discordMarkdownAsHtml(message.content)),
+              links: [
+                ..._linksIn(discordMarkdownAsHtml(message.content)),
+                for (final file in message.files ?? const <DiscordFile>[])
+                  LinkRef(
+                    url: file.url,
+                    text: file.filename ?? '',
+                    isExternal: true,
+                    isDownloadable: isLikelyModDownloadUrl(file.url),
+                  ),
+              ],
               images: [
                 for (final image in message.images)
                   ImageRef(originalUrl: image.url, alt: image.description ?? image.filename),
@@ -206,6 +242,21 @@ List<String> discordPostKeysOf(String discordUrl) {
     if (parts.length >= 3) parts[2],
   ];
 }
+
+/// True when [download] is a file attached to a Discord message, and so must
+/// never be published.
+///
+/// Its address is signed and stops working about a day after the fetch, and
+/// the LLM's saved answer keeps the address it was read with. Publishing a link
+/// to the Discord post in its place was tried: the site showed it as a
+/// "Download page" button beside the mod's own Discord button, which opens the
+/// same post, and "page" reads as a website rather than a Discord server the
+/// reader has to be on. So such a download is left out, and the mod's Discord
+/// button is how the reader gets the file.
+bool isDiscordAttachmentDownload(LlmDownload download) =>
+    [download.url, download.resolvedDirectUrl]
+        .whereType<String>()
+        .any(PictureCaptionStore.isDiscordAttachment);
 
 /// The thread id a Discord link points at — the key its saved thread and its
 /// LLM answer are filed under. For a link to a post that is not in a thread,

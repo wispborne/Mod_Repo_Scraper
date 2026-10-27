@@ -2,8 +2,29 @@
 // messages as the Discord scrape saved them, and what the LLM read off them.
 // Reached from a ModRepo mod that has a Discord link.
 
-import { api, el, clear, breadcrumbs, rawJson } from '../lib.js';
+import { api, el, clear, breadcrumbs, go, noticeDialog, rawJson } from '../lib.js';
+import * as manager from '../manager.js';
 import { fieldList, imageList, llmModsBlock, normUrl } from './extraction_views.js';
+
+/// The job button for this thread. Drawn only when the manager is on;
+/// an accepted job opens Runs.
+function threadActionBar(threadId) {
+  const rerun = async () => {
+    try {
+      const record = await manager.confirmAndSubmit({
+        kind: 'extractLlm',
+        discordThreadIds: [threadId],
+        runLlm: true,
+      });
+      if (record) go('#/runs');
+    } catch (err) {
+      noticeDialog('Could not start job', err.message);
+    }
+  };
+  return el('div', { class: 'topic-actions' }, [
+    el('button', { class: 'btn', text: 'Re-run LLM', onclick: rerun }),
+  ]);
+}
 
 export async function render(root, parts) {
   clear(root);
@@ -27,6 +48,9 @@ export async function render(root, parts) {
   root.append(breadcrumbs([parent, { label: name }]));
   root.append(el('h1', { text: name }));
 
+  const status = manager.status() || await manager.refresh();
+  if (status && status.on && thread) root.append(threadActionBar(threadId));
+
   const page = el('div', { class: 'stack' });
   root.append(page);
 
@@ -47,6 +71,16 @@ export async function render(root, parts) {
         originalUrl: image.url, alt: image.description || image.filename,
       }));
       if (images.length) messages.append(imageList(images, body.pictureCaptions || {}));
+      // Files attached to the message. Their addresses stop working about a
+      // day after the Discord scrape, so an old one may not open.
+      const files = message.files || [];
+      if (files.length) {
+        messages.append(el('ul', {}, files.map((file) => el('li', {}, [
+          'Attached file: ',
+          el('a', { href: file.url, target: '_blank', rel: 'noopener', text: file.filename || file.url }),
+          file.size ? ` (${Math.round(file.size / 1024)} KB)` : '',
+        ]))));
+      }
     }
     page.append(messages);
   } else {

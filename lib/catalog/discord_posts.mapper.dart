@@ -153,6 +153,160 @@ class _DiscordImageCopyWithImpl<$R, $Out>
   ) => _DiscordImageCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
+class DiscordFileMapper extends ClassMapperBase<DiscordFile> {
+  DiscordFileMapper._();
+
+  static DiscordFileMapper? _instance;
+  static DiscordFileMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = DiscordFileMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'DiscordFile';
+
+  static String _$url(DiscordFile v) => v.url;
+  static const Field<DiscordFile, String> _f$url = Field('url', _$url);
+  static String? _$filename(DiscordFile v) => v.filename;
+  static const Field<DiscordFile, String> _f$filename = Field(
+    'filename',
+    _$filename,
+    opt: true,
+  );
+  static int? _$size(DiscordFile v) => v.size;
+  static const Field<DiscordFile, int> _f$size = Field(
+    'size',
+    _$size,
+    opt: true,
+  );
+  static String? _$contentType(DiscordFile v) => v.contentType;
+  static const Field<DiscordFile, String> _f$contentType = Field(
+    'contentType',
+    _$contentType,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<DiscordFile> fields = const {
+    #url: _f$url,
+    #filename: _f$filename,
+    #size: _f$size,
+    #contentType: _f$contentType,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static DiscordFile _instantiate(DecodingData data) {
+    return DiscordFile(
+      url: data.dec(_f$url),
+      filename: data.dec(_f$filename),
+      size: data.dec(_f$size),
+      contentType: data.dec(_f$contentType),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static DiscordFile fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<DiscordFile>(map);
+  }
+
+  static DiscordFile fromJson(String json) {
+    return ensureInitialized().decodeJson<DiscordFile>(json);
+  }
+}
+
+mixin DiscordFileMappable {
+  String toJson() {
+    return DiscordFileMapper.ensureInitialized().encodeJson<DiscordFile>(
+      this as DiscordFile,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return DiscordFileMapper.ensureInitialized().encodeMap<DiscordFile>(
+      this as DiscordFile,
+    );
+  }
+
+  DiscordFileCopyWith<DiscordFile, DiscordFile, DiscordFile> get copyWith =>
+      _DiscordFileCopyWithImpl<DiscordFile, DiscordFile>(
+        this as DiscordFile,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return DiscordFileMapper.ensureInitialized().stringifyValue(
+      this as DiscordFile,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return DiscordFileMapper.ensureInitialized().equalsValue(
+      this as DiscordFile,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return DiscordFileMapper.ensureInitialized().hashValue(this as DiscordFile);
+  }
+}
+
+extension DiscordFileValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, DiscordFile, $Out> {
+  DiscordFileCopyWith<$R, DiscordFile, $Out> get $asDiscordFile =>
+      $base.as((v, t, t2) => _DiscordFileCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class DiscordFileCopyWith<$R, $In extends DiscordFile, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? url, String? filename, int? size, String? contentType});
+  DiscordFileCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _DiscordFileCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, DiscordFile, $Out>
+    implements DiscordFileCopyWith<$R, DiscordFile, $Out> {
+  _DiscordFileCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<DiscordFile> $mapper =
+      DiscordFileMapper.ensureInitialized();
+  @override
+  $R call({
+    String? url,
+    Object? filename = $none,
+    Object? size = $none,
+    Object? contentType = $none,
+  }) => $apply(
+    FieldCopyWithData({
+      if (url != null) #url: url,
+      if (filename != $none) #filename: filename,
+      if (size != $none) #size: size,
+      if (contentType != $none) #contentType: contentType,
+    }),
+  );
+  @override
+  DiscordFile $make(CopyWithData data) => DiscordFile(
+    url: data.get(#url, or: $value.url),
+    filename: data.get(#filename, or: $value.filename),
+    size: data.get(#size, or: $value.size),
+    contentType: data.get(#contentType, or: $value.contentType),
+  );
+
+  @override
+  DiscordFileCopyWith<$R2, DiscordFile, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _DiscordFileCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class DiscordOpeningMessageMapper
     extends ClassMapperBase<DiscordOpeningMessage> {
   DiscordOpeningMessageMapper._();
@@ -162,6 +316,7 @@ class DiscordOpeningMessageMapper
     if (_instance == null) {
       MapperContainer.globals.use(_instance = DiscordOpeningMessageMapper._());
       DiscordImageMapper.ensureInitialized();
+      DiscordFileMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -191,6 +346,12 @@ class DiscordOpeningMessageMapper
   static List<DiscordImage> _$images(DiscordOpeningMessage v) => v.images;
   static const Field<DiscordOpeningMessage, List<DiscordImage>> _f$images =
       Field('images', _$images, opt: true, def: const []);
+  static List<DiscordFile>? _$files(DiscordOpeningMessage v) => v.files;
+  static const Field<DiscordOpeningMessage, List<DiscordFile>> _f$files = Field(
+    'files',
+    _$files,
+    opt: true,
+  );
 
   @override
   final MappableFields<DiscordOpeningMessage> fields = const {
@@ -199,6 +360,7 @@ class DiscordOpeningMessageMapper
     #timestamp: _f$timestamp,
     #editedTimestamp: _f$editedTimestamp,
     #images: _f$images,
+    #files: _f$files,
   };
   @override
   final bool ignoreNull = true;
@@ -210,6 +372,7 @@ class DiscordOpeningMessageMapper
       timestamp: data.dec(_f$timestamp),
       editedTimestamp: data.dec(_f$editedTimestamp),
       images: data.dec(_f$images),
+      files: data.dec(_f$files),
     );
   }
 
@@ -289,12 +452,19 @@ abstract class DiscordOpeningMessageCopyWith<
     DiscordImageCopyWith<$R, DiscordImage, DiscordImage>
   >
   get images;
+  ListCopyWith<
+    $R,
+    DiscordFile,
+    DiscordFileCopyWith<$R, DiscordFile, DiscordFile>
+  >?
+  get files;
   $R call({
     String? id,
     String? content,
     DateTime? timestamp,
     DateTime? editedTimestamp,
     List<DiscordImage>? images,
+    List<DiscordFile>? files,
   });
   DiscordOpeningMessageCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -321,12 +491,26 @@ class _DiscordOpeningMessageCopyWithImpl<$R, $Out>
     (v) => call(images: v),
   );
   @override
+  ListCopyWith<
+    $R,
+    DiscordFile,
+    DiscordFileCopyWith<$R, DiscordFile, DiscordFile>
+  >?
+  get files => $value.files != null
+      ? ListCopyWith(
+          $value.files!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(files: v),
+        )
+      : null;
+  @override
   $R call({
     String? id,
     String? content,
     Object? timestamp = $none,
     Object? editedTimestamp = $none,
     List<DiscordImage>? images,
+    Object? files = $none,
   }) => $apply(
     FieldCopyWithData({
       if (id != null) #id: id,
@@ -334,6 +518,7 @@ class _DiscordOpeningMessageCopyWithImpl<$R, $Out>
       if (timestamp != $none) #timestamp: timestamp,
       if (editedTimestamp != $none) #editedTimestamp: editedTimestamp,
       if (images != null) #images: images,
+      if (files != $none) #files: files,
     }),
   );
   @override
@@ -343,6 +528,7 @@ class _DiscordOpeningMessageCopyWithImpl<$R, $Out>
     timestamp: data.get(#timestamp, or: $value.timestamp),
     editedTimestamp: data.get(#editedTimestamp, or: $value.editedTimestamp),
     images: data.get(#images, or: $value.images),
+    files: data.get(#files, or: $value.files),
   );
 
   @override

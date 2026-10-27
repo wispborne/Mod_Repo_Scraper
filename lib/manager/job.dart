@@ -126,6 +126,10 @@ class JobRequest with JobRequestMappable {
   /// that work over everything.
   final List<int> topicIds;
 
+  /// The Discord threads an `extractLlm` job reads again, by thread id. Their
+  /// saved answers are dropped first, the same as [topicIds]'.
+  final List<String> discordThreadIds;
+
   /// Which topics a `fullRun` should walk.
   final ScopeType scope;
 
@@ -196,6 +200,7 @@ class JobRequest with JobRequestMappable {
   const JobRequest({
     required this.kind,
     this.topicIds = const [],
+    this.discordThreadIds = const [],
     this.scope = ScopeType.newData,
     this.boards = const {ScrapeBoard.main, ScrapeBoard.libraries},
     this.maxPagesMain,

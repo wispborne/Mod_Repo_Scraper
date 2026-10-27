@@ -77,6 +77,18 @@ void main() {
     expect(service.ran.single.topicIds, [123, 456]);
   });
 
+  test('a Re-run LLM for a Discord thread alone is accepted', () async {
+    await json('POST', 'jobs', body: {
+      'kind': 'extractLlm',
+      'discordThreadIds': ['1564156721121722368'],
+      'runLlm': true,
+    });
+    await service.started.future;
+
+    expect(service.ran.single.topicIds, isEmpty);
+    expect(service.ran.single.discordThreadIds, ['1564156721121722368']);
+  });
+
   test('status shows the running job with its live phase and item', () async {
     service
       ..phaseName = 'Asking the LLM'
@@ -152,6 +164,13 @@ void main() {
       expect(res.statusCode, 400);
       expect((jsonDecode(await res.readAsString()) as Map)['error'],
           contains('needs at least one topic id'));
+    });
+
+    test('a Re-run LLM with neither topics nor Discord threads', () async {
+      final res = await call('POST', 'jobs', body: {'kind': 'extractLlm'});
+      expect(res.statusCode, 400);
+      expect((jsonDecode(await res.readAsString()) as Map)['error'],
+          contains('"discordThreadIds"'));
     });
 
     test('nothing refused reaches the queue or the history', () async {

@@ -440,29 +440,39 @@ class ScraperService implements JobRunner {
     String? runId,
   ) async {
     final ids = request.topicIds;
-    if (ids.isEmpty) {
-      reporter.log('Nothing to ask the LLM about: no topics were named.');
+    final namedThreadIds = request.discordThreadIds.toSet().toList();
+    if (ids.isEmpty && namedThreadIds.isEmpty) {
+      reporter.log('Nothing to ask the LLM about: no topics or Discord threads '
+          'were named.');
       return const JobOutcome();
     }
     final llm = _buildExtractor(request);
     if (llm == null) {
       reporter.log('No LLM service is set up, so nothing was sent.');
-      return JobOutcome(itemsTotal: ids.length);
+      return JobOutcome(itemsTotal: ids.length + namedThreadIds.length);
     }
 
     reporter.phase('Asking the LLM');
-    // The Discord threads the last catalog joined to these topics are the same
-    // mods. Their saved answers are kept: a thread is read again only when its
-    // prompt has changed, which is what describing its pictures does.
-    final threads = _discordThreadsJoinedTo(ids, reporter);
+    var errors = 0;
+    // The Discord threads named in the request are read again whatever their
+    // saved answers say. The ones the last catalog joined to these topics are
+    // the same mods; their saved answers are kept, and each is read again only
+    // when its prompt has changed, which is what describing its pictures does.
+    final named = _discordThreadsNamed(namedThreadIds, reporter);
+    errors += namedThreadIds.length - named.length;
+    final threads = [
+      ...named,
+      for (final thread in _discordThreadsJoinedTo(ids, reporter))
+        if (!namedThreadIds.contains(thread.threadId)) thread,
+    ];
     final total = ids.length + threads.length;
 
-    // Only the LLM's saved answers for these topics go; the posts and the
-    // download answers stay exactly as they are.
+    // Only the LLM's saved answers for these topics and named threads go; the
+    // posts and the download answers stay exactly as they are.
     llmStore!.dropTopics(ids);
+    llmStore!.dropDiscordThreads([for (final thread in named) thread.threadId]);
 
     var done = 0;
-    var errors = 0;
     try {
       // These are always live calls (the saved answers were just dropped), so
       // a few at a time is where the limit really shows: up to
@@ -513,6 +523,33 @@ class ScraperService implements JobRunner {
     } finally {
       await llm.close();
     }
+  }
+
+  /// The saved Discord threads with these ids, in the order asked. A thread the
+  /// Discord scrape did not save is logged and left out.
+  List<DiscordThreadPost> _discordThreadsNamed(
+      List<String> threadIds, RunReporter reporter) {
+    if (threadIds.isEmpty) return const [];
+    final DiscordPostsFile saved;
+    try {
+      saved = DiscordPostsFile.read(
+          io.File(p.join(environment.dataPath, DiscordPostsFile.fileName)));
+    } catch (e) {
+      reporter.log('Could not read the saved Discord posts, so no Discord '
+          'thread was read again: $e');
+      return const [];
+    }
+    final threads = <DiscordThreadPost>[];
+    for (final id in threadIds) {
+      final thread = saved.threads[id];
+      if (thread == null) {
+        reporter.log('Discord thread $id is not in ${DiscordPostsFile.fileName}; '
+            'skipping. The next Discord scrape may save it.');
+      } else {
+        threads.add(thread);
+      }
+    }
+    return threads;
   }
 
   /// The saved Discord threads that the last catalog built joined to

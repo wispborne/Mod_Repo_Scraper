@@ -146,7 +146,15 @@ class ManagerApi {
       throw _BadRequest('The job could not be read: $e');
     }
 
-    if (perTopicKinds.contains(request.kind) && request.topicIds.isEmpty) {
+    if (request.kind == JobKind.extractLlm &&
+        request.topicIds.isEmpty &&
+        request.discordThreadIds.isEmpty) {
+      throw _BadRequest('An "extractLlm" job needs at least one topic id in '
+          '"topicIds" or one Discord thread id in "discordThreadIds".');
+    }
+    if (request.kind != JobKind.extractLlm &&
+        perTopicKinds.contains(request.kind) &&
+        request.topicIds.isEmpty) {
       throw _BadRequest('A "${request.kind.name}" job needs at least one topic '
           'id in "topicIds".');
     }

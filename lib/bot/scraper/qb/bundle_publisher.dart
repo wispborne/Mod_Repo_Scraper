@@ -246,7 +246,9 @@ class BundlePublisher {
   /// The LLM's answers for the Discord threads the last Discord scrape saved,
   /// in thread id order. A thread with no answer, or an answer with no mods,
   /// is left out. Only the thread's id, link and name go with it — never the
-  /// text of its messages.
+  /// text of its messages. A file attached on Discord is left out of the
+  /// downloads, because its address stops working within a day
+  /// ([isDiscordAttachmentDownload]); the mod's Discord link leads to it.
   List<DiscordThreadAnswer> _discordThreads() {
     final store = _llmStore;
     if (store == null) return const [];
@@ -268,7 +270,13 @@ class BundlePublisher {
         threadId: id,
         url: thread?.url ?? '',
         name: thread?.name ?? '',
-        mods: mods,
+        mods: [
+          for (final mod in mods)
+            mod.copyWith(downloads: [
+              for (final download in mod.downloads)
+                if (!isDiscordAttachmentDownload(download)) download,
+            ]),
+        ],
       ));
     }
     return answers;

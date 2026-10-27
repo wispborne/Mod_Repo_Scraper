@@ -212,10 +212,17 @@ export function describeJob(request) {
     case 'resolveDownloads':
       return `Recheck downloads for ${topics} using saved posts. `
         + 'This makes network requests to check the links.';
-    case 'extractLlm':
+    case 'extractLlm': {
+      const threadCount = (request.discordThreadIds || []).length;
+      if (!count) {
+        const threads = threadCount === 1 ? 'this Discord thread' : `${threadCount} Discord threads`;
+        return `Re-run LLM extraction for ${threads} from the saved messages. `
+          + 'Then rebuild the catalog, mod details, and website. LLM calls may cost money.';
+      }
       return `Re-run LLM extraction for ${topics} from saved posts. Discord `
         + 'threads joined to the same mods are read again only if their saved '
         + 'answers are out of date. LLM calls may cost money.';
+    }
     case 'fullRun': {
       const boards = listBoards(request.boards);
       const llm = request.runLlm ? ' and run LLM extraction' : '';
