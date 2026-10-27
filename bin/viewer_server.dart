@@ -16,6 +16,7 @@ import 'package:mod_repo_scraper/manager/self_update.dart';
 import 'package:mod_repo_scraper/manager/takedown_service.dart';
 import 'package:mod_repo_scraper/viewer/api.dart';
 import 'package:mod_repo_scraper/viewer/data_access.dart';
+import 'package:mod_repo_scraper/viewer/live_reload.dart';
 import 'package:mod_repo_scraper/viewer/server_app.dart';
 import 'package:mod_repo_scraper/viewer/site_version.dart';
 import 'package:path/path.dart' as p;
@@ -43,6 +44,10 @@ Future<void> main(List<String> args) async {
         defaultsTo: 'config.properties',
         help:
             'Manager config file. Without it, the viewer runs with jobs disabled.')
+    ..addFlag('reload',
+        negatable: false,
+        help: 'Reload open pages when a file in the web folder changes, or '
+            'when the server restarts. For working on the viewer.')
     ..addFlag('no-manager',
         negatable: false,
         help: 'Disable jobs even when a config file is available.')
@@ -88,13 +93,21 @@ Future<void> main(List<String> args) async {
     viewerOutputsDir: data.outputsDir,
   );
 
-  final handler = const Pipeline().addMiddleware(logRequests()).addHandler(
-        buildServerHandler(
-          viewer: ViewerApi(data),
-          managerHandler: manager.handler,
-          staticHandler: staticHandler,
-        ),
-      );
+  final liveReload =
+      opts['reload'] as bool ? LiveReload.watch(Directory(webDir)) : null;
+
+  var pipeline = const Pipeline().addMiddleware(logRequests());
+  if (liveReload != null) {
+    pipeline = pipeline.addMiddleware(liveReload.middleware);
+  }
+
+  final handler = pipeline.addHandler(
+    buildServerHandler(
+      viewer: ViewerApi(data),
+      managerHandler: manager.handler,
+      staticHandler: staticHandler,
+    ),
+  );
 
   final server =
       await shelf_io.serve(handler, InternetAddress.loopbackIPv4, port);
@@ -105,6 +118,9 @@ Future<void> main(List<String> args) async {
   stdout.writeln('  outputs-dir ${data.outputsDir}');
   stdout.writeln('  root-dir    ${data.rootDir}');
   stdout.writeln('  manager     ${manager.description}');
+  if (liveReload != null) {
+    stdout.writeln('Open pages reload when a file in $webDir changes.');
+  }
   stdout.writeln('Press Ctrl+C to stop.');
 }
 

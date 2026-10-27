@@ -29,6 +29,7 @@ dart run bin/viewer_server.dart    # local read-only results viewer at http://12
 dart run bin/link_mod_ids.dart     # one time: link today's permanent ids to their source posts (back up qb_data/mod-ids.json first)
 dart run bin/compare_catalog.dart --data <copy of qb_data> --link   # compare a fresh catalog with the published site, by id
 dart run bin/site_server.dart      # the public website at http://127.0.0.1:8099, against real data; reloads open pages when site/ changes (--no-reload to stop it)
+tool\run-sites-dev.bat             # both sites at once (bin/dev_servers.dart); pages reload on site/ or web/ changes, both servers restart on Dart changes in lib/ or bin/ (the viewer waits for a running job to end)
 dart compile exe bin/scraper_main.dart -o mod_repo_scraper   # what CI ships
 ./mod_repo_scraper --publish-takedowns <clone folder>        # check the clone's takedown list before copying the local list
 ```
