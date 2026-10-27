@@ -1,3 +1,4 @@
+import '../bot/scraper/qb/url_normalizer.dart';
 import 'models/public_mod_detail.dart';
 
 /// Puts a mod's downloads in the order a reader should try them, best first.
@@ -28,6 +29,14 @@ import 'models/public_mod_detail.dart';
 ///
 /// Inside 2 and 3, a plain download comes before a mirror. Two downloads the
 /// rule cannot tell apart keep the order the post wrote them in.
+///
+/// A short link the resolver could not follow (such as dub.sh or bit.ly) is
+/// sorted with links straight to a file. It keeps its place in the post.
+/// Its needsAnotherStep is true only because the resolver cannot tell where
+/// it goes. Authors use short links for their main download button.
+/// Topic 35821 links to its release through dub.sh. Its debug build is on
+/// Google Drive in a spoiler. The debug build used to be offered first.
+/// The short link's button still reads "Download page" because it may open a page.
 List<PublicDownload> sortedDownloads(List<PublicDownload> downloads) {
   final ordered = [...downloads];
   // A stable sort, so equal downloads keep the post's own order.
@@ -55,12 +64,17 @@ bool isTriosLink(PublicDownload download) => download.kind == 'trios';
 /// Where a download sits in the order. Lower comes first.
 int _rankOf(PublicDownload download) {
   if (isTriosLink(download)) return 0;
-  final needsAnotherStep = download.needsAnotherStep ? 2 : 0;
+  final needsAnotherStep =
+      download.needsAnotherStep && !_isUnfollowedShortLink(download) ? 2 : 0;
   final isMirror = download.kind == 'mirror' ? 1 : 0;
   // 1, 2: straight to a file, download then mirror.
   // 3, 4: needs another step, download then mirror.
   return 1 + needsAnotherStep + isMirror;
 }
+
+/// True when this is a short link the resolver could not follow.
+bool _isUnfollowedShortLink(PublicDownload download) =>
+    download.directUrl == null && UrlNormalizer.isLinkShortener(download.url);
 
 /// Sorts [items] by [rankOf], keeping the order of anything that ranks the
 /// same.

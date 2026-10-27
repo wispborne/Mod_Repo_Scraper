@@ -58,6 +58,53 @@ void main() {
     expect(sorted, ['straight to it', 'mediafire page']);
   });
 
+  test('a short link the resolver could not follow keeps its place in the post', () {
+    // Topic 35821 links to its release through dub.sh.
+    // The debug build is on Google Drive in a spoiler further down.
+    final sorted = labelsOf([
+      download(
+          label: 'release',
+          url: 'https://dub.sh/hXs53ZS',
+          needsAnotherStep: true),
+      download(
+          label: 'debug build',
+          url: 'https://drive.google.com/uc?export=download&id=1',
+          directUrl: 'https://drive.google.com/uc?export=download&id=1'),
+    ]);
+
+    expect(sorted, ['release', 'debug build']);
+  });
+
+  test('a short link stays after a file link listed earlier in the post', () {
+    final sorted = labelsOf([
+      download(label: 'straight to it', directUrl: 'https://example.com/a.zip'),
+      download(
+          label: 'short link',
+          url: 'https://bit.ly/abc',
+          needsAnotherStep: true),
+    ]);
+
+    expect(sorted, ['straight to it', 'short link']);
+  });
+
+  test('a short link comes before a page that needs another step', () {
+    final sorted = labelsOf([
+      download(label: 'mediafire page', needsAnotherStep: true),
+      download(
+          label: 'short link',
+          url: 'https://dub.sh/abc',
+          needsAnotherStep: true),
+    ]);
+
+    expect(sorted, ['short link', 'mediafire page']);
+  });
+
+  test('a short link still needs another step for the download button', () {
+    final shortLink = download(url: 'https://dub.sh/abc', needsAnotherStep: true);
+
+    expect(goesStraightToAFile(shortLink), isFalse);
+  });
+
   test('a mirror that hands over the file beats a download that does not', () {
     final sorted = labelsOf([
       download(label: 'slow host', needsAnotherStep: true),

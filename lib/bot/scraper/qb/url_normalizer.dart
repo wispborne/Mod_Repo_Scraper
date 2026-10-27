@@ -36,6 +36,25 @@ class UrlNormalizer {
     return url;
   }
 
+  static const _shortenerHosts = [
+    'tinyurl.com',
+    'bit.ly',
+    't.co',
+    'goo.gl',
+    'ow.ly',
+    'is.gd',
+    'buff.ly',
+    'rebrand.ly',
+    'dub.sh',
+  ];
+
+  /// Returns true for a short link. You must follow it to find where it goes.
+  static bool isLinkShortener(String url) {
+    final host = Uri.tryParse(url)?.host.toLowerCase();
+    if (host == null || host.isEmpty) return false;
+    return _shortenerHosts.any((s) => host == s || host.endsWith('.$s'));
+  }
+
   /// Returns true if the host doesn't support automated downloads.
   static bool isUnsupportedAutoDownloadHost(String url) {
     final uri = Uri.tryParse(url);

@@ -118,17 +118,6 @@ class QbDownloadResolver {
 
   static const String _discordKeyPrefix = 'discord:';
 
-  static const _shortenerHosts = [
-    'tinyurl.com',
-    'bit.ly',
-    't.co',
-    'goo.gl',
-    'ow.ly',
-    'is.gd',
-    'buff.ly',
-    'rebrand.ly',
-  ];
-
   static const _nonArchiveExtensions = [
     '.ogg',
     '.mp3',
@@ -447,8 +436,7 @@ class QbDownloadResolver {
     if (uri == null) return null;
 
     // Follow URL shorteners first
-    final host = uri.host.toLowerCase();
-    if (_isShortenerHost(host)) {
+    if (UrlNormalizer.isLinkShortener(url)) {
       final resolved = await _followRedirect(url);
       if (resolved != null) {
         url = resolved;
@@ -537,8 +525,6 @@ class QbDownloadResolver {
   // ---------------------------------------------------------------------------
   // URL shortener following
   // ---------------------------------------------------------------------------
-
-  bool _isShortenerHost(String host) => _shortenerHosts.any((s) => host == s || host.endsWith('.$s'));
 
   Future<String?> _followRedirect(String url) async {
     try {
