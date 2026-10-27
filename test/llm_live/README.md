@@ -81,6 +81,7 @@ posts written to be easy.
 | 22826 | Junk Yard Dogs. Its credits line names the AI tool, and a separate section is headed "Optional AI generated JYD Portraits". The portraits must be marked optional even when the quote is the credits line. |
 | 33509 | Halo Dynamics, an English translation. AI helped with the translation only, and the post names DeepL, ChatGPT and DeepSeek. Translation must be the only area, and it must not be marked as generated. |
 | 36167 | Astral Ascension Renewed. "Claude Code built this anyway." The quote names no amount, but it says the tool made the whole mod, so the code's extent must be "all". |
+| 36176 | Slay the Sector. A long AI disclaimer, over 1,000 characters, that goes through the mod part by part. AI wrote most of the code. The banner on the forum post was AI art, but "Nothing in the mod itself uses AI art", so code must be the only area. |
 
 ## The saved Discord threads
 

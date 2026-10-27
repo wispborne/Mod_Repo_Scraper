@@ -50,6 +50,44 @@ void main() {
       expect(cutQuote('AI art. More AI art.', 'AI', 'art'), isNull);
     });
 
+    test('keeps a long disclaimer that covers each part of the mod', () {
+      // Topic 36176's statement, as the post reducer gives it. It is 1,003
+      // characters once its line breaks are counted, and was dropped while
+      // the limit was 1,000.
+      const text = 'AI use disclaimer\n'
+          ' Some or all assets and code in this mod were created using AI '
+          'tools:\n'
+          ' Code: Claude Opus 5.5 (Anthropic), through Claude Code. It wrote '
+          'most of the Java code, the build and test tooling configuration, '
+          'and the design and API documentation.\n'
+          ' Code review: Claude was also used to review each milestone for '
+          'bugs before release. No line of code reaches a release without a '
+          'human review.\n'
+          " Art: the banner at the top of this post was made with Z-Image "
+          "Turbo (Alibaba's Tongyi Lab), an open image model run locally in "
+          'ComfyUI, starting from vanilla Starsector portraits; its three '
+          "captains are a nod to Slay the Spire's Ironclad, Silent and "
+          'Defect. Nothing in the mod itself uses AI art: map and node icons '
+          'are vanilla Starsector sprites.\n'
+          ' How it was made: I designed the mod (the Run, the beacon types, '
+          'the rules and the balance) and directed every change. Each '
+          'milestone was then played and tested in game by me, against a '
+          'checklist, before it was merged. The full source and the design '
+          'notes are public on GitHub.\n'
+          ' [close]';
+      final quote = cutQuote(
+        text,
+        'Some or all assets and code in this mod were created using AI tools:',
+        'The full source and the design notes are public on GitHub.',
+      );
+      expect(quote, isNotNull);
+      expect(quote!.length, greaterThan(1000));
+      expect(quote, startsWith('Some or all assets'));
+      expect(quote, endsWith('public on GitHub.'));
+      expect(quote.split('\n'), hasLength(5),
+          reason: 'each part of the disclaimer keeps its own line');
+    });
+
     test('gives nothing for a cut longer than the limit', () {
       final text = 'Start of the statement here. ${'filler words ' * 200}'
           'end of the statement here.';

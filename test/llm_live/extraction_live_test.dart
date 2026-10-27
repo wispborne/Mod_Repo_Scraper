@@ -599,6 +599,23 @@ void main() {
           reason: '"Claude Code built this anyway" means the whole mod.\n$why');
       expect(namesTool(aiUse, 'Claude Code'), isTrue, reason: why);
     });
+
+    test('Slay the Sector (36176) used AI for code, and for art only in the post',
+        () async {
+      final answer = await read(36176);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      expect(answer.mods, isNotEmpty, reason: why);
+      final aiUse = answer.mods.first.extras?.aiUse;
+      expect(aiUse?.usesAi, isTrue, reason: why);
+      expect(aiUse?.quote, isNotNull,
+          reason: 'the disclaimer is over 1,000 characters and must still be '
+              'cut out of the post.\n$why');
+      expect(areasOf(aiUse), {AiUseArea.code},
+          reason: 'only the banner on the post was AI art: "Nothing in the mod '
+              'itself uses AI art".\n$why');
+    });
   });
 
   group('a Discord announcement thread', () {

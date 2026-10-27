@@ -10,8 +10,10 @@ library;
 import 'anchor_key.dart';
 
 /// The longest statement kept. Two anchors make it cheap to point at half a
-/// post by mistake, and a statement that long is not one statement.
-const int longestCutQuote = 1000;
+/// post by mistake, and a statement that long is not one statement. A full
+/// disclaimer that goes through each part of the mod in turn can still pass
+/// 1,000 characters (topic 36176's is 1,003).
+const int longestCutQuote = 2000;
 
 /// The words of [postText] from [startsWith] to [endsWith], or null when
 /// either cannot be found, the end does not come after the start, or the cut

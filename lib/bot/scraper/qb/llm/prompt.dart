@@ -11,8 +11,8 @@ import 'post_reducer.dart';
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 28;
-  static const int discordPromptVersion = 6;
+  static const int promptVersion = 29;
+  static const int discordPromptVersion = 7;
 
   /// Cache version for [kind]. Nexus extraction is not supported yet.
   static int promptVersionFor(SourceKind kind) =>
@@ -519,6 +519,14 @@ Guidance:
       those portraits optional. Otherwise false.
     - "Upscaled" on its own is not AI use. In these posts it usually just means
       made bigger.
+    - Pictures made only for the post itself, such as a banner or header at
+      the top of the thread, are not part of the mod and get no entry. Only
+      count what the player gets in the mod's download. When those pictures
+      are the only AI use the statement names, "usesAi" is false.
+    - Example: "Code: Claude wrote most of the Java code. Art: the banner at
+      the top of this post was made with Z-Image Turbo. Nothing in the mod
+      itself uses AI art." gives one use, "code" with "how": "generated" and
+      "extent": "most". The banner is not an "illustrations" use.
   - "tools" is the AI tools the post names, such as Midjourney, Stable
     Diffusion, DALL-E, ChatGPT or ElevenLabs, copied as the post writes them.
     Never add a tool the post does not name. Empty when it names none.
