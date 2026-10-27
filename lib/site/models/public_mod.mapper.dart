@@ -354,6 +354,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     _$threadLastPostOn,
     opt: true,
   );
+  static String? _$editedOn(PublicMod v) => v.editedOn;
+  static const Field<PublicMod, String> _f$editedOn = Field(
+    'editedOn',
+    _$editedOn,
+    opt: true,
+  );
   static List<PublicNeededMod> _$needs(PublicMod v) => v.needs;
   static const Field<PublicMod, List<PublicNeededMod>> _f$needs = Field(
     'needs',
@@ -401,6 +407,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #lastReleaseDate: _f$lastReleaseDate,
     #addedOn: _f$addedOn,
     #threadLastPostOn: _f$threadLastPostOn,
+    #editedOn: _f$editedOn,
     #needs: _f$needs,
     #partOfThreadTitle: _f$partOfThreadTitle,
   };
@@ -440,6 +447,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       lastReleaseDate: data.dec(_f$lastReleaseDate),
       addedOn: data.dec(_f$addedOn),
       threadLastPostOn: data.dec(_f$threadLastPostOn),
+      editedOn: data.dec(_f$editedOn),
       needs: data.dec(_f$needs),
       partOfThreadTitle: data.dec(_f$partOfThreadTitle),
     );
@@ -561,6 +569,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     DateTime? lastReleaseDate,
     String? addedOn,
     String? threadLastPostOn,
+    String? editedOn,
     List<PublicNeededMod>? needs,
     String? partOfThreadTitle,
   });
@@ -678,6 +687,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     Object? lastReleaseDate = $none,
     Object? addedOn = $none,
     Object? threadLastPostOn = $none,
+    Object? editedOn = $none,
     List<PublicNeededMod>? needs,
     Object? partOfThreadTitle = $none,
   }) => $apply(
@@ -714,6 +724,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (lastReleaseDate != $none) #lastReleaseDate: lastReleaseDate,
       if (addedOn != $none) #addedOn: addedOn,
       if (threadLastPostOn != $none) #threadLastPostOn: threadLastPostOn,
+      if (editedOn != $none) #editedOn: editedOn,
       if (needs != null) #needs: needs,
       if (partOfThreadTitle != $none) #partOfThreadTitle: partOfThreadTitle,
     }),
@@ -760,6 +771,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     lastReleaseDate: data.get(#lastReleaseDate, or: $value.lastReleaseDate),
     addedOn: data.get(#addedOn, or: $value.addedOn),
     threadLastPostOn: data.get(#threadLastPostOn, or: $value.threadLastPostOn),
+    editedOn: data.get(#editedOn, or: $value.editedOn),
     needs: data.get(#needs, or: $value.needs),
     partOfThreadTitle: data.get(
       #partOfThreadTitle,

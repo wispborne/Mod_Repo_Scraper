@@ -22,8 +22,8 @@ import {
   aiFilterIsOn, aiFilterOff, countedAreas, keepsForAi, withPreset,
 } from '../ai_filter.js';
 import {
-  ANY_GAME, NO_GAME, NO_REQUIREMENTS, NOT, ONLY, POSTED_ON, SWITCHES, aiFilterWords,
-  describeFilters, postedOn,
+  ANY_GAME, DATE_FILTERS, NO_GAME, NO_REQUIREMENTS, NOT, ONLY, POSTED_ON, SWITCHES, aiFilterWords,
+  datesAreOn, describeFilters, inDates, noDates, postedOn,
   filterQuery, filtersToAddress, keepFilters, matchingSaved, readFilters, readSavedFilters,
   restoreSaved, savedFiltersJson, savedNamed, withSaved, withoutSaved,
 } from '../filter_set.js';
@@ -578,6 +578,9 @@ function drawControls(places, mods, state, onChange, onSaved, onLayout) {
       filterPanel('Category', filters.chips, !phone),
       filterPanel('From', filters.postedOnHolder, !phone),
       filterPanel('AI use', filters.aiHolder, !phone, filters.aiAllOrNone),
+      // Few readers change the dates, so the panel starts shut unless a date
+      // is set.
+      filterPanel('Dates', filters.datesHolder, datesAreOn(state.dates)),
       // The list starts on the current release. Few readers change it.
       filterPanel('Game version', filters.versionsHolder, false),
       filterPanel('Requires', filters.requiresDropdown, !phone),
@@ -598,6 +601,7 @@ function drawControls(places, mods, state, onChange, onSaved, onLayout) {
     sortHolder,
     filters.switches,
     filters.aiMenu,
+    filters.datesMenu,
     saved.node,
     copyFromHome,
   ]));
@@ -711,11 +715,74 @@ export function filterControls(mods, state, onChange,
     postedOnHolder.append(choiceList(entries, state.from,
       (v) => { state.from = v; changed(); }));
   };
+  // The date filters: a first and a last day for each. The boxes are made once
+  // and never redrawn, so a half-typed day is not lost. A change only updates
+  // the Clear button, the button along the top, and how far each box can go.
+  const knownDays = mods.flatMap((mod) => DATE_FILTERS.map((option) => option.dayOf(mod)))
+    .filter(Boolean).sort();
+  const firstDay = knownDays[0] || null;
+  const lastDay = knownDays[knownDays.length - 1] || null;
+  const dateBoxes = [];
+  const datesHolder = el('div', { class: 'date-filters' });
+  for (const option of DATE_FILTERS) {
+    const undated = mods.filter((mod) => !option.dayOf(mod)).length;
+    const boxes = {};
+    for (const end of ['from', 'to']) {
+      const box = el('input', {
+        type: 'date', class: 'date-box', min: firstDay, max: lastDay,
+        value: state.dates[option.key][end] || null,
+        'aria-label': `${option.label}, ${end === 'from' ? 'first day' : 'last day'}`,
+      });
+      // A box holds '' until its day is whole, so a half-typed day changes nothing.
+      box.addEventListener('change', () => {
+        state.dates[option.key][end] = box.value;
+        changed();
+      });
+      boxes[end] = box;
+      dateBoxes.push({ option, end, box });
+    }
+    datesHolder.append(el('div', {
+      class: 'date-row',
+      title: option.title + (undated
+        ? ` ${undated} mods have no such day and are hidden while a day is set.` : ''),
+    }, [
+      el('span', { class: 'date-label', text: option.label }),
+      el('span', { class: 'date-ends' }, [
+        el('span', { class: 'date-end', text: 'From' }), boxes.from,
+        el('span', { class: 'date-end', text: 'To' }), boxes.to,
+      ]),
+    ]));
+  }
+  const clearDates = el('button', { type: 'button', class: 'link-button', text: 'Clear dates' });
+  clearDates.addEventListener('click', () => {
+    state.dates = noDates();
+    for (const { box } of dateBoxes) box.value = '';
+    changed();
+  });
+  datesHolder.append(clearDates);
+  const datesMenu = popMenu(
+    el('summary', { class: 'btn', title: 'Filter by the day a mod was posted or last edited.' },
+      ['Dates']),
+    [datesHolder],
+    'date-filter-menu');
+  const drawDates = () => {
+    const on = datesAreOn(state.dates);
+    clearDates.hidden = !on;
+    datesMenu.querySelector('summary').classList.toggle('on', on);
+    // The first day cannot be after the last, and the other way round.
+    for (const { option, end, box } of dateBoxes) {
+      const picked = state.dates[option.key];
+      if (end === 'from') box.max = picked.to || lastDay || '';
+      else box.min = picked.from || firstDay || '';
+    }
+  };
+
   const changed = () => {
     drawChips();
     drawAiFilter();
     drawVersions();
     drawPostedOn();
+    drawDates();
     onChange();
   };
 
@@ -794,10 +861,12 @@ export function filterControls(mods, state, onChange,
   drawAiFilter();
   drawVersions();
   drawPostedOn();
+  drawDates();
 
   return {
     chips, versionsHolder, aiHolder, aiAllOrNone, aiMenu, requiresDropdown, gameDropdown,
-    categoryDropdown, postedOnDropdown, postedOnHolder, switches, changed,
+    categoryDropdown, postedOnDropdown, postedOnHolder, datesHolder, datesMenu, switches,
+    changed,
   };
 }
 
@@ -1129,6 +1198,7 @@ function clearFilters(state) {
   state.author = '';
   state.switches.clear();
   state.ai = aiFilterOff();
+  state.dates = noDates();
   state.page = 0;
 }
 
@@ -1184,6 +1254,7 @@ export function matchesFilters(mod, state) {
   } else if (state.needs && !(mod.needs || [])
       .some((n) => neededModKey(n.name) === neededModKey(state.needs))) return false;
   if (!postedOn(mod, state.from)) return false;
+  if (!inDates(mod, state.dates)) return false;
   if (state.author && !(mod.authors || []).includes(state.author)) return false;
   for (const option of SWITCHES) {
     const picked = state.switches.get(option.key);

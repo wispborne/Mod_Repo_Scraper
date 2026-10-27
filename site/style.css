@@ -178,6 +178,8 @@
    block's dark text, and it puts "switched on" back to the main colour, as the
    default does. */
 [data-theme="light"] {
+  /* The browser's own parts of a control, such as a date box's calendar. */
+  --controls-scheme: light;
   --primary: rgb(0, 104, 119);
   --secondary: rgb(0, 108, 127);
   --surface: rgb(240, 244, 250);
@@ -288,6 +290,7 @@
    unreadable, and an action nobody can read is not an action. */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]), [data-theme="browser-default"] {
+    --controls-scheme: light;
     --primary: rgb(0, 104, 119);
     --secondary: rgb(0, 108, 127);
     --surface: rgb(240, 244, 250);
@@ -773,7 +776,7 @@ main {
 .release > summary > .download-btn,
 .release > summary > .download-actions { width: 168px; }
 
-input[type="text"], input[type="search"], select {
+input[type="text"], input[type="search"], input[type="date"], select {
   background: var(--surface-2); color: var(--text);
   border: 1px solid var(--border); border-radius: 6px;
   padding: 7px 10px; font-size: var(--type-small); font-family: inherit;
@@ -1018,7 +1021,17 @@ button.check-row { align-items: center; }
   margin-left: auto; color: var(--text-dim); font-size: var(--type-tiny);
   font-variant-numeric: tabular-nums;
 }
-/* The AI use and saved filters buttons open their controls over the results. */
+/* The date filters: each row is its name, then a first and a last day. */
+.date-filters { display: flex; flex-direction: column; gap: var(--gap); font-size: var(--type-small); }
+.date-row { display: flex; flex-direction: column; gap: 4px; }
+.date-label { font-weight: 600; }
+.date-ends {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 8px;
+}
+.date-box { min-width: 0; color-scheme: var(--controls-scheme, dark); }
+.date-end { color: var(--text-dim); }
+.date-filters > .link-button { align-self: flex-start; font-size: var(--type-small); }
+/* The AI use, dates and saved filters buttons open their controls over the results. */
 .filter-menu { position: relative; }
 .filter-menu > summary { list-style: none; }
 .filter-menu > summary::-webkit-details-marker { display: none; }

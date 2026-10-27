@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  ANY_GAME, describeFilters, filterQuery, filtersAreOff, keepFilters, matchingSaved,
+  ANY_GAME, describeFilters, filterQuery, filtersAreOff, inDates, keepFilters, matchingSaved,
   noFilters, postedOn, readFilters, readSavedFilters, restoreSaved, sameFilters, savedFiltersJson,
   withSaved, withoutSaved,
 } from '../../site/filter_set.js';
@@ -138,4 +138,46 @@ test('the matching saved filter is found by comparing filters', () => {
   const list = [{ name: 'Mine', filters: 'only=download' }];
   assert.equal(matchingSaved(list, 'game=0.98&only=download', CURRENT)?.name, 'Mine');
   assert.equal(matchingSaved(list, 'game=any&only=download', CURRENT), null);
+});
+
+test('the date filters ride in the address and back', () => {
+  const filters = readFilters('postedfrom=2024-01-01&editedto=2026-06-30', CURRENT);
+  assert.deepEqual(filters.dates, {
+    posted: { from: '2024-01-01', to: '' },
+    edited: { from: '', to: '2026-06-30' },
+  });
+  assert.equal(filterQuery(filters, CURRENT), 'postedfrom=2024-01-01&editedto=2026-06-30');
+  assert.ok(!filtersAreOff(readFilters('game=any&postedto=2020-01-01', CURRENT)));
+  // Anything that is not a day is dropped.
+  assert.equal(keepFilters('postedfrom=yesterday&editedfrom=2024-1-1', CURRENT), '');
+});
+
+test('the date filters include both ends', () => {
+  const mod = { addedOn: '2024-03-10', editedOn: '2026-05-01' };
+  const dates = (posted, edited = { from: '', to: '' }) => ({ posted, edited });
+  assert.ok(inDates(mod, dates({ from: '2024-03-10', to: '2024-03-10' })));
+  assert.ok(!inDates(mod, dates({ from: '2024-03-11', to: '' })));
+  assert.ok(!inDates(mod, dates({ from: '', to: '2024-03-09' })));
+  assert.ok(inDates(mod, dates({ from: '', to: '' }, { from: '2026-01-01', to: '' })));
+  assert.ok(!inDates(mod, dates({ from: '', to: '' }, { from: '', to: '2026-04-30' })));
+});
+
+test('a post never edited counts as last edited the day it was posted', () => {
+  const edited = (from) => ({ posted: { from: '', to: '' }, edited: { from, to: '' } });
+  assert.ok(inDates({ addedOn: '2026-02-01' }, edited('2026-01-01')));
+  assert.ok(!inDates({ addedOn: '2025-02-01' }, edited('2026-01-01')));
+});
+
+test('a mod with no day is hidden only while a date filter is on', () => {
+  const off = { posted: { from: '', to: '' }, edited: { from: '', to: '' } };
+  assert.ok(inDates({}, off));
+  assert.ok(!inDates({}, { ...off, posted: { from: '', to: '2030-01-01' } }));
+});
+
+test('the date filters are described in words', () => {
+  assert.equal(describeFilters(readFilters(
+    'game=any&postedfrom=2024-01-01&postedto=2025-06-30&editedfrom=2026-01-01', CURRENT)),
+  'Posted 2024-01-01 to 2025-06-30 · Last edited since 2026-01-01');
+  assert.equal(describeFilters(readFilters('game=any&editedto=2020-01-01', CURRENT)),
+    'Last edited up to 2020-01-01');
 });

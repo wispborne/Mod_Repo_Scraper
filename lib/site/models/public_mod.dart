@@ -199,6 +199,13 @@ class PublicMod with PublicModMappable {
   /// read them as its own local time and some would land on the wrong day.
   final String? threadLastPostOn;
 
+  /// The day the author last edited the mod's post, as `YYYY-MM-DD`: the latest
+  /// edit of the forum post and the author's follow-up posts, or of the Discord
+  /// messages the mod was read from. Null when none of them was ever edited, or
+  /// when the forum named no day ("Today at 03:12:22 PM"). Browse's "Last
+  /// edited" filter reads [addedOn] for a mod with none.
+  final String? editedOn;
+
   /// The other mods this one will not run without. Nearly every Starsector mod
   /// needs LazyLib, MagicLib, GraphicsLib or Nexerelin, and knowing which is
   /// the single most useful thing a reader can be told before they download.
@@ -244,6 +251,7 @@ class PublicMod with PublicModMappable {
     this.lastReleaseDate,
     this.addedOn,
     this.threadLastPostOn,
+    this.editedOn,
     this.needs = const [],
     this.partOfThreadTitle,
   });

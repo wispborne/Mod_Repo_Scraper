@@ -2844,7 +2844,8 @@ void main() {
     // is published too. Twelve hundred, each with a long name, a full-length
     // summary, an AI summary beside it, several authors and categories, two
     // pictures (one from the post and one from Discord, since the reader can
-    // ask for either), the day its thread was last posted on, and a TriOS link
+    // ask for either), the day its thread was last posted on, the day its post
+    // was last edited, and a TriOS link
     // for its download, is the worst case the browse page has to fetch whole —
     // a TriOS link carries the mod's details packed into the address, and the
     // longest real one runs to about 850 characters. One mod in ten also says
@@ -2915,13 +2916,22 @@ void main() {
               ),
             ],
           ),
-      ]),
+      ], details: {
+        // Every post was edited, so every mod carries an edit day.
+        for (var i = 0; i < 1200; i++)
+          '$i': QbModDetail(
+            topicId: i,
+            lastEditDate: 'August 12, 2026, 04:15:02 PM by Some Author',
+          ),
+      }),
     );
     final bytes = utf8
         .encode(const JsonEncoder.withIndent('  ').convert(data.list.toMap()))
         .length;
 
     expect(data.list.mods, hasLength(1200));
+    expect(data.list.mods.first.editedOn, isNotNull,
+        reason: 'the day a post was last edited is one more field on the record');
     expect(bytes, lessThan(2 * 1024 * 1024),
         reason: 'mods.json came to ${(bytes / 1024).round()} KB');
     expect(data.list.mods.first.bestDownload, isNotNull,
@@ -3009,6 +3019,82 @@ void main() {
       final file = File(p.join(builder.modsDir, '${mod.id}.json'));
       expect(file.existsSync(), isTrue, reason: '${mod.id} has no page');
     }
+  });
+
+  group('the day a mod was last edited', () {
+    test("is the latest edit of the first post and the author's follow-ups", () {
+      final data = buildFrom(
+        mods: [forumMod()],
+        bundle: bundleOf(
+          index: [thread(createdDate: 'May 04, 2014, 01:33:25 AM')],
+          details: {
+            '9175': QbModDetail(
+              topicId: 9175,
+              postDate: 'May 04, 2014, 01:33:25 AM',
+              lastEditDate: 'July 16, 2026, 08:21:44 AM by Histidine',
+              extraPosts: [
+                QbForumPost(lastEditDate: 'August 02, 2026, 11:00:00 PM by Histidine'),
+                // A follow-up the author never edited is not an edit.
+                QbForumPost(postDate: 'September 01, 2026, 10:00:00 AM'),
+              ],
+            ),
+          },
+        ),
+      );
+
+      expect(data.list.mods.single.editedOn, '2026-08-02');
+    });
+
+    test('counts the Discord messages the mod was read from', () {
+      final onBoth = ScrapedMod(
+        name: 'Nexerelin',
+        authorsList: const ['Histidine'],
+        sources: const [ModSource.Index, ModSource.Discord],
+        urls: const {
+          ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+          ModUrlType.Discord: 'https://discord.com/channels/1/2/3',
+        },
+      );
+
+      final data = buildFrom(
+        mods: [onBoth],
+        bundle: bundleOf(
+          index: [thread()],
+          details: {
+            '9175': QbModDetail(
+              topicId: 9175,
+              lastEditDate: 'July 16, 2026, 08:21:44 AM by Histidine',
+            ),
+          },
+        ),
+        discordPosts: DiscordPostsFile(threads: {
+          '2': DiscordThreadPost(threadId: '2', messages: [
+            DiscordOpeningMessage(
+              id: '3',
+              content: '4X in Starsector.',
+              editedTimestamp: DateTime.utc(2026, 9, 30, 12),
+            ),
+          ]),
+        }),
+      );
+
+      expect(data.list.mods.single.editedOn, '2026-09-30');
+    });
+
+    test('is nothing for a post that was never edited', () {
+      final data = buildFrom(
+        mods: [forumMod()],
+        bundle: bundleOf(
+          index: [thread()],
+          details: {
+            '9175': QbModDetail(topicId: 9175, postDate: 'May 04, 2014, 01:33:25 AM'),
+          },
+        ),
+      );
+
+      expect(data.list.mods.single.editedOn, isNull);
+      expect(data.list.toMap()['mods'].single, isNot(contains('editedOn')));
+    });
   });
 
   group('the day a mod was added', () {

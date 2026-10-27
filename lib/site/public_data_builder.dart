@@ -437,6 +437,10 @@ class PublicDataBuilder {
         topicId: topicId,
         thread: thread,
         postDate: detail?.postDate,
+        forumEdits: [
+          for (final post in detail?.openingPosts ?? const <QbForumPost>[])
+            post.lastEditDate,
+        ],
         threadWasRead: detail != null,
         authorAvatarPath: detail?.authorAvatarPath,
         postPictures: detail?.allImages ?? const [],
@@ -950,6 +954,7 @@ class PublicDataBuilder {
     required String? topicId,
     required QbModSummary? thread,
     required String? postDate,
+    required List<String?> forumEdits,
     required bool threadWasRead,
     required String? authorAvatarPath,
     required List<ImageRef> postPictures,
@@ -1017,6 +1022,7 @@ class PublicDataBuilder {
       addedOn: _addedOn(mod, thread, postDate, id,
           threadNeverRead: topicId != null && !threadWasRead),
       threadLastPostOn: lastPost == null ? null : writeDay(lastPost),
+      editedOn: _editedOn(forumEdits, discordPosts.threadFor(discordUrl)),
       needs: _neededMods(extras?.needs, id, requirements),
       partOfThreadTitle: partOfThreadTitle,
     );
@@ -1064,6 +1070,23 @@ class PublicDataBuilder {
     }
     dates.sort();
     return writeDay(dates.first);
+  }
+
+  /// The day the author last edited the mod's post, as `YYYY-MM-DD`, or null
+  /// when it was never edited. [forumEdits] are the forum's "Last Edit" lines
+  /// for the first post and the author's follow-ups ("July 16, 2026, 08:21:44
+  /// AM by Computica"); the Discord thread's messages carry their own. A
+  /// follow-up post is not an edit, so only edits count.
+  static String? _editedOn(List<String?> forumEdits, DiscordThreadPost? discordThread) {
+    final edits = <DateTime>[
+      for (final text in forumEdits)
+        if (parseForumDate(text) case final edited?) edited,
+      for (final message in discordThread?.messages ?? const <DiscordOpeningMessage>[])
+        if (message.editedTimestamp case final edited?) edited.toUtc(),
+    ];
+    if (edits.isEmpty) return null;
+    edits.sort();
+    return writeDay(edits.last);
   }
 
   /// The stretch of the author's post that describes this one mod, or null.
