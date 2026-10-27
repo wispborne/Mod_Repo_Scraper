@@ -107,14 +107,12 @@ export const DATE_FILTERS = [
   {
     key: 'posted',
     label: 'Posted',
-    title: 'The day the mod was first posted, on the forum or on Discord.',
     dayOf: (mod) => mod.addedOn,
   },
   {
     key: 'edited',
     label: 'Last edited',
-    title: "The day the author last edited the mod's post. "
-      + 'A post that was never edited counts from the day it was posted.',
+    // A post that was never edited counts from the day it was posted.
     dayOf: (mod) => mod.editedOn || mod.addedOn,
   },
 ];
