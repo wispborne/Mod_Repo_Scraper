@@ -328,6 +328,34 @@ void main() {
     expect(nameOf('[0.98]Agrean Breakers, ver 3.0'), 'Agrean Breakers');
   });
 
+  test("an indexed topic takes the higher of its index line's game version and its title's", () {
+    String versionOf(String title, String? fromIndex, {bool onOldIndexOnly = true}) => forumRulesListing(QbModSummary(
+          topicId: 26307,
+          title: title,
+          inModIndex: true,
+          isArchivedModIndex: onOldIndexOnly,
+          indexLines: [QbIndexLine(name: 'Ashes of The Domain', author: 'Kaysaar', gameVersion: fromIndex, category: 'uncategorized')],
+        )).mod.gameVersionReq!;
+
+    // Listed only on the 0.97a index post; the author has since retitled it.
+    expect(versionOf('[0.98] Ashes of The Domain', '0.97a'), '0.98');
+    expect(versionOf('[.98a] Ashes of The Domain', '0.97a'), '0.98a');
+    // 0.65 came out before 0.7, though 65 is more than 7.
+    expect(versionOf('[0.65] Ashes of The Domain', '0.7a'), '0.7a');
+    // An older title, or the same release spelled another way, leaves the index line alone.
+    expect(versionOf('[0.96a] Ashes of The Domain', '0.97a'), '0.97a');
+    expect(versionOf('[0.97] Ashes of The Domain', '0.97a'), '0.97a');
+    // No version in the title, or a bracket that is the mod's own version.
+    expect(versionOf('Ashes of The Domain', '0.97a'), '0.97a');
+    expect(versionOf('[1.2.0] Ashes of The Domain', '0.97a'), '0.97a');
+    // Today's index writes "-" for a mod that works on any version, and that stays.
+    expect(versionOf('[0.97a] TriOS', '-', onOldIndexOnly: false), '-');
+    // Today's index giving a real version still loses to a newer title.
+    expect(versionOf('[0.98a] Ashes of The Domain', '0.97a', onOldIndexOnly: false), '0.98a');
+    // An index line with no version takes the title's.
+    expect(versionOf('[0.98a] Ashes of The Domain', null), '0.98a');
+  });
+
   test("listings join when the LLM gives both the same name, though the titles are too far apart", () async {
     Listing customLpcs(SourcePostRef ref, String title) => Listing(
           mod: ScrapedMod(
