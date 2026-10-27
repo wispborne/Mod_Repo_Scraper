@@ -1748,7 +1748,16 @@ a.chip.needed.optional:hover { background: var(--primary-soft); }
   margin: 0 0 10px; padding: 4px 0 4px 12px;
   border-left: 2px solid var(--border); color: var(--text-dim);
 }
-.prose pre { white-space: pre-wrap; overflow-x: auto; }
+/* A code block is a box of its own, as on the forum: long lines scroll
+   sideways and a long block scrolls inside the box. */
+.prose pre {
+  margin: 0 0 10px; padding: 8px 12px; overflow: auto; max-height: 24em;
+  white-space: pre; text-align: left; font-size: var(--type-small);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+}
+.prose pre code { font-size: inherit; }
+/* The forum leaves a little under a line of room above and below a divider. */
+.prose hr { margin: 0.9em 0; }
 .prose a { overflow-wrap: anywhere; }
 
 /* The pictures from the author's post, where they put them. Never wider than
