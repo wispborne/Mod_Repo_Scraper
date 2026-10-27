@@ -32,7 +32,10 @@ class _FakeModel implements LlmClient {
   /// When set, every picture call fails with this.
   final LlmException? pictureFailure;
 
-  _FakeModel({this.dead = const {}, this.pictureFailure});
+  /// Addresses the "server" fails on with its own words.
+  final Map<String, String> failsWith;
+
+  _FakeModel({this.dead = const {}, this.pictureFailure, this.failsWith = const {}});
 
   @override
   Future<LlmResponse> complete(LlmRequest request) async {
@@ -42,6 +45,13 @@ class _FakeModel implements LlmClient {
     }
     pictureCalls.add(request);
     if (pictureFailure != null) throw pictureFailure!;
+    for (final url in request.imageUrls) {
+      final words = failsWith[url];
+      if (words != null) {
+        throw LlmException('Error response (status 400): {"error": {"type": '
+            '"invalid_request_error", "message": "$words"}}');
+      }
+    }
     if (request.imageUrls.any(dead.contains)) {
       throw LlmException('Error response (status 400): {"error": {"message": '
           '"the image URL could not be read: HTTP Error 404: Not Found"}}');
@@ -174,6 +184,31 @@ void main() {
       final captioner = PictureCaptioner(client: model, store: store);
       await captioner.lookAt([_shot], where: 'topic 32915');
       expect(store.isDone(_shot), isFalse);
+      expect(captioner.hasStopped, isFalse);
+    });
+
+    test('a picture too big for the server is remembered, and the rest are still described', () async {
+      // Particle Engine's imgur GIFs: the same call failed at the start of
+      // every run, because these words did not count as a bad picture.
+      final model = _FakeModel(failsWith: {_dead: "the image URL's file is over 32 MiB"});
+      final captioner = PictureCaptioner(client: model, store: store);
+
+      expect(await captioner.lookAt([_banner, _dead, _shot], where: 'topic 1'), 4);
+      expect(store.captionFor(_banner), isNotNull);
+      expect(store.captionFor(_shot), isNotNull);
+      expect(store.isDone(_dead), isTrue, reason: 'it is not tried again next run');
+      expect(captioner.hasStopped, isFalse);
+    });
+
+    test('a busy host spoils only its own picture', () async {
+      final model = _FakeModel(
+          failsWith: {_dead: 'the image URL could not be read: HTTP Error 504: Gateway Timeout'});
+      final captioner = PictureCaptioner(client: model, store: store);
+
+      expect(await captioner.lookAt([_banner, _dead, _shot], where: 'topic 1'), 4);
+      expect(store.captionFor(_banner), isNotNull);
+      expect(store.captionFor(_shot), isNotNull);
+      expect(store.isDone(_dead), isFalse, reason: 'a busy host is asked again next run');
       expect(captioner.hasStopped, isFalse);
     });
 

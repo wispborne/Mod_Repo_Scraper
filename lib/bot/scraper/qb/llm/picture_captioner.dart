@@ -120,13 +120,15 @@ class PictureCaptioner {
     final first = await _ask(pictures, where, title);
     calls++;
     if (first.answered) return calls;
-    if (!first.pictureUnreadable) return calls;
+    if (!first.pictureUnreadable && !first.hostBusy) return calls;
 
     // One picture the server could not fetch spoils the whole call, and the
     // error does not say which. Each is asked about alone; a dead one fails
-    // in under a second.
+    // in under a second. A busy host is split up too, or one slow host would
+    // keep every other picture in the post from being described, run after
+    // run.
     if (pictures.length == 1) {
-      await store.putUnreadable(pictures.single, first.error!);
+      if (first.pictureUnreadable) await store.putUnreadable(pictures.single, first.error!);
       return calls;
     }
     for (final url in pictures) {
@@ -169,7 +171,7 @@ class PictureCaptioner {
         // answered "503 Service Unavailable" once and worked the run after.
         if (_isTemporary(e)) {
           _log.info('A picture host of $where did not answer this time: ${e.message}');
-          return const _Asked.failed();
+          return const _Asked.busy();
         }
         return _Asked.unreadable(e.message);
       }
@@ -220,7 +222,9 @@ class PictureCaptioner {
   static final RegExp _unreadableWords = RegExp(
     r'could not be read|cannot identify|could not (?:fetch|load|download|open)'
     r'|failed to (?:fetch|load|download|open)|unable to (?:fetch|load|download|open)'
-    r'|not found|forbidden|\b40[34]\b|invalid (?:\w+ )?(?:url|address)',
+    r'|not found|forbidden|\b40[34]\b|invalid (?:\w+ )?(?:url|address)'
+    // "the image URL's file is over 32 MiB": a file that big stays that big.
+    r'|over \d+ ?[kmg]i?b\b|too (?:large|big)',
     caseSensitive: false,
   );
 
@@ -343,11 +347,23 @@ class _Asked {
 
   const _Asked.answered()
       : answered = true,
-        error = null;
+        error = null,
+        hostBusy = false;
   const _Asked.failed()
       : answered = false,
-        error = null;
-  const _Asked.unreadable(String this.error) : answered = false;
+        error = null,
+        hostBusy = false;
+  const _Asked.unreadable(String this.error)
+      : answered = false,
+        hostBusy = false;
+  const _Asked.busy()
+      : answered = false,
+        error = null,
+        hostBusy = true;
+
+  /// True when a picture host did not answer this time. The picture is not
+  /// remembered as dead, but the call still failed because of one picture.
+  final bool hostBusy;
 
   bool get pictureUnreadable => error != null;
 }
