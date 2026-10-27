@@ -195,7 +195,10 @@ export function quickTip(node, text) {
 }
 
 let shownTip = null;
-function hideQuickTip() {
+// The router calls this on every page change. A link on our own pages moves
+// the address with `pushState`, which fires no event, and the page under the
+// pointer is taken away, so `pointerleave` never comes either.
+export function hideQuickTip() {
   shownTip?.remove();
   shownTip = null;
 }
