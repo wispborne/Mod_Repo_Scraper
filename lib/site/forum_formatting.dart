@@ -14,7 +14,8 @@ extension SizeStepClass on SizeStep {
       };
 }
 
-/// Named sizes, in points. The forum's body text is about 12pt.
+/// Named sizes, in points. These are the browser's own sizes, so "medium" is
+/// 12pt, which is bigger than the forum's 10pt body text.
 const Map<String, double> _namedSizes = {
   'xx-small': 6,
   'x-small': 7.5,
@@ -29,9 +30,14 @@ const Map<String, double> _namedSizes = {
 
 final RegExp _sizeValue = RegExp(r'^(\d{1,3}(?:\.\d{1,3})?)\s*(pt|px|em)$');
 
+/// The forum's body text, in points. Sizes are judged against this.
+const double _forumBodyPoints = 10;
+
 /// The size step for a CSS `font-size` value, or null for ordinary text or a
-/// size that cannot be read. Points map as: under 10 small, 10 to 13 ordinary,
-/// 14 to 17 big, 18 to 23 bigger, 24 and up biggest.
+/// size that cannot be read. The forum's body text is 10pt, and each size goes
+/// to the step whose size on the site is nearest in proportion to the body:
+/// under 9.5pt small, 9.5 to 11 ordinary, 11 to 13 big, 13 to 17 bigger, 17 and
+/// up biggest. So the forum's 12pt is big, 14pt is bigger and 18pt is biggest.
 SizeStep? sizeStepOf(String? value) {
   final text = value?.trim().toLowerCase();
   if (text == null || text.isEmpty) return null;
@@ -43,14 +49,14 @@ SizeStep? sizeStepOf(String? value) {
     final number = double.parse(match[1]!);
     points = switch (match[2]) {
       'px' => number * 0.75,
-      'em' => number * 12,
+      'em' => number * _forumBodyPoints,
       _ => number,
     };
   }
-  if (points < 10) return SizeStep.small;
-  if (points < 14) return null;
-  if (points < 18) return SizeStep.big;
-  if (points < 24) return SizeStep.bigger;
+  if (points < 9.5) return SizeStep.small;
+  if (points < 11) return null;
+  if (points < 13) return SizeStep.big;
+  if (points < 17) return SizeStep.bigger;
   return SizeStep.biggest;
 }
 

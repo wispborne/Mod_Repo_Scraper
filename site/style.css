@@ -1782,6 +1782,9 @@ a.chip.needed.optional:hover { background: var(--primary-soft); }
 /* Centred and right-aligned blocks, as the author laid them out. */
 .prose .align-center { text-align: center; }
 .prose .align-right { text-align: right; }
+/* The forum keeps a list's items left-aligned inside a centred block, so each
+   line starts beside its bullet. */
+.prose :is(.align-center, .align-right) :is(ul, ol) { text-align: left; }
 
 /* The author's sizes, as four steps on the site's own scale. */
 .prose .size-small { font-size: var(--type-small); }

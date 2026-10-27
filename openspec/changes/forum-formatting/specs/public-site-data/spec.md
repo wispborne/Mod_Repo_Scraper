@@ -20,10 +20,11 @@ the post's HTML. In particular:
   become `<div class="align-center">` or `<div class="align-right">`. Left alignment
   SHALL be dropped.
 - A text size SHALL become one of `size-small`, `size-big`, `size-bigger` or
-  `size-biggest` on a `<span>`. Point sizes map as follows: under 10pt is `size-small`,
-  10 to 13pt has no class, 14 to 17pt is `size-big`, 18 to 23pt is `size-bigger`, and
-  24pt or more is `size-biggest`. `em`, `px` and named sizes SHALL be converted to
-  points first. A size that cannot be read SHALL be dropped.
+  `size-biggest` on a `<span>`. Sizes are judged against the forum's 10pt body text.
+  Point sizes map as follows: under 9.5pt is `size-small`, 9.5 to 11pt has no class,
+  11 to 13pt is `size-big`, 13 to 17pt is `size-bigger`, and 17pt or more is
+  `size-biggest`. `em`, `px` and named sizes SHALL be converted to points first, with
+  `1em` as 10pt. A size that cannot be read SHALL be dropped.
 - An underline SHALL become `<u>`.
 - A list the post numbers SHALL be `<ol>`.
 - An author's text colour SHALL become `<span class="author-colour"
@@ -51,7 +52,7 @@ the post's HTML. In particular:
 - **THEN** both cells are kept in one row, inside a `table-scroll` box
 
 #### Scenario: Sizes
-- **WHEN** a post has text at 8pt, 12pt, 14pt, 18pt and 36pt
+- **WHEN** a post has text at 8pt, 10pt, 12pt, 14pt and 18pt
 - **THEN** they get `size-small`, no class, `size-big`, `size-bigger` and `size-biggest`
 
 #### Scenario: Colours

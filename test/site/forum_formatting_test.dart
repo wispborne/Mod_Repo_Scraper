@@ -239,16 +239,17 @@ void main() {
       expect(cleanPostHtml('<p>Hi</p><div align="center"></div>'), '<p>Hi</p>');
     });
 
-    test('sizes become one of four steps', () {
+    test('sizes become one of four steps, judged against 10pt body text', () {
       String sized(String size) => cleanPostHtml(
           '<span style="font-size: $size;" class="bbc_size">Words</span>')!;
       expect(sized('8pt'), '<span class="size-small">Words</span>');
-      expect(sized('12pt'), 'Words');
-      expect(sized('14pt'), '<span class="size-big">Words</span>');
-      expect(sized('18pt'), '<span class="size-bigger">Words</span>');
+      expect(sized('10pt'), 'Words');
+      expect(sized('12pt'), '<span class="size-big">Words</span>');
+      expect(sized('14pt'), '<span class="size-bigger">Words</span>');
+      expect(sized('18pt'), '<span class="size-biggest">Words</span>');
       expect(sized('36pt'), '<span class="size-biggest">Words</span>');
-      expect(sized('1.35em'), '<span class="size-big">Words</span>');
-      expect(sized('16px'), 'Words');
+      expect(sized('1.35em'), '<span class="size-bigger">Words</span>');
+      expect(sized('16px'), '<span class="size-big">Words</span>');
       expect(sized('huge'), 'Words');
     });
 
@@ -316,7 +317,7 @@ void main() {
 
     test('a size and a colour on one tag are both kept', () {
       expect(
-        cleanPostHtml('<span style="font-size: 18pt; color: blue">Big</span>'),
+        cleanPostHtml('<span style="font-size: 14pt; color: blue">Big</span>'),
         '<span class="size-bigger"><span class="author-colour" '
         'style="--c:#0000ff">Big</span></span>',
       );
@@ -390,10 +391,15 @@ void main() {
   group('the readers on their own', () {
     test('sizes', () {
       expect(sizeStepOf('small'), SizeStep.small);
-      expect(sizeStepOf('9.5pt'), SizeStep.small);
+      expect(sizeStepOf('medium'), SizeStep.big);
+      expect(sizeStepOf('9pt'), SizeStep.small);
+      expect(sizeStepOf('9.5pt'), isNull);
       expect(sizeStepOf('10pt'), isNull);
+      expect(sizeStepOf('11pt'), SizeStep.big);
+      expect(sizeStepOf('13pt'), SizeStep.bigger);
+      expect(sizeStepOf('17pt'), SizeStep.biggest);
       expect(sizeStepOf('2em'), SizeStep.biggest);
-      expect(sizeStepOf('24px'), SizeStep.bigger);
+      expect(sizeStepOf('20px'), SizeStep.bigger);
       expect(sizeStepOf(''), isNull);
       expect(sizeStepOf('calc(1px + 9pt)'), isNull);
     });
