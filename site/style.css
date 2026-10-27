@@ -241,12 +241,23 @@
 [data-theme="one-dark-blue"] {
   --secondary: var(--primary);
 }
-/* Also Browser Default's colours on dark pages. */
-[data-theme="independents"], [data-theme="browser-default"], :root:where(:not([data-theme])) {
+/* Independents (Darker): TriOS's own Independents colours. */
+[data-theme="independents"] {
   --primary: #B8BCC4;
   --secondary: #FFD737;
   --surface: #101216;
   --surface-container: #1A1D23;
+}
+/* Independents: the same grey and yellow on a lighter grey. Also Browser
+   Default's colours on dark pages. The text is a little darker than the other
+   themes' too, which keeps it about 12 to 1 against the panels. */
+[data-theme="independents-light"], [data-theme="browser-default"], :root:where(:not([data-theme])) {
+  --primary: #C0C4CB;
+  --secondary: #FAD236;
+  --surface: #16191E;
+  --surface-container: #22252B;
+  --text: rgb(215, 220, 235);
+  --text-dim: rgb(137, 147, 166);
 }
 [data-theme="lavender"] {
   --primary: #C0A2E8;
