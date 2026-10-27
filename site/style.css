@@ -359,6 +359,9 @@ a:hover { text-decoration: underline; }
 :where(p, .prose) a:where(:not(.btn)) {
   text-decoration: underline;
   text-decoration-color: var(--primary-ghost);
+  /* One pixel at every size, as on the forum. Left to the browser, the line
+     grows with the text, and a link in a post's title was underlined heavily. */
+  text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 :where(p, .prose) a:where(:not(.btn)):hover { text-decoration-color: currentColor; }
@@ -1767,8 +1770,13 @@ a.chip.needed.optional:hover { background: var(--primary-soft); }
   background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
 }
 .prose pre code { font-size: inherit; }
-/* The forum leaves a little under a line of room above and below a divider. */
-.prose hr { margin: 0.9em 0; }
+/* A divider is one faint line, as on the forum, rather than the browser's
+   two-pixel ridge. The forum leaves a little under a line of room above and
+   below it. */
+.prose hr {
+  margin: 0.9em 0; height: 0; border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
+}
 .prose a { overflow-wrap: anywhere; }
 
 /* The pictures from the author's post, where they put them. Never wider than
