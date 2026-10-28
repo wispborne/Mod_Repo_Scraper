@@ -89,7 +89,7 @@ class SourcePostListings {
               SourcePostRef(kind: SourceKind.forum, id: topic).key;
         }
       }
-      if (pointers.isNotEmpty) return _several(rules, own, pointers: pointers);
+      if (pointers.isNotEmpty) return _several(rules, own, postWords, pointers: pointers);
     }
 
     if (grounded.isEmpty) {
@@ -103,19 +103,20 @@ class SourcePostListings {
     }
 
     if (grounded.length == 1) {
-      return PostListings([_joined(rules, grounded.single)]);
+      return PostListings([_joined(rules, grounded.single, postWords)]);
     }
 
-    return _several(rules, grounded);
+    return _several(rules, grounded, postWords);
   }
 
   /// The rule for a post holding two or more mods, [mods] being the ones that
   /// make listings here.
-  static PostListings _several(Listing rules, List<LlmMod> mods, {Map<String, String> pointers = const {}}) {
+  static PostListings _several(Listing rules, List<LlmMod> mods, String? postWords,
+      {Map<String, String> pointers = const {}}) {
     final match = _matchFor(rules, mods);
     if (match == null) {
       return PostListings(
-        [for (final llmMod in mods) _llmListing(rules, llmMod)],
+        [for (final llmMod in mods) _llmListing(rules, llmMod, postWords)],
         collection: rules,
         pointers: pointers,
       );
@@ -123,7 +124,7 @@ class SourcePostListings {
     return PostListings(
       [
         for (final llmMod in mods)
-          identical(llmMod, match) ? _joined(rules, llmMod) : _llmListing(rules, llmMod),
+          identical(llmMod, match) ? _joined(rules, llmMod, postWords) : _llmListing(rules, llmMod, postWords),
       ],
       pointers: pointers,
     );
@@ -194,16 +195,45 @@ class SourcePostListings {
     return wanted.isNotEmpty && tidy(postWords).contains(wanted);
   }
 
+  /// The game version the post writes in brackets straight before the mod's
+  /// name or one of its nicknames, or null. Topic 34161 heads each of its four
+  /// mods this way ("[0.98a] Lost.Sector") and has no version in its title.
+  /// Only a version starting with "0." counts, as in a title. After the name
+  /// the line must end, or go on with only a version, a dash, a colon or a
+  /// bracket, so "[0.97a] Lost.Sector Extended" says nothing about Lost.Sector.
+  static String? gameVersionBefore(LlmMod llmMod, String? postWords) {
+    if (postWords == null || postWords.isEmpty) return null;
+    final words = postWords.replaceAll(_nbsp, ' ');
+    for (final name in [llmMod.name, ...?llmMod.nicknames]) {
+      if (name.trim().isEmpty) continue;
+      final heading = RegExp(
+        r'\[[ \t]*(\d*\.\d+[\w.\-]*)[^\]\n]*\][ \t]*' +
+            RegExp.escape(name.trim()) +
+            r'(?=[ \t]*(?:$|[-–—:(\[|]|v?\d))',
+        caseSensitive: false,
+        multiLine: true,
+      );
+      for (final match in heading.allMatches(words)) {
+        var version = match.group(1)!;
+        if (version.startsWith('.')) version = '0$version';
+        if (version.startsWith('0.')) return version;
+      }
+    }
+    return null;
+  }
+
   static final RegExp _nbsp = RegExp(r'&nbsp;|&#0*160;|&#x0*a0;', caseSensitive: false);
   static final RegExp _spaces = RegExp(r'\s+');
 
   /// The rules listing with one LLM mod's reading joined on. The name and
   /// everything else the rules found stay; the LLM adds the mod's version
   /// where the rules have none, its nicknames as other names, and the name its
-  /// facts are filed under.
-  static Listing _joined(Listing rules, LlmMod llmMod) => rules.copyWith(
+  /// facts are filed under. Where the rules found no game version, the one the
+  /// post writes before the mod's name is used.
+  static Listing _joined(Listing rules, LlmMod llmMod, String? postWords) => rules.copyWith(
         mod: rules.mod.copyWith(
           modVersion: _firstNonEmpty([rules.mod.modVersion, llmMod.extras?.version]),
+          gameVersionReq: _firstNonEmpty([rules.mod.gameVersionReq, gameVersionBefore(llmMod, postWords)]) ?? '',
         ),
         ref: rules.ref.copyWith(llmModName: llmMod.name.trim()),
         origin: ListingOrigin.rulesAndLlm,
@@ -215,8 +245,9 @@ class SourcePostListings {
   /// own links — the forum topic, the Discord thread and the forum link a
   /// thread names, which is how the merge joins a Discord announcement to its
   /// own mod on a shared forum topic — but not the post's download links, which
-  /// belong to whichever mod the rules picked them for.
-  static Listing _llmListing(Listing rules, LlmMod llmMod) {
+  /// belong to whichever mod the rules picked them for. Its game version is
+  /// the one the post writes before its name, else the post's own.
+  static Listing _llmListing(Listing rules, LlmMod llmMod, String? postWords) {
     final urls = <ModUrlType, String>{
       for (final entry in rules.mod.getUrls().entries)
         if (entry.key == ModUrlType.Forum || entry.key == ModUrlType.Discord || entry.key == ModUrlType.NexusMods)
@@ -226,7 +257,7 @@ class SourcePostListings {
     return Listing(
       mod: ScrapedMod(
         name: llmMod.name.trim(),
-        gameVersionReq: rules.mod.gameVersionReq,
+        gameVersionReq: gameVersionBefore(llmMod, postWords) ?? rules.mod.gameVersionReq,
         modVersion: _firstNonEmpty([llmMod.extras?.version]),
         authorsList: rules.mod.authorsList,
         urls: urls,

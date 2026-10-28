@@ -22,15 +22,20 @@ import 'source_post.dart';
 /// date, a leading dash and whatever a cut left dangling all come off. Taking
 /// off only the version left names like "Everything Recoverable (v" and
 /// "Companions of the Imperium - V", and TriOS shows this name as it is.
-Listing forumRulesListing(QbModSummary summary) {
+///
+/// [postAuthor] is the author of the saved first post. Most topic summaries
+/// carry no author (topic 34161's is empty), so it stands in when the summary
+/// has none.
+Listing forumRulesListing(QbModSummary summary, {String? postAuthor}) {
   final lines = summary.indexLines ?? const <QbIndexLine>[];
   final ref = SourcePostRef(kind: SourceKind.forum, id: '${summary.topicId}');
   final postedAt = parseForumDate(summary.lastPostDate);
   final url = summary.topicUrl.isNotEmpty ? summary.topicUrl : ForumConstants.topicUrl(summary.topicId);
+  final threadAuthor = summary.author.trim().isNotEmpty ? summary.author.trim() : (postAuthor ?? '').trim();
 
   if (lines.isNotEmpty) {
     final first = lines.first;
-    final author = first.author.trim().isNotEmpty ? first.author.trim() : summary.author.trim();
+    final author = first.author.trim().isNotEmpty ? first.author.trim() : threadAuthor;
     final otherNames = <String>[];
     for (final line in lines.skip(1)) {
       if (modNamesMatch(line.name, first.name)) continue;
@@ -53,7 +58,7 @@ Listing forumRulesListing(QbModSummary summary) {
     );
   }
 
-  final author = summary.author.trim();
+  final author = threadAuthor;
   return Listing(
     mod: ScrapedMod(
       name: displayName(summary.title),

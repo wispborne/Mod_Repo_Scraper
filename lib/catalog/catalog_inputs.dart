@@ -95,7 +95,7 @@ class CatalogInputs {
       final store = JsonDataStore(qbDataPath);
       // Read first and combined after, because a post can point at another
       // topic's mod only once every topic in the build is known.
-      final kept = <(QbModSummary, LlmStoreEntry?, String?)>[];
+      final kept = <(QbModSummary, LlmStoreEntry?, String?, String?)>[];
       for (final summary in await store.loadIndex()) {
         final answer = llmStore.get(summary.topicId);
         if (!keepThreadInBundle(title: summary.title, llmSaidMod: answer?.isMod, inModIndex: summary.inModIndex)) {
@@ -119,12 +119,12 @@ class CatalogInputs {
         final words = detail == null
             ? summary.title
             : SourcePostListings.openingRunWords(SourcePost.fromForumDetail(detail));
-        kept.add((summary, answer, words));
+        kept.add((summary, answer, words, detail?.author));
       }
-      final topicsInBuild = {for (final (summary, _, _) in kept) '${summary.topicId}'};
-      for (final (summary, answer, words) in kept) {
+      final topicsInBuild = {for (final (summary, _, _, _) in kept) '${summary.topicId}'};
+      for (final (summary, answer, words, postAuthor) in kept) {
         final result = SourcePostListings.combine(
-          rules: forumRulesListing(summary),
+          rules: forumRulesListing(summary, postAuthor: postAuthor),
           llmMods: answer?.mods ?? const <LlmMod>[],
           postWords: words,
           forumTopicsInBuild: topicsInBuild,

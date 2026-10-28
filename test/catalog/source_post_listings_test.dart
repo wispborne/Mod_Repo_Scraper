@@ -71,7 +71,17 @@ void main() {
       expect(listing.origin, ListingOrigin.llm);
       expect(listing.ref.llmModName, listing.mod.name);
       expect(listing.mod.getUrls()[ModUrlType.Forum], contains('topic=34161'));
+      expect(listing.mod.gameVersionReq, '0.98a',
+          reason: 'the post heads each mod "[0.98a] <name>", and the title has no version');
     }
+  });
+
+  test("a topic summary with no author takes the saved post's author", () {
+    final summary = _Topic.load(34161).summary.copyWith(author: '');
+    expect(forumRulesListing(summary).mod.authorsList, isEmpty);
+    expect(forumRulesListing(summary, postAuthor: 'SirHartley').mod.authorsList, ['SirHartley']);
+    expect(forumRulesListing(summary.copyWith(author: 'Hartley'), postAuthor: 'SirHartley').mod.authorsList,
+        ['Hartley'], reason: "the summary's own author still wins");
   });
 
   test('topic 34457 is a Collection whose rules listing (which already has a page) is kept aside', () {
@@ -177,6 +187,18 @@ void main() {
       expect(result.listings, hasLength(1));
       expect(result.listings.single.origin, ListingOrigin.rules);
       expect(result.isCollection, isFalse);
+    });
+
+    test('a game version written before a name belongs to that name only', () {
+      const headings = '[0.97a] Lost.Sector Extended\nMore of it.\n\n[0.98a] Disco.Balls 1.1.c\nLamps.\n\n'
+          '[0.95.1a] Useful.Tithes - pay up\nTithes.\n\nLost.Sector is here too.';
+      final result = SourcePostListings.combine(
+        rules: rules('Hartley'),
+        llmMods: [main('Lost.Sector'), main('Disco.Balls'), main('Useful.Tithes')],
+        postWords: headings,
+      );
+      final versions = {for (final l in result.listings) l.mod.name: l.mod.gameVersionReq};
+      expect(versions, {'Lost.Sector': null, 'Disco.Balls': '0.98a', 'Useful.Tithes': '0.95.1a'});
     });
 
     test('add-ons, variants and separate mods make no listings', () {
