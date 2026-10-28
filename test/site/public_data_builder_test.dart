@@ -1741,6 +1741,35 @@ void main() {
       expect(lost.gameVersion, '0.98a');
     });
 
+    test('a mod read off a Discord post holding several mods names that post', () async {
+      const threadId = '1355071745366822950';
+      ScrapedMod onDiscord(String name) => ScrapedMod(
+            name: name,
+            authorsList: const ['Hartley'],
+            sources: const [ModSource.Discord],
+            urls: {ModUrlType.Discord: 'https://discord.com/channels/1/$threadId'},
+          );
+      final bundle = ForumDataBundle(
+        updatedAt: DateTime.utc(2026, 8, 18),
+        discordThreads: [DiscordThreadAnswer(threadId: threadId, name: 'Two small mods')],
+      );
+      final data = builder.build(
+        mods: [
+          CatalogMod(id: 'tithes', mod: onDiscord('Useful.Tithes'), sourcePosts: [
+            CatalogSourcePost(
+                kind: SourceKind.discord, id: threadId, llmModName: 'Useful.Tithes', foundBy: ListingOrigin.llm),
+          ]),
+          CatalogMod(id: 'alone', mod: onDiscord('Alone'), sourcePosts: [
+            CatalogSourcePost(kind: SourceKind.discord, id: threadId),
+          ]),
+        ],
+        bundle: bundle,
+      );
+
+      expect(data.list.mods.singleWhere((m) => m.id == 'tithes').partOfThreadTitle, 'Two small mods');
+      expect(data.list.mods.singleWhere((m) => m.id == 'alone').partOfThreadTitle, isNull);
+    });
+
     test('a Discord announcement joins its own mod rather than making a second page', () async {
       final data = await buildHartleys();
 

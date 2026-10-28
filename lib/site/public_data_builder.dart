@@ -374,8 +374,16 @@ class PublicDataBuilder {
         shownName: _shownNameFor(mod, facts),
         topicId: topicId,
         // A mod the LLM read off a thread that holds others: the thread is not
-        // about it, so its page says which thread it came from.
-        partOfThreadTitle: forumPost?.foundBy == ListingOrigin.llm ? thread?.title : null,
+        // about it, so its page says which thread it came from. A Discord post
+        // counts only for a mod with no forum thread.
+        partOfThreadTitle: forumPost != null
+            ? (forumPost.foundBy == ListingOrigin.llm ? thread?.title : null)
+            : (discordPost?.foundBy == ListingOrigin.llm
+                ? switch (discordAnswers[discordPost!.id]?.name.trim()) {
+                    final name? when name.isNotEmpty => name,
+                    _ => null,
+                  }
+                : null),
         facts: facts,
         discordAnswer: discordPost == null ? null : discordAnswers[discordPost.id],
       ));
