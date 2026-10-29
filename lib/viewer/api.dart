@@ -54,6 +54,7 @@ class ViewerApi {
     r.get('/discord/<threadId>', _discordThread);
 
     r.get('/bundle/meta', _bundleMeta);
+    r.get('/catalog-extras/meta', _catalogExtrasMeta);
     r.get('/bundle/mods', _bundleMods);
     r.get('/bundle/runs', _bundleRuns);
     r.get('/bundle/compare', _bundleCompare);
@@ -887,6 +888,14 @@ class ViewerApi {
       'updatedAt': bundle['updatedAt'],
       'meta': bundle['meta'],
     });
+  }
+
+  Response _catalogExtrasMeta(Request req) {
+    final meta = data.catalogExtrasMeta;
+    if (meta == null) {
+      return _missing('catalog-extras', 'Rebuild the website to create this file.');
+    }
+    return _json(meta);
   }
 
   Response _bundleMods(Request req) {

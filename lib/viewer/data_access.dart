@@ -11,6 +11,7 @@ import '../bot/scraper/qb/models/mod_summary.dart';
 import '../catalog/discord_posts.dart';
 import '../manager/bundle_snapshot_store.dart';
 import '../manager/merge_snapshot_store.dart';
+import '../site/catalog_extras.dart';
 import 'working_bundle.dart';
 
 /// One file the raw-file/log endpoints are allowed to serve, addressed by a
@@ -66,6 +67,8 @@ class DataAccess {
   late final File _modRepoFile = File(p.join(outputsDir, 'mod-catalog.json'));
   late final File _bundleFile =
       File(p.join(outputsDir, 'mod-catalog-details.json'));
+  late final File _catalogExtrasFile =
+      File(p.join(outputsDir, catalogExtrasFileName));
   late final File _mergeDebugFile = File(p.join(rootDir, 'merge-debug.json'));
   late final File _logFile = File(p.join(rootDir, 'ModRepo.log'));
   late final Directory _modsDir = Directory(p.join(dataDir, 'mods'));
@@ -186,6 +189,20 @@ class DataAccess {
       _MtimeCache(_modRepoFile, (s) => jsonDecode(s) as Map<String, dynamic>);
   late final _MtimeCache<Map<String, dynamic>> _bundleCache =
       _MtimeCache(_bundleFile, (s) => jsonDecode(s) as Map<String, dynamic>);
+
+  /// Caches the mod count, schema version and build date.
+  /// The viewer has no page for the individual mod records.
+  late final _MtimeCache<Map<String, dynamic>> _catalogExtrasCache = _MtimeCache(
+    _catalogExtrasFile,
+    (s) {
+      final file = jsonDecode(s) as Map<String, dynamic>;
+      return {
+        'total': ((file['mods'] as Map?) ?? const {}).length,
+        'schemaVersion': file['schemaVersion'],
+        'generatedAt': file['generatedAt'],
+      };
+    },
+  );
   late final _MtimeCache<Map<String, dynamic>> _mergeDebugCache = _MtimeCache(
       _mergeDebugFile, (s) => jsonDecode(s) as Map<String, dynamic>);
   late final _MtimeCache<Map<String, dynamic>> _llmTestCache =
@@ -216,6 +233,8 @@ class DataAccess {
     AllowlistEntry('modrepo', _modRepoFile, 'Run the mod repo merge.'),
     AllowlistEntry('forum-data-bundle', _bundleFile,
         'Run the QB scraper to publish the mod details.'),
+    AllowlistEntry('catalog-extras', _catalogExtrasFile,
+        'Rebuild the website to create this file.'),
     AllowlistEntry('merge-debug', _mergeDebugFile,
         'Run the scraper with modrepo_merge_debug enabled.'),
     AllowlistEntry('log', _logFile, 'Run the scraper.'),
@@ -245,6 +264,10 @@ class DataAccess {
       _assumedCache.get();
 
   Map<String, dynamic>? get modRepo => _modRepoCache.get();
+
+  /// The mod count, schema version and build date from `mod-catalog-extras.json`.
+  /// Returns null if the file is missing.
+  Map<String, dynamic>? get catalogExtrasMeta => _catalogExtrasCache.get();
 
   /// The names the Discord reader gave each thread, or null when Discord has
   /// never been scraped here.

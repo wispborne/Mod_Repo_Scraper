@@ -59,6 +59,14 @@ const OUTPUTS = [
     loadCount: () => api('bundle/mods', { pageSize: 1 }),
     unit: 'topics',
   },
+  {
+    fileId: 'catalog-extras',
+    file: 'mod-catalog-extras.json',
+    description: 'Mod details from the website build, published for TriOS.',
+    href: '#/files/catalog-extras',
+    loadCount: () => api('catalog-extras/meta'),
+    unit: 'mods',
+  },
 ];
 
 async function loadOutputs(node) {

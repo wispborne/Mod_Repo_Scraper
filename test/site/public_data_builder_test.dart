@@ -19,6 +19,9 @@ import 'package:mod_repo_scraper/bot/scraper/qb/models/mod_summary.dart';
 import 'package:mod_repo_scraper/bot/scraper/qb/models/post_extraction.dart';
 import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 import 'package:mod_repo_scraper/site/mod_id_store.dart';
+import 'package:mod_repo_scraper/site/models/catalog_extras.dart';
+import 'package:mod_repo_scraper/site/models/mod_release.dart';
+import 'package:mod_repo_scraper/site/models/public_mod_detail.dart';
 import 'package:mod_repo_scraper/site/models/public_mod.dart';
 import 'package:mod_repo_scraper/site/post_html.dart';
 import 'package:mod_repo_scraper/site/public_data_builder.dart';
@@ -2971,6 +2974,195 @@ void main() {
     expect(data.list.mods.first.aiUses, hasLength(3));
   });
 
+  group('the catalog extras file', () {
+    Map<String, dynamic> extrasMods() =>
+        (jsonDecode(File(builder.catalogExtrasFilePath).readAsStringSync()) as Map)['mods'] as Map<String, dynamic>;
+
+    test("contains the same mod details as the site file, keyed by mod id", () async {
+      final mod = ScrapedMod(
+        name: 'Nexerelin',
+        summary: 'Adds diplomacy and invasions.',
+        gameVersionReq: '0.98a',
+        authorsList: const ['Histidine'],
+        categories: const ['Total Conversions'],
+        sources: const [ModSource.Index, ModSource.Discord],
+        urls: const {
+          ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=9175.0',
+          ModUrlType.Discord: 'https://discord.com/channels/1/2/3',
+        },
+      );
+      final data = buildFrom(
+        mods: [mod],
+        bundle: bundleOf(
+          index: [
+            thread(llmMods: [
+              LlmMod(
+                name: 'Nexerelin',
+                extras: LlmExtras(
+                  needs: const ['LazyLib'],
+                  aiUse: LlmAiUse(
+                    quote: 'Portraits were made with AI.',
+                    usesAi: true,
+                    uses: [LlmAiUseEntry(area: AiUseArea.portraits, how: AiUseHow.generated)],
+                  ),
+                ),
+              ),
+            ]),
+          ],
+          details: {
+            '9175': postOf('<p>A campaign overhaul.</p>', images: [
+              ImageRef(originalUrl: 'https://example.com/shot.png'),
+            ]),
+          },
+        ),
+        threadReleases: const [
+          ThreadRelease(topicId: 9175, modName: 'Nexerelin', seenOn: '2026-08-14', newVersion: '0.12.2'),
+        ],
+        discordPosts: const DiscordPostsFile(threads: {
+          '2': DiscordThreadPost(threadId: '2', messages: [
+            DiscordOpeningMessage(id: '3', content: '**4X** in Starsector.'),
+          ]),
+        }),
+      );
+      await builder.write(data);
+
+      final site = jsonDecode(File(p.join(builder.modsDir, 'nexerelin.json')).readAsStringSync()) as Map;
+      final record = extrasMods()['nexerelin'] as Map;
+      expect(site['releases'], isNotEmpty);
+      expect(site['gallery'], isNotEmpty);
+      expect(site['discordPostHtml'], isNotNull);
+      expect(site['aiUse'], isNotNull);
+      expect((site['listing'] as Map)['needs'], isNotEmpty);
+      expect(record['releases'], site['releases']);
+      expect(record['gallery'], site['gallery']);
+      expect(record['needs'], (site['listing'] as Map)['needs']);
+      expect(record['aiUse'], site['aiUse']);
+      expect(record['discordPostHtml'], site['discordPostHtml']);
+      expect(record.containsKey('downloads'), isFalse);
+      expect(record.containsKey('bestDownload'), isFalse);
+      expect(record.containsKey('summary'), isFalse);
+    });
+
+    test('keeps aiUse empty when the LLM found no AI statement, and omits it when not checked', () async {
+      final data = buildFrom(
+        mods: [forumMod(), forumMod(name: 'Second Mod', topicId: 100)],
+        bundle: bundleOf(index: [
+          thread(llmMods: [LlmMod(name: 'Nexerelin', extras: LlmExtras(aiUse: LlmAiUse.notStated()))]),
+          thread(topicId: 100, title: '[0.98a] Second Mod'),
+        ]),
+      );
+      await builder.write(data);
+
+      final mods = extrasMods();
+      expect((mods['nexerelin'] as Map)['aiUse'], <String, dynamic>{});
+      expect((mods['second-mod'] as Map).containsKey('aiUse'), isFalse);
+    });
+
+    test('has no record for a Collection, a moved id or a taken-down mod', () async {
+      final bundle = bundleOf();
+      final mods = catalogOf([forumMod()], bundle: bundle);
+      final id = mods.single.id;
+      final data = builder.build(
+        mods: mods,
+        bundle: bundle,
+        collections: [
+          CatalogCollection(
+            id: 'a-collection',
+            name: 'A Collection',
+            post: const SourcePostRef(kind: SourceKind.forum, id: '34161'),
+            modIds: [id],
+          ),
+        ],
+        movedIds: {'old-page': id},
+        goneIds: {'taken-down'},
+      );
+      expect(data.collections, isNotEmpty);
+      expect(data.movedIds, isNotEmpty);
+      expect(data.goneIds, isNotEmpty);
+      await builder.write(data);
+
+      expect(extrasMods().keys, [id]);
+    });
+
+    test("uses the field names TriOS expects", () {
+      // Renaming a field breaks TriOS. If the rename is intended, increase
+      // CatalogExtras.currentSchemaVersion and update this list.
+      final record = CatalogExtrasMod(
+        displayName: 'Nexerelin',
+        categories: const ['Total conversions'],
+        rawCategories: const ['Total Conversions'],
+        otherAuthorNames: const {
+          'Histidine': ['histidine_my'],
+        },
+        addedOn: '2014-05-04',
+        editedOn: '2026-08-14',
+        lastReleaseDate: DateTime.utc(2026, 8, 14),
+        releases: [ModRelease(modId: 'nexerelin', modName: 'Nexerelin', seenOn: '2026-08-14', newVersion: '0.12.2')],
+        needs: [PublicNeededMod(name: 'LazyLib', id: 'lazylib')],
+        optionalNeeds: [PublicNeededMod(name: 'Combat Chatter')],
+        isTool: true,
+        saveCompatible: true,
+        canAdd: SaveAnswer.yes,
+        canUpdate: SaveAnswer.no,
+        canRemove: SaveAnswer.depends,
+        saveCompatibilityText: 'Safe to add.',
+        updateCompatibilityText: 'Breaks saves.',
+        removalCompatibilityText: 'Depends.',
+        aiUse: LlmAiUse.notStated(),
+        sameNameMods: [PublicSameNameMod(title: 'Nexerelin (old)')],
+        gallery: [PublicImage(url: 'https://example.com/shot.png')],
+        discordPostHtml: '<p>4X in Starsector.</p>',
+      ).toMap();
+
+      expect(record.keys.toSet(), {
+        'displayName',
+        'categories',
+        'rawCategories',
+        'otherAuthorNames',
+        'addedOn',
+        'editedOn',
+        'lastReleaseDate',
+        'releases',
+        'needs',
+        'optionalNeeds',
+        'isTool',
+        'saveCompatible',
+        'canAdd',
+        'canUpdate',
+        'canRemove',
+        'saveCompatibilityText',
+        'updateCompatibilityText',
+        'removalCompatibilityText',
+        'aiUse',
+        'sameNameMods',
+        'gallery',
+        'discordPostHtml',
+      });
+      expect(CatalogExtras(generatedAt: DateTime.utc(2026)).toMap().keys.toSet(),
+          {'schemaVersion', 'generatedAt', 'mods'});
+    });
+
+    test("a build after a merge writes the updated mod name", () async {
+      final dataPath = p.join(dir.path, 'data');
+      Directory(dataPath).createSync(recursive: true);
+      final step = PublicSiteStep(dataPath: dataPath, outputPath: p.join(dir.path, 'outputs'));
+
+      CatalogMod named(String name) => CatalogMod(
+            id: 'kept-id',
+            mod: forumMod(name: name),
+            sourcePosts: const [CatalogSourcePost(kind: SourceKind.forum, id: '9175')],
+          );
+
+      await step.afterMerge(
+          catalog: ModCatalog(generatedAt: DateTime.utc(2026, 10, 25), mods: [named('[0.98a] Old Name v1.0')]));
+      expect((extrasMods()['kept-id'] as Map)['displayName'], 'Old Name');
+
+      await step.afterMerge(
+          catalog: ModCatalog(generatedAt: DateTime.utc(2026, 10, 26), mods: [named('[0.98a] New Name v2.0')]));
+      expect((extrasMods()['kept-id'] as Map)['displayName'], 'New Name');
+    });
+  });
+
   test('nothing internal reaches the published files', () async {
     final data = buildFrom(
       mods: [forumMod()],
@@ -3010,6 +3202,7 @@ void main() {
       File(builder.modsFilePath).readAsStringSync(),
       File(builder.updatesFilePath).readAsStringSync(),
       File(p.join(builder.modsDir, 'nexerelin.json')).readAsStringSync(),
+      File(builder.catalogExtrasFilePath).readAsStringSync(),
     ].join('\n');
 
     // Config keys, tokens and anything only the scraper cares about.

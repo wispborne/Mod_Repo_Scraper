@@ -25,6 +25,8 @@ import 'requirement_names.dart';
 /// answers those source posts lead to. A run usually only produces one of
 /// those, so this reads the other back from the outputs folder. Neither is
 /// changed — they are read, and the website's files are written beside them.
+/// The same build writes mod details to `mod-catalog-extras.json` for TriOS,
+/// in the same outputs folder.
 ///
 /// It is called from two places, and does slightly different work at each:
 ///

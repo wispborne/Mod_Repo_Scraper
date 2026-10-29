@@ -51,6 +51,12 @@ class PublishService implements JobRunner {
     'mod-catalog-details.json',
   ];
 
+  /// Copied beside [outputFiles] if they exist.
+  /// Missing files are logged, and publishing continues.
+  static const List<String> optionalOutputFiles = [
+    'mod-catalog-extras.json',
+  ];
+
   /// The public website's data files, copied from `<outputs>/site/` when a run
   /// has built them. Per-mod files come across as well, from `site/mods/`.
   static const List<String> websiteFiles = [
@@ -180,6 +186,16 @@ class PublishService implements JobRunner {
       if (!source.existsSync()) {
         throw StateError('Cannot publish: ${source.path} is not there. Run a '
             'scrape or merge first.');
+      }
+      source.copySync(p.join(environment.cloneDir, name));
+      reporter.log('Copied $name into the clone.');
+    }
+    for (final name in optionalOutputFiles) {
+      final source = File(p.join(environment.outputPath, name));
+      if (!source.existsSync()) {
+        reporter.log('$name was not there (${source.path}), so it was not '
+            'published. Rebuild the website to create it.');
+        continue;
       }
       source.copySync(p.join(environment.cloneDir, name));
       reporter.log('Copied $name into the clone.');

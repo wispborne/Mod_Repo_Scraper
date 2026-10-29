@@ -20,6 +20,7 @@ import '../catalog/fact_choice.dart';
 import '../catalog/listing.dart';
 import '../catalog/mod_catalog.dart';
 import '../catalog/source_post.dart';
+import 'catalog_extras.dart';
 import 'days.dart';
 import 'description_slice.dart';
 import 'discord_markdown.dart';
@@ -294,6 +295,10 @@ class PublicDataBuilder {
   String get siteDir => p.join(outputPath, 'site');
 
   String get modsFilePath => p.join(siteDir, 'mods.json');
+
+  /// Mod details for TriOS, saved beside `mod-catalog.json`.
+  /// The site does not read this file.
+  String get catalogExtrasFilePath => p.join(outputPath, catalogExtrasFileName);
 
   String get updatesFilePath => p.join(siteDir, 'updates.json');
 
@@ -858,6 +863,8 @@ class PublicDataBuilder {
     const encoder = JsonEncoder.withIndent('  ');
 
     await File(modsFilePath).writeAsString(encoder.convert(data.list.toMap()));
+    await File(catalogExtrasFilePath)
+        .writeAsString(encoder.convert(buildCatalogExtras(data).toMap()));
     await File(updatesFilePath)
         .writeAsString(encoder.convert(data.feed.toMap()));
     await File(updatesXmlFilePath)

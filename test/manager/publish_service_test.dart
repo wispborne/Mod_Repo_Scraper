@@ -286,6 +286,27 @@ void main() {
           isTrue);
     }, skip: _gitIsThere() ? false : 'git is not installed');
 
+    test('publishes the catalog extras file beside the catalog', () async {
+      writeOutputs('new repo', 'new bundle');
+      File(p.join(outputs, 'mod-catalog-extras.json')).writeAsStringSync('extras');
+
+      await service.runJob(JobRequest.publishOutputs(), reporter: reporter);
+
+      expect(remoteContent('mod-catalog-extras.json'), 'extras');
+    }, skip: _gitIsThere() ? false : 'git is not installed');
+
+    test('logs a missing catalog extras file and continues publishing', () async {
+      writeOutputs('new repo', 'new bundle');
+      final before = remoteCommitCount();
+
+      final outcome = await service.runJob(JobRequest.publishOutputs(), reporter: reporter);
+
+      expect(outcome.cancelled, isFalse);
+      expect(remoteCommitCount(), before + 1);
+      expect(inRemote('mod-catalog-extras.json'), isFalse);
+      expect(reporter.logs.any((l) => l.contains('mod-catalog-extras.json was not there')), isTrue);
+    }, skip: _gitIsThere() ? false : 'git is not installed');
+
     test('a mod that has gone loses its file from the published repo', () async {
       writeOutputs('new repo', 'new bundle');
       writeWebsiteData(['nexerelin', 'quality-captains']);
