@@ -273,6 +273,12 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     _$bestDownload,
     opt: true,
   );
+  static PublicBestDownload? _$plainDownload(PublicMod v) => v.plainDownload;
+  static const Field<PublicMod, PublicBestDownload> _f$plainDownload = Field(
+    'plainDownload',
+    _$plainDownload,
+    opt: true,
+  );
   static int _$downloadCount(PublicMod v) => v.downloadCount;
   static const Field<PublicMod, int> _f$downloadCount = Field(
     'downloadCount',
@@ -394,6 +400,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
     #saveCompatible: _f$saveCompatible,
     #hasDirectDownload: _f$hasDirectDownload,
     #bestDownload: _f$bestDownload,
+    #plainDownload: _f$plainDownload,
     #downloadCount: _f$downloadCount,
     #forumUrl: _f$forumUrl,
     #discordUrl: _f$discordUrl,
@@ -434,6 +441,7 @@ class PublicModMapper extends ClassMapperBase<PublicMod> {
       saveCompatible: data.dec(_f$saveCompatible),
       hasDirectDownload: data.dec(_f$hasDirectDownload),
       bestDownload: data.dec(_f$bestDownload),
+      plainDownload: data.dec(_f$plainDownload),
       downloadCount: data.dec(_f$downloadCount),
       forumUrl: data.dec(_f$forumUrl),
       discordUrl: data.dec(_f$discordUrl),
@@ -524,6 +532,8 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get sources;
   PublicBestDownloadCopyWith<$R, PublicBestDownload, PublicBestDownload>?
   get bestDownload;
+  PublicBestDownloadCopyWith<$R, PublicBestDownload, PublicBestDownload>?
+  get plainDownload;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get nicknames;
   ListCopyWith<
     $R,
@@ -556,6 +566,7 @@ abstract class PublicModCopyWith<$R, $In extends PublicMod, $Out>
     bool? saveCompatible,
     bool? hasDirectDownload,
     PublicBestDownload? bestDownload,
+    PublicBestDownload? plainDownload,
     int? downloadCount,
     String? forumUrl,
     String? discordUrl,
@@ -622,6 +633,10 @@ class _PublicModCopyWithImpl<$R, $Out>
   get bestDownload =>
       $value.bestDownload?.copyWith.$chain((v) => call(bestDownload: v));
   @override
+  PublicBestDownloadCopyWith<$R, PublicBestDownload, PublicBestDownload>?
+  get plainDownload =>
+      $value.plainDownload?.copyWith.$chain((v) => call(plainDownload: v));
+  @override
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get nicknames =>
       $value.nicknames != null
       ? ListCopyWith(
@@ -674,6 +689,7 @@ class _PublicModCopyWithImpl<$R, $Out>
     Object? saveCompatible = $none,
     bool? hasDirectDownload,
     Object? bestDownload = $none,
+    Object? plainDownload = $none,
     int? downloadCount,
     Object? forumUrl = $none,
     Object? discordUrl = $none,
@@ -711,6 +727,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       if (saveCompatible != $none) #saveCompatible: saveCompatible,
       if (hasDirectDownload != null) #hasDirectDownload: hasDirectDownload,
       if (bestDownload != $none) #bestDownload: bestDownload,
+      if (plainDownload != $none) #plainDownload: plainDownload,
       if (downloadCount != null) #downloadCount: downloadCount,
       if (forumUrl != $none) #forumUrl: forumUrl,
       if (discordUrl != $none) #discordUrl: discordUrl,
@@ -758,6 +775,7 @@ class _PublicModCopyWithImpl<$R, $Out>
       or: $value.hasDirectDownload,
     ),
     bestDownload: data.get(#bestDownload, or: $value.bestDownload),
+    plainDownload: data.get(#plainDownload, or: $value.plainDownload),
     downloadCount: data.get(#downloadCount, or: $value.downloadCount),
     forumUrl: data.get(#forumUrl, or: $value.forumUrl),
     discordUrl: data.get(#discordUrl, or: $value.discordUrl),

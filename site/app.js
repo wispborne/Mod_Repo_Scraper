@@ -12,6 +12,7 @@ import {
   preparePageScroll, problemReportLink, reportedPage, restorePageScroll, searchHelpField,
   setAiSummaryMode, siteBuild, SITE_CODE_URL,
   setAiNoteChoice, setImageChoice, setInlinePictures,
+  downloadButtonChoice, setDownloadButtonChoice,
   THEMES, applyTheme, setThemePreference, themePreference,
   applyMotion, motionChoice, setMotionChoice,
   thumbnail, watchFavorites,
@@ -221,13 +222,15 @@ function mountReportLink() {
   }));
 }
 
-// Apply settings immediately; picture and summary changes redraw the page.
+// Apply settings at once. Button, picture and summary changes redraw the page.
 function mountSettings() {
   const open = document.getElementById('open-settings');
   const dialog = document.getElementById('settings');
   if (!open || !dialog) return;
   const close = dialog.querySelector('.settings-close');
   const aiRadios = mountAiSummaryList(dialog.querySelector('#ai-summary-list'));
+  const downloadRadios =
+    [...dialog.querySelectorAll('input[name="download-button"]')];
   const pictureRadios =
     [...dialog.querySelectorAll('input[name="mod-pictures"]')];
   const inlineRadios =
@@ -241,6 +244,8 @@ function mountSettings() {
   open.addEventListener('click', () => {
     const ai = aiSummaryMode();
     for (const radio of aiRadios) radio.checked = radio.value === ai;
+    const download = downloadButtonChoice();
+    for (const radio of downloadRadios) radio.checked = radio.value === download;
     const picture = imageChoice();
     for (const radio of pictureRadios) radio.checked = radio.value === picture;
     const inline = inlinePictures();
@@ -275,6 +280,13 @@ function mountSettings() {
     radio.addEventListener('change', () => {
       if (!radio.checked) return;
       setAiSummaryMode(radio.value);
+      route();
+    });
+  }
+  for (const radio of downloadRadios) {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      setDownloadButtonChoice(radio.value);
       route();
     });
   }

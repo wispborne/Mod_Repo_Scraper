@@ -48,6 +48,18 @@ List<PublicDownload> sortedDownloads(List<PublicDownload> downloads) {
 PublicDownload? bestDownloadOf(List<PublicDownload> downloads) =>
     downloads.isEmpty ? null : sortedDownloads(downloads).first;
 
+/// The first download that is not a TriOS link, for readers who do not use
+/// TriOS. Returns null unless the best download is a TriOS link.
+/// Otherwise, the best download is already a plain download.
+PublicDownload? plainDownloadOf(List<PublicDownload> downloads) {
+  final ordered = sortedDownloads(downloads);
+  if (ordered.isEmpty || !isTriosLink(ordered.first)) return null;
+  for (final download in ordered) {
+    if (!isTriosLink(download)) return download;
+  }
+  return null;
+}
+
 /// True when this download hands the reader a file rather than another page.
 ///
 /// A TriOS link is always counted as one: it is the whole point of the link

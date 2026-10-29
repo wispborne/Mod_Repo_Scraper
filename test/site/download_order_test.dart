@@ -169,6 +169,24 @@ void main() {
     expect(bestDownloadOf(downloads)?.label, 'file');
   });
 
+  test('the plain download is the best one that is not a TriOS link', () {
+    final downloads = [
+      download(label: 'page', needsAnotherStep: true),
+      download(label: 'trios', kind: 'trios'),
+      download(label: 'file'),
+    ];
+
+    expect(plainDownloadOf(downloads)?.label, 'file');
+  });
+
+  test('there is no plain download unless the best download is a TriOS link', () {
+    expect(plainDownloadOf([download(label: 'file')]), isNull,
+        reason: 'the best download is already a plain download');
+    expect(plainDownloadOf([download(label: 'trios', kind: 'trios')]), isNull,
+        reason: 'there is no download other than the TriOS link');
+    expect(plainDownloadOf(const []), isNull);
+  });
+
   test('a TriOS link never counts as needing another step', () {
     expect(
       goesStraightToAFile(download(kind: 'trios', needsAnotherStep: true)),

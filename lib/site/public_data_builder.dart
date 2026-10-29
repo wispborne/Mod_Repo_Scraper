@@ -1022,7 +1022,8 @@ class PublicDataBuilder {
       aiSummary: generatedSummary,
       saveCompatible: _canAddToSave(extras),
       hasDirectDownload: downloads.any((d) => d.directUrl != null),
-      bestDownload: _bestDownloadFor(downloads),
+      bestDownload: _buttonDownload(bestDownloadOf(downloads)),
+      plainDownload: _buttonDownload(plainDownloadOf(downloads)),
       downloadCount: downloads.length,
       forumUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Forum]]),
       discordUrl: _firstNonEmpty([mod.getUrls()[ModUrlType.Discord]]),
@@ -1370,11 +1371,10 @@ class PublicDataBuilder {
     return announced == null ? const [] : [announced];
   }
 
-  /// The one download a card or a row offers. Every list on the site shows this
-  /// and nothing else, so the reader is never asked to choose between four
-  /// buttons that all say "Download".
-  PublicBestDownload? _bestDownloadFor(List<PublicDownload> downloads) {
-    final best = bestDownloadOf(downloads);
+  /// The download for a card or row button. Each list shows one download button.
+  /// This avoids making readers choose between four buttons
+  /// that all say "Download".
+  PublicBestDownload? _buttonDownload(PublicDownload? best) {
     if (best == null) return null;
     return PublicBestDownload(
       url: best.directUrl ?? best.url,

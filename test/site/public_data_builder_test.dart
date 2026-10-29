@@ -1393,6 +1393,9 @@ void main() {
             'a TriOS link installs what the mod needs as well, so it leads');
     expect(mod.bestDownload?.needsAnotherStep, isFalse,
         reason: 'opening a TriOS link is the step, so it never counts as one');
+    expect(mod.plainDownload?.url, 'https://cdn.example.com/z.zip',
+        reason: 'a reader who does not use TriOS gets the best plain file');
+    expect(mod.plainDownload?.kind, 'direct');
     expect(mod.downloadCount, 3);
 
     expect(
@@ -1424,6 +1427,8 @@ void main() {
 
     expect(data.list.mods.single.bestDownload?.url,
         'https://cdn.example.com/z.zip');
+    expect(data.list.mods.single.plainDownload, isNull,
+        reason: 'the plain download is only written beside a TriOS link');
   });
 
   test('a download that opens the host page says so', () {

@@ -121,6 +121,12 @@ class PublicMod with PublicModMappable {
   /// hundreds of requests to draw one page.
   final PublicBestDownload? bestDownload;
 
+  /// The first download that is not a TriOS link, written only when
+  /// [bestDownload] is a TriOS link. Settings can make plain downloads the default.
+  /// Cards need this field because they cannot fetch each mod's file to find one.
+  /// About 40 mods have a TriOS link first, so this adds a few KB.
+  final PublicBestDownload? plainDownload;
+
   /// How many downloads the mod offers. The card shows the best one and says
   /// how many more there are.
   final int downloadCount;
@@ -238,6 +244,7 @@ class PublicMod with PublicModMappable {
     this.saveCompatible,
     this.hasDirectDownload = false,
     this.bestDownload,
+    this.plainDownload,
     this.downloadCount = 0,
     this.forumUrl,
     this.discordUrl,
