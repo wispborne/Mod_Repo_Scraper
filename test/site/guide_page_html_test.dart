@@ -16,7 +16,7 @@ void main() {
 <head>
   <!--page-head-->
   <base href="./">
-  <title>Starmodder 4: Starsector mods</title>
+  <title>Starmodder: Starsector mods</title>
   <!--/page-head-->
   <link rel="stylesheet" href="style.css">
 </head>
@@ -31,7 +31,7 @@ void main() {
     expect(page, contains('<base href="../">'));
     expect(page, contains('<title>How to install mods | Starmodder</title>'));
     expect(page, contains('og:description'));
-    expect(page, isNot(contains('Starmodder 4: Starsector mods')));
+    expect(page, isNot(contains('Starmodder: Starsector mods')));
     expect(page, contains('<link rel="stylesheet" href="style.css">'));
   });
 

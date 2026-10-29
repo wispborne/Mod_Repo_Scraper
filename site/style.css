@@ -413,6 +413,10 @@ h3 { font-size: var(--type-big); line-height: 1.25; margin: 0 0 6px; }
   letter-spacing: 0.02em;
 }
 .brand:hover { text-decoration: none; }
+/* The site's version after its name, small, linking to the changelog. */
+.brand-line { display: flex; align-items: baseline; gap: 6px; }
+.brand-version { color: var(--text-dim); font-size: var(--type-tiny); }
+.brand-version:hover { color: var(--primary); }
 .site-nav { display: flex; gap: 4px; flex: 1 1 auto; }
 .site-nav a {
   padding: 6px 12px; color: var(--text-dim); font-size: var(--type-small);

@@ -9,7 +9,7 @@ import {
   formatMoment, go, hideQuickTip, imageChoice, imageUrlOf, inlinePictures,
   loading,
   favorites, modHref, modList, modName,
-  preparePageScroll, problemReportLink, reportedPage, restorePageScroll, searchHelpField,
+  preparePageScroll, problemReportLink, quickTip, reportedPage, restorePageScroll, searchHelpField,
   setAiSummaryMode, siteBuild, SITE_CODE_URL,
   setAiNoteChoice, setImageChoice, setInlinePictures,
   downloadButtonChoice, setDownloadButtonChoice,
@@ -139,7 +139,7 @@ async function route() {
   const parts = site.parts();
   const viewId = parts[0] || 'home';
   renderNav(viewId);
-  document.title = 'Starmodder 4: Starsector mods';
+  document.title = 'Starmodder: Starsector mods';
 
   const root = document.getElementById('app');
   clear(root).append(loading());
@@ -210,6 +210,16 @@ async function showBuild() {
   });
   line.replaceChildren(`v${build.build} · `, commit, ` · ${build.date}`);
   line.title = `Built from commit ${build.commit} on ${formatDay(build.date)}.`;
+}
+
+/// Hovering the version after the site's name shows the footer's build and
+/// "data collected" lines, read from the footer so the two always agree.
+function mountVersionTip() {
+  const version = document.getElementById('brand-version');
+  if (!version) return;
+  quickTip(version, () => ['build', 'freshness']
+    .map((id) => document.getElementById(id)?.textContent)
+    .filter(Boolean).join('\n'));
 }
 
 /// The footer's "Report a problem" link is for site problems.
@@ -547,6 +557,7 @@ window.addEventListener('DOMContentLoaded', () => {
   mountSkipLink();
   showFreshness();
   showBuild();
+  mountVersionTip();
   mountReportLink();
   // Back, Forward and every link to one of our own pages come through here.
   site.watch(route);

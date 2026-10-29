@@ -19,7 +19,7 @@ void main() {
 <head>
   <meta charset="UTF-8">
   <!--page-head-->
-  <title>Starmodder 4: Starsector mods</title>
+  <title>Starmodder: Starsector mods</title>
   <meta name="description" content="Starsector mods.">
   <!--/page-head-->
   <link rel="stylesheet" href="style.css">
@@ -57,7 +57,7 @@ void main() {
 
       expect(html, contains('<title>Nexerelin | Starmodder</title>'));
       expect(html, contains('property="og:title" content="Nexerelin"'));
-      expect(html, isNot(contains('Starmodder 4: Starsector mods')));
+      expect(html, isNot(contains('Starmodder: Starsector mods')));
     });
 
     test('it is the whole site, so a reader lands on a working page', () {
