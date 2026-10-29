@@ -252,6 +252,22 @@ void main() {
               'front page');
     }, skip: _gitIsThere() ? false : 'git is not installed');
 
+    test('publishes problem report forms but skips other dot folders', () async {
+      writeOutputs('new repo', 'new bundle');
+      Directory(p.join(siteDir, '.github', 'ISSUE_TEMPLATE'))
+          .createSync(recursive: true);
+      File(p.join(siteDir, '.github', 'ISSUE_TEMPLATE', 'mod-problem.yml'))
+          .writeAsStringSync('name: Problem with a mod');
+      Directory(p.join(siteDir, '.idea')).createSync();
+      File(p.join(siteDir, '.idea', 'workspace.xml')).writeAsStringSync('<x/>');
+
+      await service.runJob(JobRequest.publishOutputs(), reporter: reporter);
+
+      expect(inRemote('.github/ISSUE_TEMPLATE/mod-problem.yml'), isTrue,
+          reason: 'GitHub only reads issue forms from .github in the repo');
+      expect(inRemote('.idea/workspace.xml'), isFalse);
+    }, skip: _gitIsThere() ? false : 'git is not installed');
+
     test('a publish with no website files still publishes the outputs',
         () async {
       writeOutputs('new repo', 'new bundle');

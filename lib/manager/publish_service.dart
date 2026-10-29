@@ -302,13 +302,14 @@ class PublishService implements JobRunner {
 
   /// Copies a folder's contents into another, making folders as it goes. Skips
   /// anything starting with a dot, so a stray `.git` or editor folder never
-  /// lands in the published repo.
+  /// lands in the published repo. Keeps `.github` because GitHub only reads
+  /// the problem report forms from that folder.
   int _copyFolder(Directory from, Directory to) {
     if (!to.existsSync()) to.createSync(recursive: true);
     var copied = 0;
     for (final entry in from.listSync()) {
       final name = p.basename(entry.path);
-      if (name.startsWith('.')) continue;
+      if (name.startsWith('.') && name != '.github') continue;
       if (entry is File) {
         entry.copySync(p.join(to.path, name));
         copied++;
