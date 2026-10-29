@@ -1726,9 +1726,10 @@ class PublicDataBuilder {
   /// The bundle stores an image that came from the post as `ext:<url>`. The
   /// website wants the plain URL. Anything that is not a web address — a local
   /// path the scraper saved a copy at, for instance — is dropped rather than
-  /// published.
+  /// published. An `&amp;` is put back to `&`: the LLM's saved picture pick
+  /// was copied from addresses the scraper had saved that way.
   static String? stripExternalPrefix(String? value) {
-    var url = value?.trim();
+    var url = value?.trim().replaceAll('&amp;', '&');
     if (url == null || url.isEmpty) return null;
     if (url.startsWith('ext:')) url = url.substring('ext:'.length).trim();
     if (url.isEmpty) return null;

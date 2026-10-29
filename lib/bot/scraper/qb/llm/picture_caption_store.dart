@@ -130,11 +130,25 @@ class PictureCaptionStore {
         final entry = _Entry.fromJson(value);
         if (entry != null) _entries[key] = entry;
       }
+      _fileUnderPlainAmpersands();
     } catch (e) {
       // Losing the descriptions costs a few hours of the model's time, not
       // the run.
       _log.warning('Could not read ${file.path}; pictures will be looked at '
           'again: $e');
+    }
+  }
+
+  /// Moves pictures saved under an address with `&amp;` in it to the address
+  /// with `&`. The scraper used to save addresses that way. A description is
+  /// kept, since the host read the address anyway. An unreadable mark is
+  /// dropped, since the `&amp;` may be why it could not be read (Dropbox
+  /// answers such an address with an error page).
+  void _fileUnderPlainAmpersands() {
+    for (final key in _entries.keys.where((k) => k.contains('&amp;')).toList()) {
+      final entry = _entries.remove(key)!;
+      if (entry.caption == null) continue;
+      _entries.putIfAbsent(key.replaceAll('&amp;', '&'), () => entry);
     }
   }
 

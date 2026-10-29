@@ -322,7 +322,10 @@ class QbTopicScraper {
     final seen = <String>{};
 
     for (final m in _imgSrcRegex.allMatches(html)) {
-      final src = ForumConstants.stripPhpSessId(m.group(1)!);
+      // The address comes out of HTML, where `&` is written `&amp;`. Left as
+      // it is, Dropbox misses `raw=1` and answers with an error page.
+      final src = ForumConstants.stripPhpSessId(
+          HtmlProcessor.decodeEntities(m.group(1)!).trim());
       if (src.isEmpty || src.startsWith('data:')) continue;
       final uri = Uri.tryParse(src);
       final path = uri?.path.toLowerCase() ?? '';

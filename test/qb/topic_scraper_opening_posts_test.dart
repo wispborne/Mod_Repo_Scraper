@@ -72,6 +72,31 @@ void main() {
     expect(detail.images.map((image) => image.originalUrl), [artwork]);
   });
 
+  test('a picture address has &amp; turned back into &', () async {
+    // Topic 36217: Dropbox answers an address with `&amp;raw=1` with an
+    // error page, so every picture in the post was broken.
+    const picture = 'https://www.dropbox.com/scl/fi/kam1f2ibr5uiv4q6ww0sx/'
+        'Thumbnail.jpg?rlkey=jle18i5ei0zh9ye5kleg39gnm&st=m51lxjfg&raw=1';
+    final detail = await _scrape([
+      (
+        author: 'iiphoenixii.',
+        body: '<img src="${picture.replaceAll('&', '&amp;')}" alt="" class="bbc_img">',
+      ),
+    ]);
+
+    expect(detail!.images.map((image) => image.originalUrl), [picture]);
+  });
+
+  test('a saved picture address with &amp; in it is read back with &', () {
+    const picture = 'https://www.dropbox.com/scl/fi/x/Shot.jpg?rlkey=k&st=s&raw=1';
+    final saved = QbModDetail(topicId: 36217, images: [ImageRef(originalUrl: picture)])
+        .toJson()
+        .replaceAll('&', '&amp;');
+
+    final detail = QbModDetailMapper.fromJson(saved);
+    expect(detail.images.single.originalUrl, picture);
+  });
+
   group('the author\'s opening run of posts', () {
     test('a Downloads post by the same author is kept', () async {
       final detail = await _scrape([

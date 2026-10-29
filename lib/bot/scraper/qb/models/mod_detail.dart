@@ -108,11 +108,13 @@ class ImageRef with ImageRefMappable {
   final String localPath;
   final String? alt;
 
+  /// The scraper used to save [originalUrl] as the post's HTML wrote it, with
+  /// `&amp;` where the address has `&`, so a saved one is put right here.
   ImageRef({
-    this.originalUrl = '',
+    String originalUrl = '',
     this.localPath = '',
     this.alt,
-  });
+  }) : originalUrl = originalUrl.replaceAll('&amp;', '&');
 }
 
 @MappableClass(ignoreNull: true)

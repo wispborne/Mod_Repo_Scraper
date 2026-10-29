@@ -115,6 +115,32 @@ void main() {
       expect(again.isDone(_dead), isTrue);
     });
 
+    test('a picture saved under an address with &amp; is filed under &', () async {
+      const plain = 'https://www.dropbox.com/scl/fi/x/Shot.jpg?rlkey=k&st=s&raw=1';
+      const broken = 'https://www.dropbox.com/scl/fi/x/Dead.jpg?rlkey=k&st=s&raw=1';
+      File('${dir.path}/${PictureCaptionStore.fileName}').writeAsStringSync(jsonEncode({
+        'pictures': {
+          plain.replaceAll('&', '&amp;'): {
+            'v': PictureCaptionStore.captionVersion,
+            'kind': 'screenshot',
+            'caption': 'A fleet.',
+            'at': '2026-10-01T00:00:00.000Z',
+          },
+          broken.replaceAll('&', '&amp;'): {
+            'v': PictureCaptionStore.captionVersion,
+            'unreadable': 'HTTP 400',
+            'at': '2026-10-01T00:00:00.000Z',
+          },
+        },
+      }));
+
+      await store.load();
+      expect(store.captionFor(plain)?.promptText, 'screenshot: A fleet.');
+      expect(store.isUnreadable(broken), isFalse,
+          reason: 'the &amp; may be why it could not be read, so it is asked again');
+      expect(store.isDone(broken), isFalse);
+    });
+
     test('a picture that could not be read is tried again after a month', () async {
       final then = DateTime.utc(2026, 9, 1);
       await store.putUnreadable(_dead, 'not found', now: then);
