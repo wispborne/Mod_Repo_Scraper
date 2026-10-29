@@ -8,7 +8,8 @@ this computer does not have it. Files that are newer here are left alone,
 and files that only exist here are never deleted.
 
 What is copied: qb_data/, outputs/, the source caches (*_cache.json) and
-merge-debug.json. Never config.properties, .gitea-token or the program.
+merge-debug.json. Never config.properties, .gitea-token, the program, or
+the server's publish clone (qb_data/publish-clone) or any other git repo.
 
 Needs PowerShell 7, plus the ssh.exe and tar.exe that come with Windows.
 The files come down as one compressed stream (zstd when the server has it,
@@ -21,7 +22,8 @@ key has a passphrase, load it into ssh-agent first so you are not asked twice.
 List what would be copied, copy nothing.
 
 .PARAMETER Yes
-Do not ask before copying.
+Do not ask before copying. Without it, the copy still starts on its own
+unless some files here are newer than the server's.
 
 .PARAMETER ProdHost
 user@host to sign in to.
@@ -87,7 +89,10 @@ $remoteDir = "'" + $ProdDir.Replace("'", "'\''") + "'"
 # The listing script runs under bash whatever the login shell is. It is sent
 # base64-encoded so no quoting can go wrong on the way. One line per file:
 # "<modified time in seconds> <size> <path>". The lock file is left out; it
-# only means something on the machine that wrote it.
+# only means something on the machine that wrote it. The server's publish
+# clone is left out too: it is a git repo, git makes its files read-only, so
+# tar cannot replace them here, and a git repo copied file by file is broken
+# anyway. A publish from this computer makes its own clone.
 $listScript = @"
 cd $remoteDir || exit 3
 if [ -e qb_data/scraper.lock ]; then echo LOCKED; cat qb_data/scraper.lock; exit 0; fi
@@ -95,7 +100,7 @@ if command -v zstd >/dev/null 2>&1; then echo ZSTD; else echo GZIP; fi
 found=()
 for p in qb_data outputs *_cache.json merge-debug.json; do [ -e "`$p" ] && found+=("`$p"); done
 [ `${#found[@]} -eq 0 ] && exit 0
-find "`${found[@]}" -type f ! -path qb_data/scraper.lock -printf '%T@ %s %p\n'
+find "`${found[@]}" -type f ! -path qb_data/scraper.lock ! -path 'qb_data/publish-clone/*' ! -path '*/.git/*' -printf '%T@ %s %p\n'
 "@
 $listB64 = [Convert]::ToBase64String($utf8.GetBytes($listScript.Replace("`r`n", "`n")))
 
@@ -137,7 +142,8 @@ foreach ($pattern in '*_cache.json', 'merge-debug.json') {
 # Pick the files to copy: missing here, newer on the server, or the same
 # second but a different size (the server's copy wins a tie).
 $want = [Collections.Generic.List[string]]::new()
-$new = 0; $updated = 0; $newerHere = 0; [long]$bytes = 0
+$newerHere = [Collections.Generic.List[string]]::new()
+$new = 0; $updated = 0; [long]$bytes = 0
 for ($i = 1; $i -lt $remoteLines.Count; $i++) {
   $parts = $remoteLines[$i].Split(' ', 3)
   if ($parts.Count -lt 3) { continue }
@@ -150,7 +156,7 @@ for ($i = 1; $i -lt $remoteLines.Count; $i++) {
   } elseif ($seconds -gt $here[0] -or ($seconds -eq $here[0] -and $size -ne $here[1])) {
     $updated++
   } else {
-    if ($seconds -lt $here[0]) { $newerHere++ }
+    if ($seconds -lt $here[0]) { $newerHere.Add($path) }
     continue
   }
   $want.Add($path)
@@ -158,7 +164,12 @@ for ($i = 1; $i -lt $remoteLines.Count; $i++) {
 }
 
 Write-Host ('{0} new, {1} newer on the server, {2} newer here (kept), {3:N1} MB to copy' -f `
-    $new, $updated, $newerHere, ($bytes / 1MB))
+    $new, $updated, $newerHere.Count, ($bytes / 1MB))
+if ($newerHere.Count -gt 0) {
+  Write-Host 'Newer here, so not copied:'
+  $newerHere | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }
+  if ($newerHere.Count -gt 20) { Write-Host "  ...and $($newerHere.Count - 20) more" }
+}
 if ($want.Count -eq 0) {
   Write-Host 'Nothing to copy. This computer is up to date.'
   exit 0
@@ -170,8 +181,15 @@ if ($DryRun) {
   exit 0
 }
 
-if (-not $Yes) {
-  $answer = Read-Host "Copy $($want.Count) files over your local data? [y/N]"
+# Files newer here mean this computer has data of its own. Keeping those while
+# taking the server's other files can leave a mix that does not agree (say, a
+# local mod-ids.json beside the server's catalog), so ask first. Otherwise
+# the copy only brings this computer up to the server, and starts at once.
+# The LLM test report is a one-off trial that nothing else reads, so a newer
+# one here is no reason to ask.
+$worthAsking = @($newerHere | Where-Object { $_ -ne 'qb_data/llm-test-output.json' })
+if ($worthAsking.Count -gt 0 -and -not $Yes) {
+  $answer = Read-Host "Copy $($want.Count) files from the server and keep the $($newerHere.Count) newer here? [y/N]"
   if ($answer -notin 'y', 'Y', 'yes') { Write-Host 'Nothing copied.'; exit 0 }
 }
 
