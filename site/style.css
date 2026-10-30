@@ -1724,6 +1724,7 @@ button.check-row { align-items: center; }
 .settings-icon,
 .ai-banner-hide-icon,
 .post-switch-icon,
+.changelog-warning .warning-icon,
 .nav-guide-icon { transform: translateY(round(0.06em, 1px)); }
 /* The speech bubble's tail makes it reach further down than up, so it sits a
    little higher than the rest. */
@@ -2000,6 +2001,14 @@ a.chip.needed.optional:hover { background: var(--primary-soft); }
 .changelog-entry h3 { margin: 0 0 4px; }
 .changelog-entry p, .changelog-entry ul { margin: 0 0 6px; }
 .changelog-build { color: var(--text-dim); font-size: var(--type-tiny); }
+/* The note at the top of the changelog, in the warning colour so it is not
+   missed. */
+.changelog-warning {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  padding: var(--pad-cell); color: var(--warning); font-weight: 600;
+  background: var(--warning-wash); border-left: 3px solid var(--warning);
+}
+.changelog-warning .warning-icon { display: inline-flex; font-size: var(--type-big); }
 
 /* A mod's name is plain text until you point at it. Said once here rather than
    four times, once per place a name turns up. */
