@@ -1995,6 +1995,8 @@ a.chip.needed.optional:hover { background: var(--primary-soft); }
 .feed-note { color: var(--text-dim); font-size: var(--type-small); margin: 0; }
 .about-line { margin: 0 0 10px; }
 .about-line:last-child { margin-bottom: 0; }
+.about-sub { margin-top: var(--gap); }
+.about-sub > h3 { margin: 0 0 10px; }
 .about-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap); }
 
 .changelog-entry + .changelog-entry { margin-top: var(--gap-wide); }
