@@ -979,17 +979,28 @@ class PublicNeededModMapper extends ClassMapperBase<PublicNeededMod> {
     _$id,
     opt: true,
   );
+  static String? _$via(PublicNeededMod v) => v.via;
+  static const Field<PublicNeededMod, String> _f$via = Field(
+    'via',
+    _$via,
+    opt: true,
+  );
 
   @override
   final MappableFields<PublicNeededMod> fields = const {
     #name: _f$name,
     #id: _f$id,
+    #via: _f$via,
   };
   @override
   final bool ignoreNull = true;
 
   static PublicNeededMod _instantiate(DecodingData data) {
-    return PublicNeededMod(name: data.dec(_f$name), id: data.dec(_f$id));
+    return PublicNeededMod(
+      name: data.dec(_f$name),
+      id: data.dec(_f$id),
+      via: data.dec(_f$via),
+    );
   }
 
   @override
@@ -1054,7 +1065,7 @@ extension PublicNeededModValueCopy<$R, $Out>
 
 abstract class PublicNeededModCopyWith<$R, $In extends PublicNeededMod, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? name, String? id});
+  $R call({String? name, String? id, String? via});
   PublicNeededModCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -1069,16 +1080,18 @@ class _PublicNeededModCopyWithImpl<$R, $Out>
   late final ClassMapperBase<PublicNeededMod> $mapper =
       PublicNeededModMapper.ensureInitialized();
   @override
-  $R call({String? name, Object? id = $none}) => $apply(
+  $R call({String? name, Object? id = $none, Object? via = $none}) => $apply(
     FieldCopyWithData({
       if (name != null) #name: name,
       if (id != $none) #id: id,
+      if (via != $none) #via: via,
     }),
   );
   @override
   PublicNeededMod $make(CopyWithData data) => PublicNeededMod(
     name: data.get(#name, or: $value.name),
     id: data.get(#id, or: $value.id),
+    via: data.get(#via, or: $value.via),
   );
 
   @override

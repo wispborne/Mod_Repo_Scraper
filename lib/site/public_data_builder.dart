@@ -485,6 +485,10 @@ class PublicDataBuilder {
       );
     }
 
+    // What each mod's requirements need in turn. This waits for every record,
+    // because MagicLib's own needs are not known until its record exists.
+    _addIndirectNeeds(listRecords, details);
+
     // Which mods share a name, worked out once every mod has a record. It has
     // to wait: a page names the others by their id, their author and the day
     // their thread was last posted on, and none of that exists until then.
@@ -1263,15 +1267,77 @@ class PublicDataBuilder {
     List<String>? names,
     PublicMod listing,
     RequirementResolver requirements,
+  ) =>
+      _withoutRequired(
+          _neededMods(names, listing.id, requirements), listing.needs);
+
+  /// [optional] without the mods in [needs], or null when none are left.
+  static List<PublicNeededMod>? _withoutRequired(
+    List<PublicNeededMod>? optional,
+    List<PublicNeededMod> needs,
   ) {
-    final required = {
-      for (final need in listing.needs) (need.id ?? need.name).toLowerCase(),
-    };
-    final optional = [
-      for (final mod in _neededMods(names, listing.id, requirements))
-        if (!required.contains((mod.id ?? mod.name).toLowerCase())) mod,
+    final required = {for (final need in needs) _needKey(need)};
+    final left = [
+      for (final mod in optional ?? const <PublicNeededMod>[])
+        if (!required.contains(_needKey(mod))) mod,
     ];
-    return optional.isEmpty ? null : optional;
+    return left.isEmpty ? null : left;
+  }
+
+  /// One key per needed mod: its page where we have one, else its name.
+  static String _needKey(PublicNeededMod mod) =>
+      (mod.id ?? mod.name).toLowerCase();
+
+  /// Adds the mods each requirement needs in turn, all the way down. A mod
+  /// whose post names only MagicLib still cannot run without LazyLib, because
+  /// MagicLib needs it. Each added mod carries [PublicNeededMod.via], so the
+  /// page can say which requirement brought it in.
+  ///
+  /// Only a requirement with its own page is followed, since only those have
+  /// needs of their own to read. The post's own requirements come first, in
+  /// the post's order. A mod is never listed as needing itself, and a loop
+  /// between two mods ends because each mod is listed once.
+  ///
+  /// The added mods are also taken out of the mod's optional list, so no mod
+  /// is both required and optional.
+  static void _addIndirectNeeds(
+    List<PublicMod> records,
+    Map<String, PublicModDetail> details,
+  ) {
+    final ownNeeds = {for (final record in records) record.id: record.needs};
+    for (var i = 0; i < records.length; i++) {
+      final record = records[i];
+      final needs = _indirectNeeds(record.id, record.needs, ownNeeds);
+      if (needs.length == record.needs.length) continue;
+
+      final widened = record.copyWith(needs: needs);
+      records[i] = widened;
+      final detail = details[record.id]!;
+      details[record.id] = detail.copyWith(
+        listing: widened,
+        optionalNeeds: _withoutRequired(detail.optionalNeeds, needs),
+      );
+    }
+  }
+
+  /// [needs] followed by what each of them needs, read from [ownNeeds]
+  /// (each mod's needs as its own post gives them, by id). Nearest first.
+  static List<PublicNeededMod> _indirectNeeds(
+    String ownId,
+    List<PublicNeededMod> needs,
+    Map<String, List<PublicNeededMod>> ownNeeds,
+  ) {
+    final all = [...needs];
+    final listed = {ownId.toLowerCase(), for (final need in needs) _needKey(need)};
+    for (var i = 0; i < all.length; i++) {
+      final parent = all[i];
+      if (parent.id == null) continue;
+      for (final need in ownNeeds[parent.id] ?? const <PublicNeededMod>[]) {
+        if (!listed.add(_needKey(need))) continue;
+        all.add(PublicNeededMod(name: need.name, id: need.id, via: parent.name));
+      }
+    }
+    return all;
   }
 
   /// True when this thread is several mods at once — more than one mod the LLM

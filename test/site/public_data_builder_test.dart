@@ -1304,6 +1304,57 @@ void main() {
         reason: 'mods.json lists only what a mod cannot run without');
   });
 
+  test("a requirement's own requirements are listed too, saying which brought them in",
+      () {
+    final data = buildFrom(
+      mods: [
+        forumMod(name: 'Ship Pack', topicId: 1),
+        forumMod(name: 'MagicLib', topicId: 2),
+        forumMod(name: 'LazyLib', topicId: 3),
+        forumMod(name: 'GraphicsLib', topicId: 4),
+      ],
+      bundle: bundleOf(index: [
+        thread(topicId: 1, title: 'Ship Pack', llmMods: [
+          LlmMod(
+            name: 'Ship Pack',
+            extras: LlmExtras(
+              needs: const ['MagicLib'],
+              optionalNeeds: const ['LazyLib', 'Kadur Remnant'],
+            ),
+          ),
+        ]),
+        thread(topicId: 2, title: 'MagicLib', llmMods: [
+          LlmMod(name: 'MagicLib', extras: LlmExtras(needs: const ['LazyLib', 'Some Old Lib'])),
+        ]),
+        // A loop back to MagicLib, and back to the mod itself, ends.
+        thread(topicId: 3, title: 'LazyLib', llmMods: [
+          LlmMod(name: 'LazyLib', extras: LlmExtras(needs: const ['GraphicsLib', 'MagicLib'])),
+        ]),
+        thread(topicId: 4, title: 'GraphicsLib', llmMods: [
+          LlmMod(name: 'GraphicsLib', extras: LlmExtras(needs: const ['Ship Pack'])),
+        ]),
+      ]),
+    );
+
+    final page = data.details['ship-pack']!;
+    expect(page.listing.needs.map((n) => (n.name, n.id, n.via)), [
+      ('MagicLib', 'magiclib', null),
+      ('LazyLib', 'lazylib', 'MagicLib'),
+      ('Some Old Lib', null, 'MagicLib'),
+      ('GraphicsLib', 'graphicslib', 'LazyLib'),
+    ]);
+    expect(data.list.mods.firstWhere((m) => m.id == 'ship-pack').needs,
+        hasLength(4), reason: 'mods.json carries the same list');
+    expect(page.optionalNeeds!.map((n) => n.name), ['Kadur Remnant'],
+        reason: 'a mod is never both required and optional');
+
+    final magicLib = data.details['magiclib']!.listing;
+    expect(magicLib.needs.map((n) => n.name),
+        ['LazyLib', 'Some Old Lib', 'GraphicsLib', 'Ship Pack']);
+    expect(magicLib.needs.map((n) => n.id), isNot(contains('magiclib')),
+        reason: 'a mod never needs itself');
+  });
+
   test('a mod three others need is one the LLM may match names to', () {
     final data = buildFrom(
       mods: [

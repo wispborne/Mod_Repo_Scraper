@@ -201,6 +201,7 @@ void main() {
         needs: [
           PublicNeededMod(name: 'LazyLib', id: 'lazylib'),
           PublicNeededMod(name: 'Some Other Lib'),
+          PublicNeededMod(name: 'GraphicsLib', id: 'graphicslib', via: 'LazyLib'),
         ],
       );
       final body =
@@ -208,6 +209,7 @@ void main() {
 
       expect(body, contains('<a href="mods/lazylib/">LazyLib</a>'));
       expect(body, contains('<li>Some Other Lib</li>'));
+      expect(body, contains('<a href="mods/graphicslib/">GraphicsLib</a> (required by LazyLib)</li>'));
     });
 
     test('no AI words, even for the moment before the script runs', () {

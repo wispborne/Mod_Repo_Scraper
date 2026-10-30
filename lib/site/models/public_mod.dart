@@ -274,7 +274,13 @@ class PublicNeededMod with PublicNeededModMappable {
   final String name;
   final String? id;
 
-  PublicNeededMod({required this.name, this.id});
+  /// Set when the mod's own post does not name this one, but another mod on
+  /// the same list needs it. It holds that other mod's [name]. A mod that
+  /// needs MagicLib also needs LazyLib, because MagicLib does, so LazyLib is
+  /// listed with `via: "MagicLib"`. Null for a mod the post names itself.
+  final String? via;
+
+  PublicNeededMod({required this.name, this.id, this.via});
 }
 
 /// The download a card or a row offers, as `mods.json` carries it.

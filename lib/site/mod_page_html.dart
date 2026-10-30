@@ -192,10 +192,12 @@ String _bodyText(PublicMod mod, PublicModDetail detail, String name) {
     out.write('<h2>$heading</h2><ul>');
     for (final needed in mods) {
       final words = _escape(needed.name);
+      final via =
+          needed.via == null ? '' : ' (required by ${_escape(needed.via!)})';
       out.write(needed.id == null
-          ? '<li>$words</li>'
+          ? '<li>$words$via</li>'
           : '<li><a href="mods/${Uri.encodeComponent(needed.id!)}/">'
-              '$words</a></li>');
+              '$words</a>$via</li>');
     }
     out.write('</ul>');
   }
