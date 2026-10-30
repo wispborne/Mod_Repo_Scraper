@@ -43,3 +43,24 @@ _Avoid_: Fork (a fork is a separate mod by someone else)
 **Permanent id**:
 The name a mod's web address is built from. Once given, it never changes.
 _Avoid_: Slug, mod id (the game's own `mod_info.json` id is a different thing)
+
+### What players add
+
+**Account**:
+One player signed in to Starmodder. An account can have Discord, GitHub and Google sign-ins linked to it. Each sign-in belongs to only one account. The account appears under a display name the player chooses. An account is different from an author. An author is someone credited by a mod, whether or not they have an account.
+_Avoid_: User (too broad), profile
+
+**Rating**:
+An account's scores for the version of a mod the player used. The five criteria are Stability, Balance, Vanilla Friendliness, Fun and Polish. Each gets a score from 1 to 5, or N/A if it does not apply. There is no overall score. Each account has one rating per mod per version.
+_Avoid_: Score (for the whole rating), stars, picture rating (use card fit for how well a picture suits a card)
+
+**Balance**:
+How a mod's ships, weapons and economy compare in power with the base game's.
+
+**Vanilla Friendliness**:
+How well a mod's look, lore and tone fit the base game. Power is rated under Balance.
+_Avoid_: Vanilla-compatible (means compatibility with saves and other mods)
+
+**Review**:
+Short text a player adds to their rating. It is public only after approval.
+_Avoid_: Comment
