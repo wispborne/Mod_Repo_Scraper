@@ -42,6 +42,10 @@ class CatalogExtrasMod with CatalogExtrasModMappable {
   /// The name shown on the site, only when it differs from the catalog's name.
   final String? displayName;
 
+  /// The one-line summary the site shows under the mod's name, in the
+  /// author's own words. Left out when the site has only the AI summary.
+  final String? summary;
+
   /// The categories used by the site.
   final List<String>? categories;
 
@@ -87,6 +91,7 @@ class CatalogExtrasMod with CatalogExtrasModMappable {
 
   CatalogExtrasMod({
     this.displayName,
+    this.summary,
     this.categories,
     this.rawCategories,
     this.otherAuthorNames,

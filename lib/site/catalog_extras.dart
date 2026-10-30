@@ -15,6 +15,7 @@ CatalogExtras buildCatalogExtras(PublicSiteData data) {
       for (final MapEntry(key: id, value: detail) in data.details.entries)
         id: CatalogExtrasMod(
           displayName: detail.listing.displayName,
+          summary: detail.listing.summaryIsGenerated ? null : detail.listing.summary,
           categories: orNull(detail.listing.categories),
           rawCategories: orNull(detail.rawCategories),
           otherAuthorNames: detail.listing.otherAuthorNames.isEmpty ? null : detail.listing.otherAuthorNames,

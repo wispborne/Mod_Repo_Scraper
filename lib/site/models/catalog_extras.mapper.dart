@@ -204,6 +204,12 @@ class CatalogExtrasModMapper extends ClassMapperBase<CatalogExtrasMod> {
     _$displayName,
     opt: true,
   );
+  static String? _$summary(CatalogExtrasMod v) => v.summary;
+  static const Field<CatalogExtrasMod, String> _f$summary = Field(
+    'summary',
+    _$summary,
+    opt: true,
+  );
   static List<String>? _$categories(CatalogExtrasMod v) => v.categories;
   static const Field<CatalogExtrasMod, List<String>> _f$categories = Field(
     'categories',
@@ -329,6 +335,7 @@ class CatalogExtrasModMapper extends ClassMapperBase<CatalogExtrasMod> {
   @override
   final MappableFields<CatalogExtrasMod> fields = const {
     #displayName: _f$displayName,
+    #summary: _f$summary,
     #categories: _f$categories,
     #rawCategories: _f$rawCategories,
     #otherAuthorNames: _f$otherAuthorNames,
@@ -357,6 +364,7 @@ class CatalogExtrasModMapper extends ClassMapperBase<CatalogExtrasMod> {
   static CatalogExtrasMod _instantiate(DecodingData data) {
     return CatalogExtrasMod(
       displayName: data.dec(_f$displayName),
+      summary: data.dec(_f$summary),
       categories: data.dec(_f$categories),
       rawCategories: data.dec(_f$rawCategories),
       otherAuthorNames: data.dec(_f$otherAuthorNames),
@@ -482,6 +490,7 @@ abstract class CatalogExtrasModCopyWith<$R, $In extends CatalogExtrasMod, $Out>
   get gallery;
   $R call({
     String? displayName,
+    String? summary,
     List<String>? categories,
     List<String>? rawCategories,
     Map<String, List<String>>? otherAuthorNames,
@@ -616,6 +625,7 @@ class _CatalogExtrasModCopyWithImpl<$R, $Out>
   @override
   $R call({
     Object? displayName = $none,
+    Object? summary = $none,
     Object? categories = $none,
     Object? rawCategories = $none,
     Object? otherAuthorNames = $none,
@@ -640,6 +650,7 @@ class _CatalogExtrasModCopyWithImpl<$R, $Out>
   }) => $apply(
     FieldCopyWithData({
       if (displayName != $none) #displayName: displayName,
+      if (summary != $none) #summary: summary,
       if (categories != $none) #categories: categories,
       if (rawCategories != $none) #rawCategories: rawCategories,
       if (otherAuthorNames != $none) #otherAuthorNames: otherAuthorNames,
@@ -669,6 +680,7 @@ class _CatalogExtrasModCopyWithImpl<$R, $Out>
   @override
   CatalogExtrasMod $make(CopyWithData data) => CatalogExtrasMod(
     displayName: data.get(#displayName, or: $value.displayName),
+    summary: data.get(#summary, or: $value.summary),
     categories: data.get(#categories, or: $value.categories),
     rawCategories: data.get(#rawCategories, or: $value.rawCategories),
     otherAuthorNames: data.get(#otherAuthorNames, or: $value.otherAuthorNames),

@@ -3096,7 +3096,7 @@ void main() {
       expect(record['discordPostHtml'], site['discordPostHtml']);
       expect(record.containsKey('downloads'), isFalse);
       expect(record.containsKey('bestDownload'), isFalse);
-      expect(record.containsKey('summary'), isFalse);
+      expect(record['summary'], (site['listing'] as Map)['summary']);
     });
 
     test('keeps aiUse empty when the LLM found no AI statement, and omits it when not checked', () async {
@@ -3140,11 +3140,45 @@ void main() {
       expect(extrasMods().keys, [id]);
     });
 
+    test("carries the author's own summary, never the AI one", () async {
+      final data = buildFrom(
+        mods: [
+          forumMod(name: 'Nexerelin', topicId: 9175),
+          forumMod(name: 'LazyLib', topicId: 5444, summary: null),
+        ],
+        bundle: bundleOf(index: [
+          thread(title: 'Nexerelin', llmMods: [
+            LlmMod(
+              name: 'Nexerelin',
+              extras: LlmExtras(summary: LlmModSummary(sentence: 'An AI sentence.')),
+            ),
+          ]),
+          thread(topicId: 5444, title: 'LazyLib', llmMods: [
+            LlmMod(
+              name: 'LazyLib',
+              extras: LlmExtras(summary: LlmModSummary(sentence: 'Another AI sentence.')),
+            ),
+          ]),
+        ]),
+      );
+      final copied = data.details['nexerelin']!.listing;
+      expect(copied.summaryIsGenerated, isFalse,
+          reason: 'forumMod gives Nexerelin a summary of its own');
+      final generated = data.details['lazylib']!.listing;
+      expect(generated.summaryIsGenerated, isTrue);
+      await builder.write(data);
+
+      final mods = extrasMods();
+      expect((mods['nexerelin'] as Map)['summary'], copied.summary);
+      expect((mods['lazylib'] as Map).containsKey('summary'), isFalse);
+    });
+
     test("uses the field names TriOS expects", () {
       // Renaming a field breaks TriOS. If the rename is intended, increase
       // CatalogExtras.currentSchemaVersion and update this list.
       final record = CatalogExtrasMod(
         displayName: 'Nexerelin',
+        summary: 'Adds diplomacy and invasions.',
         categories: const ['Total conversions'],
         rawCategories: const ['Total Conversions'],
         otherAuthorNames: const {
@@ -3172,6 +3206,7 @@ void main() {
 
       expect(record.keys.toSet(), {
         'displayName',
+        'summary',
         'categories',
         'rawCategories',
         'otherAuthorNames',
