@@ -142,12 +142,17 @@ class QbBoardScraper {
         String? lastPostDate;
         String? lastPostBy;
         if (row != null) {
+          // The forum's own theme gives the starter, replies, views and last
+          // post a column each (`div.started_by`, `div.topic_replies`, ...).
           final starter = row.querySelector('td.starter a') ??
+              row.querySelector('div.started_by a') ??
               row.querySelector('.info p.floatleft a');
           if (starter != null) author = starter.text.trim();
 
-          final repliesCell = row.querySelector('td.replies');
-          final viewsCell = row.querySelector('td.views');
+          final repliesCell = row.querySelector('td.replies') ??
+              row.querySelector('div.topic_replies');
+          final viewsCell = row.querySelector('td.views') ??
+              row.querySelector('div.topic_views');
           if (repliesCell != null || viewsCell != null) {
             replies = _count(repliesCell?.text);
             views = _count(viewsCell?.text);
@@ -159,7 +164,8 @@ class QbBoardScraper {
           }
 
           final lastpostCell = row.querySelector('td.lastpost') ??
-              row.querySelector('div.lastpost');
+              row.querySelector('div.lastpost') ??
+              row.querySelector('div.topic_lastpost');
           final smalltext = lastpostCell?.querySelector('.smalltext');
           if (smalltext != null) {
             final parts = smalltext.text

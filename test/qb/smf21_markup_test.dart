@@ -37,6 +37,37 @@ String _boardRow(int topicId, String title, {bool pinned = false}) => '''
     </div>
   </div>''';
 
+/// One topic on a board page, the way the forum's own theme (FS_Custom) writes
+/// it: the starter, replies, views and last post each get a column.
+String _customThemeBoardRow(int topicId, String title) => '''
+  <div class="windowbg">
+    <div class="board_icon"><img src="https://fractalsoftworks.com/forum/Themes/FS_Custom/images/post/xx.png" alt=""></div>
+    <div class="info subject_clamp info_block">
+      <div>
+        <div class="icons floatright"></div>
+        <div class="message_index_title">
+          <span class="preview" title="">
+            <span id="msg_${topicId}1"><a href="https://fractalsoftworks.com/forum/index.php?topic=$topicId.0">$title</a></span>
+          </span><span id="pages${topicId}1" class="topic_pages"><span class="pages">Pages</span><a class="nav_page" href="https://fractalsoftworks.com/forum/index.php?topic=$topicId.0">1</a> <a class="nav_page" href="https://fractalsoftworks.com/forum/index.php?topic=$topicId.15">2</a></span>
+        </div>
+      </div>
+    </div>
+    <div class="started_by centertext center_vert">
+      <p>
+        <a href="https://fractalsoftworks.com/forum/index.php?action=profile;u=21259" title="View the profile of Jaydee8652" class="preview">Jaydee8652</a>
+      </p>
+    </div>
+    <div class="topic_replies centertext center_vert">
+      <p>194</p>
+    </div>
+    <div class="topic_views centertext center_vert">
+      <p>153,257</p>
+    </div>
+    <div class="topic_lastpost">
+      <p><a href="https://fractalsoftworks.com/forum/index.php?topic=$topicId.180#msg533477">October 28, 2026, 08:16:46 AM</a><br>by <a href="https://fractalsoftworks.com/forum/index.php?action=profile;u=21259">Jaydee8652</a></p>
+    </div>
+  </div>''';
+
 String _boardPage(List<String> rows, {bool morePages = true}) => '''
 <html><body>
   <div class="pagesection">
@@ -119,6 +150,18 @@ void main() {
       expect(arma.views, 194320);
       expect(arma.lastPostDate, 'October 13, 2026, 09:36:24 AM');
       expect(arma.lastPostBy, 'DemonicSquid');
+    });
+
+    test('reads the same from the forum\'s own theme, which gives each a column', () {
+      final topics = QbBoardScraper.extractTopicsFromPage(html_parser.parse(
+          _boardPage([_customThemeBoardRow(31076, '[0.98a] JaydeePiracy')])));
+
+      final piracy = topics.single;
+      expect(piracy.author, 'Jaydee8652');
+      expect(piracy.replies, 194);
+      expect(piracy.views, 153257);
+      expect(piracy.lastPostDate, 'October 28, 2026, 08:16:46 AM');
+      expect(piracy.lastPostBy, 'Jaydee8652');
     });
 
     test('skips pinned threads unless the mod index lists them', () {
