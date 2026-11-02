@@ -44,7 +44,7 @@ class SelfUpdate {
 
   /// How long an answer from Gitea is reused. The page asks often; Gitea
   /// does not need to be asked every time.
-  static const checkEvery = Duration(minutes: 10);
+  static const checkEvery = Duration(minutes: 5);
 
   /// How soon to ask Gitea again after it did not answer.
   static const retryCheckAfter = Duration(minutes: 2);

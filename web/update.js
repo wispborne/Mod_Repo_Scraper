@@ -6,8 +6,8 @@ import { el, clear, askDialog, noticeDialog } from './lib.js';
 import { subscribe } from './manager.js';
 
 const URL = '/api/manager/update';
-// Gitea is asked at most every ten minutes by the server, so this is cheap.
-const CHECK_MS = 30 * 60 * 1000;
+// The server asks Gitea at most every five minutes, so this is cheap.
+const CHECK_MS = 2 * 60 * 1000;
 const WATCH_MS = 2000;
 const GIVE_UP_MS = 5 * 60 * 1000;
 
@@ -50,6 +50,10 @@ export function mountUpdateNotice(node) {
 
   draw();
   setInterval(draw, CHECK_MS);
+  // Browsers slow down timers in a hidden tab, so check when it is shown again.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') draw();
+  });
   // The manager turning on after a restart is the moment a fresh answer is worth having.
   let wasOn = null;
   subscribe((s) => {
