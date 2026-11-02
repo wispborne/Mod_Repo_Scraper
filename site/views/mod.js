@@ -584,8 +584,8 @@ function codeAndSupport(detail) {
             })
           : null,
         sourceCodeStatus(detail),
-      ]), { beside: true }),
-      support ? sideFact('Support the author', support, { beside: true }) : null,
+      ]), { beside: true, icon: 'code' }),
+      support ? sideFact('Support the author', support, { beside: true, icon: 'support' }) : null,
       linksOut(detail),
     ].filter(Boolean)),
   ]);
@@ -1385,7 +1385,7 @@ function saves(detail) {
     if (words) quoted.add(words);
     rows.append(el('div', { class: 'save-line' }, [
       el('div', { class: 'save-ask' }, [
-        el('span', { class: 'save-question' }, compatLabel(icon, question)),
+        el('span', { class: 'save-question' }, iconLabel(icon, question)),
         chip
           ? el('span', { class: `badge ${chip[0]}`.trim(), text: chip[1] })
           : null,
@@ -1407,9 +1407,10 @@ function withoutLeadingAnswer(words, answer) {
 function sideFact(label, value, { beside = false, labelTitle = null, icon = null } = {}) {
   return el('div', { class: `side-fact${beside ? ' beside' : ''}` }, [
     el('span', {
-      class: `side-label${labelTitle ? ' has-tip' : ''}`, title: labelTitle,
+      class: `side-label${labelTitle ? ' has-tip' : ''}${icon ? ' with-icon' : ''}`,
+      title: labelTitle,
       ...(icon ? {} : { text: label }),
-    }, icon ? compatLabel(icon, label) : []),
+    }, icon ? iconLabel(icon, label) : []),
     el('div', { class: 'side-value' }, [value]),
   ]);
 }
@@ -1535,46 +1536,47 @@ function linksOut(detail) {
   ])));
 }
 
-// Icons for the Compatibility card's labels, drawn for this site at 14 pixels,
+// Icons for the labels in the Links and Compatibility cards, drawn for this site at 14 pixels,
 // one unit to a pixel. Solid shapes with angled corners, like the logo.
-// Requires is a mod sitting on the layers it needs; Optional's bottom layer is
-// dashed. Adding and removing put an arrow onto or off a layer. Each icon is
+// Requires is a mod sitting on the layers it needs; Optional is a lightbulb, a
+// good idea to add. Adding and removing put an arrow onto or off a layer. Each icon is
 // drawn centred top to bottom, so all of them line up with the words.
-const COMPAT_LAYER = '<path fill="currentColor" d="M1 10.4l1.6-.8L7 11.8l4.4-2.2 1.6.8-6 3z"/>';
-const COMPAT_LOOP_HALF = '<path fill="none" stroke="currentColor" stroke-width="1.6" '
+const SIDE_LAYER = '<path fill="currentColor" d="M1 10.4l1.6-.8L7 11.8l4.4-2.2 1.6.8-6 3z"/>';
+const SIDE_LOOP_HALF = '<path fill="none" stroke="currentColor" stroke-width="1.6" '
   + 'd="M2.4 7.6V5.4L4.6 3.2h4.2"/><path fill="currentColor" d="M8.4 1l3.2 2.2-3.2 2.2z"/>';
-const COMPAT_ICONS = {
+const SIDE_ICONS = {
+  code: '<path fill="currentColor" d="M4 3l1.2 1.2L2.4 7l2.8 2.8L4 11 0 7z'
+    + 'M10 3L8.8 4.2 11.6 7 8.8 9.8 10 11l4-4zM7.3 2h1.4l-2 10H5.3z"/>',
+  support: '<path fill="currentColor" d="M7 12.5L1 6.5v-3l2-2h2.2L7 3.3 8.8 1.5H11l2 2v3z"/>',
   // The game's own icon: a blocky S in a frame. Every edge is on a whole pixel.
   game: '<path fill="none" stroke="currentColor" d="M2.5 .5h9l2 2v9l-2 2h-9l-2-2v-9z"/>'
     + '<path fill="currentColor" d="M4 3h7v2H5v1h5l1 1v3l-1 1H3V9h6V8H4L3 7V4z"/>',
   requires: '<path fill="currentColor" d="M7 .5l6 3-6 3-6-3z"/>'
     + '<path fill="currentColor" d="M1 7.1l1.6-.8L7 8.5l4.4-2.2 1.6.8-6 3z"/>'
     + '<path fill="currentColor" d="M1 10.1l1.6-.8L7 11.5l4.4-2.2 1.6.8-6 3z"/>',
-  add: '<path fill="currentColor" d="M6 .6h2v5h2.6L7 9.2 3.4 5.6H6z"/>' + COMPAT_LAYER,
-  update: COMPAT_LOOP_HALF + `<g transform="rotate(180 7 7)">${COMPAT_LOOP_HALF}</g>`,
-  remove: '<path fill="currentColor" d="M7 .6l3.6 3.6H8v4.6H6V4.2H3.4z"/>' + COMPAT_LAYER,
+  add: '<path fill="currentColor" d="M6 .6h2v5h2.6L7 9.2 3.4 5.6H6z"/>' + SIDE_LAYER,
+  update: SIDE_LOOP_HALF + `<g transform="rotate(180 7 7)">${SIDE_LOOP_HALF}</g>`,
+  remove: '<path fill="currentColor" d="M7 .6l3.6 3.6H8v4.6H6V4.2H3.4z"/>' + SIDE_LAYER,
   conflicts: '<path fill="currentColor" fill-rule="evenodd" '
     + 'd="M6.1 1h1.8l6 10.6-.9 1.4H1l-.9-1.4zM6.25 4.5v4h1.5v-4zM6.25 9.75v1.5h1.5v-1.5z"/>',
-  optional: '<path fill="currentColor" d="M7 .5l6 3-6 3-6-3z"/>'
-    + '<path fill="currentColor" d="M1 7.1l1.6-.8L7 8.5l4.4-2.2 1.6.8-6 3z"/>'
-    + '<path fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1.5 1.2" '
-    + 'd="M1.8 9.7L7 12.3l5.2-2.6"/>',
+  optional: '<path fill="currentColor" fill-rule="evenodd" '
+    + 'd="M4.5 .5h5L12 3v2.6L9.5 9h-5L2 5.6V3zM3.7 3.2l1.4-1.4.8.8-1.4 1.4z'
+    + 'M4.5 9.8h5v1h-5zM4.5 11.4h5v1h-5zM5.3 13h3.4l-.5.5H5.8z"/>',
 };
 
-/// A label in the Compatibility card with its icon in front.
-function compatLabel(icon, text) {
+/// A label in a side card with its icon in front.
+function iconLabel(icon, text) {
   return [
     el('span', {
-      class: `compat-icon ${icon}`,
+      class: `side-icon ${icon}`,
       'aria-hidden': 'true',
-      html: `<svg viewBox="0 0 14 14" focusable="false">${COMPAT_ICONS[icon]}</svg>`,
+      html: `<svg viewBox="0 0 14 14" focusable="false">${SIDE_ICONS[icon]}</svg>`,
     }),
     el('span', { text }),
   ];
 }
 
 // Tabler list-details icon, for the author's own changelog page.
-
 const CHANGELOG_ICON = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" '
   + 'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
   + 'stroke-linejoin="round" focusable="false" aria-hidden="true">'

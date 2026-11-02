@@ -1725,7 +1725,7 @@ button.check-row { align-items: center; }
 .ai-banner-hide-icon,
 .post-switch-icon,
 .changelog-warning .warning-icon,
-.compat-icon,
+.side-icon,
 .nav-guide-icon { transform: translateY(round(0.06em, 1px)); }
 /* The speech bubble's tail makes it reach further down than up, so it sits a
    little higher than the rest. */
@@ -1995,11 +1995,10 @@ a.chip.needed.conflict:hover { background: var(--warning-wash); }
 /* The other labels in the Compatibility card look like the save questions,
    so every row in the card reads as one level. */
 .compatibility .side-label { color: var(--text); font-weight: 600; font-size: var(--type-small); }
-/* Each label in the Compatibility card has an icon in front, dim so the words
-   lead. */
-.compatibility .side-label, .save-question { display: inline-flex; align-items: center; gap: 6px; }
-.compat-icon, .compat-icon svg { display: block; width: 14px; height: 14px; flex-shrink: 0; }
-.compat-icon { color: var(--text-dim); }
+/* Labels in the side cards have an icon in front, dim so the words lead. */
+.side-label.with-icon, .save-question { display: inline-flex; align-items: center; gap: 6px; }
+.side-icon, .side-icon svg { display: block; width: 14px; height: 14px; flex-shrink: 0; }
+.side-icon { color: var(--text-dim); }
 .save-words {
   min-width: 0; overflow-wrap: anywhere; font-style: italic; color: var(--text-dim);
 }
