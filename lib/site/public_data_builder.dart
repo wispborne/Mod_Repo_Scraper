@@ -1257,6 +1257,7 @@ class PublicDataBuilder {
       sameNameMods: const [],
       addons: _addonsFor(chosen, addonSource),
       optionalNeeds: _optionalMods(extras?.optionalNeeds, listing, requirements),
+      conflicts: _conflictsFor(extras?.conflicts, listing.id, requirements),
       partOfThreadTitle: listing.partOfThreadTitle,
     );
   }
@@ -1270,6 +1271,26 @@ class PublicDataBuilder {
   ) =>
       _withoutRequired(
           _neededMods(names, listing.id, requirements), listing.needs);
+
+  /// Matches conflict names to our mods using the same rules as requirements.
+  /// Returns null when there are none.
+  static List<PublicConflict>? _conflictsFor(
+    List<LlmConflict>? conflicts,
+    String ownId,
+    RequirementResolver requirements,
+  ) {
+    final kept = <PublicConflict>[];
+    final seen = <String>{};
+    for (final conflict in conflicts ?? const <LlmConflict>[]) {
+      // A match to this mod returns an empty list.
+      final matched = _neededMods([conflict.name], ownId, requirements);
+      if (matched.isEmpty) continue;
+      final mod = matched.single;
+      if (!seen.add(_needKey(mod))) continue;
+      kept.add(PublicConflict(name: mod.name, id: mod.id, quote: conflict.quote));
+    }
+    return kept.isEmpty ? null : kept;
+  }
 
   /// [optional] without the mods in [needs], or null when none are left.
   static List<PublicNeededMod>? _withoutRequired(

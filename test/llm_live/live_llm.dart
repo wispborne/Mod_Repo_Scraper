@@ -244,6 +244,9 @@ String describe(LlmStoreEntry? entry) {
     if (optionalNeeds != null && optionalNeeds.isNotEmpty) {
       b.write('\n      optional: $optionalNeeds');
     }
+    for (final conflict in mod.extras?.conflicts ?? const <LlmConflict>[]) {
+      b.write('\n      conflict: ${conflict.name} — "${conflict.quote}"');
+    }
     final version = mod.extras?.version;
     if (version != null) b.write('\n      version: $version');
     final extras = mod.extras;

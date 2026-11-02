@@ -411,6 +411,10 @@ export function extrasBlock(extras) {
   if (extras.optionalNeeds && extras.optionalNeeds.length) {
     list.append(field('Optional', extras.optionalNeeds.join(', ')));
   }
+  if (extras.conflicts && extras.conflicts.length) {
+    list.append(field('Conflicts', extras.conflicts
+      .map((c) => `${c.name}: “${c.quote}”`).join(' · ')));
+  }
   // What the author says about using AI tools: yes or no with their words,
   // then each use as the model sorted it, then the tools the post names.
   const aiUse = extras.aiUse;

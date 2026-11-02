@@ -123,6 +123,10 @@ class _RawMod {
   /// Their names have not yet been checked against the post.
   final List<String> optionalNeeds;
 
+  /// Conflicts returned by the model. Names and quotes have not been checked
+  /// against the post yet.
+  final List<LlmConflict> conflicts;
+
   /// Where in the post the author describes this mod: the first few words and
   /// the last few words of that stretch of text. Checked against the posts
   /// before it is kept.
@@ -154,6 +158,7 @@ class _RawMod {
     this.summary,
     this.needs = const [],
     this.optionalNeeds = const [],
+    this.conflicts = const [],
     this.descriptionAnchors,
     this.aiUse,
   });
@@ -248,6 +253,7 @@ class PostExtractor {
     'updateNotes',
     'needs',
     'optionalNeeds',
+    'conflicts',
     'descriptionAnchors',
     'nicknames',
     'aiUse',
@@ -852,6 +858,14 @@ class PostExtractor {
         ];
     final needs = names(m['needs']);
     final optionalNeeds = names(m['optionalNeeds']);
+    final conflicts = [
+      if (m['conflicts'] case final List raw)
+        for (final c in raw)
+          if (c is Map)
+            if ((asString(c['name']), asString(c['quote']))
+                case (final name?, final quote?))
+              LlmConflict(name: name, quote: quote),
+    ];
 
     final nicknames = <String>[];
     final rawNicknames = m['nicknames'];
@@ -941,6 +955,7 @@ class PostExtractor {
       summary: summary,
       needs: needs,
       optionalNeeds: optionalNeeds,
+      conflicts: conflicts,
       descriptionAnchors: anchors,
       aiUse: aiUse,
     );
@@ -1225,6 +1240,9 @@ class PostExtractor {
     }
 
     final needs = _groundNeeds(where, mod.needs, corpus, mod.name);
+    final optionalNeeds = _groundNeeds(
+        where, mod.optionalNeeds, corpus, mod.name,
+        leaveOut: needs);
 
     return _CheckedMod(
       name: mod.name,
@@ -1251,8 +1269,9 @@ class PostExtractor {
       summary: mod.summary,
       needs: needs,
       // A mod in both lists is required because the post says it is.
-      optionalNeeds: _groundNeeds(where, mod.optionalNeeds, corpus, mod.name,
-          leaveOut: needs),
+      optionalNeeds: optionalNeeds,
+      conflicts: _groundConflicts(where, mod.conflicts, corpus, mod.name,
+          leaveOut: [...needs, ...optionalNeeds]),
       descriptionAnchors:
           _groundAnchors(where, mod.descriptionAnchors, postTexts, mod.name),
       aiUse: _groundAiUse(where, mod.aiUse, corpus, authorWords, postTexts),
@@ -1454,6 +1473,39 @@ class PostExtractor {
       } else {
         _log.warning('Dropped a needed mod not named in the post '
             '($where): $name');
+      }
+    }
+    return kept;
+  }
+
+  /// Keeps conflicts backed by a quote from the post.
+  ///
+  /// The quote must name the other mod. A false conflict could stop readers
+  /// from using a mod. Required and optional mods are left out ([leaveOut]).
+  /// Listing one as a conflict means the model misread the post.
+  List<LlmConflict> _groundConflicts(
+    String where,
+    List<LlmConflict> conflicts,
+    String corpus,
+    String ownName, {
+    List<String> leaveOut = const [],
+  }) {
+    final kept = <LlmConflict>[];
+    final seen = {for (final name in leaveOut) _lettersAndDigits(name)};
+    for (final conflict in conflicts) {
+      final name = conflict.name.trim();
+      final quote = conflict.quote.trim();
+      final key = _lettersAndDigits(name);
+      if (key.length < 2 || key == _lettersAndDigits(ownName)) continue;
+      if (!seen.add(key)) continue;
+      if (!_wordsInPost(quote, corpus)) {
+        _log.warning('Dropped a conflict: quote not found in the post '
+            '($where): $name — $quote');
+      } else if (!_wordsInPost(name, quote)) {
+        _log.warning('Dropped a conflict: quote does not name the mod '
+            '($where): $name — $quote');
+      } else {
+        kept.add(LlmConflict(name: name, quote: quote));
       }
     }
     return kept;
@@ -1996,6 +2048,7 @@ class PostExtractor {
       summary: summary,
       needs: g.needs.isEmpty ? null : g.needs,
       optionalNeeds: g.optionalNeeds.isEmpty ? null : g.optionalNeeds,
+      conflicts: g.conflicts.isEmpty ? null : g.conflicts,
       aiUse: g.aiUse,
     );
     return extras.isEmpty ? null : extras;
@@ -2191,6 +2244,9 @@ class _CheckedMod {
   /// the post. Excludes mods already in [needs].
   final List<String> optionalNeeds;
 
+  /// Conflicts whose quotes were found in the post.
+  final List<LlmConflict> conflicts;
+
   /// Where the author describes this mod, once found in one of the posts.
   final LlmDescriptionAnchors? descriptionAnchors;
 
@@ -2220,6 +2276,7 @@ class _CheckedMod {
     this.summary,
     this.needs = const [],
     this.optionalNeeds = const [],
+    this.conflicts = const [],
     this.descriptionAnchors,
     this.aiUse,
   });
@@ -2241,6 +2298,7 @@ class _CheckedMod {
       removalCompatibility == null &&
       needs.isEmpty &&
       optionalNeeds.isEmpty &&
+      conflicts.isEmpty &&
       (summary == null || summary!.isEmpty);
 }
 

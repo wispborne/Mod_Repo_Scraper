@@ -69,6 +69,9 @@ class CatalogExtrasMod with CatalogExtrasModMappable {
   final List<PublicNeededMod>? needs;
   final List<PublicNeededMod>? optionalNeeds;
 
+  /// Mods the author says conflict with this one.
+  final List<PublicConflict>? conflicts;
+
   final bool? isTool;
   final bool? saveCompatible;
 
@@ -101,6 +104,7 @@ class CatalogExtrasMod with CatalogExtrasModMappable {
     this.releases,
     this.needs,
     this.optionalNeeds,
+    this.conflicts,
     this.isTool,
     this.saveCompatible,
     this.canAdd,

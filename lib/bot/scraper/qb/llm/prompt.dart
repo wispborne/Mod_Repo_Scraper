@@ -11,8 +11,8 @@ import 'post_reducer.dart';
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 29;
-  static const int discordPromptVersion = 7;
+  static const int promptVersion = 30;
+  static const int discordPromptVersion = 8;
 
   /// Cache version for [kind]. Nexus extraction is not supported yet.
   static int promptVersionFor(SourceKind kind) =>
@@ -165,6 +165,12 @@ Return this JSON object:
       ],
       "needs": ["<the name of another mod this one will not run without>", "..."],
       "optionalNeeds": ["<the name of another mod the post says is optional or recommended with this one>", "..."],
+      "conflicts": [
+        {
+          "name": "<the name of another mod the post says this one does not work well with>",
+          "quote": "<the post's own words about that, copied exactly>"
+        }
+      ],
       "descriptionAnchors": {
         "startsWith": "<the first few words of the run of text that describes THIS mod, copied exactly>",
         "endsWith": "<the last few words of that same run of text, copied exactly>"
@@ -436,6 +442,24 @@ Guidance:
     or does not work with. Not a successor, a mod the author also made, or a mod
     on THIS thread.
   - Leave it as an empty list when the post names no optional mod.
+- "conflicts" is the other mods the post says this one does not work well with.
+  Conflicts are rare: most posts name none, so this is usually an empty list.
+  - A mod named under an "Incompatible mods", "Known conflicts" or
+    "Compatibility" heading as a problem, or in a line like "Not compatible with
+    X", "Do not use with X", "Crashes when used with X", "X breaks the
+    scripts" or "Limited compatibility with X".
+  - "name" is the other mod's NAME only, as the post writes it, the same way
+    as "needs".
+  - "quote" is the post's own words about the conflict, copied exactly: the
+    sentence or line that names the mod, and the next sentence when it says
+    how bad the problem is or when it happens. Keep the author's conditions,
+    such as a version or "only in very large battles".
+  - Not a mod the post says this one IS compatible with, works with, or has
+    been tested with.
+  - Not a kind of mod with no name ("total conversions", "other faction
+    mods"), the game itself, or a problem the post says is already fixed.
+  - "No known mod conflicts" and the like mean an empty list.
+  - A mod is never in "conflicts" and also in "needs" or "optionalNeeds".
 - "descriptionAnchors" is optional and points at the author's own words about
   ONE mod. You do not write a description — you say where the author's already is:
   - Use it when a suitable description exists, on single-mod threads as well
@@ -654,6 +678,18 @@ Guidance:
         'type': 'array',
         'items': {'type': 'string'},
       },
+      'conflicts': {
+        'type': 'array',
+        'items': {
+          'type': 'object',
+          'properties': {
+            'name': {'type': 'string'},
+            'quote': {'type': 'string'},
+          },
+          'required': ['name', 'quote'],
+          'additionalProperties': false,
+        },
+      },
       'descriptionAnchors': {
         'type': ['object', 'null'],
         'properties': {
@@ -732,6 +768,7 @@ Guidance:
       'updateNotes',
       'needs',
       'optionalNeeds',
+      'conflicts',
       'descriptionAnchors',
       'aiUse',
     ];

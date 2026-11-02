@@ -187,6 +187,7 @@ class CatalogExtrasModMapper extends ClassMapperBase<CatalogExtrasMod> {
       MapperContainer.globals.use(_instance = CatalogExtrasModMapper._());
       ModReleaseMapper.ensureInitialized();
       PublicNeededModMapper.ensureInitialized();
+      PublicConflictMapper.ensureInitialized();
       SaveAnswerMapper.ensureInitialized();
       LlmAiUseMapper.ensureInitialized();
       PublicSameNameModMapper.ensureInitialized();
@@ -264,6 +265,9 @@ class CatalogExtrasModMapper extends ClassMapperBase<CatalogExtrasMod> {
       v.optionalNeeds;
   static const Field<CatalogExtrasMod, List<PublicNeededMod>> _f$optionalNeeds =
       Field('optionalNeeds', _$optionalNeeds, opt: true);
+  static List<PublicConflict>? _$conflicts(CatalogExtrasMod v) => v.conflicts;
+  static const Field<CatalogExtrasMod, List<PublicConflict>> _f$conflicts =
+      Field('conflicts', _$conflicts, opt: true);
   static bool? _$isTool(CatalogExtrasMod v) => v.isTool;
   static const Field<CatalogExtrasMod, bool> _f$isTool = Field(
     'isTool',
@@ -345,6 +349,7 @@ class CatalogExtrasModMapper extends ClassMapperBase<CatalogExtrasMod> {
     #releases: _f$releases,
     #needs: _f$needs,
     #optionalNeeds: _f$optionalNeeds,
+    #conflicts: _f$conflicts,
     #isTool: _f$isTool,
     #saveCompatible: _f$saveCompatible,
     #canAdd: _f$canAdd,
@@ -374,6 +379,7 @@ class CatalogExtrasModMapper extends ClassMapperBase<CatalogExtrasMod> {
       releases: data.dec(_f$releases),
       needs: data.dec(_f$needs),
       optionalNeeds: data.dec(_f$optionalNeeds),
+      conflicts: data.dec(_f$conflicts),
       isTool: data.dec(_f$isTool),
       saveCompatible: data.dec(_f$saveCompatible),
       canAdd: data.dec(_f$canAdd),
@@ -475,6 +481,12 @@ abstract class CatalogExtrasModCopyWith<$R, $In extends CatalogExtrasMod, $Out>
     PublicNeededModCopyWith<$R, PublicNeededMod, PublicNeededMod>
   >?
   get optionalNeeds;
+  ListCopyWith<
+    $R,
+    PublicConflict,
+    PublicConflictCopyWith<$R, PublicConflict, PublicConflict>
+  >?
+  get conflicts;
   LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse;
   ListCopyWith<
     $R,
@@ -500,6 +512,7 @@ abstract class CatalogExtrasModCopyWith<$R, $In extends CatalogExtrasMod, $Out>
     List<ModRelease>? releases,
     List<PublicNeededMod>? needs,
     List<PublicNeededMod>? optionalNeeds,
+    List<PublicConflict>? conflicts,
     bool? isTool,
     bool? saveCompatible,
     SaveAnswer? canAdd,
@@ -594,6 +607,19 @@ class _CatalogExtrasModCopyWithImpl<$R, $Out>
         )
       : null;
   @override
+  ListCopyWith<
+    $R,
+    PublicConflict,
+    PublicConflictCopyWith<$R, PublicConflict, PublicConflict>
+  >?
+  get conflicts => $value.conflicts != null
+      ? ListCopyWith(
+          $value.conflicts!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(conflicts: v),
+        )
+      : null;
+  @override
   LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse =>
       $value.aiUse?.copyWith.$chain((v) => call(aiUse: v));
   @override
@@ -635,6 +661,7 @@ class _CatalogExtrasModCopyWithImpl<$R, $Out>
     Object? releases = $none,
     Object? needs = $none,
     Object? optionalNeeds = $none,
+    Object? conflicts = $none,
     Object? isTool = $none,
     Object? saveCompatible = $none,
     Object? canAdd = $none,
@@ -660,6 +687,7 @@ class _CatalogExtrasModCopyWithImpl<$R, $Out>
       if (releases != $none) #releases: releases,
       if (needs != $none) #needs: needs,
       if (optionalNeeds != $none) #optionalNeeds: optionalNeeds,
+      if (conflicts != $none) #conflicts: conflicts,
       if (isTool != $none) #isTool: isTool,
       if (saveCompatible != $none) #saveCompatible: saveCompatible,
       if (canAdd != $none) #canAdd: canAdd,
@@ -690,6 +718,7 @@ class _CatalogExtrasModCopyWithImpl<$R, $Out>
     releases: data.get(#releases, or: $value.releases),
     needs: data.get(#needs, or: $value.needs),
     optionalNeeds: data.get(#optionalNeeds, or: $value.optionalNeeds),
+    conflicts: data.get(#conflicts, or: $value.conflicts),
     isTool: data.get(#isTool, or: $value.isTool),
     saveCompatible: data.get(#saveCompatible, or: $value.saveCompatible),
     canAdd: data.get(#canAdd, or: $value.canAdd),

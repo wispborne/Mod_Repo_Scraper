@@ -1304,6 +1304,41 @@ void main() {
         reason: 'mods.json lists only what a mod cannot run without');
   });
 
+  test("conflicts have author quotes and links to known mods on the mod page",
+      () {
+    final data = buildFrom(
+      mods: [
+        forumMod(name: 'Fast Rendering', topicId: 33870),
+        forumMod(name: 'Particle Engine', topicId: 1),
+      ],
+      bundle: bundleOf(index: [
+        thread(topicId: 33870, title: 'Fast Rendering', llmMods: [
+          LlmMod(
+            name: 'Fast Rendering',
+            extras: LlmExtras(conflicts: [
+              LlmConflict(
+                  name: 'Particle Engine',
+                  quote: 'Particle Engine may rarely crash in very large battles.'),
+              LlmConflict(name: 'BoxUtil', quote: 'BoxUtil versions 1.6.0 and later'),
+              LlmConflict(name: 'Fast Rendering', quote: 'Fast Rendering'),
+            ]),
+          ),
+        ]),
+      ]),
+    );
+
+    final page = data.details['fast-rendering']!;
+    expect(page.conflicts!.map((c) => (c.name, c.id, c.quote)), [
+      ('Particle Engine', 'particle-engine',
+          'Particle Engine may rarely crash in very large battles.'),
+      ('BoxUtil', null, 'BoxUtil versions 1.6.0 and later'),
+    ], reason: 'a mod never conflicts with itself');
+    expect(jsonEncode(data.list.mods.firstWhere((m) => m.id == 'fast-rendering').toMap()),
+        isNot(contains('conflict')),
+        reason: 'mods.json does not include conflicts');
+    expect(data.details['particle-engine']!.conflicts, isNull);
+  });
+
   test("a requirement's own requirements are listed too, saying which brought them in",
       () {
     final data = buildFrom(
@@ -3190,6 +3225,7 @@ void main() {
         releases: [ModRelease(modId: 'nexerelin', modName: 'Nexerelin', seenOn: '2026-08-14', newVersion: '0.12.2')],
         needs: [PublicNeededMod(name: 'LazyLib', id: 'lazylib')],
         optionalNeeds: [PublicNeededMod(name: 'Combat Chatter')],
+        conflicts: [PublicConflict(name: 'Particle Engine', quote: 'Particle Engine may rarely crash.')],
         isTool: true,
         saveCompatible: true,
         canAdd: SaveAnswer.yes,
@@ -3216,6 +3252,7 @@ void main() {
         'releases',
         'needs',
         'optionalNeeds',
+        'conflicts',
         'isTool',
         'saveCompatible',
         'canAdd',

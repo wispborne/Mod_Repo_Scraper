@@ -152,6 +152,10 @@ class PublicModDetail with PublicModDetailMappable {
   /// without. The field is left out when empty.
   final List<PublicNeededMod>? optionalNeeds;
 
+  /// Conflicts with a quote from the author for each. Most posts name none.
+  /// Left out when empty. Not in `mods.json`.
+  final List<PublicConflict>? conflicts;
+
   /// The title of the shared thread this mod was found on. The same field as
   /// [PublicMod.partOfThreadTitle], repeated here so the page stands alone.
   /// Null when this is the only mod on its thread and for every merged mod.
@@ -189,8 +193,23 @@ class PublicModDetail with PublicModDetailMappable {
     this.sameNameMods = const [],
     this.addons = const [],
     this.optionalNeeds,
+    this.conflicts,
     this.partOfThreadTitle,
   });
+}
+
+/// A mod the author says conflicts with this one.
+///
+/// [name] is its name on the site. [id] links to its page if we found a match.
+/// [quote] is a quote from the author about the problem. Some conflicts crash
+/// the game on startup. Others only happen in very large battles.
+@MappableClass(ignoreNull: true)
+class PublicConflict with PublicConflictMappable {
+  final String name;
+  final String? id;
+  final String quote;
+
+  PublicConflict({required this.name, this.id, required this.quote});
 }
 
 /// One picture from the mod's post.

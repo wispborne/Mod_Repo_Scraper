@@ -22,6 +22,7 @@ Each record SHALL use the site's own field names and shapes, taken from the mod'
 - `addedOn`, `editedOn`, `lastReleaseDate`
 - `releases`
 - `needs` and `optionalNeeds`, each entry `{name, id}`
+- `conflicts`, each entry `{name, id, quote}`
 - `isTool`, `saveCompatible`
 - `canAdd`, `canUpdate`, `canRemove`, with `saveCompatibilityText`, `updateCompatibilityText` and `removalCompatibilityText`
 - `aiUse`

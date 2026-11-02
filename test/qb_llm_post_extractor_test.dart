@@ -387,6 +387,29 @@ void main() {
           reason: 'LazyLib is required, and the post never names GraphicsLib');
     });
 
+    test('a conflict needs a quote from the post that names the mod',
+        () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main","needs":["LazyLib"],'
+            '"conflicts":['
+            '{"name":"Particle Engine","quote":"Particle Engine may rarely crash."},'
+            '{"name":"LazyLib","quote":"Requires LazyLib."},'
+            '{"name":"Nexerelin","quote":"Particle Engine may rarely crash."},'
+            '{"name":"GraphicsLib","quote":"Breaks GraphicsLib."}'
+            ']}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(75,
+            'My cool mod. Requires LazyLib. Particle Engine may rarely crash.'),
+        [],
+      );
+      expect(extrasOf(75)?.conflicts?.map((c) => (c.name, c.quote)),
+          [('Particle Engine', 'Particle Engine may rarely crash.')],
+          reason: 'LazyLib is required. The Nexerelin quote does not name it. '
+              'The post never says GraphicsLib breaks.');
+    });
+
     test('version found only in the thread title still grounds', () async {
       final client = _FakeLlmClient([
         _json('{"mods":[{"name":"My Mod","role":"main","version":"1.2.3"}]}'),

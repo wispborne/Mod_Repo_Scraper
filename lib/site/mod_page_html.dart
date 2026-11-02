@@ -202,6 +202,19 @@ String _bodyText(PublicMod mod, PublicModDetail detail, String name) {
     out.write('</ul>');
   }
 
+  final conflicts = detail.conflicts ?? const <PublicConflict>[];
+  if (conflicts.isNotEmpty) {
+    out.write('<h2>Conflicts</h2><ul>');
+    for (final conflict in conflicts) {
+      final words = _escape(conflict.name);
+      final name = conflict.id == null
+          ? words
+          : '<a href="mods/${Uri.encodeComponent(conflict.id!)}/">$words</a>';
+      out.write('<li>$name: “${_escape(conflict.quote)}”</li>');
+    }
+    out.write('</ul>');
+  }
+
   final post = detail.descriptionIsGenerated ? null : detail.description;
   final opening = post == null ? const <String>[] : postOpening(post);
   if (opening.isNotEmpty) {

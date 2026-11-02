@@ -33,6 +33,20 @@ class LlmUpdateNote with LlmUpdateNoteMappable {
   LlmUpdateNote({this.version, required this.quote, this.answer});
 }
 
+/// A mod the author says conflicts with this one. It may crash, break, or
+/// only partly work when both are installed. Most posts name no conflicts.
+@MappableClass(ignoreNull: true)
+class LlmConflict with LlmConflictMappable {
+  /// The other mod's name in the post.
+  final String name;
+
+  /// A quote from the author about the conflict. It explains the problem
+  /// ("may rarely crash in very large battles", "limited compatibility").
+  final String quote;
+
+  LlmConflict({required this.name, required this.quote});
+}
+
 /// Which part of a mod an AI tool was used for, as the author says.
 @MappableEnum()
 enum AiUseArea {
@@ -282,6 +296,9 @@ class LlmModSummary with LlmModSummaryMappable {
 ///   writes them. Nearly every Starsector mod needs LazyLib, MagicLib,
 ///   GraphicsLib or Nexerelin, and the post nearly always says so. Empty when
 ///   the post names none.
+/// - [conflicts]: mods the author says conflict with this one. Each has a
+///   quote from the author (see [LlmConflict]). Null when the post names none.
+///   Most posts name none.
 /// - [aiUse]: what the author says about using AI tools to make the mod (see
 ///   [LlmAiUse]). Null when the post says nothing about it.
 @MappableClass(ignoreNull: true)
@@ -305,6 +322,9 @@ class LlmExtras with LlmExtrasMappable {
   /// Excludes mods already in [needs].
   final List<String>? optionalNeeds;
 
+  /// Mods the author says conflict with this one.
+  final List<LlmConflict>? conflicts;
+
   /// What the author says about using AI tools to make the mod.
   final LlmAiUse? aiUse;
 
@@ -322,6 +342,7 @@ class LlmExtras with LlmExtrasMappable {
     this.summary,
     this.needs,
     this.optionalNeeds,
+    this.conflicts,
     this.aiUse,
   });
 
@@ -338,6 +359,7 @@ class LlmExtras with LlmExtrasMappable {
       (summary == null || summary!.isEmpty) &&
       (needs == null || needs!.isEmpty) &&
       (optionalNeeds == null || optionalNeeds!.isEmpty) &&
+      (conflicts == null || conflicts!.isEmpty) &&
       aiUse == null;
 }
 

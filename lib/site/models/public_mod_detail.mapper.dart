@@ -25,6 +25,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       PublicSameNameModMapper.ensureInitialized();
       PublicAddonMapper.ensureInitialized();
       PublicNeededModMapper.ensureInitialized();
+      PublicConflictMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -213,6 +214,9 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       v.optionalNeeds;
   static const Field<PublicModDetail, List<PublicNeededMod>> _f$optionalNeeds =
       Field('optionalNeeds', _$optionalNeeds, opt: true);
+  static List<PublicConflict>? _$conflicts(PublicModDetail v) => v.conflicts;
+  static const Field<PublicModDetail, List<PublicConflict>> _f$conflicts =
+      Field('conflicts', _$conflicts, opt: true);
   static String? _$partOfThreadTitle(PublicModDetail v) => v.partOfThreadTitle;
   static const Field<PublicModDetail, String> _f$partOfThreadTitle = Field(
     'partOfThreadTitle',
@@ -253,6 +257,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
     #sameNameMods: _f$sameNameMods,
     #addons: _f$addons,
     #optionalNeeds: _f$optionalNeeds,
+    #conflicts: _f$conflicts,
     #partOfThreadTitle: _f$partOfThreadTitle,
   };
   @override
@@ -291,6 +296,7 @@ class PublicModDetailMapper extends ClassMapperBase<PublicModDetail> {
       sameNameMods: data.dec(_f$sameNameMods),
       addons: data.dec(_f$addons),
       optionalNeeds: data.dec(_f$optionalNeeds),
+      conflicts: data.dec(_f$conflicts),
       partOfThreadTitle: data.dec(_f$partOfThreadTitle),
     );
   }
@@ -401,6 +407,12 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     PublicNeededModCopyWith<$R, PublicNeededMod, PublicNeededMod>
   >?
   get optionalNeeds;
+  ListCopyWith<
+    $R,
+    PublicConflict,
+    PublicConflictCopyWith<$R, PublicConflict, PublicConflict>
+  >?
+  get conflicts;
   $R call({
     DateTime? generatedAt,
     PublicMod? listing,
@@ -433,6 +445,7 @@ abstract class PublicModDetailCopyWith<$R, $In extends PublicModDetail, $Out>
     List<PublicSameNameMod>? sameNameMods,
     List<PublicAddon>? addons,
     List<PublicNeededMod>? optionalNeeds,
+    List<PublicConflict>? conflicts,
     String? partOfThreadTitle,
   });
   PublicModDetailCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -544,6 +557,19 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
         )
       : null;
   @override
+  ListCopyWith<
+    $R,
+    PublicConflict,
+    PublicConflictCopyWith<$R, PublicConflict, PublicConflict>
+  >?
+  get conflicts => $value.conflicts != null
+      ? ListCopyWith(
+          $value.conflicts!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(conflicts: v),
+        )
+      : null;
+  @override
   $R call({
     DateTime? generatedAt,
     PublicMod? listing,
@@ -576,6 +602,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     List<PublicSameNameMod>? sameNameMods,
     List<PublicAddon>? addons,
     Object? optionalNeeds = $none,
+    Object? conflicts = $none,
     Object? partOfThreadTitle = $none,
   }) => $apply(
     FieldCopyWithData({
@@ -615,6 +642,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
       if (sameNameMods != null) #sameNameMods: sameNameMods,
       if (addons != null) #addons: addons,
       if (optionalNeeds != $none) #optionalNeeds: optionalNeeds,
+      if (conflicts != $none) #conflicts: conflicts,
       if (partOfThreadTitle != $none) #partOfThreadTitle: partOfThreadTitle,
     }),
   );
@@ -666,6 +694,7 @@ class _PublicModDetailCopyWithImpl<$R, $Out>
     sameNameMods: data.get(#sameNameMods, or: $value.sameNameMods),
     addons: data.get(#addons, or: $value.addons),
     optionalNeeds: data.get(#optionalNeeds, or: $value.optionalNeeds),
+    conflicts: data.get(#conflicts, or: $value.conflicts),
     partOfThreadTitle: data.get(
       #partOfThreadTitle,
       or: $value.partOfThreadTitle,
@@ -1632,5 +1661,144 @@ class _PublicAddonCopyWithImpl<$R, $Out>
   PublicAddonCopyWith<$R2, PublicAddon, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   ) => _PublicAddonCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class PublicConflictMapper extends ClassMapperBase<PublicConflict> {
+  PublicConflictMapper._();
+
+  static PublicConflictMapper? _instance;
+  static PublicConflictMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = PublicConflictMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'PublicConflict';
+
+  static String _$name(PublicConflict v) => v.name;
+  static const Field<PublicConflict, String> _f$name = Field('name', _$name);
+  static String? _$id(PublicConflict v) => v.id;
+  static const Field<PublicConflict, String> _f$id = Field(
+    'id',
+    _$id,
+    opt: true,
+  );
+  static String _$quote(PublicConflict v) => v.quote;
+  static const Field<PublicConflict, String> _f$quote = Field('quote', _$quote);
+
+  @override
+  final MappableFields<PublicConflict> fields = const {
+    #name: _f$name,
+    #id: _f$id,
+    #quote: _f$quote,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static PublicConflict _instantiate(DecodingData data) {
+    return PublicConflict(
+      name: data.dec(_f$name),
+      id: data.dec(_f$id),
+      quote: data.dec(_f$quote),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static PublicConflict fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<PublicConflict>(map);
+  }
+
+  static PublicConflict fromJson(String json) {
+    return ensureInitialized().decodeJson<PublicConflict>(json);
+  }
+}
+
+mixin PublicConflictMappable {
+  String toJson() {
+    return PublicConflictMapper.ensureInitialized().encodeJson<PublicConflict>(
+      this as PublicConflict,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return PublicConflictMapper.ensureInitialized().encodeMap<PublicConflict>(
+      this as PublicConflict,
+    );
+  }
+
+  PublicConflictCopyWith<PublicConflict, PublicConflict, PublicConflict>
+  get copyWith => _PublicConflictCopyWithImpl<PublicConflict, PublicConflict>(
+    this as PublicConflict,
+    $identity,
+    $identity,
+  );
+  @override
+  String toString() {
+    return PublicConflictMapper.ensureInitialized().stringifyValue(
+      this as PublicConflict,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return PublicConflictMapper.ensureInitialized().equalsValue(
+      this as PublicConflict,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return PublicConflictMapper.ensureInitialized().hashValue(
+      this as PublicConflict,
+    );
+  }
+}
+
+extension PublicConflictValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, PublicConflict, $Out> {
+  PublicConflictCopyWith<$R, PublicConflict, $Out> get $asPublicConflict =>
+      $base.as((v, t, t2) => _PublicConflictCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class PublicConflictCopyWith<$R, $In extends PublicConflict, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? name, String? id, String? quote});
+  PublicConflictCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _PublicConflictCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, PublicConflict, $Out>
+    implements PublicConflictCopyWith<$R, PublicConflict, $Out> {
+  _PublicConflictCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<PublicConflict> $mapper =
+      PublicConflictMapper.ensureInitialized();
+  @override
+  $R call({String? name, Object? id = $none, String? quote}) => $apply(
+    FieldCopyWithData({
+      if (name != null) #name: name,
+      if (id != $none) #id: id,
+      if (quote != null) #quote: quote,
+    }),
+  );
+  @override
+  PublicConflict $make(CopyWithData data) => PublicConflict(
+    name: data.get(#name, or: $value.name),
+    id: data.get(#id, or: $value.id),
+    quote: data.get(#quote, or: $value.quote),
+  );
+
+  @override
+  PublicConflictCopyWith<$R2, PublicConflict, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _PublicConflictCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 

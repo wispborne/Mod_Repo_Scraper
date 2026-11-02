@@ -138,6 +138,26 @@ void main() {
       expect(optional, containsAll(['nexerelin', 'combatchatter']), reason: why);
       expect(optional, isNot(contains('lazylib')), reason: why);
     });
+
+    test('Fast Rendering (33870) lists conflicts and leaves out compatible mods', () async {
+      final answer = await read(33870);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mod = answer.mods.firstWhere((m) => m.role == 'main');
+      // "Incompatible mods: BoxUtil versions 1.6.0 and later are compatible
+      // only on a GPU that supports OpenGL 4.5. Particle Engine may rarely
+      // crash in very large battles."
+      final conflicts = mod.extras?.conflicts ?? const <LlmConflict>[];
+      final names = conflicts.map((c) => flatten(c.name)).toList();
+      expect(names, containsAll(['boxutil', 'particleengine']), reason: why);
+      expect(names, isNot(contains('vramoptimizer')),
+          reason: 'the post says VRAM Optimizer works with it\n$why');
+      final particle =
+          conflicts.firstWhere((c) => flatten(c.name) == 'particleengine');
+      expect(particle.quote.toLowerCase(), contains('large battles'),
+          reason: 'the quote says when the problem happens\n$why');
+    });
   });
 
   group('what a post says about saves', () {

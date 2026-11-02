@@ -25,6 +25,7 @@ CatalogExtras buildCatalogExtras(PublicSiteData data) {
           releases: orNull(detail.releases),
           needs: orNull(detail.listing.needs),
           optionalNeeds: orNull(detail.optionalNeeds),
+          conflicts: orNull(detail.conflicts),
           isTool: detail.listing.isTool,
           saveCompatible: detail.listing.saveCompatible,
           canAdd: detail.canAdd,

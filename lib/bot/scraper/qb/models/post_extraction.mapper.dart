@@ -379,6 +379,128 @@ class _LlmUpdateNoteCopyWithImpl<$R, $Out>
   ) => _LlmUpdateNoteCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
+class LlmConflictMapper extends ClassMapperBase<LlmConflict> {
+  LlmConflictMapper._();
+
+  static LlmConflictMapper? _instance;
+  static LlmConflictMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = LlmConflictMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'LlmConflict';
+
+  static String _$name(LlmConflict v) => v.name;
+  static const Field<LlmConflict, String> _f$name = Field('name', _$name);
+  static String _$quote(LlmConflict v) => v.quote;
+  static const Field<LlmConflict, String> _f$quote = Field('quote', _$quote);
+
+  @override
+  final MappableFields<LlmConflict> fields = const {
+    #name: _f$name,
+    #quote: _f$quote,
+  };
+  @override
+  final bool ignoreNull = true;
+
+  static LlmConflict _instantiate(DecodingData data) {
+    return LlmConflict(name: data.dec(_f$name), quote: data.dec(_f$quote));
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static LlmConflict fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<LlmConflict>(map);
+  }
+
+  static LlmConflict fromJson(String json) {
+    return ensureInitialized().decodeJson<LlmConflict>(json);
+  }
+}
+
+mixin LlmConflictMappable {
+  String toJson() {
+    return LlmConflictMapper.ensureInitialized().encodeJson<LlmConflict>(
+      this as LlmConflict,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return LlmConflictMapper.ensureInitialized().encodeMap<LlmConflict>(
+      this as LlmConflict,
+    );
+  }
+
+  LlmConflictCopyWith<LlmConflict, LlmConflict, LlmConflict> get copyWith =>
+      _LlmConflictCopyWithImpl<LlmConflict, LlmConflict>(
+        this as LlmConflict,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return LlmConflictMapper.ensureInitialized().stringifyValue(
+      this as LlmConflict,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return LlmConflictMapper.ensureInitialized().equalsValue(
+      this as LlmConflict,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return LlmConflictMapper.ensureInitialized().hashValue(this as LlmConflict);
+  }
+}
+
+extension LlmConflictValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, LlmConflict, $Out> {
+  LlmConflictCopyWith<$R, LlmConflict, $Out> get $asLlmConflict =>
+      $base.as((v, t, t2) => _LlmConflictCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class LlmConflictCopyWith<$R, $In extends LlmConflict, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? name, String? quote});
+  LlmConflictCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _LlmConflictCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, LlmConflict, $Out>
+    implements LlmConflictCopyWith<$R, LlmConflict, $Out> {
+  _LlmConflictCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<LlmConflict> $mapper =
+      LlmConflictMapper.ensureInitialized();
+  @override
+  $R call({String? name, String? quote}) => $apply(
+    FieldCopyWithData({
+      if (name != null) #name: name,
+      if (quote != null) #quote: quote,
+    }),
+  );
+  @override
+  LlmConflict $make(CopyWithData data) => LlmConflict(
+    name: data.get(#name, or: $value.name),
+    quote: data.get(#quote, or: $value.quote),
+  );
+
+  @override
+  LlmConflictCopyWith<$R2, LlmConflict, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _LlmConflictCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class LlmAiUseEntryMapper extends ClassMapperBase<LlmAiUseEntry> {
   LlmAiUseEntryMapper._();
 
@@ -1162,6 +1284,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
       LlmUpdateNoteMapper.ensureInitialized();
       SaveAnswerMapper.ensureInitialized();
       LlmModSummaryMapper.ensureInitialized();
+      LlmConflictMapper.ensureInitialized();
       LlmAiUseMapper.ensureInitialized();
     }
     return _instance!;
@@ -1248,6 +1371,12 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     _$optionalNeeds,
     opt: true,
   );
+  static List<LlmConflict>? _$conflicts(LlmExtras v) => v.conflicts;
+  static const Field<LlmExtras, List<LlmConflict>> _f$conflicts = Field(
+    'conflicts',
+    _$conflicts,
+    opt: true,
+  );
   static LlmAiUse? _$aiUse(LlmExtras v) => v.aiUse;
   static const Field<LlmExtras, LlmAiUse> _f$aiUse = Field(
     'aiUse',
@@ -1270,6 +1399,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
     #summary: _f$summary,
     #needs: _f$needs,
     #optionalNeeds: _f$optionalNeeds,
+    #conflicts: _f$conflicts,
     #aiUse: _f$aiUse,
   };
   @override
@@ -1290,6 +1420,7 @@ class LlmExtrasMapper extends ClassMapperBase<LlmExtras> {
       summary: data.dec(_f$summary),
       needs: data.dec(_f$needs),
       optionalNeeds: data.dec(_f$optionalNeeds),
+      conflicts: data.dec(_f$conflicts),
       aiUse: data.dec(_f$aiUse),
     );
   }
@@ -1370,6 +1501,12 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>? get needs;
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>?
   get optionalNeeds;
+  ListCopyWith<
+    $R,
+    LlmConflict,
+    LlmConflictCopyWith<$R, LlmConflict, LlmConflict>
+  >?
+  get conflicts;
   LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse;
   $R call({
     String? version,
@@ -1385,6 +1522,7 @@ abstract class LlmExtrasCopyWith<$R, $In extends LlmExtras, $Out>
     LlmModSummary? summary,
     List<String>? needs,
     List<String>? optionalNeeds,
+    List<LlmConflict>? conflicts,
     LlmAiUse? aiUse,
   });
   LlmExtrasCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
@@ -1449,6 +1587,19 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
         )
       : null;
   @override
+  ListCopyWith<
+    $R,
+    LlmConflict,
+    LlmConflictCopyWith<$R, LlmConflict, LlmConflict>
+  >?
+  get conflicts => $value.conflicts != null
+      ? ListCopyWith(
+          $value.conflicts!,
+          (v, t) => v.copyWith.$chain(t),
+          (v) => call(conflicts: v),
+        )
+      : null;
+  @override
   LlmAiUseCopyWith<$R, LlmAiUse, LlmAiUse>? get aiUse =>
       $value.aiUse?.copyWith.$chain((v) => call(aiUse: v));
   @override
@@ -1466,6 +1617,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     Object? summary = $none,
     Object? needs = $none,
     Object? optionalNeeds = $none,
+    Object? conflicts = $none,
     Object? aiUse = $none,
   }) => $apply(
     FieldCopyWithData({
@@ -1483,6 +1635,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
       if (summary != $none) #summary: summary,
       if (needs != $none) #needs: needs,
       if (optionalNeeds != $none) #optionalNeeds: optionalNeeds,
+      if (conflicts != $none) #conflicts: conflicts,
       if (aiUse != $none) #aiUse: aiUse,
     }),
   );
@@ -1507,6 +1660,7 @@ class _LlmExtrasCopyWithImpl<$R, $Out>
     summary: data.get(#summary, or: $value.summary),
     needs: data.get(#needs, or: $value.needs),
     optionalNeeds: data.get(#optionalNeeds, or: $value.optionalNeeds),
+    conflicts: data.get(#conflicts, or: $value.conflicts),
     aiUse: data.get(#aiUse, or: $value.aiUse),
   );
 
