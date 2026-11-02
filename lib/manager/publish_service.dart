@@ -63,6 +63,7 @@ class PublishService implements JobRunner {
     'mods.json',
     'updates.json',
     'updates.xml',
+    'conflicts.json',
     'sitemap.xml',
     'robots.txt',
     '404.html',

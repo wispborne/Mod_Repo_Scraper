@@ -122,6 +122,8 @@ void main() {
           .writeAsStringSync('{"releases": []}');
       File(p.join(outputs, 'site', 'updates.xml'))
           .writeAsStringSync('<feed/>');
+      File(p.join(outputs, 'site', 'conflicts.json'))
+          .writeAsStringSync('{"mods": []}');
       Directory(p.join(outputs, 'site', 'how-to-install-mods'))
           .createSync(recursive: true);
       File(p.join(outputs, 'site', 'how-to-install-mods', 'index.html'))
@@ -244,6 +246,8 @@ void main() {
       expect(inRemote('updates.json'), isTrue);
       expect(inRemote('updates.xml'), isTrue,
           reason: 'the feed people subscribe to has to go out too');
+      expect(inRemote('conflicts.json'), isTrue,
+          reason: 'the Reports page reads it');
       expect(inRemote('how-to-install-mods/index.html'), isTrue,
           reason: 'the install guide is a page of its own');
       expect(inRemote('mods/nexerelin.json'), isTrue);

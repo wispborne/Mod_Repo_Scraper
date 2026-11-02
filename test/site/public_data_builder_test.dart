@@ -20,6 +20,7 @@ import 'package:mod_repo_scraper/bot/scraper/qb/models/post_extraction.dart';
 import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 import 'package:mod_repo_scraper/site/mod_id_store.dart';
 import 'package:mod_repo_scraper/site/models/catalog_extras.dart';
+import 'package:mod_repo_scraper/site/models/mod_conflict.dart';
 import 'package:mod_repo_scraper/site/models/mod_release.dart';
 import 'package:mod_repo_scraper/site/models/public_mod_detail.dart';
 import 'package:mod_repo_scraper/site/models/public_mod.dart';
@@ -1337,6 +1338,38 @@ void main() {
         isNot(contains('conflict')),
         reason: 'mods.json does not include conflicts');
     expect(data.details['particle-engine']!.conflicts, isNull);
+  });
+
+  test('conflicts.json lists mods whose posts name conflicts for the Reports page',
+      () async {
+    final data = buildFrom(
+      mods: [
+        forumMod(name: 'Fast Rendering', topicId: 33870),
+        forumMod(name: 'Particle Engine', topicId: 1),
+      ],
+      bundle: bundleOf(index: [
+        thread(topicId: 33870, title: 'Fast Rendering', llmMods: [
+          LlmMod(
+            name: 'Fast Rendering',
+            extras: LlmExtras(conflicts: [
+              LlmConflict(
+                  name: 'Particle Engine',
+                  quote: 'Particle Engine may rarely crash in very large battles.'),
+            ]),
+          ),
+        ]),
+      ]),
+    );
+    await builder.write(data);
+
+    final file = File(p.join(builder.siteDir, 'conflicts.json'));
+    final written = ModConflictListMapper.fromJson(file.readAsStringSync());
+    expect(written.mods.map((m) => (m.modId, m.modName)), [('fast-rendering', 'Fast Rendering')],
+        reason: 'mods whose posts name no conflicts are left out');
+    expect(written.mods.single.conflicts.map((c) => (c.name, c.id, c.quote)), [
+      ('Particle Engine', 'particle-engine',
+          'Particle Engine may rarely crash in very large battles.'),
+    ]);
   });
 
   test("a requirement's own requirements are listed too, saying which brought them in",

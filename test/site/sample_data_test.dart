@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:mod_repo_scraper/site/models/mod_conflict.dart';
 import 'package:mod_repo_scraper/site/models/mod_release.dart';
 import 'package:mod_repo_scraper/site/models/public_mod.dart';
 import 'package:mod_repo_scraper/site/models/public_mod_detail.dart';
@@ -32,6 +33,21 @@ void main() {
 
     expect(parsed.releases, hasLength(2));
     expect(parsed.toMap(), equals(raw));
+  });
+
+  test('conflicts.json parses without loss and matches the per-mod files', () {
+    final raw = readJson('site/sample-data/conflicts.json');
+    final parsed = ModConflictListMapper.fromMap(raw);
+
+    expect(parsed.toMap(), equals(raw));
+    expect(parsed.mods, isNotEmpty);
+    for (final mod in parsed.mods) {
+      final detail = PublicModDetailMapper.fromMap(
+          readJson('site/sample-data/mods/${mod.modId}.json'));
+      expect(mod.conflicts.map((c) => c.toMap()),
+          detail.conflicts!.map((c) => c.toMap()),
+          reason: '${mod.modId} lists the same conflicts in both files');
+    }
   });
 
   test('every per-mod file parses back into PublicModDetail without loss', () {

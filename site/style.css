@@ -2312,6 +2312,16 @@ a.bar-link:hover { text-decoration: none; color: var(--primary); }
 a.bar-link:hover .bar-fill { background: var(--primary-bar-lit); }
 .bar-count { min-width: 3ch; font-size: var(--type-small); font-variant-numeric: tabular-nums; }
 
+/* Each mod's name, then the conflicts its post names. */
+.conflict-list {
+  display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--gap); align-items: start;
+}
+.conflict-mod {
+  max-width: 260px; overflow-wrap: anywhere; font-size: var(--type-small); color: var(--text);
+}
+a.conflict-mod:hover { color: var(--primary); }
+
 /* Each column has a count, a bar and a label.
    Year or month labels mark the start of each group. */
 .report-columns {
@@ -2349,6 +2359,8 @@ a.bar-link:hover .bar-fill { background: var(--primary-bar-lit); }
 
 @media (max-width: 640px) {
   .bar-name { max-width: 140px; }
+  .conflict-list { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .conflict-list > .save-lines { margin-bottom: var(--gap); }
   .header-inner { gap: 10px; padding: 8px 12px; }
   .brand { font-size: var(--type-big); }
   .site-nav { order: 3; flex-basis: 100%; flex-wrap: wrap; }

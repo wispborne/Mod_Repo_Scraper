@@ -21,6 +21,7 @@ import '../catalog/listing.dart';
 import '../catalog/mod_catalog.dart';
 import '../catalog/source_post.dart';
 import 'catalog_extras.dart';
+import 'conflict_list.dart';
 import 'days.dart';
 import 'description_slice.dart';
 import 'discord_markdown.dart';
@@ -301,6 +302,9 @@ class PublicDataBuilder {
   String get catalogExtrasFilePath => p.join(outputPath, catalogExtrasFileName);
 
   String get updatesFilePath => p.join(siteDir, 'updates.json');
+
+  /// Every conflict named in a mod's post, for the Reports page.
+  String get conflictsFilePath => p.join(siteDir, 'conflicts.json');
 
   /// The same releases as a feed file, for anyone who would rather subscribe
   /// than visit.
@@ -873,6 +877,8 @@ class PublicDataBuilder {
         .writeAsString(encoder.convert(data.feed.toMap()));
     await File(updatesXmlFilePath)
         .writeAsString(buildReleaseFeedXml(data.feed));
+    await File(conflictsFilePath)
+        .writeAsString(encoder.convert(buildConflictList(data).toMap()));
     await File(sitemapFilePath).writeAsString(buildSitemapXml(data.list));
     await File(robotsFilePath).writeAsString(buildRobotsTxt());
 
