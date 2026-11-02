@@ -1511,8 +1511,8 @@ function compatibility(detail, currentVersion) {
         }), { beside: true, icon: 'game' })
       : null,
     needs,
-    saveRows ? el('div', { class: 'side-fact' }, [saveRows]) : null,
     conflicts,
+    saveRows ? el('div', { class: 'side-fact' }, [saveRows]) : null,
     optional,
   ], 'compatibility');
 }
