@@ -216,6 +216,104 @@ void main() {
       expect(postHtmlAsText('<table><tr><td>One</td><td>Two</td></tr></table>'),
           'One Two');
     });
+
+    group('complex tables', () {
+      test('a coloured label keeps its colours, padding and corners', () {
+        // Topic 36236: a row of labels, each a table of its own in a cell of
+        // a plain table. Only the outer table scrolls.
+        expect(
+          cleanPostHtml('<table class="bbc_table"><tr><td>'
+              '<table class="bbc_table ct_table" style="--ct-bg:#d6e8d4;'
+              '--ct-pad:3px 10px;--ct-round:12px;"><tr style="">'
+              '<td style="--ct-td-color:#1d5e1d;"><b>Safe to add mid-game</b>'
+              '</td></tr></table></td></tr></table>'),
+          '<div class="table-scroll"><table><tbody><tr><td>'
+          '<table style="--bg:#d6e8d4;--pad:3px 10px;--round:12px"><tbody><tr>'
+          '<td class="author-colour" style="--c:#1d5e1d">'
+          '<b>Safe to add mid-game</b></td></tr></tbody></table>'
+          '</td></tr></tbody></table></div>',
+        );
+      });
+
+      test('a box keeps its lines, width, heading row and column widths', () {
+        // Topic 34161. Each mod's box hides the lines round its cells by giving
+        // them the box's own colour, so those cells are written with none.
+        expect(
+          cleanPostHtml('<table class="bbc_table ct_table" style="--ct-bg:#ececec;'
+              '--ct-border:#c6bba2;--ct-pad:12px 14px;width:100%;">'
+              '<tr style="--ct-tr-bg:#dcdcdc;"><td style="">Heading</td></tr>'
+              '<tr style=""><td style="--ct-td-border:#ececec;width:120px;">A</td>'
+              '<td style="--ct-td-border:#c8c8c8;--ct-td-pad:0px;width:1px;">B'
+              '</td></tr></table>'),
+          '<div class="table-scroll"><table style="--bg:#ececec;--line:#c6bba2;'
+          '--pad:12px 14px;--w:100%"><tbody>'
+          '<tr style="--row-bg:#dcdcdc"><td>Heading</td></tr>'
+          '<tr><td class="no-line" style="--w:120px">A</td>'
+          '<td style="--cell-pad:0px;--w:1px;--cell-line:#c8c8c8">B</td>'
+          '</tr></tbody></table></div>',
+        );
+      });
+
+      test('a cell\'s own background counts as what its line is hidden against',
+          () {
+        expect(
+          cleanPostHtml('<table class="bbc_table ct_table"><tr><td style="'
+              '--ct-td-bg:#ececec;--ct-td-border:#ececec;">A</td></tr></table>'),
+          '<div class="table-scroll"><table><tbody><tr>'
+          '<td class="no-line" style="--cell-bg:#ececec">A</td>'
+          '</tr></tbody></table></div>',
+        );
+      });
+
+      test('a background the same as what is behind it is left out', () {
+        // Topic 36236: each box is a table of the same grey as the cell it
+        // sits in. Drawn twice, the see-through grey would add up to a darker
+        // box with a lighter strip under it.
+        expect(
+          cleanPostHtml('<table class="bbc_table ct_table"><tr>'
+              '<td style="--ct-td-bg:#ececec;--ct-td-pad:0px;">'
+              '<table class="bbc_table ct_table" style="--ct-bg:#ececec;">'
+              '<tr style="--ct-tr-bg:#dcdcdc;"><td>Title</td></tr>'
+              '<tr style="--ct-tr-bg:#ececec;"><td style="--ct-td-bg:#ececec;">'
+              'Words</td></tr></table></td></tr></table>'),
+          '<div class="table-scroll"><table><tbody><tr>'
+          '<td style="--cell-bg:#ececec;--cell-pad:0px">'
+          '<table><tbody><tr style="--row-bg:#dcdcdc"><td>Title</td></tr>'
+          '<tr><td>Words</td></tr></tbody></table>'
+          '</td></tr></tbody></table></div>',
+        );
+      });
+
+      test('settings that cannot be read are left out', () {
+        expect(
+          cleanPostHtml('<table class="bbc_table ct_table" style="--ct-bg:url(x);'
+              '--ct-pad:3px 100px;--ct-round:calc(1px);width:5000px;">'
+              '<tr style="--ct-tr-bg:red;background:url(y)">'
+              '<td style="--ct-td-color:expression(1);width:150%;">A</td>'
+              '</tr></table>'),
+          '<div class="table-scroll"><table><tbody>'
+          '<tr style="--row-bg:#ff0000"><td>A</td></tr></tbody></table></div>',
+        );
+      });
+
+      test('a plain table takes no width from its style', () {
+        expect(
+          cleanPostHtml('<table class="bbc_table" style="width:100%">'
+              '<tr><td style="width:50%">A</td></tr></table>'),
+          '<div class="table-scroll"><table><tbody><tr><td>A</td></tr></tbody>'
+          '</table></div>',
+        );
+      });
+
+      test('cleaning the result again keeps every setting', () {
+        final once = cleanPostHtml('<table class="bbc_table ct_table" style="'
+            '--ct-bg:#ececec;--ct-border:#c6bba2;width:100%;">'
+            '<tr style="--ct-tr-bg:#dcdcdc;"><td style="--ct-td-border:#ececec;'
+            '--ct-td-color:#1d5e1d;width:120px;">A</td>'
+            '<td style="--ct-td-bg:#ffffff;">B</td></tr></table>');
+        expect(cleanPostHtml(once), once);
+      });
+    });
   });
 
   group('alignment, size, underline and lists', () {
@@ -361,13 +459,18 @@ void main() {
     });
   });
 
-  test('only the site\'s own classes and one kind of style ever come out', () {
+  test('only the site\'s own classes and settings ever come out', () {
     const everything = '<div class="sp-wrap"><div class="sp-head">S</div>'
         '<div class="sp-body"><span style="font-size: 18pt; color: red" '
         'class="bbc_size" id="x" onclick="go()">A</span>'
         '<div align="center" class="evil">B</div>'
         '<table class="bbc_table" style="width:900px"><tr><td class="c">C</td>'
         '</tr></table><span class="bbc_u">D</span>'
+        '<table class="bbc_table ct_table" style="--ct-bg:#eee;--ct-border:'
+        'blue;--ct-pad:2px;--ct-round:4px;width:50%;position:fixed">'
+        '<tr style="--ct-tr-bg:#ddd;"><td style="--ct-td-bg:#ccc;'
+        '--ct-td-color:#123;--ct-td-pad:1px 2px;--ct-td-border:#ccc;'
+        'width:9px;z-index:9">E</td></tr></table>'
         '<iframe src="//www.youtube.com/embed/9fRQzyMvl7k"></iframe>'
         '</div></div>';
     final cleaned = cleanPostHtml(everything)!;
@@ -375,15 +478,24 @@ void main() {
     const allowed = {
       'spoiler', 'table-scroll', 'align-center', 'align-right', 'size-small',
       'size-big', 'size-bigger', 'size-biggest', 'author-colour', 'video-link',
+      'no-line',
     };
     final classes = RegExp(r'class="([^"]*)"')
         .allMatches(cleaned)
         .expand((m) => m[1]!.split(' '))
         .toSet();
     expect(allowed.containsAll(classes), isTrue, reason: '$classes');
+    // A colour, or a table's checked padding, corners and widths, each under
+    // one of the site's own names.
+    final setting = RegExp(r'^--(c|bg|line|row-bg|cell-bg|cell-line):#[0-9a-f]{6}$'
+        r'|^--(pad|cell-pad|round):\d+(\.\d+)?px( \d+(\.\d+)?px){0,3}$'
+        r'|^--w:\d+(\.\d+)?(px|%)$');
     for (final style in RegExp(r'style="([^"]*)"').allMatches(cleaned)) {
-      expect(style[1], matches(RegExp(r'^--c:#[0-9a-f]{6}$')));
+      for (final declaration in style[1]!.split(';')) {
+        expect(declaration, matches(setting));
+      }
     }
+    expect(cleaned, contains('--cell-bg:#cccccc'));
     expect(cleaned, isNot(contains('id=')));
     expect(cleaned, isNot(contains('onclick')));
   });

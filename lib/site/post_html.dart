@@ -140,7 +140,8 @@ final RegExp _breaksAtTheEnd = RegExp(r'(?:<br>\s*)+$');
 final RegExp _breaksBeforeClose =
     RegExp(r'(?:<br>\s*)+(</(?:details|div|td|th|li|blockquote)>)');
 final RegExp _breaksAfterOpen = RegExp(
-    r'(</summary>|</cite>|<div class="[a-z-]+">|<td>|<th>|<li>|<blockquote>)(?:\s*<br>)+');
+    r'(</summary>|</cite>|<div class="[a-z-]+">|<t[dh](?:\s[^>]*)?>|<li>'
+    r'|<blockquote>)(?:\s*<br>)+');
 
 /// Tidies what is left once the tags that were not kept have gone.
 String _tidy(String html) {
@@ -266,11 +267,20 @@ void _write(dom.Node node, _Writer out, {required bool inLink}) {
   }
 
   // A table sits in a box of its own that scrolls sideways, so a wide one never
-  // widens the page.
+  // widens the page. A table inside another table's cell stays in that cell.
   if (kept == 'table') {
-    out.write('<div class="table-scroll"><table>');
+    final nested = _closestTable(node.parent) != null;
+    if (!nested) out.write('<div class="table-scroll">');
+    out.write('<table${_tablePartAttributes(node, kept)}>');
     _writeChildren(node, out, inLink: inLink);
-    out.write('</table></div>');
+    out.write('</table>');
+    if (!nested) out.write('</div>');
+    return;
+  }
+  if (kept == 'tr' || kept == 'td' || kept == 'th') {
+    out.write('<$kept${_tablePartAttributes(node, kept)}>');
+    _writeChildren(node, out, inLink: inLink);
+    out.write('</$kept>');
     return;
   }
 
@@ -295,6 +305,111 @@ void _writeChildren(dom.Element node, _Writer out, {required bool inLink}) {
 /// The class names the forum puts on one tag.
 Set<String> _classesOf(dom.Element node) =>
     (node.attributes['class'] ?? '').split(RegExp(r'\s+')).toSet();
+
+/// The nearest table [node] sits in, counting [node] itself, or null.
+dom.Element? _closestTable(dom.Node? node) {
+  for (var at = node; at is dom.Element; at = at.parent) {
+    if (at.localName == 'table') return at;
+  }
+  return null;
+}
+
+/// One setting of a complex table: the forum's own name for it, or the site's
+/// name when the HTML has already been cleaned once.
+String? _tableSetting(dom.Element node, String forumName, String ownName) {
+  final style = node.attributes['style'];
+  return styleValue(style, forumName) ?? styleValue(style, ownName);
+}
+
+/// The background colour drawn behind [node] by the tables it sits in: its row,
+/// then its table, then the cell that table sits in, and so on out. Null when
+/// none of them sets one.
+String? _colourBehind(dom.Element node) {
+  for (var at = node.parent; at is dom.Element; at = at.parent) {
+    final colour = switch (at.localName) {
+      'td' || 'th' => _tableSetting(at, '--ct-td-bg', '--cell-bg'),
+      'tr' => _tableSetting(at, '--ct-tr-bg', '--row-bg'),
+      'table' => _tableSetting(at, '--ct-bg', '--bg'),
+      _ => null,
+    };
+    final hex = hexColourOf(colour);
+    if (hex != null) return hex;
+  }
+  return null;
+}
+
+/// The class and style the site writes for a table, row or cell.
+///
+/// The forum's complex tables (`ct_table`, topics 34161 and 36236) set their
+/// colours, padding, corners, lines and widths with style values of their own:
+/// `--ct-bg`, `--ct-pad`, `--ct-td-color` and so on. Each one the site can show
+/// is checked and written back under the site's own name, the way a text colour
+/// is. The stylesheet tones the colours to suit the reader's theme. A plain
+/// table carries none of them, so it is written as a bare tag.
+String _tablePartAttributes(dom.Element node, String tag) {
+  final table = _closestTable(node);
+  if (table == null) return '';
+  final complex = _classesOf(table).contains('ct_table');
+  final classes = <String>[];
+  final settings = <String>[];
+  void add(String name, String? value) {
+    if (value != null) settings.add('$name:$value');
+  }
+
+  // A background the same colour as what is behind it is left out. On the
+  // forum it changes nothing, but the site draws each background see-through,
+  // so the two would add up to a darker patch (topic 36236's boxes).
+  String? background(String forumName, String ownName) {
+    final colour = hexColourOf(_tableSetting(node, forumName, ownName));
+    return colour == _colourBehind(node) ? null : colour;
+  }
+
+  switch (tag) {
+    case 'table':
+      add('--bg', background('--ct-bg', '--bg'));
+      add('--line', hexColourOf(_tableSetting(node, '--ct-border', '--line')));
+      add('--pad', paddingOf(_tableSetting(node, '--ct-pad', '--pad')));
+      add('--round', radiusOf(_tableSetting(node, '--ct-round', '--round')));
+      add('--w', widthOf(_tableSetting(node, complex ? 'width' : '--w', '--w')));
+    case 'tr':
+      add('--row-bg', background('--ct-tr-bg', '--row-bg'));
+    default:
+      add('--cell-bg', background('--ct-td-bg', '--cell-bg'));
+      add('--cell-pad',
+          paddingOf(_tableSetting(node, '--ct-td-pad', '--cell-pad')));
+      add('--w',
+          widthOf(_tableSetting(node, complex ? 'width' : '--w', '--w')));
+
+      // A line the colour of what is behind it is the author hiding the
+      // table's lines round this cell (topic 34161). Once the site tones the
+      // colours for the reader's theme the two no longer match and the line
+      // would show, so it is left out instead.
+      final line =
+          hexColourOf(_tableSetting(node, '--ct-td-border', '--cell-line'));
+      if (line != null) {
+        final behind =
+            hexColourOf(_tableSetting(node, '--ct-td-bg', '--cell-bg')) ??
+                _colourBehind(node);
+        if (line == behind) {
+          classes.add('no-line');
+        } else {
+          add('--cell-line', line);
+        }
+      }
+      if (_classesOf(node).contains('no-line')) classes.add('no-line');
+
+      final colour = hexColourOf(_tableSetting(node, '--ct-td-color', '--c'));
+      if (colour != null) {
+        classes.add('author-colour');
+        add('--c', colour);
+      }
+  }
+
+  return [
+    if (classes.isNotEmpty) ' class="${classes.toSet().join(' ')}"',
+    if (settings.isNotEmpty) ' style="${settings.join(';')}"',
+  ].join();
+}
 
 /// Writes [node] when it is one of the forum's own formatting tags, and says
 /// whether it did. Everything here is read from the forum's classes and styles
@@ -398,7 +513,8 @@ bool _writeForumFormatting(
             .where((s) => classes.contains(s.className))
             .firstOrNull;
     if (step != null) opened.add('<span class="${step.className}">');
-    final colour = hexColourOf(styleValue(style, 'color'));
+    final colour = hexColourOf(styleValue(style, 'color') ??
+        (classes.contains('author-colour') ? styleValue(style, '--c') : null));
     if (colour != null) {
       opened.add('<span class="author-colour" style="--c:$colour">');
     }

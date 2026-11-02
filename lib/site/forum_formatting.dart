@@ -92,6 +92,43 @@ String? hexColourOf(String? value) {
   return null;
 }
 
+final RegExp _pixels = RegExp(r'^(\d{1,4}(?:\.\d{1,2})?)px$');
+final RegExp _percent = RegExp(r'^(\d{1,3}(?:\.\d{1,2})?)%$');
+
+/// A length in pixels no bigger than [max], written as `<n>px`, or null. A bare
+/// `0` counts as `0px`.
+String? _pixelsOf(String value, double max) {
+  if (value == '0') return '0px';
+  final match = _pixels.firstMatch(value);
+  if (match == null || double.parse(match[1]!) > max) return null;
+  return value;
+}
+
+/// A CSS `padding` value of one to four lengths in pixels, each at most 40px,
+/// or null.
+String? paddingOf(String? value) {
+  final parts = value?.trim().toLowerCase().split(RegExp(r'\s+'));
+  if (parts == null || parts.isEmpty || parts.length > 4) return null;
+  final lengths = [for (final part in parts) _pixelsOf(part, 40)];
+  if (lengths.contains(null)) return null;
+  return lengths.join(' ');
+}
+
+/// A corner radius in pixels, at most 40px, or null.
+String? radiusOf(String? value) {
+  final text = value?.trim().toLowerCase();
+  return text == null ? null : _pixelsOf(text, 40);
+}
+
+/// A width in pixels (at most 1000px) or a percentage (at most 100%), or null.
+String? widthOf(String? value) {
+  final text = value?.trim().toLowerCase();
+  if (text == null) return null;
+  final percent = _percent.firstMatch(text);
+  if (percent != null) return double.parse(percent[1]!) <= 100 ? text : null;
+  return _pixelsOf(text, 1000);
+}
+
 /// The forum's embeds name the video's host without a scheme
 /// (`//www.youtube.com/embed/…`), and sometimes with one.
 final RegExp _youTubeEmbed = RegExp(
