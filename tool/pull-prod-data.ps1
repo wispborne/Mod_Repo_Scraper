@@ -5,7 +5,8 @@ Copies the production server's data down to this computer.
 .DESCRIPTION
 A file is copied when the server's copy is newer than the one here, or when
 this computer does not have it. Files that are newer here are left alone,
-and files that only exist here are never deleted.
+unless you choose to replace them (asked when there are some, or
+-OverwriteNewer). Files that only exist here are never deleted.
 
 What is copied: qb_data/, outputs/, the source caches (*_cache.json) and
 merge-debug.json. Never config.properties, .gitea-token, the program, or
@@ -23,7 +24,12 @@ List what would be copied, copy nothing.
 
 .PARAMETER Yes
 Do not ask before copying. Without it, the copy still starts on its own
-unless some files here are newer than the server's.
+unless some files here are newer than the server's. Files newer here are
+kept, unless -OverwriteNewer is given too.
+
+.PARAMETER OverwriteNewer
+Also replace the files that are newer here with the server's copies, without
+asking. Files that only exist here are still kept.
 
 .PARAMETER ProdHost
 user@host to sign in to.
@@ -44,6 +50,7 @@ pwsh tool/pull-prod-data.ps1 -DryRun
 param(
   [switch]$DryRun,
   [switch]$Yes,
+  [switch]$OverwriteNewer,
   [string]$ProdHost = $(if ($env:PROD_HOST) { $env:PROD_HOST } else { 'david@192.168.2.41' }),
   [string]$ProdDir = $(if ($env:PROD_DIR) { $env:PROD_DIR } else { '/home/david/Applications/Starsector_Mod_Repo_Scraper' }),
   [string]$LocalDir = $(if ($env:LOCAL_DIR) { $env:LOCAL_DIR } else { Split-Path -Parent $PSScriptRoot }),
@@ -143,7 +150,7 @@ foreach ($pattern in '*_cache.json', 'merge-debug.json') {
 # second but a different size (the server's copy wins a tie).
 $want = [Collections.Generic.List[string]]::new()
 $newerHere = [Collections.Generic.List[string]]::new()
-$new = 0; $updated = 0; [long]$bytes = 0
+$new = 0; $updated = 0; [long]$bytes = 0; [long]$newerHereBytes = 0
 for ($i = 1; $i -lt $remoteLines.Count; $i++) {
   $parts = $remoteLines[$i].Split(' ', 3)
   if ($parts.Count -lt 3) { continue }
@@ -156,22 +163,58 @@ for ($i = 1; $i -lt $remoteLines.Count; $i++) {
   } elseif ($seconds -gt $here[0] -or ($seconds -eq $here[0] -and $size -ne $here[1])) {
     $updated++
   } else {
-    if ($seconds -lt $here[0]) { $newerHere.Add($path) }
+    if ($seconds -lt $here[0]) { $newerHere.Add($path); $newerHereBytes += $size }
     continue
   }
   $want.Add($path)
   $bytes += $size
 }
 
-Write-Host ('{0} new, {1} newer on the server, {2} newer here (kept), {3:N1} MB to copy' -f `
+Write-Host ('{0} new, {1} newer on the server, {2} newer here, {3:N1} MB to copy' -f `
     $new, $updated, $newerHere.Count, ($bytes / 1MB))
 if ($newerHere.Count -gt 0) {
-  Write-Host 'Newer here, so not copied:'
+  Write-Host 'Newer here:'
   $newerHere | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }
   if ($newerHere.Count -gt 20) { Write-Host "  ...and $($newerHere.Count - 20) more" }
 }
+
+# Files newer here mean this computer has data of its own. Keeping those while
+# taking the server's other files can leave a mix that does not agree (say, a
+# local mod-ids.json beside the server's catalog), so ask first: keep them,
+# replace them with the server's copies, or copy nothing. Otherwise the copy
+# only brings this computer up to the server, and starts at once. The LLM test
+# report is a one-off trial that nothing else reads, so a newer one here is no
+# reason to ask.
+$overwrite = [bool]$OverwriteNewer
+$worthAsking = @($newerHere | Where-Object { $_ -ne 'qb_data/llm-test-output.json' })
+if (-not $overwrite -and $worthAsking.Count -gt 0 -and -not $Yes -and -not $DryRun) {
+  Write-Host ''
+  if ($want.Count -gt 0) {
+    Write-Host "  k  Copy $($want.Count) files from the server, keep the $($newerHere.Count) newer here"
+    Write-Host "  o  Copy $($want.Count) files from the server, and replace the $($newerHere.Count) newer here with the server's copies"
+    Write-Host '  n  Copy nothing'
+    $answer = (Read-Host 'Choose k, o or n [n]').Trim().ToLowerInvariant()
+    if ($answer -eq 'o') { $overwrite = $true }
+    elseif ($answer -ne 'k') { Write-Host 'Nothing copied.'; exit 0 }
+  } else {
+    Write-Host 'Nothing on the server is newer than here.'
+    $answer = (Read-Host "Replace the $($newerHere.Count) files newer here with the server's copies? [y/N]").Trim().ToLowerInvariant()
+    if ($answer -in 'y', 'yes') { $overwrite = $true }
+    else { Write-Host 'Nothing copied.'; exit 0 }
+  }
+}
+if ($overwrite -and $newerHere.Count -gt 0) {
+  Write-Host "Replacing the $($newerHere.Count) files newer here with the server's copies."
+  $want.AddRange($newerHere)
+  $bytes += $newerHereBytes
+}
+
 if ($want.Count -eq 0) {
-  Write-Host 'Nothing to copy. This computer is up to date.'
+  if ($newerHere.Count -gt 0) {
+    Write-Host 'Nothing to copy: nothing on the server is newer than here. Use -OverwriteNewer to replace the files newer here.'
+  } else {
+    Write-Host 'Nothing to copy. This computer is up to date.'
+  }
   exit 0
 }
 
@@ -181,27 +224,17 @@ if ($DryRun) {
   exit 0
 }
 
-# Files newer here mean this computer has data of its own. Keeping those while
-# taking the server's other files can leave a mix that does not agree (say, a
-# local mod-ids.json beside the server's catalog), so ask first. Otherwise
-# the copy only brings this computer up to the server, and starts at once.
-# The LLM test report is a one-off trial that nothing else reads, so a newer
-# one here is no reason to ask.
-$worthAsking = @($newerHere | Where-Object { $_ -ne 'qb_data/llm-test-output.json' })
-if ($worthAsking.Count -gt 0 -and -not $Yes) {
-  $answer = Read-Host "Copy $($want.Count) files from the server and keep the $($newerHere.Count) newer here? [y/N]"
-  if ($answer -notin 'y', 'Y', 'yes') { Write-Host 'Nothing copied.'; exit 0 }
-}
-
 Write-Host "Copying $($want.Count) files..."
 # The file list goes up to the server and the files come back as one
 # compressed tar stream, which Windows' tar unpacks as it arrives. tar keeps
 # each file's modified time, so the next run compares correctly.
 # --keep-newer-files is a second guard in case a local file changed while
-# this was running.
+# this was running. It is left off when replacing the newer files here, or
+# tar would skip exactly those.
 $pack = if ($compressor -eq 'ZSTD') { 'zstd -1 -T0 -q -c' } else { 'gzip -1 -c' }
 $sender = Start-Program $Ssh @($ProdHost, "cd $remoteDir && tar -cf - --verbatim-files-from -T - | $pack") -WriteIn -ReadOut
-$unpacker = Start-Program $tar @('-xf', '-', '--keep-newer-files', '-C', $LocalDir) -WriteIn
+$untar = if ($overwrite) { @('-xf', '-', '-C', $LocalDir) } else { @('-xf', '-', '--keep-newer-files', '-C', $LocalDir) }
+$unpacker = Start-Program $tar $untar -WriteIn
 
 # The list is written in the background: the server starts sending files
 # before it has read the whole list, and both sides must keep moving.

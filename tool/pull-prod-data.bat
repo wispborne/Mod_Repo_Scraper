@@ -1,5 +1,6 @@
 @echo off
 rem Runs pull-prod-data.ps1. Any options are passed on, e.g. pull-prod-data.bat -DryRun
+rem or pull-prod-data.bat -OverwriteNewer
 where pwsh >nul 2>nul || (
   echo Error: this needs PowerShell 7 ^(pwsh^). Install it with: winget install Microsoft.PowerShell
   pause
