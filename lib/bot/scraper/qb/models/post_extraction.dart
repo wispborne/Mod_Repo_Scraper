@@ -33,6 +33,21 @@ class LlmUpdateNote with LlmUpdateNoteMappable {
   LlmUpdateNote({this.version, required this.quote, this.answer});
 }
 
+/// The kind of conflict the author describes.
+///
+/// - [technical]: incompatible, because using both breaks something: a crash,
+///   a game that will not start, broken saves, missing content, or a feature
+///   or quest that stops working.
+/// - [gameplay]: incompatible, but nothing breaks: using both is pointless or
+///   unbalanced, such as two mods that add the same thing.
+/// - [withNotes]: compatible, but the author adds a note about a
+///   rare problem, one that only happens with one option, version or graphics
+///   card, or a setting to change.
+/// - [other]: the author is unsure, or the problem is not about playing the
+///   game, such as how to install it.
+@MappableEnum()
+enum ConflictKind { technical, gameplay, withNotes, other }
+
 /// A mod the author says conflicts with this one. It may crash, break, or
 /// only partly work when both are installed. Most posts name no conflicts.
 @MappableClass(ignoreNull: true)
@@ -44,7 +59,10 @@ class LlmConflict with LlmConflictMappable {
   /// ("may rarely crash in very large battles", "limited compatibility").
   final String quote;
 
-  LlmConflict({required this.name, required this.quote});
+  /// Null when the answer has no kind or gives an unknown value.
+  final ConflictKind? kind;
+
+  LlmConflict({required this.name, required this.quote, this.kind});
 }
 
 /// Which part of a mod an AI tool was used for, as the author says.

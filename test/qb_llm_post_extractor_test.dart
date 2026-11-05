@@ -410,6 +410,111 @@ void main() {
               'The post never says GraphicsLib breaks.');
     });
 
+    test('a conflict keeps a known kind and drops an unknown one',
+        () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main","conflicts":['
+            '{"name":"Particle Engine","quote":"Particle Engine may rarely crash.",'
+            '"kind":"WithNotes"},'
+            '{"name":"BoxUtil","quote":"Not compatible with BoxUtil.",'
+            '"kind":"fatal"}'
+            ']}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(76, 'My cool mod. Particle Engine may rarely crash. '
+            'Not compatible with BoxUtil.'),
+        [],
+      );
+      expect(extrasOf(76)?.conflicts?.map((c) => (c.name, c.kind)), [
+        ('Particle Engine', ConflictKind.withNotes),
+        ('BoxUtil', null),
+      ], reason: 'the conflict stays when its kind is unknown');
+    });
+
+    test('a conflict quoted from the changelog was fixed, so it is dropped',
+        () async {
+      // Industrial Evolution's Discord thread has notes for 3.3.e. They say
+      // "Made it stop crashing with Arthrs mod". The model listed a conflict.
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main",'
+            '"changelog":{"link":null,"entries":[{"version":"3.3.e","text":null,'
+            '"startsWith":"Version update Fixed pets",'
+            '"endsWith":"crashing with Arthrs mod"}]},'
+            '"conflicts":['
+            '{"name":"Arthrs mod","quote":"Fixed pets and added two new ones '
+            'Made it stop crashing with Arthrs mod","kind":"technical"},'
+            '{"name":"BoxUtil","quote":"Not compatible with BoxUtil.",'
+            '"kind":"technical"}'
+            ']}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(77, '<p>My cool mod. Not compatible with BoxUtil.</p>'
+            '<p>Changelog:</p>'
+            '<p>3.3.e<br>Version update<br>Fixed pets and added two new ones'
+            '<br>Made it stop crashing with Arthrs mod</p>'),
+        [],
+      );
+      expect(extrasOf(77)?.changelog?.entries?.keys, ['3.3.e']);
+      expect(extrasOf(77)?.conflicts?.map((c) => c.name), ['BoxUtil']);
+    });
+
+    test('a changelog warning about a problem still there is kept, and "(Fixed)" is dropped',
+        () async {
+      // CJY's Toybox's 0.5.7b notes say a new Halo Dynamics update conflicts with it.
+      // Bushi's list marks a past conflict "(Fixed)".
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main",'
+            '"changelog":{"link":null,"entries":[{"version":"0.5.7b",'
+            '"text":"The new Halo Dynamics 1.8.0 update conflicts with CJY.",'
+            '"startsWith":null,"endsWith":null}]},'
+            '"conflicts":['
+            '{"name":"Halo Dynamics","quote":"The new Halo Dynamics 1.8.0 update '
+            'conflicts with CJY.","kind":"technical"},'
+            '{"name":"Fleaden mod","quote":"Won\'t play nice with Fleaden mod (Fixed)",'
+            '"kind":"technical"}'
+            ']}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(78, '<p>My cool mod. Won\'t play nice with Fleaden mod (Fixed)</p>'
+            '<p>0.5.7b<br>The new Halo Dynamics 1.8.0 update conflicts with CJY.</p>'),
+        [],
+      );
+      expect(extrasOf(78)?.changelog?.entries?.keys, ['0.5.7b']);
+      expect(extrasOf(78)?.conflicts?.map((c) => c.name), ['Halo Dynamics'],
+          reason: 'the Halo Dynamics note says the problem still exists');
+    });
+
+    test('a conflict with only an older version of the other mod is dropped',
+        () async {
+      // From the Discord threads for Additional Console Commands and PAGSM.
+      const post = '<p>This is strictly incompatible with LazyWizard\'s older '
+          'version of console commands.</p>'
+          '<p>Incompatible with 0.97a and v1.14.1 and below versions of PAGSM.</p>'
+          '<p>Does not work with AOTD Cryosleep Module (pre 2.0).</p>'
+          '<p>Incompatible with 0.96a and v1.13+ versions of Nexerelin.</p>';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main","conflicts":['
+            '{"name":"Console Commands","quote":"This is strictly incompatible '
+            'with LazyWizard\'s older version of console commands.","kind":"technical"},'
+            '{"name":"PAGSM","quote":"Incompatible with 0.97a and v1.14.1 and below '
+            'versions of PAGSM","kind":"technical"},'
+            '{"name":"AOTD Cryosleep Module","quote":"Does not work with AOTD '
+            'Cryosleep Module (pre 2.0).","kind":"technical"},'
+            '{"name":"v1.13+","quote":"Incompatible with 0.96a and v1.13+ versions '
+            'of Nexerelin.","kind":"technical"},'
+            '{"name":"Nexerelin","quote":"Incompatible with 0.96a and v1.13+ versions '
+            'of Nexerelin.","kind":"technical"}'
+            ']}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(_detail(79, post), []);
+      expect(extrasOf(79)?.conflicts?.map((c) => c.name), ['Nexerelin'],
+          reason: 'v1.13+ is a newer version. A version number is not a mod');
+    });
+
     test('version found only in the thread title still grounds', () async {
       final client = _FakeLlmClient([
         _json('{"mods":[{"name":"My Mod","role":"main","version":"1.2.3"}]}'),

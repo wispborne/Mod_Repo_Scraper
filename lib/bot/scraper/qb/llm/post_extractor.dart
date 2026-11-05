@@ -864,7 +864,11 @@ class PostExtractor {
           if (c is Map)
             if ((asString(c['name']), asString(c['quote']))
                 case (final name?, final quote?))
-              LlmConflict(name: name, quote: quote),
+              LlmConflict(
+                name: name,
+                quote: quote,
+                kind: _conflictKind(asString(c['kind'])),
+              ),
     ];
 
     final nicknames = <String>[];
@@ -992,6 +996,16 @@ class PostExtractor {
         'yes' => SaveAnswer.yes,
         'no' => SaveAnswer.no,
         'depends' => SaveAnswer.depends,
+        _ => null,
+      };
+
+  /// Unknown kinds become null.
+  static ConflictKind? _conflictKind(String? value) =>
+      switch (value?.trim().toLowerCase()) {
+        'technical' => ConflictKind.technical,
+        'gameplay' => ConflictKind.gameplay,
+        'withnotes' => ConflictKind.withNotes,
+        'other' => ConflictKind.other,
         _ => null,
       };
 
@@ -1271,7 +1285,8 @@ class PostExtractor {
       // A mod in both lists is required because the post says it is.
       optionalNeeds: optionalNeeds,
       conflicts: _groundConflicts(where, mod.conflicts, corpus, mod.name,
-          leaveOut: [...needs, ...optionalNeeds]),
+          leaveOut: [...needs, ...optionalNeeds],
+          changelog: changelogEntries.values),
       descriptionAnchors:
           _groundAnchors(where, mod.descriptionAnchors, postTexts, mod.name),
       aiUse: _groundAiUse(where, mod.aiUse, corpus, authorWords, postTexts),
@@ -1483,12 +1498,19 @@ class PostExtractor {
   /// The quote must name the other mod. A false conflict could stop readers
   /// from using a mod. Required and optional mods are left out ([leaveOut]).
   /// Listing one as a conflict means the model misread the post.
+  ///
+  /// Conflicts with quotes from the mod's [changelog] entries are dropped.
+  /// A changelog lists changes already made. A conflict listed there is
+  /// treated as fixed. Industrial Evolution's "Made it stop crashing with
+  /// Arthrs mod" was listed as a conflict. The prompt said to skip fixed
+  /// problems, but the model kept it.
   List<LlmConflict> _groundConflicts(
     String where,
     List<LlmConflict> conflicts,
     String corpus,
     String ownName, {
     List<String> leaveOut = const [],
+    Iterable<String> changelog = const [],
   }) {
     final kept = <LlmConflict>[];
     final seen = {for (final name in leaveOut) _lettersAndDigits(name)};
@@ -1504,12 +1526,93 @@ class PostExtractor {
       } else if (!_wordsInPost(name, quote)) {
         _log.warning('Dropped a conflict: quote does not name the mod '
             '($where): $name — $quote');
+      } else if (_saysFixed(quote, changelog)) {
+        _log.info('Dropped a conflict: the quote says the problem was fixed '
+            '($where): $name — $quote');
+      } else if (_isVersionNumber(name)) {
+        _log.info('Dropped a conflict: the name is only a version number '
+            '($where): $name — $quote');
+      } else if (_aboutOldVersion(name, quote)) {
+        _log.info('Dropped a conflict: it only affects an older version of the '
+            'other mod ($where): $name — $quote');
       } else {
-        kept.add(LlmConflict(name: name, quote: quote));
+        kept.add(LlmConflict(
+            name: name, quote: quote, kind: conflict.kind));
       }
     }
     return kept;
   }
+
+  /// Returns true when [quote] says the conflict was fixed.
+  ///
+  /// A quote ending in "(Fixed)" counts. Bushi's "Hiigarans won't
+  /// play nice with Fleaden mod (Fixed)" was still listed by the model
+  /// despite the prompt's example. Or the quote must be in one of the mod's
+  /// [changelog] entries and say the problem was fixed. Industrial Evolution
+  /// says "Made it stop crashing with Arthrs mod" in its changelog.
+  /// A changelog can also warn of a problem that still exists. CJY's Toybox
+  /// says "the new Halo Dynamics 1.8.0 update ... conflicts with CJY".
+  /// A quote from the changelog alone is not enough.
+  static bool _saysFixed(String quote, Iterable<String> changelog) {
+    if (_fixedMark.hasMatch(quote)) return true;
+    if (!_fixedWords.hasMatch(quote) || _notFixedYet.hasMatch(quote)) {
+      return false;
+    }
+    return changelog.any((notes) => _wordsInPost(quote, notes));
+  }
+
+  static final _fixedMark = RegExp(r'\(\s*fixed\s*\)\W*$', caseSensitive: false);
+  static final _fixedWords = RegExp(
+      r'\bfix(ed|es)?\b|\bresolved\b|\bstop(s|ped)? crashing\b|\bno longer crash',
+      caseSensitive: false);
+  static final _notFixedYet = RegExp(
+      r"\b(will|to|not|never|hopefully|eventually)\s+(be\s+)?fix|"
+      r"\b(isn'?t|hasn'?t been|haven'?t|not yet) fixed|\bfix (will|is coming)",
+      caseSensitive: false);
+
+  /// True if [name] is just a version number, such as "0.96a" or "v1.13+".
+  /// PAGSM's Discord thread says "Incompatible with 0.96a and v1.13+ versions
+  /// of PAGSM". The model used the two versions as mod names.
+  static bool _isVersionNumber(String name) =>
+      RegExp(r'^v?\d+(\.\d+)*[a-z]?\+?$', caseSensitive: false)
+          .hasMatch(name.trim());
+
+  /// True if the conflict affects only an older version of the other mod.
+  ///
+  /// Players install the current version. The warning does not apply to
+  /// them. Additional Console Commands' Discord thread says "This is strictly
+  /// incompatible with LazyWizard's older version of console commands".
+  /// The site listed it as a conflict with the current Console Commands.
+  /// The words must be right next to the name: "older version of X",
+  /// "v1.14.1 and below versions of X", or "X (pre 2.0)". The [name] can also
+  /// say this, as in "presidentMattDamon's previous version".
+  static bool _aboutOldVersion(String name, String quote) {
+    final plainName = _plainWords(name);
+    if (_oldVersionName.hasMatch(plainName)) return true;
+    final plainQuote = _plainWords(quote);
+    final at = plainQuote.indexOf(plainName);
+    if (plainName.isEmpty || at < 0) return false;
+    final before = plainQuote.substring(0, at).trimRight();
+    final after = plainQuote.substring(at + plainName.length).trimLeft();
+    return _oldVersionBefore.hasMatch(before) || _oldVersionAfter.hasMatch(after);
+  }
+
+  /// Makes the text lowercase. Replaces each group of characters other than
+  /// letters and digits with one space.
+  static String _plainWords(String text) => text
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim();
+
+  static final _oldVersionName = RegExp(
+      r'\b(old|older|previous|earlier|outdated|legacy) (versions?|builds?|releases?)\b|'
+      r'\bpre v?\d');
+  static final _oldVersionBefore = RegExp(
+      r'\b(old|older|previous|earlier|outdated|legacy) (versions?|builds?|releases?) (of|for)$|'
+      r'\b(and|or) (below|earlier|older|lower) (versions?|builds?|releases?) (of|for)$');
+  static final _oldVersionAfter = RegExp(
+      r'^(pre|before|prior to|older than|below) v?\d|'
+      r'^v?\d+( \d+)*[a-z]? (and|or) (below|earlier|older|lower)\b');
 
   /// The nicknames the author really writes for this mod.
   ///

@@ -1670,6 +1670,7 @@ class PublicConflictMapper extends ClassMapperBase<PublicConflict> {
   static PublicConflictMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = PublicConflictMapper._());
+      ConflictKindMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -1687,12 +1688,26 @@ class PublicConflictMapper extends ClassMapperBase<PublicConflict> {
   );
   static String _$quote(PublicConflict v) => v.quote;
   static const Field<PublicConflict, String> _f$quote = Field('quote', _$quote);
+  static ConflictKind? _$kind(PublicConflict v) => v.kind;
+  static const Field<PublicConflict, ConflictKind> _f$kind = Field(
+    'kind',
+    _$kind,
+    opt: true,
+  );
+  static bool? _$fromOtherMod(PublicConflict v) => v.fromOtherMod;
+  static const Field<PublicConflict, bool> _f$fromOtherMod = Field(
+    'fromOtherMod',
+    _$fromOtherMod,
+    opt: true,
+  );
 
   @override
   final MappableFields<PublicConflict> fields = const {
     #name: _f$name,
     #id: _f$id,
     #quote: _f$quote,
+    #kind: _f$kind,
+    #fromOtherMod: _f$fromOtherMod,
   };
   @override
   final bool ignoreNull = true;
@@ -1702,6 +1717,8 @@ class PublicConflictMapper extends ClassMapperBase<PublicConflict> {
       name: data.dec(_f$name),
       id: data.dec(_f$id),
       quote: data.dec(_f$quote),
+      kind: data.dec(_f$kind),
+      fromOtherMod: data.dec(_f$fromOtherMod),
     );
   }
 
@@ -1767,7 +1784,13 @@ extension PublicConflictValueCopy<$R, $Out>
 
 abstract class PublicConflictCopyWith<$R, $In extends PublicConflict, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? name, String? id, String? quote});
+  $R call({
+    String? name,
+    String? id,
+    String? quote,
+    ConflictKind? kind,
+    bool? fromOtherMod,
+  });
   PublicConflictCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -1782,11 +1805,19 @@ class _PublicConflictCopyWithImpl<$R, $Out>
   late final ClassMapperBase<PublicConflict> $mapper =
       PublicConflictMapper.ensureInitialized();
   @override
-  $R call({String? name, Object? id = $none, String? quote}) => $apply(
+  $R call({
+    String? name,
+    Object? id = $none,
+    String? quote,
+    Object? kind = $none,
+    Object? fromOtherMod = $none,
+  }) => $apply(
     FieldCopyWithData({
       if (name != null) #name: name,
       if (id != $none) #id: id,
       if (quote != null) #quote: quote,
+      if (kind != $none) #kind: kind,
+      if (fromOtherMod != $none) #fromOtherMod: fromOtherMod,
     }),
   );
   @override
@@ -1794,6 +1825,8 @@ class _PublicConflictCopyWithImpl<$R, $Out>
     name: data.get(#name, or: $value.name),
     id: data.get(#id, or: $value.id),
     quote: data.get(#quote, or: $value.quote),
+    kind: data.get(#kind, or: $value.kind),
+    fromOtherMod: data.get(#fromOtherMod, or: $value.fromOtherMod),
   );
 
   @override

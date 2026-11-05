@@ -1,3 +1,4 @@
+import '../bot/scraper/qb/models/post_extraction.dart';
 import 'display_name.dart';
 import 'models/public_mod.dart';
 import 'models/public_mod_detail.dart';
@@ -204,15 +205,34 @@ String _bodyText(PublicMod mod, PublicModDetail detail, String name) {
 
   final conflicts = detail.conflicts ?? const <PublicConflict>[];
   if (conflicts.isNotEmpty) {
-    out.write('<h2>Conflicts</h2><ul>');
-    for (final conflict in conflicts) {
+    void writeConflict(PublicConflict conflict) {
       final words = _escape(conflict.name);
       final name = conflict.id == null
           ? words
           : '<a href="mods/${Uri.encodeComponent(conflict.id!)}/">$words</a>';
-      out.write('<li>$name: “${_escape(conflict.quote)}”</li>');
+      final kind = switch (conflict.kind) {
+        ConflictKind.technical => ' (incompatible, technical)',
+        ConflictKind.gameplay => ' (incompatible, gameplay)',
+        ConflictKind.withNotes => ' (compatible, with notes)',
+        ConflictKind.other => ' (other)',
+        null => '',
+      };
+      out.write('<li>$name$kind: “${_escape(conflict.quote)}”</li>');
     }
-    out.write('</ul>');
+
+    final own = [for (final c in conflicts) if (c.fromOtherMod != true) c];
+    final copied = [for (final c in conflicts) if (c.fromOtherMod == true) c];
+    out.write('<h2>Conflicts</h2>');
+    if (own.isNotEmpty) {
+      out.write('<ul>');
+      own.forEach(writeConflict);
+      out.write('</ul>');
+    }
+    if (copied.isNotEmpty) {
+      out.write('<h3>From other mods</h3><ul>');
+      copied.forEach(writeConflict);
+      out.write('</ul>');
+    }
   }
 
   final post = detail.descriptionIsGenerated ? null : detail.description;

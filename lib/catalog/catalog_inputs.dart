@@ -95,7 +95,7 @@ class CatalogInputs {
       final store = JsonDataStore(qbDataPath);
       // Read first and combined after, because a post can point at another
       // topic's mod only once every topic in the build is known.
-      final kept = <(QbModSummary, LlmStoreEntry?, String?, String?)>[];
+      final kept = <(QbModSummary, LlmStoreEntry?, String?, String?, Set<String>)>[];
       for (final summary in await store.loadIndex()) {
         final answer = llmStore.get(summary.topicId);
         if (!keepThreadInBundle(title: summary.title, llmSaidMod: answer?.isMod, inModIndex: summary.inModIndex)) {
@@ -119,15 +119,31 @@ class CatalogInputs {
         final words = detail == null
             ? summary.title
             : SourcePostListings.openingRunWords(SourcePost.fromForumDetail(detail));
-        kept.add((summary, answer, words, detail?.author));
+        final linked = detail == null
+            ? const <String>{}
+            : SourcePostListings.linkedForumTopics(SourcePost.fromForumDetail(detail));
+        kept.add((summary, answer, words, detail?.author, linked));
       }
-      final topicsInBuild = {for (final (summary, _, _, _) in kept) '${summary.topicId}'};
-      for (final (summary, answer, words, postAuthor) in kept) {
+      final topicsInBuild = {for (final (summary, _, _, _, _) in kept) '${summary.topicId}'};
+      // Get the mod's names for each topic with one mod of its own.
+      // A list that links to that topic should not add the same mod again.
+      final ownNames = <String, List<String>>{
+        for (final (summary, answer, words, postAuthor, _) in kept)
+          if (SourcePostListings.ownModNames(forumRulesListing(summary, postAuthor: postAuthor),
+                  answer?.mods ?? const <LlmMod>[], words)
+              case final names?)
+            '${summary.topicId}': names,
+      };
+      for (final (summary, answer, words, postAuthor, linked) in kept) {
         final result = SourcePostListings.combine(
           rules: forumRulesListing(summary, postAuthor: postAuthor),
           llmMods: answer?.mods ?? const <LlmMod>[],
           postWords: words,
           forumTopicsInBuild: topicsInBuild,
+          linkedTopicNames: {
+            for (final topic in linked)
+              if (ownNames[topic] case final names?) topic: names,
+          },
         );
         listings.addAll(result.listings);
         if (result.collection != null) collections.add(result.collection!);

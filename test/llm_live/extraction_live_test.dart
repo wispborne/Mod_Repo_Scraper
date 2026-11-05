@@ -157,6 +157,27 @@ void main() {
           conflicts.firstWhere((c) => flatten(c.name) == 'particleengine');
       expect(particle.quote.toLowerCase(), contains('large battles'),
           reason: 'the quote says when the problem happens\n$why');
+      expect(particle.kind, ConflictKind.withNotes,
+          reason: 'the post says the crash can be safely ignored\n$why');
+      final boxUtil = conflicts.firstWhere((c) => flatten(c.name) == 'boxutil');
+      expect(boxUtil.kind, ConflictKind.withNotes,
+          reason: 'the BoxUtil conflict happens only on some graphics cards\n$why');
+    });
+
+    test('Orion-Friedberg Union (33745): one option of the other mod is withNotes',
+        () async {
+      final answer = await read(33745);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mod = answer.mods.firstWhere((m) => m.role == 'main');
+      // "Does not work with Nexerlin random sector."
+      // Random sector is one of Nexerelin's options. Most players do not use it.
+      final conflicts = mod.extras?.conflicts ?? const <LlmConflict>[];
+      final nex = conflicts.where((c) => flatten(c.name).startsWith('nex')).toList();
+      expect(nex, hasLength(1), reason: why);
+      expect(nex.single.kind, ConflictKind.withNotes,
+          reason: 'the conflict happens only when Nexerelin random sector is used\n$why');
     });
   });
 

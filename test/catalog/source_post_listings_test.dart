@@ -308,6 +308,81 @@ void main() {
     });
   });
 
+  group("a list of mods with install links that also links each mod's own thread (topic 34161)", () {
+    const listWords = "Hartley's Mods. Industrial.Evolution: a campaign extension. "
+        'Grand.Colonies: more buildings. Big Pilum Energy: a big gun.';
+    final list = Listing(
+      mod: const ScrapedMod(
+        name: "Hartley's Mods",
+        urls: {ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=34161.0'},
+      ),
+      ref: const SourcePostRef(kind: SourceKind.forum, id: '34161'),
+    );
+    LlmMod installable(String name, {List<String> nicknames = const []}) => LlmMod(
+          name: name,
+          nicknames: nicknames,
+          downloads: [LlmDownload(url: 'https://trilink.wispborne.com/open.html?mod=$name')],
+        );
+
+    test("a mod named like a linked topic's mod is that topic's mod; the rest stay here", () {
+      final result = SourcePostListings.combine(
+        rules: list,
+        llmMods: [
+          installable('Industrial.Evolution'),
+          installable('GC', nicknames: ['Grand.Colonies']),
+          installable('Big Pilum Energy'),
+        ],
+        postWords: "$listWords GC",
+        forumTopicsInBuild: {'34161', '18011', '20986'},
+        linkedTopicNames: {
+          '18011': ['Industrial.Evolution'],
+          '20986': ['Grand Colonies'],
+        },
+      );
+      expect(_names(result), ['Big Pilum Energy'],
+          reason: 'Big Pilum Energy has no separate thread');
+      expect(result.pointers, {
+        'forum:34161#Industrial.Evolution': 'forum:18011',
+        'forum:34161#GC': 'forum:20986',
+      });
+    });
+
+    test('two linked topics with that name are nobody\'s, and a post with one mod is left alone', () {
+      final twoTopics = SourcePostListings.combine(
+        rules: list,
+        llmMods: [installable('Industrial.Evolution'), installable('Big Pilum Energy')],
+        postWords: listWords,
+        linkedTopicNames: {
+          '18011': ['Industrial.Evolution'],
+          '30000': ['Industrial Evolution'],
+        },
+      );
+      expect(_names(twoTopics), ['Industrial.Evolution', 'Big Pilum Energy']);
+      expect(twoTopics.pointers, isEmpty);
+
+      final oneMod = SourcePostListings.combine(
+        rules: list,
+        llmMods: [installable('Industrial.Evolution')],
+        postWords: listWords,
+        linkedTopicNames: {'18011': ['Industrial.Evolution']},
+      );
+      expect(oneMod.pointers, isEmpty);
+      expect(oneMod.listings.single.ref.llmModName, 'Industrial.Evolution');
+    });
+
+    test('a topic holding several mods of its own is no one mod\'s thread', () {
+      expect(
+        SourcePostListings.ownModNames(
+            list, [installable('Industrial.Evolution'), installable('Big Pilum Energy')], listWords),
+        isNull,
+      );
+      expect(
+        SourcePostListings.ownModNames(list, [installable('Big Pilum Energy')], listWords),
+        ["Hartley's Mods", 'Big Pilum Energy'],
+      );
+    });
+  });
+
   group('Discord threads go through the same rule', () {
     final thread = DiscordThreadPost(
       threadId: '900',

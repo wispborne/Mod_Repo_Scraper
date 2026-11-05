@@ -11,8 +11,8 @@ import 'post_reducer.dart';
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 30;
-  static const int discordPromptVersion = 8;
+  static const int promptVersion = 33;
+  static const int discordPromptVersion = 11;
 
   /// Cache version for [kind]. Nexus extraction is not supported yet.
   static int promptVersionFor(SourceKind kind) =>
@@ -168,7 +168,8 @@ Return this JSON object:
       "conflicts": [
         {
           "name": "<the name of another mod the post says this one does not work well with>",
-          "quote": "<the post's own words about that, copied exactly>"
+          "quote": "<the post's own words about that, copied exactly>",
+          "kind": "<technical | gameplay | withNotes | other: what sort of conflict the post describes>"
         }
       ],
       "descriptionAnchors": {
@@ -454,10 +455,46 @@ Guidance:
     sentence or line that names the mod, and the next sentence when it says
     how bad the problem is or when it happens. Keep the author's conditions,
     such as a version or "only in very large battles".
-  - Not a mod the post says this one IS compatible with, works with, or has
-    been tested with.
+  - "kind" is what sort of conflict the post describes:
+    - "technical": the two are incompatible because using both, the way most
+      players use them, breaks something: the game crashes or will not start,
+      saves break, content goes missing, or a feature or quest stops working. A
+      plain "Not compatible with X" or "Incompatible with X" is technical.
+    - First check WHEN it breaks. When the problem only happens with one mode,
+      option, setting or feature of either mod, with some versions of the
+      other mod, or on some graphics cards, the kind is "withNotes", even when
+      the post says "does not work", "incompatible" or "crashes". Most players
+      can use the two together.
+    - "gameplay": the two are incompatible, but nothing breaks: using both is
+      pointless or unbalanced, such as two mods that add the same thing, one
+      mod that already includes the other, or a post that advises against
+      using them together even though the game runs.
+    - "withNotes": the two work together, and the post mentions something to
+      know: a problem that is rare or safe to ignore, one that only happens
+      with one option, setting, version or graphics card, or a setting to
+      change so they work together.
+    - "other": the post is unsure whether the two work together, or the
+      problem is not about playing the game, such as how to install it.
+    - Examples: "Particle Engine may rarely crash in very large battles. The
+      issue is difficult to trigger and can be safely ignored" is withNotes.
+      "works with Nexerelin but will crash if the Corvus option is selected"
+      is withNotes, because the crash only happens with one option.
+      "Does not work with Nexerelin random sector" is withNotes, because
+      random sector is one of Nexerelin's options and most players do not use
+      it. "Earlier versions will crash with PAGSM 1.11+" is withNotes, because
+      it only happens with some versions. "Not compatible with X" with no
+      condition is technical.
+      "Compatible with all mods except for Nomadic Survival, which already
+      includes the ability from this mod" is gameplay.
+  - Not a mod the post only says this one IS compatible with, works with, or
+    has been tested with, and says nothing more about.
   - Not a kind of mod with no name ("total conversions", "other faction
-    mods"), the game itself, or a problem the post says is already fixed.
+    mods"), or the game itself.
+  - Not a problem the post says is fixed. A changelog entry or update note
+    about another mod, such as "Made it stop crashing with X", "Fixed the
+    conflict with X" or "X (Fixed)", says the problem is gone, so X is not a
+    conflict. Example: a changelog that says "3.3.e: Fixed pets. Made it stop
+    crashing with Arthrs mod" gives no conflict with Arthrs mod.
   - "No known mod conflicts" and the like mean an empty list.
   - A mod is never in "conflicts" and also in "needs" or "optionalNeeds".
 - "descriptionAnchors" is optional and points at the author's own words about
@@ -685,8 +722,12 @@ Guidance:
           'properties': {
             'name': {'type': 'string'},
             'quote': {'type': 'string'},
+            'kind': {
+              'type': 'string',
+              'enum': [for (final k in ConflictKind.values) k.name],
+            },
           },
-          'required': ['name', 'quote'],
+          'required': ['name', 'quote', 'kind'],
           'additionalProperties': false,
         },
       },

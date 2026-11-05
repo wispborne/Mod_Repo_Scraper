@@ -45,8 +45,12 @@ void main() {
       final detail = PublicModDetailMapper.fromMap(
           readJson('site/sample-data/mods/${mod.modId}.json'));
       expect(mod.conflicts.map((c) => c.toMap()),
-          detail.conflicts!.map((c) => c.toMap()),
-          reason: '${mod.modId} lists the same conflicts in both files');
+          [
+            for (final c in detail.conflicts!)
+              if (c.fromOtherMod != true) c.toMap(),
+          ],
+          reason: '${mod.modId} lists the same conflicts in both files, '
+              "leaving out the ones copied from another mod's post");
     }
   });
 

@@ -24,4 +24,4 @@ Download [link: https://github.com/x/kwin/releases/download/1.2/kwin.zip]
 0.98a
 
 --- fingerprint ---
-cfd339909294f1fe404dbf0176373840a125326e06bd2f0ca32ae49c171169cf
+249d476c8039099e8fa17ac29c96e1ba61844479bab9cb48bf6ff304a1f4e46c

@@ -25,6 +25,7 @@ import 'package:mod_repo_scraper/site/models/mod_release.dart';
 import 'package:mod_repo_scraper/site/models/public_mod_detail.dart';
 import 'package:mod_repo_scraper/site/models/public_mod.dart';
 import 'package:mod_repo_scraper/site/post_html.dart';
+import 'package:mod_repo_scraper/site/conflict_list.dart';
 import 'package:mod_repo_scraper/site/public_data_builder.dart';
 import 'package:mod_repo_scraper/site/public_site_step.dart';
 import 'package:mod_repo_scraper/site/release_state_store.dart';
@@ -1319,9 +1320,14 @@ void main() {
             extras: LlmExtras(conflicts: [
               LlmConflict(
                   name: 'Particle Engine',
-                  quote: 'Particle Engine may rarely crash in very large battles.'),
+                  quote: 'Particle Engine may rarely crash in very large battles.',
+                  kind: ConflictKind.withNotes),
               LlmConflict(name: 'BoxUtil', quote: 'BoxUtil versions 1.6.0 and later'),
               LlmConflict(name: 'Fast Rendering', quote: 'Fast Rendering'),
+              LlmConflict(
+                  name: 'Epta',
+                  quote: 'Epta crashes the game.',
+                  kind: ConflictKind.technical),
             ]),
           ),
         ]),
@@ -1329,11 +1335,13 @@ void main() {
     );
 
     final page = data.details['fast-rendering']!;
-    expect(page.conflicts!.map((c) => (c.name, c.id, c.quote)), [
+    expect(page.conflicts!.map((c) => (c.name, c.id, c.quote, c.kind)), [
+      ('Epta', null, 'Epta crashes the game.', ConflictKind.technical),
       ('Particle Engine', 'particle-engine',
-          'Particle Engine may rarely crash in very large battles.'),
-      ('BoxUtil', null, 'BoxUtil versions 1.6.0 and later'),
-    ], reason: 'a mod never conflicts with itself');
+          'Particle Engine may rarely crash in very large battles.',
+          ConflictKind.withNotes),
+      ('BoxUtil', null, 'BoxUtil versions 1.6.0 and later', null),
+    ], reason: 'a mod never conflicts with itself, and incompatible mods come first');
     expect(jsonEncode(data.list.mods.firstWhere((m) => m.id == 'fast-rendering').toMap()),
         isNot(contains('conflict')),
         reason: 'mods.json does not include conflicts');
@@ -1370,6 +1378,71 @@ void main() {
       ('Particle Engine', 'particle-engine',
           'Particle Engine may rarely crash in very large battles.'),
     ]);
+  });
+
+  test("an incompatibility shows on both mods' pages; notes stay on their own page", () {
+    final data = buildFrom(
+      mods: [
+        forumMod(name: 'Strikecraft Standalone', topicId: 1),
+        forumMod(name: 'Arma Armatura', topicId: 2),
+        forumMod(name: 'Particle Engine', topicId: 3),
+        forumMod(name: 'Epta', topicId: 4),
+      ],
+      bundle: bundleOf(index: [
+        thread(topicId: 1, title: 'Strikecraft Standalone', llmMods: [
+          LlmMod(
+            name: 'Strikecraft Standalone',
+            extras: LlmExtras(conflicts: [
+              LlmConflict(
+                  name: 'Arma Armatura',
+                  quote: 'Do NOT run this mod alongside Arma Armatura.',
+                  kind: ConflictKind.technical),
+              LlmConflict(
+                  name: 'Particle Engine',
+                  quote: 'Particle Engine may rarely crash.',
+                  kind: ConflictKind.withNotes),
+              LlmConflict(
+                  name: 'Epta',
+                  quote: 'Epta and this add the same fighters.',
+                  kind: ConflictKind.gameplay),
+            ]),
+          ),
+        ]),
+        thread(topicId: 4, title: 'Epta', llmMods: [
+          LlmMod(
+            name: 'Epta',
+            extras: LlmExtras(conflicts: [
+              LlmConflict(
+                  name: 'Strikecraft Standalone',
+                  quote: 'Use Epta or Strikecraft Standalone, not both.',
+                  kind: ConflictKind.gameplay),
+            ]),
+          ),
+        ]),
+      ]),
+    );
+
+    expect(
+        data.details['arma-armatura']!.conflicts!
+            .map((c) => (c.name, c.id, c.quote, c.kind, c.fromOtherMod)),
+        [
+          ('Strikecraft Standalone', 'strikecraft-standalone',
+              'Do NOT run this mod alongside Arma Armatura.', ConflictKind.technical, true),
+        ],
+        reason: "Strikecraft's post names the conflict. Arma Armatura's post does not.");
+    expect(data.details['particle-engine']!.conflicts, isNull,
+        reason: 'Compatible, with notes entries are not copied');
+    expect(data.details['epta']!.conflicts!.map((c) => (c.quote, c.fromOtherMod)),
+        [('Use Epta or Strikecraft Standalone, not both.', null)],
+        reason: "Epta's post already names Strikecraft. Only its own entry is shown.");
+    expect(data.details['strikecraft-standalone']!.conflicts!.map((c) => c.name),
+        ['Arma Armatura', 'Epta', 'Particle Engine'],
+        reason: "Strikecraft's own list already names Epta");
+
+    expect(
+        buildConflictList(data).mods.expand((m) => m.conflicts).map((c) => c.fromOtherMod),
+        everyElement(isNull),
+        reason: 'the Reports list shows each conflict once under the mod whose post names it');
   });
 
   test("a requirement's own requirements are listed too, saying which brought them in",

@@ -58,6 +58,60 @@ extension SaveAnswerMapperExtension on SaveAnswer {
   }
 }
 
+class ConflictKindMapper extends EnumMapper<ConflictKind> {
+  ConflictKindMapper._();
+
+  static ConflictKindMapper? _instance;
+  static ConflictKindMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = ConflictKindMapper._());
+    }
+    return _instance!;
+  }
+
+  static ConflictKind fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  ConflictKind decode(dynamic value) {
+    switch (value) {
+      case r'technical':
+        return ConflictKind.technical;
+      case r'gameplay':
+        return ConflictKind.gameplay;
+      case r'withNotes':
+        return ConflictKind.withNotes;
+      case r'other':
+        return ConflictKind.other;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(ConflictKind self) {
+    switch (self) {
+      case ConflictKind.technical:
+        return r'technical';
+      case ConflictKind.gameplay:
+        return r'gameplay';
+      case ConflictKind.withNotes:
+        return r'withNotes';
+      case ConflictKind.other:
+        return r'other';
+    }
+  }
+}
+
+extension ConflictKindMapperExtension on ConflictKind {
+  String toValue() {
+    ConflictKindMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<ConflictKind>(this) as String;
+  }
+}
+
 class AiUseAreaMapper extends EnumMapper<AiUseArea> {
   AiUseAreaMapper._();
 
@@ -386,6 +440,7 @@ class LlmConflictMapper extends ClassMapperBase<LlmConflict> {
   static LlmConflictMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = LlmConflictMapper._());
+      ConflictKindMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -397,17 +452,28 @@ class LlmConflictMapper extends ClassMapperBase<LlmConflict> {
   static const Field<LlmConflict, String> _f$name = Field('name', _$name);
   static String _$quote(LlmConflict v) => v.quote;
   static const Field<LlmConflict, String> _f$quote = Field('quote', _$quote);
+  static ConflictKind? _$kind(LlmConflict v) => v.kind;
+  static const Field<LlmConflict, ConflictKind> _f$kind = Field(
+    'kind',
+    _$kind,
+    opt: true,
+  );
 
   @override
   final MappableFields<LlmConflict> fields = const {
     #name: _f$name,
     #quote: _f$quote,
+    #kind: _f$kind,
   };
   @override
   final bool ignoreNull = true;
 
   static LlmConflict _instantiate(DecodingData data) {
-    return LlmConflict(name: data.dec(_f$name), quote: data.dec(_f$quote));
+    return LlmConflict(
+      name: data.dec(_f$name),
+      quote: data.dec(_f$quote),
+      kind: data.dec(_f$kind),
+    );
   }
 
   @override
@@ -470,7 +536,7 @@ extension LlmConflictValueCopy<$R, $Out>
 
 abstract class LlmConflictCopyWith<$R, $In extends LlmConflict, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? name, String? quote});
+  $R call({String? name, String? quote, ConflictKind? kind});
   LlmConflictCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
 
@@ -483,16 +549,18 @@ class _LlmConflictCopyWithImpl<$R, $Out>
   late final ClassMapperBase<LlmConflict> $mapper =
       LlmConflictMapper.ensureInitialized();
   @override
-  $R call({String? name, String? quote}) => $apply(
+  $R call({String? name, String? quote, Object? kind = $none}) => $apply(
     FieldCopyWithData({
       if (name != null) #name: name,
       if (quote != null) #quote: quote,
+      if (kind != $none) #kind: kind,
     }),
   );
   @override
   LlmConflict $make(CopyWithData data) => LlmConflict(
     name: data.get(#name, or: $value.name),
     quote: data.get(#quote, or: $value.quote),
+    kind: data.get(#kind, or: $value.kind),
   );
 
   @override

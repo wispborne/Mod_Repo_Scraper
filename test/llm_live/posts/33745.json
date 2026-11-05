@@ -1,0 +1,92 @@
+{
+  "topicId": 33745,
+  "title": "[0.98a] Orion Friedberg Union",
+  "gameVersion": "0.98a",
+  "author": "Jackundor",
+  "authorTitle": "Captain",
+  "authorPostCount": 257,
+  "authorAvatarPath": "https://fractalsoftworks.com/forum/custom_avatar/avatar_12306_1636903206.png",
+  "postDate": "July 29, 2025, 01:06:07 PM",
+  "lastEditDate": "September 14, 2025, 12:10:31 PM by Jackundor",
+  "contentHtml": "\n\t\t\t\t\t\t\t\t\t<div class=\"centertext\"><img src=\"https://imgur.com/uJGdMAE.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><br><div class=\"centertext\"><span style=\"color: navy;\" class=\"bbc_color\"><span style=\"font-size: 24pt;\" class=\"bbc_size\">Orion-Friedberg Union</span></span></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">version 0.8.5: Combat test release</span></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">An upcoming Faction mod introducing new Systems, Ships, Weapons and Missions</span></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">an issue currently affects several missions and will be fixed in the next patch</span></div><br><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Current release only includes Ships, Weapons, Fighters, Missions and a Basic market for campaign accessability</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">Requires a new save for campaign access. Does not work with Nexerlin random sector. Compatability with other mods has not been tested</span></div><br><div class=\"centertext\"><a href=\"https://github.com/JulianBraunbeck/Starsector-Mod-Orion-Friedberg-Union/archive/refs/tags/V0.8.5.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener\"><span style=\"font-size: 24pt;\" class=\"bbc_size\">Download version 0.8.5</span></a></div><div class=\"centertext\">Requires LazyLib and MagicLib</div><br><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">Introduces 3 new Weapons, 1 new Hullmod spec, 3 new Fighter wings, 9 new Ships and 3 new Missions</span></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">To access the equipment in campaign, visit Argeus in the Arcadia system and open the special market tab there</span></b></div><br><br><details class=\"bbc_spoiler\"><summary>Ships</summary><div class=\"spoiler_content\"><br><br><br><div class=\"centertext\"><b><span style=\"font-size: 18pt;\" class=\"bbc_size\">Frigates</span></b></div><br><br><div class=\"centertext\"><img src=\"https://imgur.com/0MSONAv.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Argeus Class Frigate</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A small fast frigate for scouting and skirmishing</span></div><br><div class=\"centertext\"><img src=\"https://imgur.com/Ae44sLx.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Diomedes Class Electronic Warfare Frigate</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A small frigate with strong sensors and EW equipment</span></div><br><div class=\"centertext\"><img src=\"https://imgur.com/oEOhcip.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Sithon Class Missile Frigate</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A frigate carrying a poweful missile armament</span></div><br><br><div class=\"centertext\"><b><span style=\"font-size: 18pt;\" class=\"bbc_size\">Destroyers</span></b></div><br><br><div class=\"centertext\"><img src=\"https://imgur.com/qd7uPf9.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Bellerophon Class Battlecarrier Destroyer</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A versatile destroyer capable of mounting layouts that prioritize either it's guns or fighters</span></div><br><div class=\"centertext\"><img src=\"https://imgur.com/kHgBeb7.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Asbolus Class Destroyer</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A patrol destroyer making up for it'S light loadout with exceptional range</span></div><br><br><div class=\"centertext\"><b><span style=\"font-size: 18pt;\" class=\"bbc_size\">Cruisers</span></b></div><br><br><div class=\"centertext\"><img src=\"https://imgur.com/EKyFsdT.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Telemachus Class Fast Missile Cruiser</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A fast cruiser with a powerful strike loadout</span></div><br><div class=\"centertext\"><img src=\"https://imgur.com/U50rcGV.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Rhadamanthys Class Advanced Carrier</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A logistically demanding carrier that boosts the performance of it's strikecraft to the maximum</span></div><br><div class=\"centertext\"><img src=\"https://imgur.com/pNOWDna.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Agamemnon Class Line Cruiser</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A powerful defensive cruiser mounting a powerful builtin cannon</span></div><br><br><div class=\"centertext\"><b><span style=\"font-size: 18pt;\" class=\"bbc_size\">Capital Ships</span></b></div><br><br><div class=\"centertext\"><img src=\"https://imgur.com/7kQffuR.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Hector Class Battlecruiser</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A Battlecruiser with strong firepower</span></div><br></div></details><br><br><details class=\"bbc_spoiler\"><summary>Fighters</summary><div class=\"spoiler_content\"><br><br><div class=\"centertext\"><img src=\"https://imgur.com/39XtIzn.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Feile Fighter Wing</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A dependable fighter carrying machine guns and anti fighter rockets</span></div><br><div class=\"centertext\"><img src=\"https://imgur.com/dTiOrby.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Zange Fast Bomber Wing</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A wing of fast moving bombers carrying a decently powerful but well guided energy damage torpedo</span></div><br><div class=\"centertext\"><img src=\"https://imgur.com/JkpuyZB.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Fräse Advanced Interceptor Wing</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A wing of exceptionally powerful Interceptors mounting a deadly anti-fighter machine gun and a phase skimmer</span></div><br></div></details><br><br><details class=\"bbc_spoiler\"><summary>Weapons and Hullmods</summary><div class=\"spoiler_content\"><br><br><div class=\"centertext\"><b><span style=\"font-size: 18pt;\" class=\"bbc_size\">Weapons</span></b></div><br><br><div class=\"centertext\"><img src=\"https://imgur.com/VQ6fdrK.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Hagel Rocket Launcher</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A small missile launcher firing medium ranged unguided ballistic rockets</span></div><br><div class=\"centertext\"><img src=\"https://imgur.com/xmbXH5H.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Hagel Rocket Pod</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A medium rocket pod firing in larger bursts</span></div><br><div class=\"centertext\"><img src=\"https://imgur.com/auUSH4E.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Krater Cannon</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">A expensive but powerful high explosive small ballistic weapon</span></div><br><br><div class=\"centertext\"><b><span style=\"font-size: 18pt;\" class=\"bbc_size\">Hullmods</span></b></div><br><br><div class=\"centertext\"><img src=\"https://imgur.com/ZL9Ajka.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></div><div class=\"centertext\"><b><span style=\"font-size: 14pt;\" class=\"bbc_size\">Bomber Command Center</span></b></div><div class=\"centertext\"><span style=\"font-size: 14pt;\" class=\"bbc_size\">Conveys the benefit of ECCM package to the strikecraft of a carrier</span></div><br></div></details><br><br><br><div class=\"centertext\"><b>Credits</b></div><div class=\"centertext\">Ruddygreat, Vexlia and others</div><div class=\"centertext\">for helping with scripting</div><div class=\"centertext\">Quacken, Pyrophage, Toopok and many more</div><div class=\"centertext\">for Inspiration, Advice, Encouragement and Help with spriting and art in general</div><div class=\"centertext\">MiniDeth3 and more</div><div class=\"centertext\">for help with writing</div><div class=\"centertext\">The Starsector Community discord</div><div class=\"centertext\">For Ideas, Discussion, Criticism, Encouragement and more</div><br><br><details class=\"bbc_spoiler\"><summary>Changelog</summary><div class=\"spoiler_content\"><br>14.09.2024 V 0.8.5 patch<br><br>&nbsp; Added the approptiate libraries as requirements<br>&nbsp;&nbsp;&nbsp;<br>&nbsp; Argeus class frigate:<br>&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;Kinetic Converter changes:<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Changed damage bonus 20% --&gt; 35%<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Added range bonus: 50%<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp; Bellerophon class support battlecarrier:<br>&nbsp; <br>&nbsp;&nbsp;&nbsp;Changed hull: 3500 --&gt; 4250<br>&nbsp;&nbsp;&nbsp;Changed flux dissipation: 250 --&gt; 350<br>&nbsp;&nbsp;&nbsp;Changed OP: 95 --&gt; 105<br>&nbsp;&nbsp;&nbsp;Changed Shield efficiency: 1.0 --&gt; 0.9<br>&nbsp;&nbsp;&nbsp;<br>&nbsp; Hector class battlecruiser:<br>&nbsp; <br>&nbsp;&nbsp;&nbsp;Changed hull: 11000 --&gt; 13000<br><br>02.09.2025 V 0.8.4a patch<br><br>&nbsp; Sithon class missile frigate: <br>&nbsp; <br>&nbsp;&nbsp;&nbsp;Changed OP: 45 --&gt; 40<br>&nbsp;&nbsp;&nbsp;Changed Shield efficiency: 0.8 --&gt; 0.9<br>&nbsp;&nbsp;&nbsp;Adjusted Variants<br><br>&nbsp; Bellerophon class support battlecarrier:<br>&nbsp; <br>&nbsp;&nbsp;&nbsp;Changed armor: 550 --&gt; 750<br>&nbsp;&nbsp;&nbsp;<br>&nbsp; Rhadamanthys class carrier:<br>&nbsp; <br>&nbsp;&nbsp;&nbsp;Changed DP : 24 --&gt; 22<br>&nbsp;&nbsp;&nbsp;Changes to Advanced bay hullmod:<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Added 15% increased fighter replacement rate<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp; Hector class battlecruiser:<br>&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;Fixed Variants appearing in missions<br>&nbsp;&nbsp;&nbsp;Changed Deployment Points: 50 --&gt; 45<br>&nbsp;&nbsp;&nbsp;Added Builtin Armored weapon mounts<br>&nbsp;&nbsp;&nbsp;Changed Cr recovery rate: 2%/day --&gt; 3%/day<br><br>12.08.2025 V 0.8.3 patch <br><br>&nbsp; &nbsp; Adjusted some descriptions<br><br>&nbsp; &nbsp; Zange Fast Bomber:<br><br>&nbsp;&nbsp;&nbsp;Added slight delay before launching missiles<br><br>&nbsp; &nbsp; Diomedes class frigate:<br><br>&nbsp;&nbsp;&nbsp;Adjusted shipsystem to encourage use by ai<br><br>&nbsp; &nbsp; Asbolus class destroyer:<br><br>&nbsp;&nbsp;&nbsp;Changed speed: 95 --&gt; 80<br>&nbsp;&nbsp;&nbsp;Changed flux dissipation: 350 --&gt; 300<br>&nbsp;&nbsp;&nbsp;<br>&nbsp; &nbsp; Rhadamanthys class carrier:<br><br>&nbsp;&nbsp;&nbsp;Changes to Advanced bay hullmod:<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Changed speed bonus: 15% --&gt; 25%<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Changed manouverability bonus: 25% --&gt; 35%<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Changed hull bonus: 20% --&gt; 150 flat<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Changed armor bonus: 20% --&gt; 50 flat<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Added EMP resistance<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp; &nbsp; Hector class battlecruiser:<br><br>&nbsp;&nbsp;&nbsp;Changed ordenance points: 280 --&gt; 325<br>&nbsp;&nbsp;&nbsp;Changed flux capacity: 15000 --&gt; 20000<br>&nbsp;&nbsp;&nbsp;Adjusted autofit variants<br><br>06.08.2025 V 0.8.2 patch<br><br>&nbsp; &nbsp; Added blueprints for all items<br><br>&nbsp; &nbsp; Hector-class Battlecruiser<br>&nbsp; &nbsp; &nbsp; &nbsp; Changed Shipsystem: Burn Drive --&gt; Plasma Jets<br>&nbsp; &nbsp; &nbsp; &nbsp; Changed Shield efficiency: 1.0 --&gt; 0.8 (look, i don't really know how to balance stuff)<br><br>&nbsp; &nbsp; Bomber Command Center<br>&nbsp; &nbsp; &nbsp; &nbsp; Removed Smod penalty<br>&nbsp; &nbsp; &nbsp; &nbsp; Reduced cost: 15/20/40 --&gt; 12/20/30<br><br>03.06.2025 V 0.8.1 patch<br>&nbsp; &nbsp; <br>&nbsp; &nbsp; Hector-class Battlecruiser<br>&nbsp; &nbsp; &nbsp; &nbsp; Changed Shipsystem: Accelerated Ammo Feed --&gt; Burn Drive <br>&nbsp; &nbsp; &nbsp; &nbsp; Changed Shield efficiency: 0.8 --&gt; 1.0<br><br>&nbsp; &nbsp; Fixed some typos and formating mistakes<br><br>29.07.2025 V 0.8.0 Combat Release<br>&nbsp; &nbsp; <br>&nbsp; &nbsp; Initial Release<br><br></div></details>\n\t\t\t\t\t\t\t\t",
+  "images": [
+    {
+      "originalUrl": "https://imgur.com/uJGdMAE.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/0MSONAv.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/Ae44sLx.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/oEOhcip.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/qd7uPf9.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/kHgBeb7.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/EKyFsdT.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/U50rcGV.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/pNOWDna.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/7kQffuR.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/39XtIzn.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/dTiOrby.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/JkpuyZB.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/VQ6fdrK.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/xmbXH5H.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/auUSH4E.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/ZL9Ajka.png",
+      "alt": ""
+    }
+  ],
+  "links": [
+    {
+      "url": "https://github.com/JulianBraunbeck/Starsector-Mod-Orion-Friedberg-Union/archive/refs/tags/V0.8.5.zip",
+      "text": "Download version 0.8.5",
+      "isExternal": true,
+      "isDownloadable": true
+    }
+  ],
+  "extraPosts": [],
+  "isPlaceholderDetail": false
+}

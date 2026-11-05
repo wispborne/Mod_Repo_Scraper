@@ -22,7 +22,8 @@ Each record SHALL use the site's own field names and shapes, taken from the mod'
 - `addedOn`, `editedOn`, `lastReleaseDate`
 - `releases`
 - `needs` and `optionalNeeds`, each entry `{name, id}`
-- `conflicts`, each entry `{name, id, quote}`
+- `conflicts`, each entry `{name, id, quote, kind}`. `kind` is `technical` or `gameplay` (the two mods are incompatible), `withNotes` (they work together, with a note from the author) or `other`. It is left out when unknown.
+  `fromOtherMod` is true when an incompatibility is copied from the other mod's post. The quote is that author's words. The field is left out otherwise.
 - `isTool`, `saveCompatible`
 - `canAdd`, `canUpdate`, `canRemove`, with `saveCompatibilityText`, `updateCompatibilityText` and `removalCompatibilityText`
 - `aiUse`

@@ -57,6 +57,13 @@ class PostListings {
 /// goes through the rule for two or more, so a post left with no mods of its
 /// own is a Collection.
 ///
+/// A mod on such a topic also gets no listing if the post links to another
+/// forum topic about that mod alone and the names match. Topic 34161
+/// ("Hartley's Mods") lists all of the author's mods with TriOS install links.
+/// It also links to each mod's own thread where one exists.
+/// Install links do not point to topics, so the rule above missed these mods.
+/// Ten mods got a second page, including Industrial.Evolution (topic 18011).
+///
 /// With the LLM off, every post gives exactly its rules listing. The
 /// Collection case is the only way the LLM can take the rules listing away; it
 /// can never rename it or merge it into a different mod.
@@ -69,11 +76,15 @@ class SourcePostListings {
   /// [forumTopicsInBuild] is the id of every forum topic that gives listings
   /// this build; a mod is only taken as pointing at a topic in it, so a mod
   /// whose own thread we do not have keeps its listing here.
+  /// [linkedTopicNames] lists the mod's names for each linked forum topic
+  /// in this build. Only topics with one mod of their own count
+  /// (see [ownModNames]).
   static PostListings combine({
     required Listing rules,
     required List<LlmMod> llmMods,
     required String? postWords,
     Set<String> forumTopicsInBuild = const {},
+    Map<String, List<String>> linkedTopicNames = const {},
   }) {
     final grounded = groundedMainMods(llmMods, postWords);
 
@@ -81,7 +92,8 @@ class SourcePostListings {
       final pointers = <String, String>{};
       final own = <LlmMod>[];
       for (final llmMod in grounded) {
-        final topic = _topicPointedTo(llmMod, rules.ref.id, forumTopicsInBuild);
+        final topic = _topicPointedTo(llmMod, rules.ref.id, forumTopicsInBuild) ??
+            _topicNamedLike(llmMod, rules.ref.id, linkedTopicNames);
         if (topic == null) {
           own.add(llmMod);
         } else {
@@ -144,6 +156,45 @@ class SourcePostListings {
     }
     return topics.length == 1 ? topics.single : null;
   }
+
+  /// Returns the topic in [linkedTopicNames] whose mod matches [llmMod]'s
+  /// name or one of its nicknames. Excludes [ownTopic].
+  /// Returns null if no topic matches or more than one matches.
+  static String? _topicNamedLike(
+      LlmMod llmMod, String ownTopic, Map<String, List<String>> linkedTopicNames) {
+    final names = [llmMod.name, ...?llmMod.nicknames];
+    final topics = [
+      for (final MapEntry(key: topic, value: theirs) in linkedTopicNames.entries)
+        if (topic != ownTopic &&
+            names.any((name) => theirs.any((their) => modNamesMatch(name, their))))
+          topic,
+    ];
+    return topics.length == 1 ? topics.single : null;
+  }
+
+  /// Returns the names of the topic's one mod for [combine]'s `linkedTopicNames`.
+  /// Includes the rules listing's name and other names.
+  /// Also includes the LLM's one grounded main mod's name and nicknames, if any.
+  /// Returns null when the topic has two or more mods of its own.
+  /// A topic with several mods cannot count as one mod's own thread.
+  static List<String>? ownModNames(Listing rules, List<LlmMod> llmMods, String? postWords) {
+    final grounded = groundedMainMods(llmMods, postWords);
+    if (grounded.length > 1) return null;
+    return [
+      rules.mod.name,
+      ...rules.otherNames,
+      for (final llmMod in grounded) ...[llmMod.name, ...?llmMod.nicknames],
+    ];
+  }
+
+  /// Returns forum topics linked from the author's opening run.
+  /// Links to attached files are downloads, so they do not count as topic links.
+  /// Addresses with `action=` are excluded.
+  static Set<String> linkedForumTopics(SourcePost post) => {
+        for (final link in post.allLinks)
+          if (ForumConstants.isForumHosted(link.url) && !link.url.contains('action='))
+            if (ForumConstants.tryExtractTopicId(link.url) case final topic?) '$topic',
+      };
 
   /// The LLM's `main` mods on a post that count: named in the author's own
   /// words, with a download tied to them, each name once.

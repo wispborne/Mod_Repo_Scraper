@@ -203,13 +203,26 @@ class PublicModDetail with PublicModDetailMappable {
 /// [name] is its name on the site. [id] links to its page if we found a match.
 /// [quote] is a quote from the author about the problem. Some conflicts crash
 /// the game on startup. Others only happen in very large battles.
+/// [kind] says whether the two are incompatible or work together with notes.
+/// It is left out when unknown.
+/// [fromOtherMod] is true when the entry comes from the other mod's post.
+/// In that case, [quote] is the other author's words.
+/// The field is left out for entries from this mod's own post.
 @MappableClass(ignoreNull: true)
 class PublicConflict with PublicConflictMappable {
   final String name;
   final String? id;
   final String quote;
+  final ConflictKind? kind;
+  final bool? fromOtherMod;
 
-  PublicConflict({required this.name, this.id, required this.quote});
+  PublicConflict({
+    required this.name,
+    this.id,
+    required this.quote,
+    this.kind,
+    this.fromOtherMod,
+  });
 }
 
 /// One picture from the mod's post.

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:collection/collection.dart' show mergeSort;
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
@@ -492,6 +493,10 @@ class PublicDataBuilder {
     // What each mod's requirements need in turn. This waits for every record,
     // because MagicLib's own needs are not known until its record exists.
     _addIndirectNeeds(listRecords, details);
+
+    // Show each incompatibility on both mods' pages.
+    // Both mods need a record before we can copy the entry.
+    _mirrorIncompatibilities(listRecords, details);
 
     // Which mods share a name, worked out once every mod has a record. It has
     // to wait: a page names the others by their id, their author and the day
@@ -1279,7 +1284,9 @@ class PublicDataBuilder {
           _neededMods(names, listing.id, requirements), listing.needs);
 
   /// Matches conflict names to our mods using the same rules as requirements.
-  /// Returns null when there are none.
+  /// Sorts by kind in [ConflictKind]'s order, with unknown kinds last. Ties
+  /// keep the post's order.
+  /// Returns null when there are no conflicts.
   static List<PublicConflict>? _conflictsFor(
     List<LlmConflict>? conflicts,
     String ownId,
@@ -1293,9 +1300,67 @@ class PublicDataBuilder {
       if (matched.isEmpty) continue;
       final mod = matched.single;
       if (!seen.add(_needKey(mod))) continue;
-      kept.add(PublicConflict(name: mod.name, id: mod.id, quote: conflict.quote));
+      kept.add(PublicConflict(
+        name: mod.name,
+        id: mod.id,
+        quote: conflict.quote,
+        kind: conflict.kind,
+      ));
     }
+    _sortByKind(kept);
     return kept.isEmpty ? null : kept;
+  }
+
+  /// Sorts conflicts in [ConflictKind]'s order, with no kind last.
+  /// Conflicts of the same kind keep their order.
+  static void _sortByKind(List<PublicConflict> conflicts) {
+    int rank(PublicConflict c) => c.kind?.index ?? ConflictKind.values.length;
+    mergeSort(conflicts, compare: (a, b) => rank(a).compareTo(rank(b)));
+  }
+
+  /// Copies each incompatibility to the other mod's page so both pages show it.
+  /// Copies only the two Incompatible kinds or conflicts with no kind.
+  /// The site also shows conflicts with no kind as incompatible.
+  /// "Compatible, with notes" and "Other" stay on the page whose post names them.
+  /// Each copy has the first mod's name and its author's quote.
+  /// It is marked [PublicConflict.fromOtherMod].
+  /// If the other mod's post already names the first mod, only its own entry is shown.
+  static void _mirrorIncompatibilities(
+    List<PublicMod> records,
+    Map<String, PublicModDetail> details,
+  ) {
+    final byId = {for (final record in records) record.id: record};
+    final added = <String, List<PublicConflict>>{};
+    for (final MapEntry(key: id, value: detail) in details.entries) {
+      final source = byId[id];
+      if (source == null) continue;
+      for (final conflict in detail.conflicts ?? const <PublicConflict>[]) {
+        final target = conflict.id;
+        if (conflict.fromOtherMod == true || target == null || target == id) continue;
+        if (!details.containsKey(target)) continue;
+        if (conflict.kind == ConflictKind.withNotes || conflict.kind == ConflictKind.other) {
+          continue;
+        }
+        added.putIfAbsent(target, () => []).add(PublicConflict(
+              name: source.displayName ?? source.name,
+              id: id,
+              quote: conflict.quote,
+              kind: conflict.kind,
+              fromOtherMod: true,
+            ));
+      }
+    }
+    for (final MapEntry(key: target, value: theirs) in added.entries) {
+      final own = details[target]!.conflicts ?? const <PublicConflict>[];
+      final named = {for (final conflict in own) conflict.id};
+      final combined = [
+        ...own,
+        for (final conflict in theirs)
+          if (named.add(conflict.id)) conflict,
+      ];
+      _sortByKind(combined);
+      details[target] = details[target]!.copyWith(conflicts: combined);
+    }
   }
 
   /// [optional] without the mods in [needs], or null when none are left.
