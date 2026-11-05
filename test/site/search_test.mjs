@@ -27,12 +27,14 @@ const siteFile = (name) =>
 
 const modNamesUrl = dataUrl(await siteFile('mod_names.js'));
 const nicknamesUrl = dataUrl(await siteFile('nicknames.js'));
+const versionUrl = dataUrl(await siteFile('version.js'));
 const searchSource = (await siteFile('search.js'))
   .replace(/(['"])\.\/mod_names\.js\1/g, `'${modNamesUrl}'`)
-  .replace(/(['"])\.\/nicknames\.js\1/g, `'${nicknamesUrl}'`);
+  .replace(/(['"])\.\/nicknames\.js\1/g, `'${nicknamesUrl}'`)
+  .replace(/(['"])\.\/version\.js\1/g, `'${versionUrl}'`);
 const {
   normalize, editDistance, searchTerms, compileSearch, searchMods, suggestMods,
-  peopleMatching,
+  peopleMatching, searchCompletions, applyCompletion,
 } = await import(dataUrl(searchSource));
 
 const fixture = JSON.parse(
@@ -1258,6 +1260,117 @@ describe('people suggested in the top bar', () => {
 
   test('never more than asked for', () => {
     assert.equal(people('an', 3).length, 3);
+  });
+});
+
+// --- Suggested search terms ---
+
+describe('suggested search terms', () => {
+  const offered = (text, cursor) => {
+    const found = searchCompletions(fixture, text, cursor);
+    return found ? found.items.map((item) => item.insert) : [];
+  };
+
+  test('typing the start of a term name suggests that term', () => {
+    assert.deepEqual(offered('fr'), ['from:']);
+    assert.deepEqual(offered('a'), ['author:']);
+    assert.deepEqual(offered('HA'), ['has:']);
+  });
+
+  test('text that matches no term name gets no suggestions', () => {
+    assert.deepEqual(offered('nexerelin'), []);
+    assert.deepEqual(offered('0.98'), []);
+    assert.equal(searchCompletions(fixture, ''), null);
+    assert.equal(searchCompletions(fixture, 'pirate '), null);
+  });
+
+  test('a lone minus offers every term, with the minus', () => {
+    const all = offered('-');
+    assert.ok(all.includes('-from:'));
+    assert.ok(all.every((insert) => insert.startsWith('-')));
+    assert.deepEqual(offered('-f'), ['-from:']);
+  });
+
+  test('from: offers the forum and Discord, and never Nexus', () => {
+    assert.deepEqual(offered('from:'), ['from:forum', 'from:discord']);
+    assert.deepEqual(offered('-from:d'), ['-from:discord']);
+  });
+
+  test('a value already typed in full is not offered again', () => {
+    assert.deepEqual(offered('from:forum'), []);
+    assert.deepEqual(offered('has:ai'), []);
+  });
+
+  test('an older spelling of a term is kept as typed', () => {
+    assert.deepEqual(offered('source:d'), ['source:discord']);
+    assert.deepEqual(offered('categories:lib'), ['categories:Libraries']);
+  });
+
+  test('has: and is: suggest their own values', () => {
+    assert.deepEqual(offered('has:'), ['has:source', 'has:download', 'has:ai']);
+    assert.deepEqual(offered('is:'), ['is:addable', 'is:wip', 'is:tool', 'is:noai']);
+    assert.deepEqual(offered('-is:w'), ['-is:wip']);
+  });
+
+  test('categories come most used first, and one with a space is quoted', () => {
+    assert.equal(offered('category:')[0], 'category:Factions');
+    assert.deepEqual(offered('category:ships'), ['category:"Ships and weapons"']);
+    // A word inside the name counts too.
+    assert.deepEqual(offered('category:weap'), ['category:"Ships and weapons"']);
+  });
+
+  test('game versions come newest first, one per release', () => {
+    const versions = offered('version:');
+    assert.equal(versions[0], 'version:0.98');
+    assert.equal(versions.filter((v) => v === 'version:0.98').length, 1);
+    // One mod on 0.6.1 is too few to offer it.
+    assert.ok(!versions.includes('version:0.6.1'));
+  });
+
+  test('author suggestions appear after a letter, A to Z with no repeats', () => {
+    assert.deepEqual(offered('author:'), []);
+    assert.deepEqual(offered('author:dark.r'), ['author:Dark.Revenant']);
+    assert.deepEqual(offered('author:harmful'), ['author:"Harmful Mechanic"']);
+    const ds = offered('author:d');
+    assert.deepEqual(ds, [...ds].sort((a, b) => a.localeCompare(b)));
+  });
+
+  test('terms that take any text offer no values', () => {
+    assert.deepEqual(offered('name:'), []);
+    assert.deepEqual(offered('summary:x'), []);
+    assert.deepEqual(offered('nosuchterm:'), []);
+    assert.deepEqual(offered('"from'), []);
+  });
+
+  test('suggestions apply to the term under the cursor', () => {
+    const text = 'pirate fr factions';
+    assert.deepEqual(offered(text, 9), ['from:']);
+    const found = searchCompletions(fixture, text, 9);
+    const picked = applyCompletion(text, found, found.items[0]);
+    assert.deepEqual(picked, { text: 'pirate from: factions', cursor: 12 });
+  });
+
+  test('picking a value replaces the whole term and adds a space after it', () => {
+    const found = searchCompletions(fixture, 'pirate -from:fo');
+    assert.deepEqual(applyCompletion('pirate -from:fo', found, found.items[0]),
+      { text: 'pirate -from:forum ', cursor: 19 });
+    // The replacement includes the opening quote.
+    const quoted = searchCompletions(fixture, 'category:"ships an');
+    assert.equal(applyCompletion('category:"ships an', quoted, quoted.items[0]).text,
+      'category:"Ships and weapons" ');
+    // Before a comma, no space is added.
+    const beforeComma = searchCompletions(fixture, 'from:fo,x', 7);
+    assert.equal(applyCompletion('from:fo,x', beforeComma, beforeComma.items[0]).text,
+      'from:forum,x');
+  });
+
+  // Skip `has:` and `is:` because the fixture has none of their yes-or-no fields.
+  test('every value offered finds at least one mod', () => {
+    for (const term of ['from:', 'category:', 'version:', 'author:dark']) {
+      for (const insert of offered(term)) {
+        assert.ok(searchMods(fixture, insert).length > 0, `${insert} found nothing`);
+      }
+    }
   });
 });
 
