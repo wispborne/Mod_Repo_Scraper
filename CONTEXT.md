@@ -44,6 +44,12 @@ _Avoid_: Fork (a fork is a separate mod by someone else)
 The name a mod's web address is built from. Once given, it never changes.
 _Avoid_: Slug, mod id (the game's own `mod_info.json` id is a different thing)
 
+### What others publish
+
+**Third-party catalog**:
+A list of mods in Starmodder's catalog format, published by someone else. A reader adds it in their own browser. Only that reader sees its mods. Starmodder does not check, store or approve it.
+_Avoid_: Plug-in, outside source, feed (the release feed is `updates.xml`), repo
+
 ### What players add
 
 **Account**:
@@ -64,3 +70,7 @@ _Avoid_: Vanilla-compatible (means compatibility with saves and other mods)
 **Review**:
 Short text a player adds to their rating. It is public only after approval.
 _Avoid_: Comment
+
+**Player code**:
+A short code for an account in published data. The code is the same on every mod. It does not reveal the account or its display name.
+_Avoid_: Hash, user id, anonymous id

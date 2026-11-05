@@ -34,15 +34,30 @@ When calculating a mod's averages, a rating SHALL count fully while its version 
 - **THEN** it counts at 1/256 of a current rating
 
 ### Requirement: Averages are published with the mod
-Each site build SHALL calculate, for every mod and criterion, the weighted average of the scores and the number of players who scored it. Both SHALL be written to `mods.json` and to the mod's `mods/<id>.json`, for criteria with at least one score. A mod with no ratings SHALL have no ratings field. Ratings from blocked accounts and ratings marked abusive SHALL NOT count.
+Each site build SHALL calculate, for every mod and criterion, the weighted average of the scores and the number of players who scored it. Both SHALL be written to `ratings.json` and to the mod's `mods/<id>.json`, for criteria with at least one score. `mods.json` SHALL NOT carry ratings. A mod with no ratings SHALL have no entry in `ratings.json` and no ratings field in its own file. Ratings from blocked accounts, ratings marked abusive and ratings by a verified author of the mod SHALL NOT count. An author's own rating SHALL still be shown on the mod's page, marked as the author's.
 
 #### Scenario: An unrated mod
 - **WHEN** a mod has no ratings
-- **THEN** its record in `mods.json` has no `ratings` field
+- **THEN** `ratings.json` has no entry for it, and `mods.json` is the same as before ratings existed
 
 #### Scenario: A blocked account
 - **WHEN** an account is blocked in the viewer
 - **THEN** the next site build calculates every average without its ratings
+
+#### Scenario: An author rates their own mod
+- **WHEN** a verified author of a mod gives it 5 on every criterion
+- **THEN** the mod's averages do not change, and the rating appears on the mod's page with an "Author" mark
+
+### Requirement: Every rating is published in ratings-export.json
+Each site build SHALL write `ratings-export.json`: one record per rating that is not blocked or abusive, holding its player code, permanent id, version, date, scores, whether it is by a verified author of the mod, and its review text when the review is approved. The site SHALL NOT load this file. It SHALL be published with the other data files.
+
+#### Scenario: A rating with a rejected review
+- **WHEN** a rating's review was rejected
+- **THEN** `ratings-export.json` holds its scores with no text
+
+#### Scenario: Browse never loads the export
+- **WHEN** a reader sorts Browse by Stability
+- **THEN** the page loads `ratings.json` and not `ratings-export.json`
 
 ### Requirement: The mod page shows all five criteria
 A mod's page SHALL show, for each criterion, its average and how many players scored it, or "Not rated" if it has no scores. It SHALL offer a signed-in player a way to rate the mod.
@@ -52,7 +67,7 @@ A mod's page SHALL show, for each criterion, its average and how many players sc
 - **THEN** its page shows Stability 4.2 from 6 players, and Balance as "Not rated"
 
 ### Requirement: Browse can sort and filter by a criterion
-Browse SHALL offer a sort by each criterion, highest first. Mods with fewer than 3 players scoring that criterion SHALL come after the mods with 3 or more, and mods with none SHALL come last. Browse SHALL offer, for each criterion, a filter for "at least N". The filter SHALL keep mods with no scores for that criterion, unless the reader turns on "Hide mods with no ratings".
+Browse SHALL load `ratings.json` only when the reader sorts or filters by a criterion. Browse SHALL offer a sort by each criterion, highest first. Mods with fewer than 3 players scoring that criterion SHALL come after the mods with 3 or more, and mods with none SHALL come last. Browse SHALL offer, for each criterion, a filter for "at least N". The filter SHALL keep mods with no scores for that criterion, unless the reader turns on "Hide mods with no ratings".
 
 #### Scenario: One 5 does not beat forty 4.8s
 - **WHEN** Browse is sorted by Stability, one mod has one Stability score of 5 and another has forty averaging 4.8
