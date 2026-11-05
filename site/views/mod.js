@@ -1488,7 +1488,8 @@ function neededChips(mods, extraClass = '') {
 /// The quote is cut to two lines.
 /// Hover shows the whole quote only if it was cut.
 /// Conflicts copied from other mods' posts appear below the mod's own conflicts.
-/// They stay hidden until the reader presses "N from other mods".
+/// They stay hidden until the reader presses "N from other mods' posts", or
+/// "Plus N more from other mods' posts" when the mod has conflicts of its own.
 /// The list scrolls when it is too tall.
 function conflictLines(conflicts) {
   const line = (conflict) => {
@@ -1500,15 +1501,17 @@ function conflictLines(conflicts) {
   const copied = conflicts.filter((conflict) => conflict.fromOtherMod);
   let more = null;
   if (copied.length) {
-    const count = copied.length === 1 ? '1 from another mod' : `${copied.length} from other mods`;
+    const count = copied.length === 1
+      ? "1 from another mod's post" : `${copied.length} from other mods' posts`;
+    const shut = own.length ? `Plus ${count.replace(' from', ' more from')}` : count;
     const list = el('div', { class: 'save-lines', hidden: true }, copied.map(line));
     const button = el('button', {
-      type: 'button', class: 'link-button conflict-more', text: count, 'aria-expanded': 'false',
+      type: 'button', class: 'link-button conflict-more', text: shut, 'aria-expanded': 'false',
     });
     button.addEventListener('click', () => {
       list.hidden = !list.hidden;
       button.setAttribute('aria-expanded', String(!list.hidden));
-      button.textContent = list.hidden ? count : `Hide ${count}`;
+      button.textContent = list.hidden ? shut : `Hide ${count}`;
     });
     more = el('div', { class: 'save-lines' }, [button, list]);
   }
