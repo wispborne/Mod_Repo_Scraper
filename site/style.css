@@ -2109,8 +2109,18 @@ a.chip.needed.conflict.calm:hover { background: var(--primary-soft); }
    so every row in the card reads as one level. */
 .compatibility .side-label { color: var(--text); font-weight: 600; font-size: var(--type-small); }
 /* Labels in the side cards have an icon in front, dim so the words lead. */
-.side-label.with-icon, .save-question { display: inline-flex; align-items: center; gap: 6px; }
-.side-icon, .side-icon svg { display: block; width: 14px; height: 14px; flex-shrink: 0; }
+:root { --side-icon-size: 14px; --side-icon-gap: 6px; }
+.side-label.with-icon, .save-question {
+  display: inline-flex; align-items: center; gap: var(--side-icon-gap);
+}
+.side-icon, .side-icon svg {
+  display: block; width: var(--side-icon-size); height: var(--side-icon-size); flex-shrink: 0;
+}
+/* What sits under a label with an icon starts where the label's words start,
+   not where its icon does. */
+.side-fact.with-icon:not(.beside) > .side-value, .save-line > .save-words {
+  margin-left: calc(var(--side-icon-size) + var(--side-icon-gap));
+}
 .side-icon { color: var(--text-dim); }
 .save-words {
   min-width: 0; overflow-wrap: anywhere; font-style: italic; color: var(--text-dim);

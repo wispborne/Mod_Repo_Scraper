@@ -1405,7 +1405,7 @@ function withoutLeadingAnswer(words, answer) {
 }
 
 function sideFact(label, value, { beside = false, labelTitle = null, icon = null } = {}) {
-  return el('div', { class: `side-fact${beside ? ' beside' : ''}` }, [
+  return el('div', { class: `side-fact${beside ? ' beside' : ''}${icon ? ' with-icon' : ''}` }, [
     el('span', {
       class: `side-label${labelTitle ? ' has-tip' : ''}${icon ? ' with-icon' : ''}`,
       title: labelTitle,
