@@ -207,7 +207,10 @@ export function render({ content, onLeave }) {
 // --- The rows ---
 
 /// The report's spellings, each with its saved answer, then the saved answers
-/// no mod used in the last build.
+/// no mod used in the last build. Those are labelled by who saved the answer,
+/// hand or LLM, even when the answer is "none of our mods": "Not matched" means
+/// a name the last build showed as written, and no mod used these. Needs
+/// attention counts only the report's unmatched spellings, the same set.
 function rowsOf(report, saved) {
   const rows = ((report && report.names) || []).map((n) => ({ ...n, used: true }));
   const keys = new Set(rows.map((r) => r.key));
@@ -220,7 +223,7 @@ function rowsOf(report, saved) {
       written: entry.written,
       count: 0,
       id: entry.id,
-      by: entry.by === 'hand' ? 'hand' : (entry.id ? 'llm' : 'unmatched'),
+      by: entry.by === 'hand' ? 'hand' : 'llm',
       saved: entry,
       used: false,
     });
