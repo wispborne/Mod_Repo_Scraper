@@ -35,6 +35,7 @@ import '../site/requirement_names.dart';
 import '../utilities/caching_http_client.dart';
 import 'bundle_snapshot_store.dart';
 import 'cancel_token.dart';
+import 'corrections_service.dart';
 import 'job.dart';
 import 'merge_debug_writer.dart';
 import 'merge_snapshot_store.dart';
@@ -278,6 +279,7 @@ class ScraperService implements JobRunner {
       case JobKind.takeDown:
       case JobKind.restoreTakedown:
       case JobKind.setAuthorAliases:
+      case JobKind.saveCorrections:
         // These run both pipelines, so a JobRouter runs them, handing this
         // service its own half as a fullRun or a rebuildBundle.
         throw ArgumentError(
@@ -868,11 +870,8 @@ class ScraperService implements JobRunner {
     final catalog = ModCatalog.read(catalogStep.outputFile);
     final ids = {for (final mod in catalog?.mods ?? const <CatalogMod>[]) mod.id};
     for (final change in changes) {
-      final id = change.id;
-      if (!change.forget && id != null && !ids.contains(id)) {
-        throw StateError('No mod in ${ModCatalog.fileName} has the id "$id". '
-            '"${change.written}" cannot match it. Nothing was changed.');
-      }
+      final problem = requirementChangeProblem(change, ids);
+      if (problem != null) throw StateError('$problem Nothing was changed.');
     }
 
     final store = RequirementNameStore(environment.dataPath)..load();

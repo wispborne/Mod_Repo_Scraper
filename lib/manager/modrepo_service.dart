@@ -529,12 +529,17 @@ class JobRouter implements JobRunner {
   /// `setAuthorAliases` is then refused.
   final JobRunner? authorAliases;
 
+  /// Applies a list of corrections to the three correction files.
+  /// When null, `saveCorrections` is refused.
+  final JobRunner? corrections;
+
   const JobRouter({
     required this.qb,
     required this.modRepo,
     required this.publish,
     this.takedowns,
     this.authorAliases,
+    this.corrections,
   });
 
   @override
@@ -619,26 +624,27 @@ class JobRouter implements JobRunner {
     );
   }
 
-  /// A takedown, a restore or new author aliases, as steps of one job: the
-  /// list is changed, then `ModRepo.json` is merged again from saved files,
-  /// then the catalog, the bundle and the website are rebuilt, and last the
-  /// outputs are published when the request asks. No step scrapes or calls
-  /// the LLM.
+  /// A takedown, a restore, new author aliases or a list of corrections, as
+  /// steps of one job: the files are changed, then `ModRepo.json` is merged
+  /// again from saved files, then the catalog, the bundle and the website are
+  /// rebuilt once, and last the outputs are published when the request asks.
+  /// No step scrapes or calls the LLM.
   ///
-  /// The list is changed first and kept, even when the job is stopped after:
-  /// the next rebuild applies it.
+  /// The file changes are saved first and kept if the job stops later.
+  /// The next rebuild applies them.
   Future<JobOutcome> _runCorrection(
     JobRequest request, {
     required RunReporter reporter,
     CancelToken? cancel,
     String? runId,
   }) async {
-    final aliases = request.kind == JobKind.setAuthorAliases;
-    final runner = aliases ? authorAliases : takedowns;
+    final (runner, missing) = switch (request.kind) {
+      JobKind.setAuthorAliases => (authorAliases, 'the author aliases'),
+      JobKind.saveCorrections => (corrections, 'the corrections'),
+      _ => (takedowns, 'the takedown list'),
+    };
     if (runner == null) {
-      throw StateError(aliases
-          ? 'This manager was set up without a way to change the author aliases.'
-          : 'This manager was set up without a way to change the takedown list.');
+      throw StateError('This manager was set up without a way to change $missing.');
     }
     await runner.runJob(request, reporter: reporter, cancel: cancel, runId: runId);
     if (cancel?.isCancelled ?? false) return const JobOutcome(cancelled: true);
@@ -652,7 +658,11 @@ class JobRouter implements JobRunner {
     if (merge.cancelled || (cancel?.isCancelled ?? false)) return merge;
 
     final rebuild = await qb.runJob(
-      JobRequest(kind: JobKind.rebuildBundle, collectMergeDebug: request.collectMergeDebug),
+      // A list of corrections is only ever saved from the website, and a merge
+      // started from the website always collects the Catalog diff data.
+      JobRequest(
+          kind: JobKind.rebuildBundle,
+          collectMergeDebug: request.collectMergeDebug || request.kind == JobKind.saveCorrections),
       reporter: reporter,
       cancel: cancel,
       runId: runId,
@@ -700,4 +710,5 @@ String jobKindLabel(JobKind kind) => switch (kind) {
       JobKind.rebuildFromSaved => 'rebuild from saved files',
       JobKind.takeDown => 'take down',
       JobKind.restoreTakedown => 'restore a takedown',
+      JobKind.saveCorrections => 'save corrections',
     };

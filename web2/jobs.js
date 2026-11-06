@@ -128,6 +128,13 @@ export function describeJob(request) {
       return 'Describe saved pictures that have no description yet, up to the per-run call limit (LLM calls may cost money), then rebuild every output without reading any post again.';
     case 'matchRequirements':
       return 'Ask the LLM to match unmatched dependency names to mods (LLM calls may cost money), then rebuild every output without reading any post again.';
+    case 'saveCorrections': {
+      const n = (request.corrections || []).length;
+      const what = n === 1 ? '1 correction' : `${n} corrections`;
+      return request.publishAfter
+        ? `Save ${what}, rebuild every output from saved files, then publish, with no LLM calls.`
+        : `Save ${what}, then rebuild every output from saved files, with no network or LLM calls.`;
+    }
     default:
       return `Run "${kindLabel(request.kind)}" again with the same settings.`;
   }

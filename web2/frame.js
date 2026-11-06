@@ -4,6 +4,7 @@
 import { el, clear, store } from './lib.js';
 import { icon } from './icons.js';
 import { NAV, searchRoute, oldViewerAddress, kindLabel, percent } from './routes.js';
+import { mountPendingButton } from './pending_view.js';
 
 // --- Nav rail ---
 
@@ -40,25 +41,14 @@ export function mountRail(node) {
 
 // --- Toolbar ---
 
-const PENDING_KEY = 'viewerPendingChanges';
-
-/// The number of unsaved corrections in this browser session.
-/// The corrections pages will write this list. Nothing writes it yet.
-export function pendingCount() {
-  try {
-    const list = JSON.parse(sessionStorage.getItem(PENDING_KEY) || '[]');
-    return Array.isArray(list) ? list.length : 0;
-  } catch {
-    return 0;
-  }
-}
-
 /// Draws the toolbar once: title, page buttons, Pending changes count and
 /// search box. Returns the parts that each page updates.
 export function mountToolbar(node) {
   const title = el('h1', { class: 'toolbar-title' });
   const actions = el('div', { class: 'toolbar-actions' });
-  const pending = el('span', { class: 'pending-count', hidden: true });
+  // The Pending changes button, and the list it opens.
+  const pending = el('div', { class: 'pending-host' });
+  mountPendingButton(pending);
   const input = el('input', {
     type: 'search',
     class: 'search-input',
@@ -91,20 +81,11 @@ export function mountToolbar(node) {
     input.select();
   });
 
-  const showPending = () => {
-    const n = pendingCount();
-    pending.hidden = n === 0;
-    pending.replaceChildren(icon('inbox', 14), `${n} pending`);
-    pending.title = n === 1 ? '1 unsaved change.' : `${n} unsaved changes.`;
-  };
-  window.addEventListener('storage', showPending);
-
   return {
     /// Sets the page name and clears the page's buttons.
     reset(pageName) {
       title.textContent = pageName;
       clear(actions);
-      showPending();
     },
     actions,
   };

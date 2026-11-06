@@ -63,6 +63,8 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return JobKind.takeDown;
       case r'restoreTakedown':
         return JobKind.restoreTakedown;
+      case r'saveCorrections':
+        return JobKind.saveCorrections;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -107,6 +109,8 @@ class JobKindMapper extends EnumMapper<JobKind> {
         return r'takeDown';
       case JobKind.restoreTakedown:
         return r'restoreTakedown';
+      case JobKind.saveCorrections:
+        return r'saveCorrections';
     }
   }
 }
@@ -115,6 +119,76 @@ extension JobKindMapperExtension on JobKind {
   String toValue() {
     JobKindMapper.ensureInitialized();
     return MapperContainer.globals.toValue<JobKind>(this) as String;
+  }
+}
+
+class CorrectionKindMapper extends EnumMapper<CorrectionKind> {
+  CorrectionKindMapper._();
+
+  static CorrectionKindMapper? _instance;
+  static CorrectionKindMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = CorrectionKindMapper._());
+    }
+    return _instance!;
+  }
+
+  static CorrectionKind fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  CorrectionKind decode(dynamic value) {
+    switch (value) {
+      case r'takeDownMod':
+        return CorrectionKind.takeDownMod;
+      case r'takeDownAuthor':
+        return CorrectionKind.takeDownAuthor;
+      case r'restore':
+        return CorrectionKind.restore;
+      case r'sameAuthor':
+        return CorrectionKind.sameAuthor;
+      case r'differentAuthors':
+        return CorrectionKind.differentAuthors;
+      case r'removeAuthorName':
+        return CorrectionKind.removeAuthorName;
+      case r'publishAuthorAs':
+        return CorrectionKind.publishAuthorAs;
+      case r'matchRequirement':
+        return CorrectionKind.matchRequirement;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(CorrectionKind self) {
+    switch (self) {
+      case CorrectionKind.takeDownMod:
+        return r'takeDownMod';
+      case CorrectionKind.takeDownAuthor:
+        return r'takeDownAuthor';
+      case CorrectionKind.restore:
+        return r'restore';
+      case CorrectionKind.sameAuthor:
+        return r'sameAuthor';
+      case CorrectionKind.differentAuthors:
+        return r'differentAuthors';
+      case CorrectionKind.removeAuthorName:
+        return r'removeAuthorName';
+      case CorrectionKind.publishAuthorAs:
+        return r'publishAuthorAs';
+      case CorrectionKind.matchRequirement:
+        return r'matchRequirement';
+    }
+  }
+}
+
+extension CorrectionKindMapperExtension on CorrectionKind {
+  String toValue() {
+    CorrectionKindMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<CorrectionKind>(this) as String;
   }
 }
 
@@ -228,6 +302,201 @@ extension RunStateMapperExtension on RunState {
     RunStateMapper.ensureInitialized();
     return MapperContainer.globals.toValue<RunState>(this) as String;
   }
+}
+
+class CorrectionMapper extends ClassMapperBase<Correction> {
+  CorrectionMapper._();
+
+  static CorrectionMapper? _instance;
+  static CorrectionMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = CorrectionMapper._());
+      CorrectionKindMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'Correction';
+
+  static CorrectionKind _$kind(Correction v) => v.kind;
+  static const Field<Correction, CorrectionKind> _f$kind = Field(
+    'kind',
+    _$kind,
+  );
+  static String? _$modId(Correction v) => v.modId;
+  static const Field<Correction, String> _f$modId = Field(
+    'modId',
+    _$modId,
+    opt: true,
+  );
+  static List<String> _$names(Correction v) => v.names;
+  static const Field<Correction, List<String>> _f$names = Field(
+    'names',
+    _$names,
+    opt: true,
+    def: const [],
+  );
+  static String? _$entry(Correction v) => v.entry;
+  static const Field<Correction, String> _f$entry = Field(
+    'entry',
+    _$entry,
+    opt: true,
+  );
+  static String? _$written(Correction v) => v.written;
+  static const Field<Correction, String> _f$written = Field(
+    'written',
+    _$written,
+    opt: true,
+  );
+  static bool _$forget(Correction v) => v.forget;
+  static const Field<Correction, bool> _f$forget = Field(
+    'forget',
+    _$forget,
+    opt: true,
+    def: false,
+  );
+
+  @override
+  final MappableFields<Correction> fields = const {
+    #kind: _f$kind,
+    #modId: _f$modId,
+    #names: _f$names,
+    #entry: _f$entry,
+    #written: _f$written,
+    #forget: _f$forget,
+  };
+
+  static Correction _instantiate(DecodingData data) {
+    return Correction(
+      kind: data.dec(_f$kind),
+      modId: data.dec(_f$modId),
+      names: data.dec(_f$names),
+      entry: data.dec(_f$entry),
+      written: data.dec(_f$written),
+      forget: data.dec(_f$forget),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static Correction fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<Correction>(map);
+  }
+
+  static Correction fromJson(String json) {
+    return ensureInitialized().decodeJson<Correction>(json);
+  }
+}
+
+mixin CorrectionMappable {
+  String toJson() {
+    return CorrectionMapper.ensureInitialized().encodeJson<Correction>(
+      this as Correction,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return CorrectionMapper.ensureInitialized().encodeMap<Correction>(
+      this as Correction,
+    );
+  }
+
+  CorrectionCopyWith<Correction, Correction, Correction> get copyWith =>
+      _CorrectionCopyWithImpl<Correction, Correction>(
+        this as Correction,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return CorrectionMapper.ensureInitialized().stringifyValue(
+      this as Correction,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return CorrectionMapper.ensureInitialized().equalsValue(
+      this as Correction,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return CorrectionMapper.ensureInitialized().hashValue(this as Correction);
+  }
+}
+
+extension CorrectionValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, Correction, $Out> {
+  CorrectionCopyWith<$R, Correction, $Out> get $asCorrection =>
+      $base.as((v, t, t2) => _CorrectionCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class CorrectionCopyWith<$R, $In extends Correction, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get names;
+  $R call({
+    CorrectionKind? kind,
+    String? modId,
+    List<String>? names,
+    String? entry,
+    String? written,
+    bool? forget,
+  });
+  CorrectionCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _CorrectionCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, Correction, $Out>
+    implements CorrectionCopyWith<$R, Correction, $Out> {
+  _CorrectionCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<Correction> $mapper =
+      CorrectionMapper.ensureInitialized();
+  @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get names =>
+      ListCopyWith(
+        $value.names,
+        (v, t) => ObjectCopyWith(v, $identity, t),
+        (v) => call(names: v),
+      );
+  @override
+  $R call({
+    CorrectionKind? kind,
+    Object? modId = $none,
+    List<String>? names,
+    Object? entry = $none,
+    Object? written = $none,
+    bool? forget,
+  }) => $apply(
+    FieldCopyWithData({
+      if (kind != null) #kind: kind,
+      if (modId != $none) #modId: modId,
+      if (names != null) #names: names,
+      if (entry != $none) #entry: entry,
+      if (written != $none) #written: written,
+      if (forget != null) #forget: forget,
+    }),
+  );
+  @override
+  Correction $make(CopyWithData data) => Correction(
+    kind: data.get(#kind, or: $value.kind),
+    modId: data.get(#modId, or: $value.modId),
+    names: data.get(#names, or: $value.names),
+    entry: data.get(#entry, or: $value.entry),
+    written: data.get(#written, or: $value.written),
+    forget: data.get(#forget, or: $value.forget),
+  );
+
+  @override
+  CorrectionCopyWith<$R2, Correction, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _CorrectionCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
 class RequirementChangeMapper extends ClassMapperBase<RequirementChange> {
@@ -396,6 +665,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       ScrapeBoardMapper.ensureInitialized();
       ModSourceKindMapper.ensureInitialized();
       RequirementChangeMapper.ensureInitialized();
+      CorrectionMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -571,6 +841,13 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     opt: true,
     def: false,
   );
+  static List<Correction> _$corrections(JobRequest v) => v.corrections;
+  static const Field<JobRequest, List<Correction>> _f$corrections = Field(
+    'corrections',
+    _$corrections,
+    opt: true,
+    def: const [],
+  );
 
   @override
   final MappableFields<JobRequest> fields = const {
@@ -599,6 +876,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     #authorAliasPeople: _f$authorAliasPeople,
     #authorAliasNotSame: _f$authorAliasNotSame,
     #llmRereadAll: _f$llmRereadAll,
+    #corrections: _f$corrections,
   };
 
   static JobRequest _instantiate(DecodingData data) {
@@ -628,6 +906,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       authorAliasPeople: data.dec(_f$authorAliasPeople),
       authorAliasNotSame: data.dec(_f$authorAliasNotSame),
       llmRereadAll: data.dec(_f$llmRereadAll),
+      corrections: data.dec(_f$corrections),
     );
   }
 
@@ -706,6 +985,8 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
   get authorAliasPeople;
   ListCopyWith<$R, List<String>, ObjectCopyWith<$R, List<String>, List<String>>>
   get authorAliasNotSame;
+  ListCopyWith<$R, Correction, CorrectionCopyWith<$R, Correction, Correction>>
+  get corrections;
   $R call({
     JobKind? kind,
     List<int>? topicIds,
@@ -732,6 +1013,7 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     List<List<String>>? authorAliasPeople,
     List<List<String>>? authorAliasNotSame,
     bool? llmRereadAll,
+    List<Correction>? corrections,
   });
   JobRequestCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -791,6 +1073,13 @@ class _JobRequestCopyWithImpl<$R, $Out>
     (v) => call(authorAliasNotSame: v),
   );
   @override
+  ListCopyWith<$R, Correction, CorrectionCopyWith<$R, Correction, Correction>>
+  get corrections => ListCopyWith(
+    $value.corrections,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(corrections: v),
+  );
+  @override
   $R call({
     JobKind? kind,
     List<int>? topicIds,
@@ -817,6 +1106,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
     List<List<String>>? authorAliasPeople,
     List<List<String>>? authorAliasNotSame,
     bool? llmRereadAll,
+    List<Correction>? corrections,
   }) => $apply(
     FieldCopyWithData({
       if (kind != null) #kind: kind,
@@ -845,6 +1135,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
       if (authorAliasPeople != null) #authorAliasPeople: authorAliasPeople,
       if (authorAliasNotSame != null) #authorAliasNotSame: authorAliasNotSame,
       if (llmRereadAll != null) #llmRereadAll: llmRereadAll,
+      if (corrections != null) #corrections: corrections,
     }),
   );
   @override
@@ -895,6 +1186,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
       or: $value.authorAliasNotSame,
     ),
     llmRereadAll: data.get(#llmRereadAll, or: $value.llmRereadAll),
+    corrections: data.get(#corrections, or: $value.corrections),
   );
 
   @override

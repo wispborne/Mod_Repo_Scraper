@@ -29,6 +29,7 @@ export const KIND_LABELS = {
   publishOutputs: 'Publish to GitHub',
   takeDown: 'Take down',
   restoreTakedown: 'Restore',
+  saveCorrections: 'Save corrections',
 };
 
 export function kindLabel(kind) {
@@ -283,6 +284,11 @@ export function describeJob(request) {
     case 'restoreTakedown':
       return `Remove "${request.takedownEntry}" from the takedown list. Rebuild every output from saved files`
         + `${request.publishAfter ? '. Then publish' : ''}. No network or LLM calls.`;
+    case 'saveCorrections': {
+      const n = (request.corrections || []).length;
+      return `Save ${n} ${n === 1 ? 'correction' : 'corrections'}. Rebuild every output from saved files`
+        + `${request.publishAfter ? '. Then publish' : ''}. No network or LLM calls.`;
+    }
     default:
       return `Run a "${request.kind}" job.`;
   }

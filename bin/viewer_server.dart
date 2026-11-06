@@ -4,6 +4,7 @@ import 'package:args/args.dart';
 import 'package:mod_repo_scraper/bot/common.dart';
 import 'package:mod_repo_scraper/manager/author_alias_service.dart';
 import 'package:mod_repo_scraper/manager/config_reload.dart';
+import 'package:mod_repo_scraper/manager/corrections_service.dart';
 import 'package:mod_repo_scraper/manager/data_lock.dart';
 import 'package:mod_repo_scraper/manager/job_manager.dart';
 import 'package:mod_repo_scraper/manager/manager_api.dart';
@@ -218,8 +219,11 @@ Future<_ManagerSetup> _buildManager({
   /// when the config file has changed.
   Future<JobRunner> buildServices(BotConfig settings) async {
     final service = ScraperService(
+      // Every service must write to the folders this viewer reads. Pass the
+      // output folder here so the bundle, catalog and website use
+      // --outputs-dir instead of ./outputs.
       environment: ScraperEnvironment.fromConfig(settings,
-          sourceCachePath: viewerRootDir),
+          outputPath: viewerOutputsDir, sourceCachePath: viewerRootDir),
       guardrails: ScraperGuardrails.fromConfig(settings),
     );
     await service.load();
@@ -248,6 +252,11 @@ Future<_ManagerSetup> _buildManager({
         outputPath: viewerOutputsDir,
       ),
       authorAliases: AuthorAliasService(dataPath: settings.qbDataPath),
+      // Mod ids are checked against the catalog this viewer shows.
+      corrections: CorrectionsService(
+        dataPath: settings.qbDataPath,
+        outputPath: viewerOutputsDir,
+      ),
     );
   }
 

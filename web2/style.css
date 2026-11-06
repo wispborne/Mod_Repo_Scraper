@@ -161,12 +161,32 @@ p { margin: 0; }
 }
 .toolbar-title { color: var(--action); margin-right: 10px; white-space: nowrap; }
 .toolbar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pending-host { position: relative; }
 .pending-count {
   display: inline-flex; align-items: center; gap: 6px;
   height: 26px; padding: 0 9px;
-  border: 1px solid var(--warning); color: var(--warning); font-weight: 600;
-  white-space: nowrap;
+  border: 1px solid var(--warning); background: none; color: var(--warning);
+  font: 600 var(--text-size)/19px var(--sans); white-space: nowrap; cursor: pointer;
 }
+.pending-count:hover, .pending-count[aria-expanded="true"] { background: var(--raised); }
+.pending-menu { left: auto; right: 0; width: 360px; }
+.pending-menu-head { cursor: default; margin: 0; }
+.pending-list { list-style: none; margin: 0; padding: 6px 0; max-height: 50vh; overflow: auto; }
+.pending-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center;
+  padding: 4px 8px 4px var(--pad);
+}
+.pending-item:hover { background: var(--raised); }
+.pending-label { overflow-wrap: anywhere; }
+.pending-publish { padding: 6px var(--pad); border-top: 1px solid var(--line); }
+.pending-actions { display: flex; gap: 8px; padding: 6px var(--pad) 12px; }
+.icon-button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border: 0; background: none;
+  color: var(--faint); cursor: pointer;
+}
+.icon-button:hover { color: var(--failed); }
+.pending-confirm li { display: list-item; margin-left: 18px; list-style: disc; }
 .search {
   display: flex; align-items: center; gap: 6px;
   flex: 0 1 320px; min-width: 180px; height: 28px; padding: 0 8px;
@@ -569,4 +589,5 @@ a.row:hover { background: var(--panel); text-decoration: none; }
   .run-meter, .chips { padding-left: 12px; padding-right: 12px; }
   .log-box { max-height: 60vh; padding-left: 12px; padding-right: 12px; }
   .menu { position: fixed; top: auto; left: 12px; right: 12px; max-width: none; }
+  .pending-menu { width: auto; }
 }

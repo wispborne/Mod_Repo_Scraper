@@ -119,6 +119,7 @@ export const KIND_LABELS = {
   restoreTakedown: 'Restore',
   setAuthorAliases: 'Change author aliases',
   setRequirementNames: 'Change dependency names',
+  saveCorrections: 'Save corrections',
   llmTest: 'LLM test',
 };
 

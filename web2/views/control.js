@@ -12,6 +12,7 @@ import {
 } from '../jobs.js';
 import { confirmAndStart } from '../actions.js';
 import { runPanel, runRow } from '../run_panel.js';
+import { pendingPanel } from '../pending_view.js';
 
 // Job options last for the current visit.
 const fetchOptions = defaultFetchOptions();
@@ -29,7 +30,7 @@ export function render({ content, toolbar, onLeave }) {
       el('p', { class: 'side-more' }, [el('a', { href: '#/runs', text: 'View all runs' })]),
     ]),
   });
-  content.append(pageLayout(main, [attention, queuePanel, runsPanel]));
+  content.append(pageLayout(main, [pendingPanel(), attention, queuePanel, runsPanel]));
 
   const run = runPanel(main);
   let lastOn = null;

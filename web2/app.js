@@ -15,11 +15,13 @@ import * as control from './views/control.js';
 import * as runs from './views/runs.js';
 import * as run from './views/run.js';
 import * as settings from './views/settings.js';
+import * as takedowns from './views/takedowns.js';
 
 const PAGES = {
   control,
   runs,
   settings,
+  takedowns,
 };
 
 /// Detail pages: a page id with something after it, such as `#/runs/<id>`.

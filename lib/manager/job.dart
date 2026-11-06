@@ -77,6 +77,75 @@ enum JobKind {
   /// Remove one entry from `takedowns.json`, then rebuild and publish the same
   /// way, so the mod comes back at its old address.
   restoreTakedown,
+
+  /// Apply a list of corrections to `takedowns.json`, `author-aliases.json`
+  /// and `requirement-names.json`, then rebuild every output once from saved
+  /// files, and publish when asked. If any correction is refused, nothing is
+  /// saved. No network, no LLM.
+  saveCorrections,
+}
+
+/// What one [Correction] in a `saveCorrections` job does.
+@MappableEnum()
+enum CorrectionKind {
+  /// Take down the mod or Collection page [Correction.modId].
+  takeDownMod,
+
+  /// Take down every mod credited to the person called [Correction.names].
+  takeDownAuthor,
+
+  /// Remove the takedown entry [Correction.entry]: a mod id, or `author:` and
+  /// an author entry's first name.
+  restore,
+
+  /// The two [Correction.names] are one person.
+  sameAuthor,
+
+  /// The two [Correction.names] are different people.
+  differentAuthors,
+
+  /// Remove the one name in [Correction.names] from its person.
+  removeAuthorName,
+
+  /// Publish the person under the one name in [Correction.names].
+  publishAuthorAs,
+
+  /// The dependency name [Correction.written] means the mod [Correction.modId],
+  /// or none of our mods when that is null. With [Correction.forget], the
+  /// saved answer is removed instead.
+  matchRequirement,
+}
+
+/// One change in a `saveCorrections` job. Only the fields its [kind] needs are
+/// set; the rest keep their defaults.
+@MappableClass()
+class Correction with CorrectionMappable {
+  final CorrectionKind kind;
+
+  /// The mod a `takeDownMod` takes down, or the mod a `matchRequirement`
+  /// matches. Null on a `matchRequirement` means none of our mods.
+  final String? modId;
+
+  /// The author names a `takeDownAuthor` or an author correction is about.
+  final List<String> names;
+
+  /// The takedown entry a `restore` removes.
+  final String? entry;
+
+  /// The dependency name as written in a post, for a `matchRequirement`.
+  final String? written;
+
+  /// True on a `matchRequirement` removes the saved answer for [written].
+  final bool forget;
+
+  const Correction({
+    required this.kind,
+    this.modId,
+    this.names = const [],
+    this.entry,
+    this.written,
+    this.forget = false,
+  });
 }
 
 /// One change a `setRequirementNames` job makes to `requirement-names.json`.
@@ -195,7 +264,8 @@ class JobRequest with JobRequestMappable {
   /// `author:` and an author entry's first name.
   final String? takedownEntry;
 
-  /// Whether a `takeDown` or `restoreTakedown` job publishes when it is done.
+  /// Whether a `takeDown`, `restoreTakedown` or `saveCorrections` job
+  /// publishes when it is done.
   final bool publishAfter;
 
   /// The hand entries a `setRequirementNames` job saves or removes.
@@ -214,6 +284,9 @@ class JobRequest with JobRequestMappable {
   /// started, or with no time, counts as out of date. Posts are read oldest
   /// answer first, so the next run continues where the call limit stopped this one.
   final bool llmRereadAll;
+
+  /// The corrections a `saveCorrections` job applies, in order.
+  final List<Correction> corrections;
 
   const JobRequest({
     required this.kind,
@@ -245,6 +318,7 @@ class JobRequest with JobRequestMappable {
     this.authorAliasPeople = const [],
     this.authorAliasNotSame = const [],
     this.llmRereadAll = false,
+    this.corrections = const [],
   });
 
   /// A scrape over the boards, the way the CLI has always run.
@@ -411,6 +485,15 @@ class JobRequest with JobRequestMappable {
         collectMergeDebug: true,
       );
 
+  /// Applies [corrections] in order, then rebuilds every output once.
+  factory JobRequest.saveCorrections(List<Correction> corrections, {bool publishAfter = false}) =>
+      JobRequest(
+        kind: JobKind.saveCorrections,
+        corrections: corrections,
+        publishAfter: publishAfter,
+        collectMergeDebug: true,
+      );
+
   /// True for the two kinds that run both pipelines, one after the other.
   bool get isPipelineKind =>
       kind == JobKind.fetchAndUpdate || kind == JobKind.rebuildFromSaved;
@@ -421,7 +504,8 @@ class JobRequest with JobRequestMappable {
 
   /// True for the kinds that change a list of corrections and then rebuild
   /// every output from saved files.
-  bool get isCorrectionKind => isTakedownKind || kind == JobKind.setAuthorAliases;
+  bool get isCorrectionKind =>
+      isTakedownKind || kind == JobKind.setAuthorAliases || kind == JobKind.saveCorrections;
 
   /// True for the two kinds that end in a merge.
   bool get isMergeKind =>

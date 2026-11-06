@@ -244,6 +244,10 @@ class ManagerApi {
         throw _BadRequest(e.message);
       }
     }
+    if (request.kind == JobKind.saveCorrections && request.corrections.isEmpty) {
+      throw _BadRequest('A saveCorrections job needs at least one correction in '
+          '"corrections".');
+    }
     if (request.kind == JobKind.restoreTakedown &&
         (request.takedownEntry?.trim() ?? '').isEmpty) {
       throw _BadRequest('A restore needs the entry to remove in '
