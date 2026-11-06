@@ -1,0 +1,95 @@
+/* The Catalog explorer, the LLM test report and Files. Only the colour names
+   on :root in style.css are used. */
+
+/* --- Catalog explorer --- */
+
+.ex-picker-row:empty { display: none; }
+.ex-picker-row { padding: 0 20px 10px; }
+.ex-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ex-picker .select { max-width: 100%; }
+.ex-tabs { flex-wrap: wrap; }
+.ex-tabs .tab:hover { text-decoration: none; }
+.ex-tab-count { font: var(--small)/17px var(--mono); color: var(--faint); }
+.ex-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding-top: 10px; }
+.ex-toolbar .pl-search { flex: 1 1 260px; }
+.ex-message { display: grid; gap: 4px; padding: 14px 20px; }
+
+.ex-groups { border-top: 1px solid var(--line); }
+.ex-group { border-bottom: 1px solid var(--line); }
+.ex-group > summary {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+  padding: 6px 20px; cursor: pointer;
+}
+.ex-group > summary:hover { background: var(--panel); }
+.ex-group-name { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.ex-group-body { display: grid; gap: 6px; padding: 2px 20px 12px 38px; }
+.ex-members, .ex-reasons, .ex-posts { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+.ex-members li, .ex-reasons li { overflow-wrap: anywhere; }
+.ex-reasons .pp-badge { margin-right: 4px; }
+
+.ex-member { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); }
+.ex-member-name { color: var(--heading); overflow-wrap: anywhere; }
+.ex-posts { margin-top: 4px; }
+
+.ex-table td { vertical-align: top; }
+.ex-table td:not(.num) { white-space: normal; }
+.ex-wins { color: var(--heading); }
+.ex-wins-mark { color: var(--action); font: var(--small)/17px var(--mono); }
+.ex-fields th:not(:first-child) { white-space: normal; min-width: 160px; text-transform: none; letter-spacing: 0; font-family: var(--sans); }
+.ex-value { white-space: pre-wrap !important; overflow-wrap: anywhere; min-width: 160px; max-width: 360px; }
+.ex-final { color: var(--heading); }
+.ex-entry { overflow-wrap: anywhere; }
+.ex-entry + .ex-entry { margin-top: 3px; }
+.ex-removals td { overflow-wrap: anywhere; }
+.ex-removals td:first-child, .ex-removals th:first-child { padding-left: 20px; }
+.ex-removals td .pp-badge { margin-left: 6px; }
+
+/* The merge's numbers in the side panel. */
+.ex-side { display: grid; gap: 8px; padding: 10px var(--pad) 14px; }
+.ex-counts { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; margin: 0; }
+.ex-counts dt { color: var(--dim); }
+.ex-counts dd { margin: 0; }
+.ex-side-head {
+  margin-top: 4px; font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--dim);
+}
+.ex-timings { display: grid; gap: 6px; }
+.ex-timing { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; }
+.ex-timing-bar { grid-column: 1 / -1; display: block; height: 4px; background: var(--raised); }
+.ex-timing-bar > span { display: block; height: 100%; background: var(--dim); }
+
+/* --- LLM test report --- */
+
+.lt-note { padding: 12px 20px 0; }
+.lt-bar { display: flex; justify-content: flex-end; }
+.lt-topics { border-top: 1px solid var(--line); }
+.lt-topic { border-bottom: 1px solid var(--line); }
+.lt-topic > summary {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+  padding: 6px 0; cursor: pointer;
+}
+.lt-topic > summary:hover { background: var(--panel); }
+.lt-title { flex: 1 1 200px; min-width: 0; color: var(--heading); font-weight: 600; overflow-wrap: anywhere; }
+.lt-topic-body { display: grid; gap: 10px; padding: 4px 0 14px 18px; min-width: 0; }
+.lt-topic-body .mono { overflow-wrap: anywhere; }
+
+/* --- Files --- */
+
+.fl-table td { vertical-align: top; }
+.fl-table td:first-child, .fl-table th:first-child { padding-left: 20px; }
+.fl-name { font-weight: 600; }
+.fl-path { white-space: normal !important; overflow-wrap: anywhere; }
+.fl-status { padding: 12px 20px 0; }
+.fl-page .pager { border-top: 0; padding: 8px 20px 0; }
+.fl-text { margin: 10px 20px 0; max-height: 70vh; color: var(--text); overflow-wrap: anywhere; }
+.fl-page > .pp-empty { padding: 14px 20px; }
+
+@media (max-width: 640px) {
+  .ex-picker-row, .ex-message, .lt-note, .fl-status { padding-left: 12px; padding-right: 12px; }
+  .ex-group > summary { padding-left: 12px; padding-right: 12px; }
+  .ex-group-body { padding-left: 24px; padding-right: 12px; }
+  .ex-picker .select { width: 100%; }
+  .fl-page .pager { padding-left: 12px; padding-right: 12px; }
+  .fl-text { margin-left: 12px; margin-right: 12px; }
+  .fl-table th:nth-child(2), .fl-table td:nth-child(2) { display: none; }
+}

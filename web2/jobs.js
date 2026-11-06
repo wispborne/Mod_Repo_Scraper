@@ -192,6 +192,8 @@ export function describeJob(request) {
       return 'Describe saved pictures that have no description yet, up to the per-run call limit (LLM calls may cost money), then rebuild every output without reading any post again.';
     case 'matchRequirements':
       return 'Ask the LLM to match unmatched dependency names to mods (LLM calls may cost money), then rebuild every output without reading any post again.';
+    case 'llmTest':
+      return 'Test the LLM prompt on a few topics and save a report, leaving other data unchanged (LLM calls may cost money).';
     case 'saveCorrections': {
       const n = (request.corrections || []).length;
       const what = n === 1 ? '1 correction' : `${n} corrections`;
@@ -211,6 +213,7 @@ export function confirmLabel(request) {
     case 'llmCoveragePass': return request.llmRereadAll ? 'Read every post' : 'Run LLM';
     case 'rebuildFromSaved': return 'Rebuild';
     case 'extractLlm': return 'Re-run LLM';
+    case 'llmTest': return 'Run LLM test';
     default: return `Start ${kindLabel(request.kind).toLowerCase()}`;
   }
 }

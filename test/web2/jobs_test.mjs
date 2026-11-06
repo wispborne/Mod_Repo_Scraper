@@ -58,6 +58,7 @@ test('every confirm dialog says one sentence', () => {
     scanImagesRequest(),
     matchNamesRequest(),
     { kind: 'takeDown' },
+    { kind: 'llmTest' },
     ...POST_JOBS.flatMap((job) => [
       postJobRequest(job.kind, ['topic:1']),
       postJobRequest(job.kind, ['topic:1', 'topic:2', 'discord:1203053249377079297']),
@@ -99,6 +100,13 @@ test('Run LLM All says it reads every post and may cost money', () => {
   assert.match(sentence, /every saved forum topic and Discord thread/);
   assert.match(sentence, /call limit/);
   assert.match(sentence, /cost money/);
+});
+
+test('the LLM test sentence says it changes nothing else and may cost money', () => {
+  assert.equal(
+    describeJob({ kind: 'llmTest' }),
+    'Test the LLM prompt on a few topics and save a report, leaving other data unchanged (LLM calls may cost money).',
+  );
 });
 
 test('lists read naturally', () => {
