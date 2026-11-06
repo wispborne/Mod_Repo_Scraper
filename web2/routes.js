@@ -87,7 +87,7 @@ export const KIND_LABELS = {
   fetchAndUpdate: 'Fetch and update',
   rebuildFromSaved: 'Rebuild from saved',
   publishOutputs: 'Publish',
-  llmCoveragePass: 'LLM catch-up',
+  llmCoveragePass: 'Run LLM',
   describePictures: 'Scan images',
   matchRequirements: 'Match dependency names',
   rescrapeTopics: 'Re-scrape topics',

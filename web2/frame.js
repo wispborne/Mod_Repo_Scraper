@@ -62,7 +62,8 @@ export function mountToolbar(node) {
   const input = el('input', {
     type: 'search',
     class: 'search-input',
-    placeholder: 'Topic id, address or name',
+    placeholder: 'Search…',
+    title: 'A topic id, a forum or Discord address, or a name',
     'aria-label': 'Search',
     autocomplete: 'off',
     spellcheck: 'false',
@@ -199,7 +200,7 @@ export function mountStatusBar(node) {
       if (!s.on) {
         left.append(
           statusMark('idle'),
-          el('span', { class: 'status-state', text: s.offline ? 'Server not answering' : 'Viewing only', title: s.reason || '' }),
+          el('span', { class: 'status-state', text: s.offline ? 'Offline' : 'Viewing only', title: s.reason || '' }),
         );
         return;
       }

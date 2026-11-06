@@ -36,7 +36,7 @@ async function route() {
 
   const entry = navEntryFor(parts);
   markCurrent(entry ? entry.id : null);
-  pageName = entry ? entry.label : 'Not found';
+  pageName = entry ? entry.label : 'Page not found';
   toolbar.reset(pageName);
   drawTitle();
 
@@ -44,8 +44,8 @@ async function route() {
   window.scrollTo(0, 0);
   if (!entry) {
     content.append(pageLayout(el('div', { class: 'note' }, [
-      el('h2', { class: 'panel-heading', text: 'Not found' }),
-      el('p', { text: `The address "#/${parts.join('/')}" does not match any page.` }),
+      el('h2', { class: 'panel-heading', text: 'Page not found' }),
+      el('p', { text: `There is no page at #/${parts.join('/')}. Choose a page from the menu.` }),
     ])));
     return;
   }

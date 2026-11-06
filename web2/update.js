@@ -3,7 +3,7 @@
 // so it keeps running during the server restart. This page starts the script
 // and checks its progress.
 
-import { el, clear, askDialog, noticeDialog } from './lib.js';
+import { el, clear, askDialog, noticeDialog, showDialog } from './lib.js';
 import { subscribe } from './status.js';
 
 const URL = '/api/manager/update';
@@ -124,13 +124,10 @@ function watch(from, to) {
   ]);
 
   let stopped = false;
-  close.addEventListener('click', () => box.close());
-  box.addEventListener('close', () => {
+  const shut = showDialog(box, () => {
     stopped = true;
-    box.remove();
   });
-  document.body.append(box);
-  box.showModal();
+  close.addEventListener('click', () => shut());
 
   const showLog = (last) => {
     const lines = (last && last.lines) || [];

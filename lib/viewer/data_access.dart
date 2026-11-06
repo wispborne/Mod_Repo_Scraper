@@ -76,6 +76,17 @@ class DataAccess {
       File(p.join(dataDir, DiscordPostsFile.fileName));
   late final File _pictureCaptionsFile =
       File(p.join(dataDir, PictureCaptionStore.fileName));
+  late final File _siteModsFile = File(p.join(outputsDir, 'site', 'mods.json'));
+
+  /// How many of the website's mods have no download, from
+  /// `outputs/site/mods.json`. Only the count is kept: the file is large.
+  late final _MtimeCache<int> _modsWithoutDownloadCache = _MtimeCache(
+    _siteModsFile,
+    (s) {
+      final mods = (jsonDecode(s) as Map<String, dynamic>)['mods'] as List<dynamic>? ?? const [];
+      return mods.where((mod) => mod is Map && mod['bestDownload'] == null).length;
+    },
+  );
 
   /// What the model saw in each picture, as saved: keyed the way
   /// [PictureCaptionStore.keyFor] keys them.
@@ -285,6 +296,10 @@ class DataAccess {
       _discordAssumedCache.get();
 
   Map<String, dynamic>? get bundle => _bundleCache.get();
+
+  /// How many of the website's mods have no download, or null when the
+  /// website has not been built.
+  int? get modsWithoutDownload => _modsWithoutDownloadCache.get();
 
   Map<String, dynamic>? get mergeDebug => _mergeDebugCache.get();
 

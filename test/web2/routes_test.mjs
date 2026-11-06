@@ -1,6 +1,6 @@
 // Tests for the new viewer's routing helpers (web2/routes.js). Run with
 // `node --test test/web2/routes_test.mjs`, or through `dart test`
-// (routes_test.dart).
+// (web2_js_test.dart).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

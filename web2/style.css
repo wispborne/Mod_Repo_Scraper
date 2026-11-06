@@ -59,6 +59,7 @@
   --gap: 8px;
   --pad: 12px;
   --cut: 6px;
+  --cut-in: calc(var(--cut) - 0.59px);
 
   color-scheme: dark;
 }
@@ -168,7 +169,7 @@ p { margin: 0; }
 }
 .search {
   display: flex; align-items: center; gap: 6px;
-  width: 320px; max-width: 100%; height: 28px; padding: 0 8px;
+  flex: 0 1 320px; min-width: 180px; height: 28px; padding: 0 8px;
   background: var(--background); border: 1px solid var(--line); color: var(--faint);
 }
 .search:focus-within { border-color: var(--action); }
@@ -184,16 +185,33 @@ p { margin: 0; }
 
 /* --- Buttons and small shapes ----------------------------------------- */
 
+/* A button with its top-right and bottom-left corners cut. A clipped border
+   would lose its line along each cut, so the edge is the button's own
+   background (--edge) and the inside is a slightly smaller copy of the shape
+   laid over it (--fill). The inside's cuts are 0.59px smaller, which keeps
+   the diagonal edge 1px thick. */
 .button {
+  --edge: var(--line);
+  --fill: var(--raised);
+  --shape: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  --shape-in: polygon(0 0, calc(100% - var(--cut-in)) 0, 100% var(--cut-in), 100% 100%, var(--cut-in) 100%, 0 calc(100% - var(--cut-in)));
+  position: relative; isolation: isolate;
   display: inline-flex; align-items: center; gap: 6px;
   height: 28px; padding: 0 12px;
-  border: 1px solid var(--line); background: var(--raised); color: var(--text);
+  border: 0; background: var(--edge); color: var(--text);
   font: inherit; cursor: pointer; white-space: nowrap;
-  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  clip-path: var(--shape);
 }
-.button:hover { border-color: var(--action); }
-.button.primary { background: var(--action); border-color: var(--action); color: var(--background); font-weight: 600; }
+.button::before {
+  content: ''; position: absolute; inset: 1px; z-index: -1;
+  background: var(--fill);
+  clip-path: var(--shape-in);
+}
+.button:hover { --edge: var(--action); }
+.button.primary { --edge: var(--action); --fill: var(--action); color: var(--background); font-weight: 600; }
 .button[disabled] { opacity: .45; cursor: default; }
+.button[disabled]:hover { --edge: var(--line); }
+.button.primary[disabled]:hover { --edge: var(--action); }
 
 .link-button {
   border: 0; background: none; padding: 0; color: var(--action);
@@ -230,7 +248,8 @@ p { margin: 0; }
 .progress-fill.unknown { width: 30%; animation: progress-unknown 1.4s ease-in-out infinite alternate; }
 .progress::after {
   content: ''; position: absolute; inset: 0;
-  background: repeating-linear-gradient(90deg, transparent 0 9px, var(--panel) 9px 10px);
+  /* The gaps are drawn in the colour behind the bar. */
+  background: repeating-linear-gradient(90deg, transparent 0 9px, var(--progress-gap, var(--background)) 9px 10px);
 }
 @keyframes progress-unknown { from { transform: translateX(0); } to { transform: translateX(233%); } }
 
@@ -288,7 +307,7 @@ a.row:hover { background: var(--panel); text-decoration: none; }
   background: var(--panel); border-top: 1px solid var(--frame);
   font-size: var(--small); color: var(--dim); white-space: nowrap;
 }
-.status-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.status-left { display: flex; align-items: center; gap: 8px; min-width: 0; --progress-gap: var(--panel); }
 .status-state { color: var(--text); }
 .status-job { color: var(--running); overflow: hidden; text-overflow: ellipsis; }
 .status-pct, .status-version { font-family: var(--mono); }
@@ -311,6 +330,123 @@ a.row:hover { background: var(--panel); text-decoration: none; }
   background: var(--background); border: 1px solid var(--line);
   font: var(--small)/19px var(--mono); color: var(--dim); white-space: pre-wrap;
 }
+
+/* --- Job buttons and menus (Control) --------------------------------- */
+
+.button.quiet { --edge: var(--panel); --fill: var(--panel); color: var(--dim); }
+.button.quiet:hover { --edge: var(--line); color: var(--text); }
+.button.danger { color: var(--failed); }
+.button.danger:hover { --edge: var(--failed); }
+.button .choice { color: var(--faint); font-weight: 400; }
+.button.primary .choice { color: var(--background); }
+.warn-text { color: var(--warning); }
+.button .choice.warn-text { color: var(--warning); }
+
+.menu-host { position: relative; }
+/* A split button: the job, then an arrow for its options. Only the outer
+   corners are cut. */
+.split { display: flex; }
+.split .split-main {
+  --shape: polygon(0 0, 100% 0, 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  --shape-in: polygon(0 0, 100% 0, 100% 100%, var(--cut-in) 100%, 0 calc(100% - var(--cut-in)));
+}
+.split .split-arrow {
+  --shape: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+  --shape-in: polygon(0 0, calc(100% - var(--cut-in)) 0, 100% var(--cut-in), 100% 100%, 0 100%);
+  padding: 0 7px; margin-left: 1px;
+}
+.button[aria-expanded="true"] { --edge: var(--action); }
+
+.menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+  min-width: 260px; max-width: min(380px, calc(100vw - 24px));
+  background: var(--panel); border: 1px solid var(--frame);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .45);
+}
+.menu-form { display: grid; gap: 12px; padding: 12px 14px; }
+.field { display: grid; gap: 4px; }
+.field-label {
+  font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--dim);
+}
+.select {
+  height: 28px; padding: 0 6px;
+  background: var(--background); color: var(--text);
+  border: 1px solid var(--line); font: inherit;
+}
+.select:disabled { opacity: .5; }
+.check, .radio { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.check input, .radio input { margin: 3px 0 0; accent-color: var(--action); }
+.radio-text { display: grid; }
+.menu-hint { color: var(--faint); font-size: var(--small); line-height: 17px; }
+.menu-note { font-size: var(--small); line-height: 17px; }
+.menu-list { display: grid; padding: 4px 0; }
+.menu-item {
+  display: grid; gap: 2px; text-align: left;
+  padding: 8px 14px; border: 0; background: none; color: var(--text);
+  font: inherit; cursor: pointer;
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--raised); }
+.menu-item-name { color: var(--action); }
+
+/* --- Run panel (Control) ---------------------------------------------- */
+
+.run-panel { display: flex; flex-direction: column; min-height: 100%; }
+.run-head {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 16px 20px 10px;
+}
+.run-name { color: var(--heading); font-size: 16px; line-height: 22px; }
+.run-sub { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-running { color: var(--running); }
+.tag-done { color: var(--done); }
+.tag-failed { color: var(--failed); }
+.tag-warning { color: var(--warning); }
+.tag-idle { color: var(--dim); }
+.run-meter { display: flex; align-items: center; gap: 10px; padding: 0 20px 8px; }
+.run-meter .progress { flex: 1; width: auto; max-width: 520px; height: 6px; }
+.run-count, .run-pct { font: var(--small)/17px var(--mono); }
+.run-count { color: var(--dim); }
+.run-pct { color: var(--running); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 12px; }
+.chip {
+  padding: 1px 8px; border: 1px solid var(--line); background: var(--raised);
+  font: var(--small)/19px var(--mono); color: var(--dim);
+}
+.chip b { color: var(--text); font-weight: 600; }
+.chip.bad b { color: var(--failed); }
+.chip.warn { color: var(--warning); border-color: var(--warning); background: none; }
+.chip.id { color: var(--faint); background: none; }
+
+.tabs { display: flex; gap: 0; padding: 0 12px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--panel); }
+.tab {
+  padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  background: none; color: var(--dim); cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--heading); border-bottom-color: var(--action); }
+.tab-pane { flex: 1; min-height: 0; }
+.log-pane { display: flex; flex-direction: column; }
+.log-note { padding: 6px 20px; color: var(--faint); font-size: var(--small); line-height: 17px; }
+.log-box {
+  flex: 1; min-height: 240px; max-height: calc(100vh - 320px); overflow: auto;
+  padding: 6px 20px 12px; background: var(--background);
+  font: var(--small)/19px var(--mono); color: var(--dim);
+}
+.log-line { white-space: pre-wrap; overflow-wrap: anywhere; }
+.log-line.warn { color: var(--warning); }
+.log-line.error { color: var(--failed); }
+.fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; padding: 16px 20px; }
+.fields dt { color: var(--dim); }
+.fields dd { margin: 0; overflow-wrap: anywhere; }
+
+.side-more { padding: 2px var(--pad) 10px; }
+.row.attention { grid-template-columns: 36px minmax(0, 1fr) auto; }
+.attention-count { text-align: right; font: 600 var(--small)/17px var(--mono); color: var(--text); }
+.row.attention.warn .attention-count { color: var(--warning); }
+.row.attention.bad .attention-count { color: var(--failed); }
+.row.attention .icon { color: var(--faint); }
+.row.attention:hover .icon { color: var(--action); }
 
 /* --- Narrow screens ---------------------------------------------------- */
 
@@ -336,7 +472,12 @@ a.row:hover { background: var(--panel); text-decoration: none; }
   .status-waiting, .status-version { display: none; }
   .progress { width: 60px; }
   .toolbar { flex-wrap: wrap; }
-  .search { width: 100%; order: 10; }
+  .search { flex: 1 1 100%; order: 10; }
   .page { grid-template-columns: minmax(0, 1fr); }
   .main-panel { border-right: 0; border-bottom: 1px solid var(--frame); }
+  .run-head { grid-template-columns: auto minmax(0, 1fr); padding: 12px; }
+  .run-head .button { grid-column: 1 / -1; justify-self: start; }
+  .run-meter, .chips { padding-left: 12px; padding-right: 12px; }
+  .log-box { max-height: 60vh; padding-left: 12px; padding-right: 12px; }
+  .menu { position: fixed; top: auto; left: 12px; right: 12px; max-width: none; }
 }

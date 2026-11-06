@@ -41,18 +41,43 @@ export async function api(path, params = {}) {
   return body;
 }
 
+/// Shows `box` as a dialog in the page. Returns `shut(value)`, which closes
+/// and removes it once and calls `onShut(value)`. Every way out (buttons,
+/// Escape, the back button) goes through `shut`: some browsers never send the
+/// dialog's own close event.
+export function showDialog(box, onShut) {
+  let done = false;
+  const shut = (value) => {
+    if (done) return;
+    done = true;
+    if (box.open) box.close();
+    box.remove();
+    window.removeEventListener('hashchange', onLeave);
+    onShut(value);
+  };
+  const onLeave = () => shut(null);
+  box.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    shut(null);
+  });
+  box.addEventListener('close', () => shut(null));
+  window.addEventListener('hashchange', onLeave);
+  document.body.append(box);
+  box.showModal();
+  return shut;
+}
+
 /// A dialog in the page. Resolves true on confirm, false on Cancel or Escape.
 /// Blank lines split the message into paragraphs. The confirm button has the
 /// focus, so Enter confirms.
 export function askDialog({ title, message, confirmLabel = 'Yes', cancelLabel = 'Cancel' }) {
   return new Promise((resolve) => {
     const box = el('dialog', { class: 'dialog' });
-    const yes = el('button', { class: 'button primary', text: confirmLabel });
-    yes.addEventListener('click', () => box.close('yes'));
+    const yes = el('button', { type: 'button', class: 'button primary', text: confirmLabel });
     const buttons = el('div', { class: 'dialog-buttons' });
+    let no = null;
     if (cancelLabel != null) {
-      const no = el('button', { class: 'button', text: cancelLabel });
-      no.addEventListener('click', () => box.close(''));
+      no = el('button', { type: 'button', class: 'button', text: cancelLabel });
       buttons.append(no);
     }
     buttons.append(yes);
@@ -62,13 +87,9 @@ export function askDialog({ title, message, confirmLabel = 'Yes', cancelLabel = 
       if (para.trim()) box.append(el('p', { text: para }));
     }
     box.append(buttons);
-    box.addEventListener('close', () => {
-      const said = box.returnValue === 'yes';
-      box.remove();
-      resolve(said);
-    });
-    document.body.append(box);
-    box.showModal();
+    const shut = showDialog(box, (value) => resolve(value === true));
+    yes.addEventListener('click', () => shut(true));
+    if (no) no.addEventListener('click', () => shut(false));
     yes.focus();
   });
 }

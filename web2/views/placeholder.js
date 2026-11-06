@@ -10,12 +10,12 @@ import { pageLayout } from '../frame.js';
 export function notBuiltYet(entry) {
   const note = el('div', { class: 'note' }, [
     el('h2', { class: 'panel-heading', text: entry.label }),
-    el('p', { text: 'This page is not built yet.' }),
+    el('p', { text: 'Coming soon. Until then, use the old viewer.' }),
   ]);
   if (entry.old) {
     note.append(el('p', {}, [
       el('a', { class: 'out-link', href: oldViewerAddress(location.pathname, entry.old) }, [
-        'Open it in the old viewer',
+        'Open in the old viewer',
         icon('external-link', 14),
       ]),
     ]));

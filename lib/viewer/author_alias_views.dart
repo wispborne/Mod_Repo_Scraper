@@ -1,4 +1,7 @@
+import '../bot/scraper/author_aliases.dart';
 import '../bot/scraper/mod_repo_utils.dart';
+import '../bot/scraper/qb/models/mod_summary.dart';
+import 'data_access.dart';
 
 /// Discord's placeholder for an account that no longer exists. It names
 /// nobody, so it is never offered as anyone's alias.
@@ -89,6 +92,29 @@ Map<String, Object?> authorAliasReport({
       for (final s in suggestions) {'forum': s.forum, 'discord': s.discord, 'mods': s.mods},
     ],
   };
+}
+
+/// [authorAliasReport] over the viewer's saved files: the current catalog,
+/// the forum's credits from the mods index, and the Discord reader's names.
+/// [file] holds the pairs marked as different people. The active aliases
+/// are those last loaded by [AuthorAliasFile.install].
+Map<String, Object?> authorAliasReportFromData(DataAccess data, AuthorAliasFile file) {
+  final forumAuthors = <String, List<String>>{};
+  for (final topic in data.index ?? const <QbModSummary>[]) {
+    forumAuthors['${topic.topicId}'] = [
+      if (topic.author.trim().isNotEmpty) topic.author,
+      for (final line in topic.indexLines ?? const <QbIndexLine>[])
+        if (line.author.trim().isNotEmpty) line.author,
+    ];
+  }
+  return authorAliasReport(
+    catalogItems: [
+      for (final item in (data.modRepo?['items'] as List?) ?? const []) item as Map<String, dynamic>,
+    ],
+    forumAuthors: forumAuthors,
+    discordAuthors: data.discordAuthors ?? const {},
+    notSame: file.notSame,
+  );
 }
 
 String _pairKey(String a, String b) {

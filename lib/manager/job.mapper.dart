@@ -564,6 +564,13 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
         opt: true,
         def: const [],
       );
+  static bool _$llmRereadAll(JobRequest v) => v.llmRereadAll;
+  static const Field<JobRequest, bool> _f$llmRereadAll = Field(
+    'llmRereadAll',
+    _$llmRereadAll,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<JobRequest> fields = const {
@@ -591,6 +598,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
     #requirementChanges: _f$requirementChanges,
     #authorAliasPeople: _f$authorAliasPeople,
     #authorAliasNotSame: _f$authorAliasNotSame,
+    #llmRereadAll: _f$llmRereadAll,
   };
 
   static JobRequest _instantiate(DecodingData data) {
@@ -619,6 +627,7 @@ class JobRequestMapper extends ClassMapperBase<JobRequest> {
       requirementChanges: data.dec(_f$requirementChanges),
       authorAliasPeople: data.dec(_f$authorAliasPeople),
       authorAliasNotSame: data.dec(_f$authorAliasNotSame),
+      llmRereadAll: data.dec(_f$llmRereadAll),
     );
   }
 
@@ -722,6 +731,7 @@ abstract class JobRequestCopyWith<$R, $In extends JobRequest, $Out>
     List<RequirementChange>? requirementChanges,
     List<List<String>>? authorAliasPeople,
     List<List<String>>? authorAliasNotSame,
+    bool? llmRereadAll,
   });
   JobRequestCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -806,6 +816,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
     List<RequirementChange>? requirementChanges,
     List<List<String>>? authorAliasPeople,
     List<List<String>>? authorAliasNotSame,
+    bool? llmRereadAll,
   }) => $apply(
     FieldCopyWithData({
       if (kind != null) #kind: kind,
@@ -833,6 +844,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
       if (requirementChanges != null) #requirementChanges: requirementChanges,
       if (authorAliasPeople != null) #authorAliasPeople: authorAliasPeople,
       if (authorAliasNotSame != null) #authorAliasNotSame: authorAliasNotSame,
+      if (llmRereadAll != null) #llmRereadAll: llmRereadAll,
     }),
   );
   @override
@@ -882,6 +894,7 @@ class _JobRequestCopyWithImpl<$R, $Out>
       #authorAliasNotSame,
       or: $value.authorAliasNotSame,
     ),
+    llmRereadAll: data.get(#llmRereadAll, or: $value.llmRereadAll),
   );
 
   @override

@@ -1,5 +1,6 @@
 import 'dart:io' as io;
 
+import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:path/path.dart' as p;
@@ -18,6 +19,7 @@ import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import '../bot/scraper/qb/llm/picture_captioner.dart';
 import '../bot/scraper/qb/llm/post_extractor.dart';
 import '../bot/scraper/qb/models/forum_data_bundle.dart';
+import '../bot/scraper/qb/models/mod_summary.dart';
 import '../bot/scraper/qb/models/scrape_job.dart';
 import '../bot/scraper/qb/scraper_engine.dart';
 import '../bot/scraper/qb/throttled_client.dart';
@@ -593,7 +595,9 @@ class ScraperService implements JobRunner {
     CancelToken? cancel,
     String? runId,
   ) async {
-    final llm = _buildExtractor(request);
+    // "All" reads every answer made before this job started again.
+    final llm = _buildExtractor(request,
+        rereadBefore: request.llmRereadAll ? DateTime.now().toUtc() : null);
     if (llm == null) {
       // Still rebuilt: this pass can follow a Discord fetch, and the catalog
       // has to take in the threads that fetch brought back.
@@ -1048,78 +1052,80 @@ class ScraperService implements JobRunner {
   /// results, whether or not it was scraped this run. A topic whose saved
   /// result is still good costs nothing, so a topic already done during the
   /// scrape is not paid for twice.
+  ///
+  /// The saved Discord threads are walked after the forum topics, the same
+  /// way. When the extractor re-reads every answer older than a cut-off
+  /// ("Run LLM: All"), forum topics and Discord threads are walked as one
+  /// list instead, oldest answer first. So a run stopped by the call limit is
+  /// carried on by the next one, without saving where it stopped.
   Future<_CoverageTally> _llmCoveragePass(
     PostExtractor extractor,
     RunReporter reporter,
     CancelToken? cancel,
   ) async {
     final index = await store.loadIndex();
-    reporter.phase('LLM coverage');
+    final forum = _CoverageCounts();
+    final discord = _CoverageCounts();
+    final rereadAll = extractor.rereadBefore != null;
 
-    var seen = 0;
-    var alreadyHadResults = 0; // results were already saved when we got here
-    var passCalls = 0; // sent to the LLM by this pass
-    var skipped = 0; // no post saved on disk, or a stub post we never send
-    var withoutResults = 0; // ends the run with nothing saved
-    String? stopReason;
-
-    // A few topics at a time — up to llm_max_concurrent_calls, the same limit
-    // the extractor holds everyone to. Most topics are saved answers and cost
+    // A few posts at a time — up to llm_max_concurrent_calls, the same limit
+    // the extractor holds everyone to. Most posts are saved answers and cost
     // nothing; the ones that do need a call overlap instead of queueing one
     // behind another. The tallies are safe to bump from the overlapping
     // futures because Dart runs them on one thread.
-    await _fewAtATime(index, guardrails.llmMaxConcurrentCalls,
-        () => cancel?.isCancelled ?? false, (summary) async {
-      final detail = await store.loadDetail(summary.topicId);
-      if (detail == null || detail.isPlaceholderDetail) {
-        seen++;
-        skipped++;
-        reporter.progress(seen, index.length,
-            llmCalls: extractor.liveCallCount);
-        return;
-      }
-
-      // Read the store before the call, not after, so a topic done earlier in
-      // this run counts as one we already had rather than one this pass made.
-      if (llmStore!.get(summary.topicId) != null) alreadyHadResults++;
-
-      // Once the extractor has stopped calling, keep walking the index so the
-      // count of what is left is right, but don't ask it for work it will
-      // refuse.
-      stopReason ??= _llmStopReason(extractor);
-      if (stopReason == null) {
-        final spentACall = await extractor.extractForTopic(
-            detail, resolver.getCachedCandidates(summary.topicId) ?? const []);
-        if (spentACall) passCalls++;
-      }
-
-      if (llmStore!.get(summary.topicId) == null) withoutResults++;
-
-      seen++;
-      reporter.progress(seen, index.length,
-          item: detail.title, llmCalls: extractor.liveCallCount);
-      if (seen % 50 == 0) {
-        reporter.log('LLM: covered $seen/${index.length} topics '
-            '($passCalls sent to the LLM so far)...');
-      }
-    });
-
-    // The run's call count, not the pass's: topics scraped this run were sent
-    // to the LLM inside the scrape loop, and those calls count against the same
-    // per-run limit.
-    reporter.log('LLM coverage: ${index.length} topics in the index, '
-        '$alreadyHadResults already had results, $passCalls sent to the LLM by '
-        'this pass (${extractor.liveCallCount} this run in total, counting '
-        'topics done during the scrape), $skipped skipped (no post saved).');
-    if (stopReason != null) {
-      reporter.log('LLM: stopped early because $stopReason. $withoutResults '
-          'topic(s) still have no LLM results; run again to carry on where '
-          'this run stopped.');
+    List<DiscordThreadPost> threads;
+    if (rereadAll) {
+      threads = _discordThreadsToCover(reporter);
+      reporter.phase('LLM coverage (every post)');
+      reporter.log('LLM: reading every saved post again, oldest answer first '
+          '(${index.length} forum topics and ${threads.length} Discord '
+          'threads).');
+      final posts = _oldestAnswerFirst<Object>(
+          [...index, ...threads],
+          (post) => post is QbModSummary
+              ? llmStore!.get(post.topicId)?.answeredAt
+              : llmStore!
+                  .getDiscord((post as DiscordThreadPost).threadId)
+                  ?.answeredAt);
+      var seen = 0;
+      await _fewAtATime(posts, guardrails.llmMaxConcurrentCalls,
+          () => cancel?.isCancelled ?? false, (post) async {
+        final name = post is QbModSummary
+            ? await _coverTopic(post, extractor, forum, index.length, reporter)
+            : await _coverThread(post as DiscordThreadPost, extractor, discord,
+                threads.length, reporter);
+        reporter.progress(++seen, posts.length,
+            item: name, llmCalls: extractor.liveCallCount);
+      });
+      _logForumCoverage(index.length, forum, extractor, reporter);
     } else {
-      reporter.log('LLM: $withoutResults topic(s) still have no LLM results.');
-    }
+      reporter.phase('LLM coverage');
+      await _fewAtATime(index, guardrails.llmMaxConcurrentCalls,
+          () => cancel?.isCancelled ?? false, (summary) async {
+        final name =
+            await _coverTopic(summary, extractor, forum, index.length, reporter);
+        reporter.progress(forum.seen, index.length,
+            item: name, llmCalls: extractor.liveCallCount);
+      });
+      _logForumCoverage(index.length, forum, extractor, reporter);
 
-    final discord = await _discordCoverage(extractor, reporter, cancel);
+      // The Discord half: every thread saved in `discord-posts.json` is read
+      // the same way a forum topic is, through the same extractor.
+      threads = _discordThreadsToCover(reporter);
+      if (threads.isNotEmpty) {
+        reporter.phase('LLM coverage (Discord)');
+        await _fewAtATime(threads, guardrails.llmMaxConcurrentCalls,
+            () => cancel?.isCancelled ?? false, (thread) async {
+          final name = await _coverThread(
+              thread, extractor, discord, threads.length, reporter);
+          reporter.progress(discord.seen, threads.length,
+              item: name, llmCalls: extractor.liveCallCount);
+        });
+      }
+    }
+    if (threads.isNotEmpty) {
+      _logDiscordCoverage(threads.length, discord, reporter);
+    }
 
     final captioner = extractor.captioner;
     if (captioner != null) {
@@ -1137,90 +1143,145 @@ class ScraperService implements JobRunner {
     }
 
     return _CoverageTally(
-      seen: seen + discord.seen,
-      total: index.length + discord.total,
-      withoutResults: withoutResults + discord.withoutResults,
+      seen: forum.seen + discord.seen,
+      total: index.length + threads.length,
+      withoutResults: forum.withoutResults + discord.withoutResults,
     );
   }
 
-  /// The Discord half of the coverage pass: every thread saved in
-  /// `discord-posts.json` is read the same way a forum topic is, through the
-  /// same extractor. Nothing is fetched from Discord — the threads were saved
-  /// by the last Discord scrape. They share the forum's per-run call limit and
-  /// its limit on calls at once, because it is the same extractor.
-  ///
-  /// A thread's links go through the same download rules a forum topic's do,
-  /// and the answers are cached under `discord:<thread id>`.
-  Future<_CoverageTally> _discordCoverage(
+  /// Makes sure one forum topic has LLM results. Returns its title, or null
+  /// when it has no saved post. Counts what happened in [counts].
+  Future<String?> _coverTopic(
+    QbModSummary summary,
     PostExtractor extractor,
+    _CoverageCounts counts,
+    int total,
     RunReporter reporter,
-    CancelToken? cancel,
   ) async {
-    final file = io.File(p.join(environment.dataPath, DiscordPostsFile.fileName));
+    final detail = await store.loadDetail(summary.topicId);
+    if (detail == null || detail.isPlaceholderDetail) {
+      counts.seen++;
+      counts.skipped++;
+      return null;
+    }
+
+    // Read the store before the call, not after, so a topic done earlier in
+    // this run counts as one we already had rather than one this pass made.
+    if (llmStore!.get(summary.topicId) != null) counts.alreadyHadResults++;
+
+    // Once the extractor has stopped calling, keep walking the index so the
+    // count of what is left is right, but don't ask it for work it will
+    // refuse.
+    counts.stopReason ??= _llmStopReason(extractor);
+    if (counts.stopReason == null) {
+      final spentACall = await extractor.extractForTopic(
+          detail, resolver.getCachedCandidates(summary.topicId) ?? const []);
+      if (spentACall) counts.passCalls++;
+    }
+
+    if (llmStore!.get(summary.topicId) == null) counts.withoutResults++;
+
+    counts.seen++;
+    if (counts.seen % 50 == 0) {
+      reporter.log('LLM: covered ${counts.seen}/$total topics '
+          '(${counts.passCalls} sent to the LLM so far)...');
+    }
+    return detail.title;
+  }
+
+  void _logForumCoverage(int total, _CoverageCounts counts,
+      PostExtractor extractor, RunReporter reporter) {
+    // The run's call count, not the pass's: topics scraped this run were sent
+    // to the LLM inside the scrape loop, and those calls count against the same
+    // per-run limit.
+    reporter.log('LLM coverage: $total topics in the index, '
+        '${counts.alreadyHadResults} already had results, ${counts.passCalls} '
+        'sent to the LLM by this pass (${extractor.liveCallCount} this run in '
+        'total, counting topics done during the scrape), ${counts.skipped} '
+        'skipped (no post saved).');
+    if (counts.stopReason != null) {
+      reporter.log('LLM: stopped early because ${counts.stopReason} '
+          '${counts.withoutResults} topic(s) still have no LLM results; run '
+          'again to carry on where this run stopped.');
+    } else {
+      reporter.log(
+          'LLM: ${counts.withoutResults} topic(s) still have no LLM results.');
+    }
+  }
+
+  /// The Discord threads the last Discord scrape saved in
+  /// `discord-posts.json`, in thread id order. Nothing is fetched from
+  /// Discord. Empty, with a line in the log, when the file cannot be read or
+  /// is in the old format the LLM does not read.
+  List<DiscordThreadPost> _discordThreadsToCover(RunReporter reporter) {
+    final file =
+        io.File(p.join(environment.dataPath, DiscordPostsFile.fileName));
     DiscordPostsFile saved;
     try {
       saved = DiscordPostsFile.read(file);
     } catch (e) {
       reporter.log('Could not read ${file.path}, so no Discord thread was '
           'sent to the LLM: $e');
-      return _CoverageTally(seen: 0, total: 0, withoutResults: 0);
+      return const [];
     }
     final threads = saved.threads.values.toList()
       ..sort((a, b) => a.threadId.compareTo(b.threadId));
-    if (threads.isEmpty) {
-      if (saved.legacyTexts.isNotEmpty) {
-        reporter.log('LLM coverage: the saved Discord posts are in the old '
-            'format, which the LLM does not read. The next Discord scrape '
-            'replaces them.');
-      }
-      return _CoverageTally(seen: 0, total: 0, withoutResults: 0);
+    if (threads.isEmpty && saved.legacyTexts.isNotEmpty) {
+      reporter.log('LLM coverage: the saved Discord posts are in the old '
+          'format, which the LLM does not read. The next Discord scrape '
+          'replaces them.');
+    }
+    return threads;
+  }
+
+  /// Makes sure one saved Discord thread has LLM results, the same way a forum
+  /// topic does. They share the forum's per-run call limit and its limit on
+  /// calls at once, because it is the same extractor. A thread's links go
+  /// through the same download rules a forum topic's do, and the answers are
+  /// cached under `discord:<thread id>`. Returns the thread's name.
+  Future<String> _coverThread(
+    DiscordThreadPost thread,
+    PostExtractor extractor,
+    _CoverageCounts counts,
+    int total,
+    RunReporter reporter,
+  ) async {
+    final source = thread.toSourcePost();
+    if (llmStore!.getDiscord(thread.threadId) != null) {
+      counts.alreadyHadResults++;
     }
 
-    reporter.phase('LLM coverage (Discord)');
-    var seen = 0;
-    var alreadyHadResults = 0;
-    var passCalls = 0;
-    var withoutResults = 0;
-    String? stopReason;
+    counts.stopReason ??= _llmStopReason(extractor);
+    if (counts.stopReason == null) {
+      final candidates = await resolver.resolveForDiscordThread(
+          thread.threadId, source.allLinks);
+      final spentACall = await extractor.extractFor(source, candidates);
+      if (spentACall) counts.passCalls++;
+    }
 
-    await _fewAtATime(threads, guardrails.llmMaxConcurrentCalls,
-        () => cancel?.isCancelled ?? false, (thread) async {
-      final source = thread.toSourcePost();
-      if (llmStore!.getDiscord(thread.threadId) != null) alreadyHadResults++;
+    if (llmStore!.getDiscord(thread.threadId) == null) counts.withoutResults++;
 
-      stopReason ??= _llmStopReason(extractor);
-      if (stopReason == null) {
-        final candidates =
-            await resolver.resolveForDiscordThread(thread.threadId, source.allLinks);
-        final spentACall = await extractor.extractFor(source, candidates);
-        if (spentACall) passCalls++;
-      }
+    counts.seen++;
+    if (counts.seen % 50 == 0) {
+      reporter.log('LLM: covered ${counts.seen}/$total Discord threads '
+          '(${counts.passCalls} sent to the LLM so far)...');
+    }
+    return thread.name;
+  }
 
-      if (llmStore!.getDiscord(thread.threadId) == null) withoutResults++;
-
-      seen++;
-      reporter.progress(seen, threads.length,
-          item: thread.name, llmCalls: extractor.liveCallCount);
-      if (seen % 50 == 0) {
-        reporter.log('LLM: covered $seen/${threads.length} Discord threads '
-            '($passCalls sent to the LLM so far)...');
-      }
-    });
-
-    reporter.log('LLM coverage (Discord): ${threads.length} saved threads, '
-        '$alreadyHadResults already had results, $passCalls sent to the LLM by '
-        'this pass.');
-    if (stopReason != null) {
-      reporter.log('LLM: stopped early because $stopReason. $withoutResults '
-          'Discord thread(s) still have no LLM results; run again to carry on '
-          'where this run stopped.');
+  void _logDiscordCoverage(
+      int total, _CoverageCounts counts, RunReporter reporter) {
+    reporter.log('LLM coverage (Discord): $total saved threads, '
+        '${counts.alreadyHadResults} already had results, ${counts.passCalls} '
+        'sent to the LLM by this pass.');
+    if (counts.stopReason != null) {
+      reporter.log('LLM: stopped early because ${counts.stopReason} '
+          '${counts.withoutResults} Discord thread(s) still have no LLM '
+          'results; run again to carry on where this run stopped.');
     } else {
-      reporter.log('LLM: $withoutResults Discord thread(s) still have no LLM '
-          'results.');
+      reporter.log('LLM: ${counts.withoutResults} Discord thread(s) still have '
+          'no LLM results.');
     }
-
-    return _CoverageTally(
-        seen: seen, total: threads.length, withoutResults: withoutResults);
   }
 
   /// Publishes the bundle, and saves a snapshot of what went out so this run
@@ -1311,6 +1372,24 @@ class ScraperService implements JobRunner {
     await probeCache.saveCache();
   }
 
+  /// [items] in the order "Run LLM: All" reads them: posts with no answer, or
+  /// an answer with no time, first, then the oldest answer first. Posts that
+  /// tie keep the order they came in.
+  static List<T> _oldestAnswerFirst<T>(
+      List<T> items, DateTime? Function(T item) answeredAt) {
+    final times = [for (final item in items) answeredAt(item)];
+    final order = List<int>.generate(items.length, (i) => i);
+    mergeSort<int>(order, compare: (a, b) {
+      final ta = times[a];
+      final tb = times[b];
+      if (ta == null || tb == null) {
+        return (ta == null ? 0 : 1) - (tb == null ? 0 : 1);
+      }
+      return ta.compareTo(tb);
+    });
+    return [for (final i in order) items[i]];
+  }
+
   /// Why the extractor will not make any more calls this run, or null while it
   /// still can.
   String? _llmStopReason(PostExtractor extractor, {int? leftOver}) {
@@ -1359,8 +1438,13 @@ class ScraperService implements JobRunner {
   ///
   /// [describePictures] gives the extractor a captioner whether or not
   /// `llm_caption_pictures` is on, for the picture description job.
+  ///
+  /// [rereadBefore] makes every saved answer made before it out of date. See
+  /// [PostExtractor.rereadBefore].
   _JobLlm? _buildExtractor(JobRequest request,
-      {bool testMode = false, bool describePictures = false}) {
+      {bool testMode = false,
+      bool describePictures = false,
+      DateTime? rereadBefore}) {
     final settings = environment.llm;
     if (!request.runLlm || settings == null || llmStore == null) return null;
 
@@ -1371,7 +1455,8 @@ class ScraperService implements JobRunner {
         _buildPostExtractor(client, request, settings,
             testMode: testMode,
             captionClient: client,
-            describePictures: describePictures),
+            describePictures: describePictures,
+            rereadBefore: rereadBefore),
         captions: pictureCaptions,
       );
     }
@@ -1423,7 +1508,8 @@ class ScraperService implements JobRunner {
       _buildPostExtractor(client, request, settings,
           testMode: testMode,
           captionClient: primary,
-          describePictures: describePictures),
+          describePictures: describePictures,
+          rereadBefore: rereadBefore),
       primary: primaryClient,
       fallback: fallbackClient,
       captions: pictureCaptions,
@@ -1454,6 +1540,7 @@ class ScraperService implements JobRunner {
     required bool testMode,
     required LlmClient captionClient,
     bool describePictures = false,
+    DateTime? rereadBefore,
   }) =>
       PostExtractor(
         client: client,
@@ -1476,6 +1563,7 @@ class ScraperService implements JobRunner {
                 pictureCaptions != null
             ? PictureCaptioner(client: captionClient, store: pictureCaptions!)
             : null,
+        rereadBefore: rereadBefore,
       );
 
   /// Closes the shared client used to look at download links.
@@ -1526,6 +1614,26 @@ class _JobLlm {
 }
 
 /// What one coverage pass got through.
+/// Current counts for one kind of post in the coverage pass.
+class _CoverageCounts {
+  int seen = 0;
+
+  /// Posts that already had saved results when the pass reached them.
+  int alreadyHadResults = 0;
+
+  /// Sent to the LLM by this pass.
+  int passCalls = 0;
+
+  /// No post saved on disk, or a stub post that is never sent.
+  int skipped = 0;
+
+  /// Posts still without saved results at the end of the run.
+  int withoutResults = 0;
+
+  /// Why the extractor stopped calling, once it has.
+  String? stopReason;
+}
+
 class _CoverageTally {
   final int seen;
   final int total;

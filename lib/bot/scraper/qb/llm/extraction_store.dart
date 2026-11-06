@@ -33,6 +33,12 @@ class LlmStoreEntry {
   final String? model;
   final String? endpoint;
 
+  /// When the model gave this answer, in UTC. Kept when the answer is moved to
+  /// a new fingerprint. Used to read the oldest answers first when every post
+  /// is read again. Null for answers saved before this was recorded. Never
+  /// published.
+  final DateTime? answeredAt;
+
   LlmStoreEntry({
     required this.fingerprint,
     required this.schemaVersion,
@@ -42,6 +48,7 @@ class LlmStoreEntry {
     this.stats,
     this.model,
     this.endpoint,
+    this.answeredAt,
   });
 
   /// The thread's LLM data as it sits on the bundle's `index` item — just the
@@ -59,6 +66,8 @@ class LlmStoreEntry {
         if (stats != null && !stats!.isEmpty) 'stats': stats!.toJson(),
         if (model != null) 'model': model,
         if (endpoint != null) 'endpoint': endpoint,
+        if (answeredAt != null)
+          'answeredAt': answeredAt!.toUtc().toIso8601String(),
       };
 
   factory LlmStoreEntry.fromJson(Map<String, dynamic> json) => LlmStoreEntry(
@@ -76,7 +85,17 @@ class LlmStoreEntry {
             : null,
         model: json['model'] as String?,
         endpoint: json['endpoint'] as String?,
+        answeredAt: _readTime(json['answeredAt']),
       );
+
+  /// Parses a saved time. Returns null if it is missing or invalid.
+  static DateTime? _readTime(Object? value) =>
+      value is String ? DateTime.tryParse(value)?.toUtc() : null;
+
+  /// Whether this answer was made before [cutOff]. An answer with no time
+  /// counts as older than any cut-off.
+  bool answeredBefore(DateTime cutOff) =>
+      answeredAt == null || answeredAt!.isBefore(cutOff);
 }
 
 /// The file that stores all LLM results, doubles as a cache, and lets
@@ -224,6 +243,7 @@ class LlmExtractionStore {
           stats: e.stats,
           model: e.model,
           endpoint: e.endpoint,
+          answeredAt: e.answeredAt,
         ));
     return true;
   }

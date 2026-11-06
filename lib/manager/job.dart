@@ -209,6 +209,12 @@ class JobRequest with JobRequestMappable {
   /// the viewer stops suggesting them.
   final List<List<String>> authorAliasNotSame;
 
+  /// Whether an `llmCoveragePass` reads every saved post again, not only the
+  /// ones with no answer or a changed post. An answer made before the job
+  /// started, or with no time, counts as out of date. Posts are read oldest
+  /// answer first, so the next run continues where the call limit stopped this one.
+  final bool llmRereadAll;
+
   const JobRequest({
     required this.kind,
     this.topicIds = const [],
@@ -238,6 +244,7 @@ class JobRequest with JobRequestMappable {
     this.requirementChanges = const [],
     this.authorAliasPeople = const [],
     this.authorAliasNotSame = const [],
+    this.llmRereadAll = false,
   });
 
   /// A scrape over the boards, the way the CLI has always run.
@@ -271,8 +278,9 @@ class JobRequest with JobRequestMappable {
 
   /// Turns the whole `mods-index.json` over to the LLM, filling in whatever is
   /// missing. No scrape.
-  factory JobRequest.llmCoveragePass() =>
-      const JobRequest(kind: JobKind.llmCoveragePass, runLlm: true);
+  /// [rereadAll] reads every saved post again, oldest answer first.
+  factory JobRequest.llmCoveragePass({bool rereadAll = false}) => JobRequest(
+      kind: JobKind.llmCoveragePass, runLlm: true, llmRereadAll: rereadAll);
 
   /// Describes pictures for [topicIds] again. With no topics selected,
   /// describes saved pictures with missing or outdated descriptions.

@@ -309,6 +309,13 @@ class PostExtractor {
   /// read. Null when `llm_caption_pictures` is off.
   final PictureCaptioner? captioner;
 
+  /// When set, a saved answer made before this time, or with no time, is out
+  /// of date even when its post has not changed, so the post is read again.
+  /// Such an answer is never moved to a new fingerprint in place of a call.
+  /// Set to the job's start for "Run LLM: All". Null reads only posts with no
+  /// answer or a changed post.
+  final DateTime? rereadBefore;
+
   final Lock _lock = Lock();
   int _consecutiveFailures = 0;
   bool _bailed = false;
@@ -341,6 +348,7 @@ class PostExtractor {
     this.testTopicIds,
     this.pictureCaptions,
     this.captioner,
+    this.rereadBefore,
     Logger? logger,
   })  : _client = client,
         _store = store,
@@ -490,7 +498,15 @@ class PostExtractor {
     // really need a call. That is what lets a run over every stored topic pick
     // up where the last one stopped instead of re-chewing the same first few
     // topics every time.
-    if (_store.isFreshKey(source.storeKey, fingerprint, promptVersion)) {
+    //
+    // An answer older than [rereadBefore] is out of date even if its
+    // fingerprint matches. Skip the move below so the post is read again.
+    final cutOff = rereadBefore;
+    final saved = _store.getKey(source.storeKey);
+    final tooOld =
+        cutOff != null && saved != null && saved.answeredBefore(cutOff);
+    if (!tooOld &&
+        _store.isFreshKey(source.storeKey, fingerprint, promptVersion)) {
       _log.fine('LLM store hit for ${source.label}');
       return false;
     }
@@ -499,13 +515,15 @@ class PostExtractor {
     // answers, URL signatures. If the prompt still matches, move the saved
     // answer to the new fingerprint without reading the post again. Remove
     // this migration once all saved answers have been moved or replaced.
-    final olderFingerprints = {
-      fingerprintOf(isDiscord
-          ? LlmExtractionStore.withoutDiscordSignatures(userPrompt)
-          : userPrompt),
-      if (isDiscord) fingerprintOf(userPrompt),
-      if (isDiscord) fingerprintOf(prompts.fingerprinted),
-    }..remove(fingerprint);
+    final olderFingerprints = tooOld
+        ? const <String>{}
+        : ({
+            fingerprintOf(isDiscord
+                ? LlmExtractionStore.withoutDiscordSignatures(userPrompt)
+                : userPrompt),
+            if (isDiscord) fingerprintOf(userPrompt),
+            if (isDiscord) fingerprintOf(prompts.fingerprinted),
+          }..remove(fingerprint));
     for (final old in olderFingerprints) {
       if (await _store.moveFingerprint(
         source.storeKey,
@@ -601,6 +619,7 @@ class PostExtractor {
         stats: attempt.response.stats,
         model: attempt.response.model,
         endpoint: attempt.response.endpoint,
+        answeredAt: DateTime.now().toUtc(),
       ),
     );
   }
