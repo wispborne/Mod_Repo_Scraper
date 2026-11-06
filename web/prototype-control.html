@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- PROTOTYPE — throwaway. Three designs for the redesigned viewer's Control
+     page, switchable with ?variant=A|B|C and ?state=running|idle|off.
+     Open at http://127.0.0.1:8085/prototype-control.html -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control · Viewer prototype</title>
+  <!-- Prototype only: the real viewer would ship these fonts with the app. -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; padding: 0; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    #proto-bar {
+      position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
+      z-index: 1000; display: flex; align-items: center; gap: 4px;
+      padding: 5px 6px; border-radius: 999px;
+      background: #fff; color: #111; box-shadow: 0 6px 24px rgba(0,0,0,.55);
+      font: 600 13px/1 system-ui, sans-serif; white-space: nowrap;
+    }
+    #proto-bar button {
+      border: 0; background: #eee; color: #111; border-radius: 999px;
+      padding: 6px 10px; font: inherit; cursor: pointer;
+    }
+    #proto-bar button:hover { background: #ddd; }
+    #proto-bar button.on { background: #111; color: #fff; }
+    #proto-bar .label { padding: 0 10px; min-width: 210px; text-align: center; }
+    #proto-bar .sep { width: 1px; height: 18px; background: #ccc; margin: 0 4px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="proto-bar"></div>
+  <script type="module" src="prototype-control/main.js"></script>
+</body>
+</html>

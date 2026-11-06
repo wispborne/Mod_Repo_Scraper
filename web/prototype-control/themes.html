@@ -1,0 +1,170 @@
+<!doctype html>
+<!-- PROTOTYPE — throwaway. Six theme directions for the redesigned viewer,
+     each shown as the same small piece of the Workbench layout. Fonts come
+     from Google Fonts here only; the real viewer would bundle them. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theme directions · Viewer prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&family=Geist:wght@400;600&family=Geist+Mono:wght@400;600&family=Inter:wght@400;500;600&family=Doto:wght@700;900&family=Space+Grotesk:wght@400;600&family=Space+Mono&family=Barlow:wght@400;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #2a2a2a; color: #ddd; font: 13px/1.45 system-ui, sans-serif; }
+  .intro { max-width: 900px; margin: 0 0 20px; color: #bbb; }
+  .intro b { color: #fff; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: 22px; }
+  .label { display: flex; align-items: baseline; gap: 10px; margin: 0 0 6px; color: #fff; }
+  .label h2 { margin: 0; font-size: 16px; }
+  .label a { color: #9cf; font-size: 12px; }
+  .why { margin: 0 0 8px; color: #aaa; font-size: 12.5px; }
+  .chips { display: flex; gap: 0; margin: 0 0 8px; height: 18px; }
+  .chips span { flex: 1; }
+
+  /* The sample. Every theme only sets these names. */
+  .t {
+    background: var(--bg); color: var(--text); font-family: var(--sans); font-size: var(--size, 12.5px);
+    border: 1px solid var(--line); border-radius: var(--outer, 0); overflow: hidden;
+  }
+  .t .bar { display: flex; gap: 6px; align-items: center; padding: 8px 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .t .bar .title { font-weight: 600; margin-right: 6px; font-family: var(--head, var(--sans)); }
+  .t .b { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border: 1px solid var(--line2); background: var(--panel2); color: var(--text); border-radius: var(--r, 0); font: inherit; white-space: nowrap; }
+  .t .b.p { background: var(--accent); color: var(--accentInk); border-color: var(--accent); font-weight: 600; }
+  .t .b .f { opacity: .6; }
+  .t .body { display: grid; grid-template-columns: minmax(0, 1fr) 200px; }
+  .t .main { border-right: 1px solid var(--line); min-width: 0; }
+  .t .head { padding: 9px 10px; display: grid; gap: 6px; border-bottom: 1px solid var(--line); }
+  .t .head .row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .t .pill { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; padding: 1px 7px; border-radius: var(--r, 0); color: var(--run); background: var(--runBg); }
+  .t .kind { font-weight: 600; font-size: 1.12em; font-family: var(--head, var(--sans)); }
+  .t .dim { color: var(--dim); }
+  .t .meter { height: var(--meterH, 3px); background: var(--panel2); border-radius: var(--r, 0); overflow: hidden; }
+  .t .meter i { display: block; width: 40%; height: 100%; background: var(--run); }
+  .t .nums { display: flex; gap: 14px; font-family: var(--mono); font-size: .92em; }
+  .t .nums b { font-family: var(--num, var(--mono)); font-weight: 600; color: var(--text); }
+  .t .nums .bad b { color: var(--bad); }
+  .t .log { background: var(--logBg); padding: 8px 10px; font: var(--logSize, 11.5px)/1.6 var(--mono); color: var(--logText, var(--dim)); }
+  .t .log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t .log .w { color: var(--warn); } .t .log .e { color: var(--bad); }
+  .t .side h3 { margin: 0; padding: 7px 10px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); background: var(--panel); border-bottom: 1px solid var(--line); font-family: var(--head, var(--sans)); font-weight: 600; }
+  .t .att { display: grid; grid-template-columns: 30px 1fr; gap: 6px; padding: 4px 10px; }
+  .t .att b { text-align: right; font-family: var(--num, var(--mono)); color: var(--warn); }
+  .t .runs { padding: 2px 0 6px; }
+  .t .r { display: flex; gap: 7px; align-items: center; padding: 3px 10px; }
+  .t .d { width: 7px; height: 7px; border-radius: var(--dot, 50%); background: var(--ok); flex-shrink: 0; }
+  .t .d.f { background: var(--bad); } .t .d.s { background: var(--warn); }
+  .t .r .when { margin-left: auto; font-family: var(--mono); font-size: .88em; color: var(--dim); }
+  .t .link { color: var(--link, var(--accent)); }
+
+  /* 1. Terminal — Bloomberg Terminal */
+  .terminal { --bg: #000; --panel: #0b0b0b; --panel2: #161616; --line: #262626; --line2: #3a3a3a;
+    --text: #ffb000; --dim: #b07a00; --accent: #ffb000; --accentInk: #000; --link: #ffffff;
+    --run: #4fb3ff; --runBg: #0c2236; --ok: #33d17a; --bad: #ff3b30; --warn: #ffe14d;
+    --logBg: #000; --logText: #ffb000;
+    --sans: 'IBM Plex Mono', monospace; --mono: 'IBM Plex Mono', monospace; --size: 12px; }
+  .terminal .bar .title, .terminal .kind, .terminal .side h3 { color: #fff; text-transform: uppercase; letter-spacing: .04em; }
+  .terminal .b { text-transform: uppercase; font-size: 11px; }
+
+  /* 2. Carbon — IBM Carbon, Gray 100 theme */
+  .carbon { --bg: #161616; --panel: #262626; --panel2: #393939; --line: #393939; --line2: #525252;
+    --text: #f4f4f4; --dim: #a8a8a8; --accent: #0f62fe; --accentInk: #fff; --link: #78a9ff;
+    --run: #4589ff; --runBg: #001d6c; --ok: #42be65; --bad: #fa4d56; --warn: #f1c21b;
+    --logBg: #0e0e0e; --sans: 'IBM Plex Sans', sans-serif; --mono: 'IBM Plex Mono', monospace; --meterH: 4px; --dot: 0; }
+  .carbon .side h3 { text-transform: none; letter-spacing: .02em; font-size: 12px; color: #c6c6c6; }
+
+  /* 3. Warp — warm near-black, almost no colour */
+  .warp { --bg: #1b1916; --panel: #211f1b; --panel2: #2b2823; --line: #2f2c27; --line2: #44403a;
+    --text: #ece5d8; --dim: #8f877b; --accent: #ece5d8; --accentInk: #1b1916; --link: #ece5d8;
+    --run: #d9cfbf; --runBg: #34302a; --ok: #9fb38a; --bad: #e0705c; --warn: #d8b26a;
+    --logBg: #161411; --sans: 'Geist', sans-serif; --mono: 'Geist Mono', monospace; --r: 6px; --outer: 8px; }
+  .warp .link { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* 4. Linear — achromatic with one indigo */
+  .linear { --bg: #08090a; --panel: #0f1011; --panel2: #18191b; --line: #1f2023; --line2: #2c2d31;
+    --text: #f7f8f8; --dim: #8a8f98; --accent: #5e6ad2; --accentInk: #fff; --link: #8b8dff;
+    --run: #8b8dff; --runBg: #1c1d3a; --ok: #4cb782; --bad: #eb5757; --warn: #f2c94c;
+    --logBg: #050506; --sans: 'Inter', sans-serif; --mono: 'Geist Mono', monospace; --r: 6px; --outer: 10px; --size: 12.5px; }
+
+  /* 5. Nothing — black, white, one red; dot-matrix numbers */
+  .nothing { --bg: #000; --panel: #000; --panel2: #141414; --line: #222; --line2: #333;
+    --text: #fff; --dim: #8c8c8c; --accent: #fff; --accentInk: #000; --link: #fff;
+    --run: #fff; --runBg: #1a1a1a; --ok: #fff; --bad: #d71921; --warn: #ffffff;
+    --logBg: #000; --sans: 'Space Grotesk', sans-serif; --mono: 'Space Mono', monospace; --num: 'Doto', monospace;
+    --head: 'Space Grotesk', sans-serif; --r: 999px; --outer: 14px; --logText: #b5b5b5; }
+  .nothing .kind { font-family: 'Doto', monospace; font-weight: 900; font-size: 1.6em; letter-spacing: .02em; }
+  .nothing .nums b, .nothing .att b { font-size: 1.25em; font-weight: 900; }
+  .nothing .log .w { color: #fff; text-decoration: underline dotted; } .nothing .log .e { color: #d71921; }
+  .nothing .d { background: #fff; } .nothing .d.f { background: #d71921; } .nothing .d.s { background: transparent; border: 1px solid #fff; }
+  .nothing .att b { color: #fff; } .nothing .pill { border: 1px solid #fff; background: none; }
+
+  /* 6. Ableton — mid-grey workstation, orange */
+  .ableton { --bg: #2d2d2d; --panel: #1f1f1f; --panel2: #3a3a3a; --line: #1a1a1a; --line2: #4a4a4a;
+    --text: #e3e3e3; --dim: #9a9a9a; --accent: #ff8c2a; --accentInk: #1a1a1a; --link: #ffb26b;
+    --run: #67d4ff; --runBg: #1d3a47; --ok: #8be05a; --bad: #ff5c5c; --warn: #ffd84a;
+    --logBg: #232323; --sans: 'Barlow', sans-serif; --mono: 'IBM Plex Mono', monospace; --head: 'Barlow Condensed', sans-serif;
+    --r: 2px; --outer: 3px; --meterH: 6px; --size: 12.5px; }
+  .ableton .side h3, .ableton .bar .title { font-size: 13px; letter-spacing: .03em; }
+  .ableton .b { border-color: #111; background: #4a4a4a; }
+  .ableton .b.p { border-color: var(--accent); }
+</style>
+</head>
+<body>
+  <p class="intro"><b>Six theme directions</b>, each based on a real product and shown as the same piece of the Workbench layout. Colours and fonts are what to judge here; the layout is the same in all six. Fonts load from Google here only — the real viewer would ship them with the app.</p>
+  <div class="grid" id="grid"></div>
+<script>
+const THEMES = [
+  { id: 'terminal', name: '1. Terminal', from: 'Bloomberg Terminal', url: 'https://www.bloomberg.com/ux/', why: 'Amber text on pure black, all monospace, upper-case labels. Built for people reading dense numbers all day.',
+    chips: ['#000', '#161616', '#ffb000', '#ffffff', '#4fb3ff', '#33d17a', '#ff3b30', '#ffe14d'], fonts: 'IBM Plex Mono' },
+  { id: 'carbon', name: '2. Carbon', from: 'IBM Carbon (Gray 100)', url: 'https://carbondesignsystem.com/elements/themes/overview/', why: 'Neutral greys that step lighter per layer, square corners, one strong blue for actions. Plain and very readable.',
+    chips: ['#161616', '#262626', '#393939', '#f4f4f4', '#0f62fe', '#42be65', '#fa4d56', '#f1c21b'], fonts: 'IBM Plex Sans + Plex Mono' },
+  { id: 'warp', name: '3. Warp', from: 'Warp terminal', url: 'https://styles.refero.design/style/d4c51049-58eb-404a-9fcb-f195928b1c99', why: 'Warm near-black and almost no colour. Actions are off-white or underlined; colour only appears for status.',
+    chips: ['#1b1916', '#2b2823', '#ece5d8', '#8f877b', '#9fb38a', '#e0705c', '#d8b26a'], fonts: 'Geist + Geist Mono' },
+  { id: 'linear', name: '4. Linear', from: 'Linear', url: 'https://open-design.ai/plugins/design-system-linear-app/', why: 'Near-black, no colour except one indigo for actions and the live run. Soft corners, quiet lines.',
+    chips: ['#08090a', '#18191b', '#f7f8f8', '#8a8f98', '#5e6ad2', '#4cb782', '#eb5757', '#f2c94c'], fonts: 'Inter + Geist Mono' },
+  { id: 'nothing', name: '5. Nothing', from: 'Nothing (phones, Nothing OS)', url: 'https://www.shadcn.io/design/nothing/raw', why: 'Black and white only, with red kept for failures. Big numbers and the run name in a dot-matrix face.',
+    chips: ['#000', '#141414', '#ffffff', '#8c8c8c', '#d71921'], fonts: 'Space Grotesk + Space Mono + Doto' },
+  { id: 'ableton', name: '6. Ableton', from: 'Ableton Live', url: 'https://www.ableton.com/en/live/', why: 'Mid-grey workstation rather than near-black, tight condensed labels, orange for actions. Feels like a tool with knobs.',
+    chips: ['#2d2d2d', '#1f1f1f', '#e3e3e3', '#ff8c2a', '#67d4ff', '#8be05a', '#ff5c5c', '#ffd84a'], fonts: 'Barlow + Barlow Condensed + Plex Mono' },
+];
+
+const sample = `
+  <div class="bar"><span class="title">Control</span>
+    <span class="b p">▶ Fetch and update ▾</span><span class="b">✦ Run LLM <span class="f">· only changed</span> ▾</span>
+    <span class="b">Rebuild from saved</span><span class="b">Publish</span></div>
+  <div class="body"><div class="main">
+    <div class="head">
+      <div class="row"><span class="pill">Running</span><span class="kind">Fetch and update</span><span class="dim">Topic 34161 — Hartley's Mods</span></div>
+      <div class="meter"><i></i></div>
+      <div class="nums"><span><b>40%</b> 412/1031</span><span><b>7m 23s</b></span><span><b>37</b> LLM calls</span><span class="bad"><b>2</b> errors</span><span class="link">Stop</span></div>
+    </div>
+    <div class="log">
+      <div>23:07:42 INFO  Topic 34152 saved (Kadur Remnant) — post edited</div>
+      <div class="w">23:07:44 WARN  Topic 34155: download host answered 503</div>
+      <div>23:07:47 INFO  LLM: topic 34152 answered in 4.9 s (2 mods)</div>
+      <div class="e">23:07:50 ERROR Topic 34160: page did not load (timed out)</div>
+      <div>23:07:51 INFO  LLM: reading topic 34161 (9,204 tokens)</div>
+    </div></div>
+    <div class="side">
+      <h3>Needs attention</h3>
+      <div class="att"><b>7</b><span>Dependency names not matched</span></div>
+      <div class="att"><b>58</b><span>Posts with no LLM answer</span></div>
+      <h3>Recent runs</h3>
+      <div class="runs">
+        <div class="r"><span class="d"></span>Rebuild from saved<span class="when">10:23</span></div>
+        <div class="r"><span class="d s"></span>LLM catch-up<span class="when">00:41</span></div>
+        <div class="r"><span class="d f"></span>Fetch and update<span class="when">23:26</span></div>
+      </div>
+    </div></div>`;
+
+document.getElementById('grid').innerHTML = THEMES.map((t) => `
+  <section>
+    <div class="label"><h2>${t.name}</h2><span>from ${t.from}</span><a href="${t.url}" target="_blank" rel="noopener">source</a></div>
+    <p class="why">${t.why} <span style="color:#777">Fonts: ${t.fonts}.</span></p>
+    <div class="chips">${t.chips.map((c) => `<span style="background:${c}" title="${c}"></span>`).join('')}</div>
+    <div class="t ${t.id}">${sample}</div>
+  </section>`).join('');
+</script>
+</body>
+</html>

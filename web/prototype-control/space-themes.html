@@ -1,0 +1,153 @@
+<!doctype html>
+<!-- PROTOTYPE — throwaway. Six colour directions from space game interfaces.
+     Fonts and framing are the same in all six, so only the colours differ.
+     Fonts come from Google Fonts here only; the real viewer would bundle them. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space game colours · Viewer prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #262626; color: #ddd; font: 13px/1.45 system-ui, sans-serif; }
+  .intro { max-width: 900px; margin: 0 0 20px; color: #bbb; }
+  .intro b { color: #fff; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: 22px; }
+  .label { display: flex; align-items: baseline; gap: 10px; margin: 0 0 6px; color: #fff; }
+  .label h2 { margin: 0; font-size: 16px; }
+  .why { margin: 0 0 8px; color: #aaa; font-size: 12.5px; }
+  .chips { display: flex; height: 18px; margin: 0 0 8px; }
+  .chips span { flex: 1; }
+
+  /* The sample. Each theme sets only colour names. */
+  .t { --sans: 'IBM Plex Sans', sans-serif; --mono: 'IBM Plex Mono', monospace;
+    position: relative; background: var(--bg); color: var(--text); font: 12.5px/1.45 var(--sans);
+    border: 1px solid var(--frame); }
+  /* Corner brackets: the same game-style framing on every sample. */
+  .t::before, .t::after { content: ''; position: absolute; width: 10px; height: 10px; border: 2px solid var(--accent); pointer-events: none; }
+  .t::before { top: -2px; left: -2px; border-right: 0; border-bottom: 0; }
+  .t::after { bottom: -2px; right: -2px; border-left: 0; border-top: 0; }
+  .t .bar { display: flex; gap: 6px; align-items: center; padding: 8px 10px; background: var(--panel); border-bottom: 1px solid var(--frame); }
+  .t .title { font: 600 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-right: 8px; }
+  .t .b { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border: 1px solid var(--line2); background: var(--panel2); color: var(--text); font: inherit; white-space: nowrap;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px)); }
+  .t .b.p { background: var(--accent); color: var(--accentInk); border-color: var(--accent); font-weight: 600; }
+  .t .b .f { opacity: .65; }
+  .t .body { display: grid; grid-template-columns: minmax(0, 1fr) 200px; }
+  .t .main { border-right: 1px solid var(--frame); min-width: 0; }
+  .t .head { padding: 9px 10px; display: grid; gap: 6px; border-bottom: 1px solid var(--line); }
+  .t .row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .t .pill { font: 600 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 1px 7px; color: var(--run); border: 1px solid var(--run); }
+  .t .kind { font-weight: 600; font-size: 14px; color: var(--head, var(--text)); }
+  .t .dim { color: var(--dim); }
+  .t .meter { height: 4px; background: var(--panel2); position: relative; }
+  .t .meter i { position: absolute; left: 0; top: 0; bottom: 0; width: 40%; background: var(--run); }
+  .t .meter::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 9px, var(--bg) 9px 10px); }
+  .t .nums { display: flex; gap: 14px; font: 11.5px var(--mono); color: var(--dim); }
+  .t .nums b { font-weight: 600; color: var(--num, var(--text)); }
+  .t .nums .bad b { color: var(--bad); }
+  .t .link { color: var(--link, var(--accent)); }
+  .t .log { background: var(--logBg); padding: 8px 10px; font: 11.5px/1.6 var(--mono); color: var(--logText, var(--dim)); }
+  .t .log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t .log .w { color: var(--warn); } .t .log .e { color: var(--bad); }
+  .t .side h3 { margin: 0; padding: 7px 10px; font: 600 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); background: var(--panel); border-bottom: 1px solid var(--line); }
+  .t .att { display: grid; grid-template-columns: 30px 1fr; gap: 6px; padding: 4px 10px; }
+  .t .att b { text-align: right; font-family: var(--mono); color: var(--warn); }
+  .t .runs { padding: 2px 0 6px; }
+  .t .r { display: flex; gap: 7px; align-items: center; padding: 3px 10px; }
+  .t .d { width: 7px; height: 7px; background: var(--ok); flex-shrink: 0; transform: rotate(45deg); }
+  .t .d.f { background: var(--bad); } .t .d.s { background: var(--warn); }
+  .t .r .when { margin-left: auto; font: 11px var(--mono); color: var(--dim); }
+
+  /* 1. Elite Dangerous: black, orange HUD, blue for what is live. */
+  .elite { --bg: #07060a; --panel: #110c08; --panel2: #1c140c; --frame: #5a3208; --line: #2a1c0f; --line2: #6b3c0a;
+    --text: #f3e2cf; --dim: #a8835d; --accent: #ff7a00; --accentInk: #120800; --head: #ffb066;
+    --run: #4aa3ff; --ok: #6fd36f; --bad: #ff3c3c; --warn: #ffc23a; --logBg: #040305; --logText: #c99a68; }
+
+  /* 2. EVE Online Photon: near-black, soft pastels, pale gold for actions. */
+  .eve { --bg: #0b0c0e; --panel: #131518; --panel2: #1c1f23; --frame: #2c3036; --line: #202328; --line2: #3a3f46;
+    --text: #d4d8de; --dim: #8a9099; --accent: #d9b871; --accentInk: #15120a; --head: #eef0f3;
+    --run: #8fb8e8; --ok: #8fcf9c; --bad: #e88a8a; --warn: #e8c27f; --logBg: #08090a; }
+
+  /* 3. Stellaris: deep green-teal panels, green actions, gold numbers. */
+  .stellaris { --bg: #0a1513; --panel: #0f1f1b; --panel2: #163029; --frame: #2c5a4b; --line: #1a342d; --line2: #3b7563;
+    --text: #d6ece2; --dim: #85a99b; --accent: #5ee3a1; --accentInk: #04140d; --num: #f2cc5c; --head: #ffffff;
+    --run: #f2cc5c; --ok: #5ee3a1; --bad: #ff6b5e; --warn: #f2a33c; --logBg: #07100e; }
+
+  /* 4. Homeworld: cool slate steel, sand-ochre for actions and frames. */
+  .homeworld { --bg: #11151a; --panel: #171c22; --panel2: #212831; --frame: #4a4130; --line: #222a33; --line2: #5c5340;
+    --text: #dce2e8; --dim: #8b96a2; --accent: #e3b45a; --accentInk: #1a1306; --head: #f2e6cc;
+    --run: #79c7c0; --ok: #8fd18a; --bad: #e8604f; --warn: #e3b45a; --logBg: #0c0f13; }
+
+  /* 5. FTL: mid-grey metal panels, white outlines, green ready, orange buttons. */
+  .ftl { --bg: #2a3036; --panel: #353d45; --panel2: #424b55; --frame: #c9d1d8; --line: #4a535d; --line2: #8d98a3;
+    --text: #f1f3f5; --dim: #aab3bc; --accent: #f29a2e; --accentInk: #1e1204; --head: #ffffff;
+    --run: #7be36f; --ok: #7be36f; --bad: #ff5145; --warn: #ffd23f; --logBg: #22272c; --logText: #c7ced5; }
+
+  /* 6. Alien: Isolation (Nostromo): green phosphor on black-green, amber warnings. */
+  .nostromo { --bg: #030a05; --panel: #061209; --panel2: #0b1d10; --frame: #1f5a2e; --line: #0f2a17; --line2: #2f7a43;
+    --text: #9ff5b4; --dim: #4f9e63; --accent: #7dffa0; --accentInk: #021006; --head: #d4ffe0;
+    --run: #d4ffe0; --ok: #7dffa0; --bad: #ff5a3c; --warn: #ffb23c; --logBg: #020703; --logText: #6fd88a; }
+</style>
+</head>
+<body>
+  <p class="intro"><b>Six colour directions from space game interfaces.</b> The fonts (IBM Plex Sans and Mono) and the framing (corner brackets, cut-corner buttons, small upper-case labels) are the same in all six, so only the colours differ. The colour values are mine, based on each game, not copied from it.</p>
+  <div class="grid" id="grid"></div>
+<script>
+const THEMES = [
+  { id: 'elite', name: '1. Elite', from: 'Elite Dangerous', why: 'Black with the orange cockpit HUD. Blue marks what is live, the way Elite uses blue highlights against its orange.',
+    chips: ['#07060a', '#1c140c', '#f3e2cf', '#ff7a00', '#4aa3ff', '#6fd36f', '#ff3c3c', '#ffc23a'] },
+  { id: 'eve', name: '2. Photon', from: 'EVE Online (Photon UI)', why: 'Near-black and soft pastels, with pale gold for actions. Quiet enough for hours of spreadsheets in space.',
+    chips: ['#0b0c0e', '#1c1f23', '#d4d8de', '#d9b871', '#8fb8e8', '#8fcf9c', '#e88a8a', '#e8c27f'] },
+  { id: 'stellaris', name: '3. Stellaris', from: 'Stellaris', why: 'Deep green-teal panels, bright green for actions, gold for numbers and what is running.',
+    chips: ['#0a1513', '#163029', '#d6ece2', '#5ee3a1', '#f2cc5c', '#ff6b5e', '#f2a33c'] },
+  { id: 'homeworld', name: '4. Homeworld', from: 'Homeworld', why: 'Cool steel-blue slate with sand-ochre frames and actions, and a soft teal for what is live.',
+    chips: ['#11151a', '#212831', '#dce2e8', '#e3b45a', '#79c7c0', '#8fd18a', '#e8604f'] },
+  { id: 'ftl', name: '5. FTL', from: 'FTL: Faster Than Light', why: 'Mid-grey metal panels instead of near-black, white outlines, green for ready, orange buttons.',
+    chips: ['#2a3036', '#424b55', '#c9d1d8', '#f1f3f5', '#f29a2e', '#7be36f', '#ff5145', '#ffd23f'] },
+  { id: 'nostromo', name: '6. Nostromo', from: 'Alien: Isolation', why: 'Green phosphor on black-green, like a ship\'s computer terminal. Amber and red only for warnings and failures.',
+    chips: ['#030a05', '#0b1d10', '#9ff5b4', '#7dffa0', '#4f9e63', '#ffb23c', '#ff5a3c'] },
+];
+
+const sample = `
+  <div class="bar"><span class="title">Control</span>
+    <span class="b p">▶ Fetch and update ▾</span><span class="b">✦ Run LLM <span class="f">· only changed</span> ▾</span>
+    <span class="b">Rebuild from saved</span><span class="b">Publish</span></div>
+  <div class="body"><div class="main">
+    <div class="head">
+      <div class="row"><span class="pill">Running</span><span class="kind">Fetch and update</span><span class="dim">Topic 34161 — Hartley's Mods</span></div>
+      <div class="meter"><i></i></div>
+      <div class="nums"><span><b>40%</b> 412/1031</span><span><b>7m 23s</b></span><span><b>37</b> LLM calls</span><span class="bad"><b>2</b> errors</span><span class="link">Stop</span></div>
+    </div>
+    <div class="log">
+      <div>23:07:42 INFO  Topic 34152 saved (Kadur Remnant) — post edited</div>
+      <div class="w">23:07:44 WARN  Topic 34155: download host answered 503</div>
+      <div>23:07:47 INFO  LLM: topic 34152 answered in 4.9 s (2 mods)</div>
+      <div class="e">23:07:50 ERROR Topic 34160: page did not load (timed out)</div>
+      <div>23:07:51 INFO  LLM: reading topic 34161 (9,204 tokens)</div>
+    </div></div>
+    <div class="side">
+      <h3>Needs attention</h3>
+      <div class="att"><b>7</b><span>Dependency names not matched</span></div>
+      <div class="att"><b>58</b><span>Posts with no LLM answer</span></div>
+      <h3>Recent runs</h3>
+      <div class="runs">
+        <div class="r"><span class="d"></span>Rebuild from saved<span class="when">10:23</span></div>
+        <div class="r"><span class="d s"></span>LLM catch-up<span class="when">00:41</span></div>
+        <div class="r"><span class="d f"></span>Fetch and update<span class="when">23:26</span></div>
+      </div>
+    </div></div>`;
+
+document.getElementById('grid').innerHTML = THEMES.map((t) => `
+  <section>
+    <div class="label"><h2>${t.name}</h2><span>from ${t.from}</span></div>
+    <p class="why">${t.why}</p>
+    <div class="chips">${t.chips.map((c) => `<span style="background:${c}" title="${c}"></span>`).join('')}</div>
+    <div class="t ${t.id}">${sample}</div>
+  </section>`).join('');
+</script>
+</body>
+</html>

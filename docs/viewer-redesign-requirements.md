@@ -4,7 +4,7 @@ Written 5 November 2026. These are the requirements for a full redesign of the r
 viewer (`web/`, `lib/viewer/`, `bin/viewer_server.dart`). This is the local tool for running
 the scraper and checking its data. It is not Starmodder, the public site in `site/`.
 
-The visual design will be decided after these requirements are agreed.
+The layout and look were chosen from prototypes on 5 November 2026. See **Layout and look**.
 Each part of the build gets its own openspec change that refers to this file.
 
 ## Who uses it and why
@@ -15,10 +15,65 @@ Each part of the build gets its own openspec change that refers to this file.
   1. **Operate:** start jobs, watch them, publish, change settings.
   2. **Correct:** takedowns, author aliases, dependency names.
   3. **Investigate:** find out why a mod looks the way it does on Starmodder or in TriOS.
-- **Devices:** desktop first. On a phone, the status chip, the Control page, the run pages
+- **Devices:** desktop first. On a phone, the status bar, the Control page, the run pages
   and Takedowns must work. The diff and explorer pages can be desktop only.
 - **Look:** dark only. Every page fits a lot of information while staying easy to scan and read.
   Different from Starmodder, so the internal tool is never mistaken for the public site.
+  See **Layout and look**.
+
+## Layout and look
+
+Chosen from the prototypes in `web/prototype-control/`: the "Workbench" layout (variant C)
+in the "Homeworld" colours from `space-themes.html`, shown together as variant D.
+
+### Layout
+
+Every page uses the same code editor layout:
+
+- **A nav rail** down the left edge: a narrow sidebar of icons only, in place of a labelled
+  sidebar (see **Navigation**).
+- **A toolbar** across the top of each page: the page's name, the page's main actions, the
+  Pending changes count, and the search box.
+- **The page's content** is below the toolbar. Pages with one main item show it in a
+  large central panel. Other content goes in side panels stacked on the right. Each side panel
+  has a heading bar. Each side panel can be collapsed.
+- **A status bar** along the bottom edge: the running job and its progress, how many
+  jobs are waiting, the build version, and the Update link.
+
+### Colours
+
+Use dark steel-blue greys, with sand colours for actions and borders. Each colour has one meaning:
+
+| Name | Value | Used for |
+|---|---|---|
+| Background | `#11151a` | the page |
+| Panel | `#171c22` | toolbars, nav rail, panel headings, status bar |
+| Raised | `#212831` | buttons, chips, progress track |
+| Line | `#222a33` | lines between rows and inside panels |
+| Frame | `#4a4130` | the outer edges of the nav rail, toolbar, status bar and main panels |
+| Text | `#dce2e8` | normal text |
+| Dim text | `#8b96a2` | labels and secondary text |
+| Faint text | `#66717d` | hints, times, line numbers |
+| Heading | `#f2e6cc` | page and run names |
+| Action | `#e3b45a` | buttons, links, panel headings, corner brackets, the current page in the nav rail |
+| Running | `#79c7c0` | what is running now |
+| Done | `#8fd18a` | finished without errors |
+| Failed | `#e8604f` | failed runs and errors |
+| Warning | `#f2a65a` | warnings and counts that need attention |
+
+The Action colour and the Warning colour must stay clearly different. Action means
+"press this". Warning means "look at this".
+
+### Type and shapes
+
+- **Fonts:** IBM Plex Sans for words, IBM Plex Mono for numbers, ids, times and logs. Both are
+  shipped with the viewer. Nothing may load from the internet.
+- **Labels:** panel headings, toolbar titles and tab names use small IBM Plex Mono capitals
+  with wide letter spacing.
+- **Shapes:** square corners everywhere. Buttons have two cut corners (top right and bottom
+  left). The main panels have small corner brackets in the Action colour.
+- **Status marks:** a small diamond in the status colour. "Running" is an outlined tag.
+- **Progress:** a thin bar split into parts.
 
 ## How it is built and shipped
 
@@ -46,15 +101,20 @@ Each part of the build gets its own openspec change that refers to this file.
 
 ## Navigation
 
-- A sidebar with three groups, in this order:
+- A nav rail runs down the left edge. It has three groups in the order below.
+  A short line separates each group:
   - **Operate:** Control, Run history, Settings.
   - **Correct:** Takedowns, Author aliases, Dependency names.
   - **Investigate:** the mod and source post pages, the Source posts list, What changed,
     Catalog explorer, LLM test report, Files.
-- The status chip, the build version and the Update button stay at the bottom of the sidebar.
-- A search box is at the top of every page (see **Search**).
+- Each icon shows only its page name on hover, not its group. Its accessible label is the
+  page name.
+  The current page is marked in the Action colour.
+- The status, the number of waiting jobs, the build version and the Update link are in the
+  status bar along the bottom of every page.
+- The search box is in the toolbar at the top of every page (see **Search**).
 - Detail pages have breadcrumbs, such as mod → source post → history.
-  Top-level pages do not, because the sidebar already shows where you are.
+  Top-level pages do not, because the nav rail already shows where you are.
 
 ## Operate
 
@@ -63,14 +123,24 @@ Each part of the build gets its own openspec change that refers to this file.
 One page replaces today's Home and Runs pages. It shows what is running now, what
 happened last time, and what can be started.
 
+The job buttons are in the toolbar. The large central panel shows the live
+run, or the last run when nothing is running. It has tabs for its Log, what it changed and
+its Record. The side panels on the right are Pending changes, Needs attention, Queue and
+Recent runs, in that order. On a phone, the side panels go below the central panel.
+
 - **The live run:** its kind, its progress, its live counters (errors, LLM calls) and the
-  latest log lines, with Stop.
+  latest log lines, with Stop. When nothing is running, the same panel shows the last run
+  with "Run again".
 - **The queue**, with the jobs waiting.
-- **Start a job:** the three common jobs as large buttons, "Fetch and update",
-  "Rebuild from saved" and "Publish". Their options (forum scope, boards, Discord, Nexus,
-  LLM on or off) are collapsed under each button with today's defaults. The other
-  "Without fetching" jobs (LLM catch-up, Scan images, Match dependency names) are offered
-  too, less prominently.
+- **Start a job:** Show the four common jobs as buttons in the toolbar: "Fetch and update",
+  "Run LLM", "Rebuild from saved" and "Publish". "Fetch and update" is the most
+  prominent. Each button has a drop-down for its options: forum scope, boards, Discord, Nexus and LLM on or off. Use today's
+  defaults. "Run LLM" has two options: "Only changed" and "All". "Only changed" is the
+  default. It does what today's LLM catch-up does. It reads posts with no answer or
+  whose text or prompt has changed. "All" reads every post again. "All" needs a new
+  option in the API. The LLM call limit applies to both options. Also offer the other
+  "Without fetching" jobs: "Scan images" and "Match dependency names". Make these less
+  prominent than the four common jobs.
 - **The last run's result**, with a link to what it changed.
 - **Needs attention:** items that need action, each with a count and a link to
   where the user can fix them. Only items with a count above zero are shown.
