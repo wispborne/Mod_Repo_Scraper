@@ -11,11 +11,15 @@ import 'package:mod_repo_scraper/catalog/takedowns.dart';
 import 'package:mod_repo_scraper/manager/cancel_token.dart';
 import 'package:mod_repo_scraper/manager/corrections_service.dart';
 import 'package:mod_repo_scraper/manager/job.dart';
+import 'package:mod_repo_scraper/manager/job_manager.dart';
+import 'package:mod_repo_scraper/manager/manager_api.dart';
 import 'package:mod_repo_scraper/manager/modrepo_service.dart';
+import 'package:mod_repo_scraper/manager/run_history_store.dart';
 import 'package:mod_repo_scraper/manager/run_reporter.dart';
 import 'package:mod_repo_scraper/manager/scraper_service.dart';
 import 'package:mod_repo_scraper/site/requirement_names.dart';
 import 'package:path/path.dart' as p;
+import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
 import 'fake_job_runner.dart';
@@ -397,6 +401,92 @@ void main() {
 
     test('an empty list is refused', () async {
       await expectLater(run(const []), throwsStateError);
+    });
+  });
+
+  group('when the job is sent', () {
+    late JobManager manager;
+    late Handler handler;
+
+    setUp(() async {
+      manager = JobManager(
+        service: JobRouter(
+          qb: FakeJobRunner(),
+          modRepo: FakeJobRunner(),
+          publish: FakeJobRunner(),
+          corrections: service,
+        ),
+        history: RunHistoryStore(p.join(dir.path, 'runs-home')),
+      );
+      await manager.load();
+      handler = ManagerApi(manager: manager, dataPath: dataPath).router;
+    });
+
+    tearDown(() async {
+      for (var i = 0; i < 200 && (manager.currentRun != null || manager.queuedRuns.isNotEmpty); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+
+    Future<Response> send(List<Correction> corrections) async => handler(Request(
+          'POST',
+          Uri.parse('http://localhost/jobs'),
+          body: jsonEncode(JobRequest.saveCorrections(corrections).toMap()),
+          headers: {'content-type': 'application/json'},
+        ));
+
+    test('a correction that would be refused is refused with the message the job would give, and nothing is queued', () async {
+      await run(const [Correction(kind: CorrectionKind.takeDownAuthor, names: ['tidal5590'])]);
+      final files = [takedownsFile(), aliasFile()];
+      final before = [for (final file in files) file.readAsStringSync()];
+
+      final res = await send(const [
+        Correction(kind: CorrectionKind.sameAuthor, names: ['Alpha', 'beta_7']),
+        Correction(kind: CorrectionKind.takeDownAuthor, names: ['Tidal']),
+        Correction(kind: CorrectionKind.takeDownMod, modId: 'foo'),
+      ]);
+
+      expect(res.statusCode, 400);
+      expect((jsonDecode(await res.readAsString()) as Map)['error'],
+          'Nothing was saved. '
+          'Correction 2 (take down the person "Tidal"): "Tidal" is already taken down, as tidal5590. '
+          'Correction 3 (take down "foo"): No mod or Collection in mod-catalog.json has the id "foo".');
+      expect(manager.history.records, isEmpty);
+      expect([for (final file in files) file.readAsStringSync()], before);
+      expect(requirementsFile().existsSync(), isFalse);
+    });
+
+    test('two takedowns of one person in the same list are refused', () async {
+      final res = await send(const [
+        Correction(kind: CorrectionKind.takeDownAuthor, names: ['tidal5590']),
+        Correction(kind: CorrectionKind.takeDownAuthor, names: ['Tidal']),
+      ]);
+      expect(res.statusCode, 400);
+      expect((jsonDecode(await res.readAsString()) as Map)['error'], contains('Correction 2'));
+      expect(takedownsFile().existsSync(), isFalse);
+    });
+
+    test('corrections that can be saved are queued', () async {
+      final res = await send(const [
+        Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes'),
+        Correction(kind: CorrectionKind.matchRequirement, written: 'Lazy Lib', modId: 'lazylib'),
+      ]);
+      expect(res.statusCode, 200);
+      expect(manager.history.records, hasLength(1));
+    });
+
+    test('the check itself writes no file', () {
+      final aliasesBefore = aliasFile().readAsStringSync();
+      expect(
+          service.refusalOf(const [
+            Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes'),
+            Correction(kind: CorrectionKind.sameAuthor, names: ['Alpha', 'beta_7']),
+            Correction(kind: CorrectionKind.matchRequirement, written: 'Nex'),
+          ]),
+          isNull);
+      expect(takedownsFile().existsSync(), isFalse);
+      expect(requirementsFile().existsSync(), isFalse);
+      expect(aliasFile().readAsStringSync(), aliasesBefore);
     });
   });
 }

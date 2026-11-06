@@ -4,13 +4,45 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+/// The time at the start of a run id (`20260417T032007Z-imported` gives
+/// 2026-04-17 03:20:07 UTC), or null when the id does not start with one.
+DateTime? runIdTime(String id) {
+  final m = RegExp(r'^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z')
+      .firstMatch(id);
+  if (m == null) return null;
+  final parts = [for (var i = 1; i <= 6; i++) int.parse(m.group(i)!)];
+  final at =
+      DateTime.utc(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]);
+  // DateTime.utc rolls a bad month or day over instead of failing.
+  if (at.month != parts[1] || at.day != parts[2] || at.hour != parts[3]) {
+    return null;
+  }
+  return at;
+}
+
+/// When a snapshot was saved, for the lists and for finding the run saved
+/// nearest to another.
+///
+/// [recorded] is the time written to the counts file when it was saved; that
+/// is used first. Older snapshots have none, and their file time can be wrong:
+/// a snapshot imported from git, or a copy of the data folder, carries the
+/// time it was imported or copied. So for those the time in the run id (when
+/// the run started) is used, and the file time only when the id has none.
+DateTime snapshotSavedAt(String id, DateTime fileTime, Object? recorded) {
+  if (recorded is String) {
+    final at = DateTime.tryParse(recorded);
+    if (at != null) return at.toUtc();
+  }
+  return runIdTime(id) ?? fileTime;
+}
+
 /// One saved bundle, as the list shows it.
 class BundleSnapshotInfo {
   /// The run that published it. Same id as the run record, its log and its
   /// request.
   final String id;
 
-  /// When the file was written.
+  /// When it was saved ([snapshotSavedAt]).
   final DateTime savedAt;
 
   /// How big the file is on disk, squashed down.
@@ -167,7 +199,7 @@ class BundleSnapshotStore {
       final saved = counts[id];
       found.add(BundleSnapshotInfo(
         id: id,
-        savedAt: stat.modified,
+        savedAt: snapshotSavedAt(id, stat.modified, saved?['savedAt']),
         sizeBytes: stat.size,
         indexCount: saved?['indexCount'] as int?,
         detailCount: saved?['detailCount'] as int?,
@@ -255,12 +287,20 @@ class BundleSnapshotStore {
       'indexCount': (bundle['index'] as List?)?.length,
       'detailCount': (bundle['details'] as Map?)?.length,
       'downloadCount': (bundle['assumedDownloads'] as Map?)?.length,
+      'savedAt': _savedNow(runId),
     };
     try {
       File(countsPath).writeAsStringSync(jsonEncode(counts));
     } on FileSystemException {
       // Same again: the snapshot itself is what matters.
     }
+  }
+
+  /// The time to record for a snapshot saved now. A snapshot imported from git
+  /// (`-imported`) records the time in its id, which is the commit's.
+  static String _savedNow(String runId) {
+    final at = runId.endsWith('-imported') ? runIdTime(runId) : null;
+    return (at ?? DateTime.now()).toUtc().toIso8601String();
   }
 
   /// Keeps the newest [bundlesToKeep] snapshots and deletes the rest.

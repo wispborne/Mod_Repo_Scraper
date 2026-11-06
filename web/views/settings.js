@@ -9,7 +9,7 @@ import { pageLayout } from '../frame.js';
 
 const MASK = '•••';
 
-export async function render({ content, toolbar, guardLeave }) {
+export async function render({ content, toolbar, guardLeave, gone = () => false }) {
   const main = el('div', { class: 'settings' }, [el('p', { class: 'empty', text: 'Loading…' })]);
   content.append(pageLayout(main));
 
@@ -35,6 +35,8 @@ export async function render({ content, toolbar, guardLeave }) {
     try {
       data = await api('manager/settings');
     } catch (err) {
+      // The toolbar belongs to the next page once this one is left.
+      if (gone()) return;
       data = null;
       clear(main).append(
         el('div', { class: 'note' }, [
@@ -46,6 +48,7 @@ export async function render({ content, toolbar, guardLeave }) {
       toolbar.actions.replaceChildren();
       return;
     }
+    if (gone()) return;
     draw();
   };
 

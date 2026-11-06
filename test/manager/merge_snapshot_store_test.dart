@@ -56,6 +56,19 @@ void main() {
     expect(store.newestId, '20260722T100000Z-mergeModRepo');
   });
 
+  test('a copied snapshot keeps the time it was saved, not the copy time',
+      () async {
+    final store = MergeSnapshotStore(dataDir.path);
+    await store.save('20260722T100000Z-mergeModRepo', sampleData());
+    File(p.join(store.mergesPath, '20260722T100000Z-mergeModRepo.json.gz'))
+        .setLastModifiedSync(DateTime.utc(2027, 3, 1));
+    expect(store.list().single.savedAt.isBefore(DateTime.utc(2027)), isTrue);
+
+    // With the counts file lost too, the time in the run id is used.
+    File(store.countsPath).deleteSync();
+    expect(store.list().single.savedAt, DateTime.utc(2026, 7, 22, 10));
+  });
+
   test('a snapshot that was never saved reads back as nothing', () {
     final store = MergeSnapshotStore(dataDir.path);
     expect(store.read('20260722T100000Z-mergeModRepo'), isNull);

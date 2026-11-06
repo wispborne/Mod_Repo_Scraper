@@ -4,8 +4,11 @@
 // closes. It is never stored on the server. No DOM here beyond the event, so
 // Node can test it (test/web/pending_test.mjs).
 //
-// An item is { id, kind, label, correction }. `correction` is one entry of the
-// job's `corrections` list; `label` is the one line the list shows.
+// An item is { id, kind, label, correction, key? }. `correction` is one entry
+// of the job's `corrections` list; `label` is the one line the list shows.
+// `key` is set on dependency name changes: the key the server saves the answer
+// under (`requirementKey`), which pages use to find the row a change is for.
+// It is never sent to the server.
 
 export const PENDING_KEY = 'viewerPendingChanges';
 const EVENT = 'pending-changed';
@@ -41,18 +44,27 @@ function write(list) {
 
 /// Identifies a correction regardless of field order.
 export function correctionKey(c) {
-  const names = c.names ? [...c.names] : [];
+  let names = c.names ? [...c.names] : [];
   // A pair of names is the same pair either way round.
   if (c.kind === 'sameAuthor' || c.kind === 'differentAuthors') names.sort();
+  // A person's names in any order and any capitals are the same person.
+  if (c.kind === 'takeDownAuthor') {
+    names = names.map((n) => String(n).trim().toLowerCase()).filter(Boolean).sort();
+  }
   return JSON.stringify([c.kind, c.modId ?? null, names, c.entry ?? null, c.written ?? null, !!c.forget]);
 }
 
 /// Adds an item. Returns false when the same correction is already pending.
-/// Restoring a pending takedown cancels both changes.
-export function addPending({ kind, label, correction }) {
-  const list = pendingItems();
-  const key = correctionKey(correction);
-  if (list.some((i) => correctionKey(i.correction) === key)) return false;
+/// Restoring a pending takedown cancels both changes. A dependency name change
+/// with a `key` replaces any earlier pending change for the same key.
+export function addPending({ kind, label, correction, key }) {
+  let list = pendingItems();
+  const wanted = correctionKey(correction);
+  if (list.some((i) => correctionKey(i.correction) === wanted)) return false;
+
+  if (correction.kind === 'matchRequirement' && key) {
+    list = list.filter((i) => !(i.correction.kind === 'matchRequirement' && i.key === key));
+  }
 
   if (correction.kind === 'restore') {
     const entry = correction.entry || '';
@@ -68,7 +80,9 @@ export function addPending({ kind, label, correction }) {
   }
 
   const id = `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
-  list.push({ id, kind: kind || correction.kind, label, correction });
+  const item = { id, kind: kind || correction.kind, label, correction };
+  if (key) item.key = key;
+  list.push(item);
   write(list);
   return true;
 }

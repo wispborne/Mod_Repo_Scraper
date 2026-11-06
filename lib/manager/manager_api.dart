@@ -6,8 +6,10 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../bot/scraper/author_aliases.dart';
+import 'corrections_service.dart';
 import 'job.dart';
 import 'job_manager.dart';
+import 'modrepo_service.dart';
 import 'self_update.dart';
 import 'settings_catalog.dart';
 import 'settings_file.dart';
@@ -244,9 +246,16 @@ class ManagerApi {
         throw _BadRequest(e.message);
       }
     }
-    if (request.kind == JobKind.saveCorrections && request.corrections.isEmpty) {
-      throw _BadRequest('A saveCorrections job needs at least one correction in '
-          '"corrections".');
+    if (request.kind == JobKind.saveCorrections) {
+      if (request.corrections.isEmpty) {
+        throw _BadRequest('A saveCorrections job needs at least one correction in '
+            '"corrections".');
+      }
+      // Checked here too, the same way the job checks them, so a change that
+      // cannot be saved is refused before the browser takes it off its list.
+      // The job checks again when it runs.
+      final refusal = _correctionsService?.refusalOf(request.corrections);
+      if (refusal != null) throw _BadRequest(refusal);
     }
     if (request.kind == JobKind.restoreTakedown &&
         (request.takedownEntry?.trim() ?? '').isEmpty) {
@@ -254,6 +263,19 @@ class ManagerApi {
           '"takedownEntry".');
     }
     return request;
+  }
+
+  /// The service that saves corrections, found through the manager's runner
+  /// so the check reads the same folders the job will. Null when the runner
+  /// has none.
+  CorrectionsService? get _correctionsService {
+    final runner = manager.service;
+    if (runner is CorrectionsService) return runner;
+    if (runner is JobRouter) {
+      final corrections = runner.corrections;
+      if (corrections is CorrectionsService) return corrections;
+    }
+    return null;
   }
 
   Future<Response> _cancelJob(Request req) async {

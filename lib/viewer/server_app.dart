@@ -1,14 +1,19 @@
+import 'dart:convert';
+
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import 'api.dart';
 
 const String managerPathPrefix = 'api/manager';
+const String apiPathPrefix = 'api';
 
 /// Combines the manager, read-only viewer API and static frontend.
 ///
-/// Dispatch manager requests directly: a mounted handler's 404 would fall
-/// through the cascade and lose the manager's error message.
+/// Requests under `/api` never reach the static files. A cascade would pass
+/// the API's own 404 answers ("Unknown file id", "No group 3") on to the
+/// static handler, and the browser would only see "Not Found". For the same
+/// reason the manager routes are dispatched directly rather than mounted.
 ///
 /// [managerHandler] may serve jobs or report that the manager is off.
 Handler buildServerHandler({
@@ -16,20 +21,31 @@ Handler buildServerHandler({
   required Handler managerHandler,
   Handler? staticHandler,
 }) {
-  final apiRouter = Router()..mount('/api', viewer.router);
-  final rest = staticHandler == null
-      ? Cascade().add(apiRouter.call).handler
-      : Cascade().add(apiRouter.call).add(staticHandler).handler;
+  final apiRouter = Router(notFoundHandler: _noApiRoute)
+    ..mount('/$apiPathPrefix', viewer.router);
 
   return (Request request) {
     final path = request.url.path;
-    if (path == managerPathPrefix || path.startsWith('$managerPathPrefix/')) {
+    if (_isUnder(path, managerPathPrefix)) {
       // The manager routes are relative to this prefix.
       return managerHandler(request.change(path: managerPathPrefix));
     }
-    return rest(request);
+    if (_isUnder(path, apiPathPrefix) || staticHandler == null) {
+      return apiRouter.call(request);
+    }
+    return staticHandler(request);
   };
 }
+
+bool _isUnder(String path, String prefix) =>
+    path == prefix || path.startsWith('$prefix/');
+
+/// The answer for an address under `/api` that names no route, as JSON so
+/// the page can show the reason like any other API error.
+Response _noApiRoute(Request request) => Response.notFound(
+      jsonEncode({'error': 'Page not found: /${request.url.path}.'}),
+      headers: {'content-type': 'application/json; charset=utf-8'},
+    );
 
 /// The folders the old and new viewers were served from while both existed.
 const formerViewerPrefixes = ['v1', 'v2'];

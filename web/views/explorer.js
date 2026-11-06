@@ -4,7 +4,8 @@
 //   #/explorer/groups/<id>     one group: members, why they joined, the merge
 //                              steps, and before and after field by field
 //   #/explorer/removals        what was removed, by kind
-// The address stores the picked merge as `run`; none means the newest.
+// The address stores the picked merge as `run`; none means the newest. Group
+// numbers belong to one merge, so a link to a group always names its merge.
 
 import { el, api, pager, pageSizePreference, breadcrumbs, rawJson } from '../lib.js';
 import { pageLayout, sidePanel } from '../frame.js';
@@ -50,26 +51,59 @@ function runLabel(run) {
   return parts.join(' · ');
 }
 
+const NOT_KEPT = 'This merge is no longer kept. Pick another.';
+
+/// The saved merges, newest first, or null when they could not be listed.
+async function savedMerges() {
+  try {
+    const data = await api('merge/runs');
+    return (data && data.items) || [];
+  } catch {
+    return null;
+  }
+}
+
+/// Which merge the page shows. `shown` is the run named in the address, or
+/// the newest saved merge when none is named ('' when none is saved, which
+/// leaves the latest merge-debug.json). `kept` is false when the named merge
+/// is no longer saved.
+function settleRun(runs, run) {
+  if (!run) return { shown: runs && runs.length ? runs[0].id : '', kept: true };
+  return { shown: run, kept: !runs || runs.some((r) => r.id === run) };
+}
+
 /// The "Showing" choice of saved merge. Changing it keeps the page and moves
-/// the address to the new merge. Draws nothing when no merge is saved, since
-/// the latest merge-debug.json is then all there is.
-function mergePicker(slot, run, pageParts, params) {
-  api('merge/runs').then((data) => {
-    const runs = (data && data.items) || [];
-    if (!runs.length || !slot.isConnected) return;
-    const select = el('select', { class: 'select', 'aria-label': 'Merge to show' });
-    select.append(el('option', { value: '', text: `Newest merge (${runLabel(runs[0])})` }));
-    for (const r of runs) select.append(el('option', { value: r.id, text: runLabel(r) }));
-    select.value = runs.some((r) => r.id === run) ? run : '';
-    select.addEventListener('change', () => {
-      location.hash = buildHash(pageParts, { ...params, run: select.value, page: null });
-    });
-    slot.replaceChildren(el('label', { class: 'ex-picker' }, [
-      el('span', { class: 'field-label', text: 'Showing' }),
-      select,
-      el('span', { class: 'dim', text: `${runs.length} merge${runs.length === 1 ? '' : 's'} saved` }),
-    ]));
-  }).catch(() => {});
+/// the address to the new merge, keeping the address's `keep` values as they
+/// are at that moment. Draws nothing when no merge is saved, since the latest
+/// merge-debug.json is then all there is.
+function mergePicker(slot, runs, run, pageParts, keep) {
+  if (!runs || !runs.length || !slot.isConnected) return;
+  const select = el('select', { class: 'select', 'aria-label': 'Merge to show' });
+  select.append(el('option', { value: '', text: `Newest merge (${runLabel(runs[0])})` }));
+  // A merge named in the address that is no longer saved stays selected, so
+  // the picker does not claim the newest merge is shown.
+  if (run && !runs.some((r) => r.id === run)) {
+    select.append(el('option', { value: run, disabled: true, text: `${run} (no longer kept)` }));
+  }
+  for (const r of runs) select.append(el('option', { value: r.id, text: runLabel(r) }));
+  select.value = run;
+  select.addEventListener('change', () => {
+    const now = hashQuery(location.hash);
+    const params = {};
+    for (const key of keep) params[key] = now.get(key) || null;
+    location.hash = buildHash(pageParts, { ...params, run: select.value, page: null });
+  });
+  slot.replaceChildren(el('label', { class: 'ex-picker' }, [
+    el('span', { class: 'field-label', text: 'Showing' }),
+    select,
+    el('span', { class: 'dim', text: `${runs.length} merge${runs.length === 1 ? '' : 's'} saved` }),
+  ]));
+}
+
+/// What a list or a group says in place of its contents when its merge is no
+/// longer kept.
+function notKeptNote() {
+  return el('div', { class: 'ex-message' }, [el('p', { text: NOT_KEPT })]);
 }
 
 /// The server's "file is missing" answer, in plain words.
@@ -159,7 +193,7 @@ function saveAddress(pageParts, params) {
 
 // --- The groups ---
 
-function groupsPage({ content, toolbar, onLeave }, run, query) {
+async function groupsPage({ content, toolbar, onLeave }, run, query) {
   const view = {
     q: query.get('q') || '',
     // Groups with one entry are hidden unless asked for.
@@ -190,8 +224,6 @@ function groupsPage({ content, toolbar, onLeave }, run, query) {
     listSlot,
   ]);
   content.append(pageLayout(main, [sideSlot]));
-  mergePicker(pickerSlot, run, [PAGE_ID], { q: view.q, all: view.multiOnly ? null : '1' });
-  summaryPanel(sideSlot, run, tabs);
 
   const foldAll = expandAllButton(listSlot, 'details.ex-group');
   toolbar.actions.replaceChildren(foldAll);
@@ -217,8 +249,13 @@ function groupsPage({ content, toolbar, onLeave }, run, query) {
   });
   onLeave(() => clearTimeout(debounce));
 
+  // The merge shown, once the saved merges are known. Its id goes into each
+  // group's link even when the address says "newest".
+  let shown = null;
+
   let ticket = 0;
   const load = async () => {
+    if (shown == null) return;
     const mine = ++ticket;
     drawMulti();
     saveAddress([PAGE_ID], {
@@ -230,7 +267,7 @@ function groupsPage({ content, toolbar, onLeave }, run, query) {
     let data;
     try {
       data = await api('merge/groups', {
-        run, q: view.q, multiOnly: view.multiOnly, page: view.page, pageSize: view.pageSize,
+        run: shown, q: view.q, multiOnly: view.multiOnly, page: view.page, pageSize: view.pageSize,
       });
     } catch (err) {
       if (mine !== ticket) return;
@@ -250,7 +287,7 @@ function groupsPage({ content, toolbar, onLeave }, run, query) {
     countLine.textContent = data.total === 1 ? '1 group' : `${data.total} groups`;
     listSlot.replaceChildren(
       items.length
-        ? el('div', { class: 'ex-groups' }, items.map((g) => groupFold(g, run)))
+        ? el('div', { class: 'ex-groups' }, items.map((g) => groupFold(g, shown)))
         : el('p', { class: 'empty pl-message', text: 'No groups match.' }),
       pager(data.page, data.pageSize, data.total, (p) => {
         view.page = p;
@@ -264,6 +301,19 @@ function groupsPage({ content, toolbar, onLeave }, run, query) {
     );
     foldAll.refresh();
   };
+
+  const runs = await savedMerges();
+  if (!main.isConnected) return;
+  const settled = settleRun(runs, run);
+  mergePicker(pickerSlot, runs, run, [PAGE_ID], ['q', 'all']);
+  drawMulti();
+  if (!settled.kept) {
+    listSlot.replaceChildren(notKeptNote());
+    foldAll.refresh();
+    return;
+  }
+  summaryPanel(sideSlot, settled.shown, tabs);
+  shown = settled.shown;
   load();
 }
 
@@ -333,7 +383,7 @@ function matchReason(mm) {
 
 // --- Removals ---
 
-function removalsPage({ content, onLeave }, run, query) {
+async function removalsPage({ content, onLeave }, run, query) {
   const kind = REMOVAL_KINDS.has(query.get('kind')) ? query.get('kind') : 'preDedup';
   const view = {
     q: query.get('q') || '',
@@ -356,14 +406,13 @@ function removalsPage({ content, onLeave }, run, query) {
   const countLine = el('p', { class: 'ml-count', 'aria-live': 'polite' });
   const listSlot = el('div', {}, [el('p', { class: 'empty pl-message', text: 'Loading…' })]);
   const sideSlot = el('div');
-  content.append(pageLayout(el('div', { class: 'list-page ex-page' }, [
+  const main = el('div', { class: 'list-page ex-page' }, [
     pickerSlot,
     tabs,
     el('div', { class: 'pl-toolbar ex-toolbar' }, [search, countLine]),
     listSlot,
-  ]), [sideSlot]));
-  mergePicker(pickerSlot, run, [PAGE_ID, 'removals'], { kind: kindParam, q: view.q });
-  summaryPanel(sideSlot, run, tabs);
+  ]);
+  content.append(pageLayout(main, [sideSlot]));
 
   let debounce;
   search.addEventListener('input', () => {
@@ -376,8 +425,12 @@ function removalsPage({ content, onLeave }, run, query) {
   });
   onLeave(() => clearTimeout(debounce));
 
+  // The merge shown, once the saved merges are known.
+  let shown = null;
+
   let ticket = 0;
   const load = async () => {
+    if (shown == null) return;
     const mine = ++ticket;
     saveAddress([PAGE_ID, 'removals'], {
       run,
@@ -387,7 +440,7 @@ function removalsPage({ content, onLeave }, run, query) {
     });
     let data;
     try {
-      data = await api('merge/removals', { run, kind, q: view.q, page: view.page, pageSize: view.pageSize });
+      data = await api('merge/removals', { run: shown, kind, q: view.q, page: view.page, pageSize: view.pageSize });
     } catch (err) {
       if (mine !== ticket) return;
       countLine.textContent = '';
@@ -415,6 +468,17 @@ function removalsPage({ content, onLeave }, run, query) {
       }),
     );
   };
+
+  const runs = await savedMerges();
+  if (!main.isConnected) return;
+  const settled = settleRun(runs, run);
+  mergePicker(pickerSlot, runs, run, [PAGE_ID, 'removals'], ['kind', 'q']);
+  if (!settled.kept) {
+    listSlot.replaceChildren(notKeptNote());
+    return;
+  }
+  summaryPanel(sideSlot, settled.shown, tabs);
+  shown = settled.shown;
   load();
 }
 
@@ -461,8 +525,8 @@ const PRIORITY_REASONS = {
   fallback: 'Fallback',
 };
 
-async function groupPage({ content }, run, id) {
-  const listHref = buildHash([PAGE_ID], { run });
+async function groupPage({ content }, asked, id) {
+  let listHref = buildHash([PAGE_ID], { run: asked });
   const crumbs = el('div');
   const drawCrumbs = (label) => crumbs.replaceChildren(breadcrumbs([
     { label: 'Catalog explorer', href: listHref },
@@ -473,6 +537,25 @@ async function groupPage({ content }, run, id) {
   const sideSlot = el('div');
   content.append(pageLayout(main, [sideSlot]));
   const gone = () => !main.isConnected;
+
+  // Group numbers belong to one merge. A link with no merge named is pinned to
+  // the newest merge now, so both requests below and a reload show the same
+  // group.
+  const runs = await savedMerges();
+  if (gone()) return;
+  const settled = settleRun(runs, asked);
+  if (!settled.kept) {
+    main.replaceChildren(crumbs, notKeptNote());
+    return;
+  }
+  const run = settled.shown;
+  if (run && run !== asked) {
+    listHref = buildHash([PAGE_ID], { run });
+    drawCrumbs(`Group #${id}`);
+    if (location.hash.split('?')[0] === buildHash([PAGE_ID, 'groups', String(id)], {})) {
+      history.replaceState(null, '', buildHash([PAGE_ID, 'groups', String(id)], { run }));
+    }
+  }
 
   const fields = api(`merge/groups/${encodeURIComponent(id)}/fields`, { run }).catch((err) => ({ error: err.message }));
   let data;

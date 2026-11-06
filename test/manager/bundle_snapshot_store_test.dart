@@ -179,6 +179,54 @@ void main() {
     });
   });
 
+  group('when a snapshot was saved', () {
+    test('the time of saving is recorded and survives a copy of the folder',
+        () async {
+      final store = BundleSnapshotStore(dataDir.path);
+      final before = DateTime.now().toUtc().subtract(const Duration(seconds: 1));
+      await store.save('20260722T120000Z-fullRun', sampleBundle());
+      // A copy of the data folder gives the file a new time.
+      File(p.join(store.bundlesPath, '20260722T120000Z-fullRun.json.gz'))
+          .setLastModifiedSync(DateTime.utc(2027, 3, 1));
+
+      final saved = store.list().single.savedAt;
+      expect(saved.isBefore(before), isFalse);
+      expect(saved.isBefore(DateTime.utc(2027)), isTrue);
+    });
+
+    test('a snapshot imported from git is dated by its commit', () async {
+      final store = BundleSnapshotStore(dataDir.path);
+      await store.save('20260417T032007Z-imported', sampleBundle());
+      expect(store.list().single.savedAt, DateTime.utc(2026, 4, 17, 3, 20, 7));
+    });
+
+    test('with no recorded time, the time in the run id is used', () async {
+      final store = BundleSnapshotStore(dataDir.path);
+      await store.save('20260417T032007Z-imported', sampleBundle());
+      await store.save('20260722T120000Z-fullRun', sampleBundle());
+      File(store.countsPath).deleteSync();
+      // Imported, or copied, months later.
+      for (final f in store.list()) {
+        File(p.join(store.bundlesPath, '${f.id}.json.gz'))
+            .setLastModifiedSync(DateTime.utc(2026, 11, 1));
+      }
+
+      final byId = {for (final s in store.list()) s.id: s.savedAt.toUtc()};
+      expect(byId['20260417T032007Z-imported'],
+          DateTime.utc(2026, 4, 17, 3, 20, 7));
+      expect(byId['20260722T120000Z-fullRun'], DateTime.utc(2026, 7, 22, 12));
+    });
+
+    test('the time in a run id', () {
+      expect(runIdTime('20260417T032007Z-imported'),
+          DateTime.utc(2026, 4, 17, 3, 20, 7));
+      expect(runIdTime('20261105T073912Z-fullRun-2'),
+          DateTime.utc(2026, 11, 5, 7, 39, 12));
+      expect(runIdTime('20261345T000000Z-fullRun'), isNull);
+      expect(runIdTime('working'), isNull);
+    });
+  });
+
   group('keeping only the newest', () {
     test('the oldest snapshots are dropped', () async {
       final store = BundleSnapshotStore(dataDir.path, bundlesToKeep: 3);

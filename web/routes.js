@@ -39,7 +39,17 @@ const ALL = NAV.flatMap((g) => g.items);
 /// The path part of `#/runs/123?x=1` as ['runs', '123'].
 export function hashParts(hash) {
   const path = String(hash || '').replace(/^#\/?/, '').split('?')[0];
-  return path ? path.split('/').map(decodeURIComponent) : [];
+  return path ? path.split('/').map(decodePart) : [];
+}
+
+/// Decodes one part of an address. A broken `%` escape, as in
+/// `#/mods/50%off`, is kept as written instead of throwing.
+function decodePart(part) {
+  try {
+    return decodeURIComponent(part);
+  } catch {
+    return part;
+  }
 }
 
 /// The query part of `#/runs?page=2` as URLSearchParams.
@@ -98,6 +108,8 @@ export function movedAddress(hash) {
       return buildHash(['explorer'], keep('run'));
     case 'log':
       return buildHash(['files']);
+    case 'requirement-names':
+      return buildHash(['dependency-names']);
     default:
       return null;
   }

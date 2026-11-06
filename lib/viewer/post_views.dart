@@ -209,20 +209,27 @@ class PostViews {
 
   /// The forum's last post date. The forum writes a recent one as "Today at
   /// 08:39:11 PM", which is read against the day the topic was scraped.
+  ///
+  /// The forum writes its own clock with no time zone. It is kept as a UTC
+  /// time with the same hours, so the "Last post" sort puts forum topics and
+  /// Discord threads (which are UTC) in the same order on every computer,
+  /// whatever its own time zone.
   static DateTime? _forumLastPost(String? text, DateTime scrapedAt) {
     final parsed = parseForumDate(text);
-    if (parsed != null) return parsed;
+    if (parsed != null) {
+      return DateTime.utc(parsed.year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second);
+    }
     final m = _relativeDay.firstMatch(text?.trim() ?? '');
     if (m == null) return null;
     var hour = int.parse(m.group(2)!);
     if (m.group(5) == 'PM' && hour != 12) hour += 12;
     if (m.group(5) == 'AM' && hour == 12) hour = 0;
     final at = scrapedAt.toUtc();
-    var day = DateTime(at.year, at.month, at.day, hour, int.parse(m.group(3)!), int.parse(m.group(4)!));
+    var day = DateTime.utc(at.year, at.month, at.day, hour, int.parse(m.group(3)!), int.parse(m.group(4)!));
     if (m.group(1) == 'Yesterday') return day.subtract(const Duration(days: 1));
     // The forum writes its own clock, which is behind UTC: a "today" time
     // later than the scrape's UTC clock was on the forum's day before.
-    if (day.isAfter(DateTime(at.year, at.month, at.day, at.hour, at.minute, at.second))) {
+    if (day.isAfter(at)) {
       day = day.subtract(const Duration(days: 1));
     }
     return day;
@@ -292,7 +299,10 @@ class _Row {
         'id': id,
         'title': title,
         'author': author,
-        'lastPostDate': lastPost?.toIso8601String(),
+        // A forum time is written as the forum wrote it, with no time zone.
+        'lastPostDate': kind == 'topic'
+            ? lastPost?.toIso8601String().replaceFirst(RegExp(r'Z$'), '')
+            : lastPost?.toIso8601String(),
         'downloads': downloads,
         'downloadCounts': {'rules': ruleUrls.length, 'llm': llmUrls.length},
         'hasLlmAnswer': hasLlmAnswer,

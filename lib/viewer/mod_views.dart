@@ -4,7 +4,7 @@ import '../catalog/fact_choice.dart';
 import '../catalog/listing.dart';
 import '../catalog/mod_catalog.dart';
 import '../catalog/source_post.dart';
-import '../site/fact_sources_file.dart';
+import '../site/requirement_names.dart';
 import '../site/sitemap.dart';
 import 'bundle_views.dart';
 import 'compare_rows.dart';
@@ -227,6 +227,10 @@ class ModViews {
         ],
         'takedown': {
           'status': 'takenDown',
+          // Which kind of takedown entry left it out, and for an author entry
+          // the person it names.
+          'entryKind': gone.author == null ? 'mod' : 'author',
+          if (gone.author != null) 'author': gone.author,
           if (gone.entry != null) 'entry': gone.entry,
           if (gone.match != null) 'match': gone.match,
         },
@@ -334,16 +338,20 @@ class ModViews {
   }
 
   /// Requirement names the website build could not match to a mod, as written
-  /// in the post. Required names come first, then optional names.
-  static List<String> _unmatchedNeeds(Map<String, dynamic>? site) {
+  /// in the post (`name`), each with the key `requirement-names.json` files it
+  /// under (`key`), which is how the page finds a pending match for it.
+  /// Required names come first, then optional names.
+  static List<Map<String, String>> _unmatchedNeeds(Map<String, dynamic>? site) {
     final seen = <String>{};
     final listing = site?['listing'];
-    final names = <String>[];
+    final names = <Map<String, String>>[];
     for (final list in [listing is Map ? listing['needs'] : null, site?['optionalNeeds']]) {
       for (final need in list is List ? list : const []) {
         if (need is! Map || need['id'] != null || need['via'] != null) continue;
         final name = '${need['name'] ?? ''}'.trim();
-        if (name.isNotEmpty && seen.add(name.toLowerCase())) names.add(name);
+        if (name.isNotEmpty && seen.add(name.toLowerCase())) {
+          names.add({'name': name, 'key': requirementKey(name)});
+        }
       }
     }
     return names;
@@ -380,6 +388,13 @@ class ModViews {
       if (match is! Map<String, dynamic>) continue;
       final key = '${match['entry'] ?? ''}';
       final entry = entryFor(key);
+      final byAuthor = entries[key] == null && key.startsWith('author:');
+      final authorNames = (entry?['names'] as List?) ?? const [];
+      final author = !byAuthor
+          ? null
+          : authorNames.isNotEmpty
+              ? '${authorNames.first}'
+              : key.substring('author:'.length);
       for (final mod in (match['mods'] as List?) ?? const []) {
         if (mod is! Map || mod['id'] is! String) continue;
         final id = mod['id'] as String;
@@ -391,6 +406,7 @@ class ModViews {
           ],
           entry: entry,
           match: match,
+          author: author,
         );
       }
     }
@@ -747,7 +763,10 @@ class _TakenDown {
   final Map<String, dynamic>? entry;
   final Map<String, dynamic>? match;
 
-  const _TakenDown({required this.id, required this.name, required this.posts, this.entry, this.match});
+  /// The first name listed in the author takedown. Null for a mod takedown.
+  final String? author;
+
+  const _TakenDown({required this.id, required this.name, required this.posts, this.entry, this.match, this.author});
 }
 
 /// One post's record in one snapshot, and the fields compared on it.

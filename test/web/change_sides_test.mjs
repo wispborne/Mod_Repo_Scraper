@@ -71,9 +71,13 @@ test('the same run on both sides compares it with the run before it', () => {
   assert.deepEqual([s.a, s.b], [facts[2].id, facts[1].id]);
 });
 
-test('the oldest run as the newer side is compared with the run after it', () => {
+test('the oldest run as the newer side is compared with the run after it, and said so', () => {
   const s = settleSides({ runs: facts, b: facts[3].id });
   assert.deepEqual([s.a, s.b], [facts[3].id, facts[2].id]);
+  assert.deepEqual(s.moved, [{ side: 'b', from: facts[3].id, why: 'oldest', to: facts[2].id }]);
+  // The only run kept is compared with the data on disk.
+  const one = settleSides({ runs: [facts[0]], working, b: facts[0].id });
+  assert.deepEqual(one.moved, [{ side: 'b', from: facts[0].id, why: 'oldest', to: WORKING }]);
 });
 
 test('the data on disk is the newer side on Facts, compared with the newest run', () => {
@@ -110,7 +114,11 @@ test('a run with no snapshot on this tab is replaced by the nearest one', () => 
   });
   assert.deepEqual([s.a, s.b], ['20261105T060304Z-rebuildFromSaved', '20261105T070002Z-scrapeAndMerge']);
   assert.deepEqual(s.moved, [{
-    side: 'b', from: '20261105T073912Z-fullRun', why: 'otherTab', to: '20261105T070002Z-scrapeAndMerge',
+    side: 'b',
+    from: '20261105T073912Z-fullRun',
+    why: 'otherTab',
+    nearest: '20261105T070002Z-scrapeAndMerge',
+    to: '20261105T070002Z-scrapeAndMerge',
   }]);
   // And back the other way, from Mods to Facts.
   const back = settleSides({
@@ -126,6 +134,31 @@ test('a stand-in that lands on the other side moves on to the run before it', ()
   });
   assert.deepEqual([s.a, s.b], ['20261105T060304Z-rebuildFromSaved', '20261105T070002Z-scrapeAndMerge']);
   assert.equal(s.moved[0].to, '20261105T060304Z-rebuildFromSaved');
+  // The note can say where the nearest run went.
+  assert.equal(s.moved[0].nearest, '20261105T070002Z-scrapeAndMerge');
+});
+
+test('two runs nearest the same run: the nearest is kept on one side, and the note says so', () => {
+  // Two merge-only runs a minute apart, both nearest the oldest full run.
+  const full = [
+    { id: '20261106T080000Z-fullRun', savedAt: '2026-11-06T08:30:00Z' },
+    { id: '20261105T080000Z-fullRun', savedAt: '2026-11-05T08:30:00Z' },
+  ];
+  const merges = [
+    { id: '20261105T090100Z-mergeModRepo', savedAt: '2026-11-05T09:01:10Z' },
+    { id: '20261105T090000Z-mergeModRepo', savedAt: '2026-11-05T09:00:10Z' },
+  ];
+  const s = settleSides({ runs: full, a: merges[1].id, b: merges[0].id, otherRuns: merges });
+  assert.deepEqual([s.a, s.b], [full[1].id, full[0].id]);
+  const olderNote = s.moved.find((m) => m.side === 'a');
+  const newerNote = s.moved.find((m) => m.side === 'b');
+  assert.equal(olderNote.nearest, full[1].id);
+  assert.equal(olderNote.to, full[1].id);
+  // The newer run's nearest is the older side, so it moved on; the note must
+  // not claim the run a day later is the nearest.
+  assert.equal(newerNote.nearest, full[1].id);
+  assert.equal(newerNote.to, full[0].id);
+  assert.ok(!s.moved.some((m) => m.why === 'oldest'));
 });
 
 test('a run no longer kept is replaced, and said so', () => {

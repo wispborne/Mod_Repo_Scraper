@@ -95,3 +95,42 @@ test('the save request carries every correction in order', () => {
     publishAfter: true,
   });
 });
+
+test('a person taken down twice, in another order or other capitals, is one change', () => {
+  assert.equal(addPending({ label: 'x', correction: { kind: 'takeDownAuthor', names: ['Tidal', 'tidal5590'] } }), true);
+  assert.equal(addPending({ label: 'y', correction: { kind: 'takeDownAuthor', names: ['TIDAL5590', ' tidal '] } }), false);
+  assert.equal(pendingItems().length, 1);
+  // The names are sent as they were typed.
+  assert.deepEqual(pendingItems()[0].correction.names, ['Tidal', 'tidal5590']);
+});
+
+test('a dependency name change keeps its key beside the correction, not inside it', () => {
+  addPending({
+    label: 'm',
+    key: 'lazylib',
+    correction: { kind: 'matchRequirement', written: 'Lazy Lib', modId: 'lazylib' },
+  });
+  const [item] = pendingItems();
+  assert.equal(item.key, 'lazylib');
+  assert.equal('key' in item.correction, false);
+  assert.deepEqual(saveRequest(pendingItems(), false).corrections, [
+    { kind: 'matchRequirement', written: 'Lazy Lib', modId: 'lazylib' },
+  ]);
+});
+
+test('a new dependency name change replaces a pending one for the same key', () => {
+  addPending(takeDown('a'));
+  addPending({ label: 'one', key: 'lazylib', correction: { kind: 'matchRequirement', written: 'Lazy Lib', modId: 'lazylib' } });
+  addPending({ label: 'other', key: 'nex', correction: { kind: 'matchRequirement', written: 'Nex', modId: null } });
+  assert.equal(
+    addPending({ label: 'two', key: 'lazylib', correction: { kind: 'matchRequirement', written: 'LazyLib v3', modId: null } }),
+    true,
+  );
+  assert.deepEqual(pendingItems().map((i) => i.label), ['Take down "a"', 'other', 'two']);
+  // The same change again is not added twice.
+  assert.equal(
+    addPending({ label: 'two again', key: 'lazylib', correction: { kind: 'matchRequirement', written: 'LazyLib v3', modId: null } }),
+    false,
+  );
+  assert.equal(pendingItems().length, 3);
+});

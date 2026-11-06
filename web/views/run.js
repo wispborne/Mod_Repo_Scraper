@@ -50,14 +50,27 @@ export async function render({ content, parts, onLeave }) {
     }
   };
 
+  // True once the reader has moved to another page.
+  let left = false;
+  onLeave(() => { left = true; });
+  const gone = () => left || !main.isConnected;
+
   const first = await fetchRecord();
-  if (first) panel.show(first, null);
+  if (gone()) return;
+  // A record that says it is running waits for the status, so a running job
+  // is drawn as running from the start and its log follows new lines.
+  let shown = false;
+  if (first && first.state !== 'running') {
+    shown = true;
+    panel.show(first, null);
+  }
 
   let wasLive = false;
   onLeave(subscribe(async (s) => {
     const current = s.on && s.current && s.current.record && s.current.record.id === id ? s.current : null;
     if (current) {
       wasLive = true;
+      shown = true;
       panel.show(current.record, current);
       return;
     }
@@ -65,13 +78,24 @@ export async function render({ content, parts, onLeave }) {
       // The run just ended: read its final record once.
       wasLive = false;
       const r = await fetchRecord();
+      if (gone()) return;
       if (r) panel.show(r, null);
       return;
     }
     // A waiting run is read again when it leaves the queue.
     if (record && record.state === 'queued' && !(s.queued || []).some((q) => q.id === id)) {
       const r = await fetchRecord();
-      if (r) panel.show(r, null);
+      if (gone()) return;
+      if (r) {
+        shown = true;
+        panel.show(r, null);
+      }
+      return;
+    }
+    // The status does not list the run as running, so draw it as saved.
+    if (record && !shown) {
+      shown = true;
+      panel.show(record, null);
     }
   }));
 }

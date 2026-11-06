@@ -83,3 +83,29 @@ test('the picker finds the same name first, then names starting with it', () => 
   assert.deepEqual(findMods(mods, 'GraphicsLib 1.9').map((m) => m.id), ['graphicslib']);
   assert.deepEqual(findMods(mods, ''), []);
 });
+
+test('only http(s) addresses with a host count as web addresses', () => {
+  for (const url of [
+    'https://fractalsoftworks.com/forum/index.php?topic=1',
+    'http://example.com/a.zip',
+    'HTTPS://EXAMPLE.COM/',
+  ]) assert.equal(words.isWebAddress(url), true, url);
+  for (const url of [
+    'javascript:alert(1)',
+    ' JavaScript:alert(1)',
+    'java\tscript:alert(1)',
+    '\u0001javascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'vbscript:msgbox(1)',
+    'file:///C:/Windows',
+    'mailto:someone@example.com',
+    '/relative/path',
+    '#/mods/alpha',
+    'http://',
+    '',
+    '   ',
+    null,
+    undefined,
+    42,
+  ]) assert.equal(words.isWebAddress(url), false, String(url));
+});

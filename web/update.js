@@ -126,10 +126,12 @@ function watch(from, to) {
     el('div', { class: 'dialog-buttons' }, [close]),
   ]);
 
+  // The dialog stays open on another page, so the update is followed to
+  // the end and the page reloads onto the new build.
   let stopped = false;
   const shut = showDialog(box, () => {
     stopped = true;
-  });
+  }, { stayOnPageChange: true });
   close.addEventListener('click', () => shut());
 
   const showLog = (last) => {

@@ -103,6 +103,9 @@ function topicBlock(t) {
   body.append(el('p', { class: 'dim' }, [
     el('a', { href: `#/posts/topic/${encodeURIComponent(t.topicId)}`, text: `Source post page for topic ${t.topicId}` }),
   ]));
+  // A call that failed, or an answer that could not be read, has no mods to
+  // show; the error says why.
+  if (t.error) body.append(el('p', { class: 'error-text', text: `The LLM call failed: ${t.error}` }));
   if (t.tokenUsage) body.append(el('p', { class: 'mono dim', text: t.tokenUsage }));
   if (mods.length) {
     body.append(el('h4', { class: 'pp-subhead', text: 'Mods (grounded)' }));
@@ -121,8 +124,9 @@ function topicBlock(t) {
     el('summary', {}, [
       el('span', { class: 'mono', text: `#${t.topicId}` }),
       el('span', { class: 'lt-title', text: t.title || '' }),
-      badge(`${mods.length} mod${mods.length === 1 ? '' : 's'}`),
-      badge(`${dlCount} download${dlCount === 1 ? '' : 's'}`),
+      t.error ? badge('Failed', 'bad') : null,
+      t.error ? null : badge(`${mods.length} mod${mods.length === 1 ? '' : 's'}`),
+      t.error ? null : badge(`${dlCount} download${dlCount === 1 ? '' : 's'}`),
       notMod ? badge('Not a mod', 'warn') : null,
       dropped ? badge(dropped, 'warn') : null,
     ]),

@@ -6,6 +6,7 @@
 import { el, api } from './lib.js';
 import { confirmAndStart } from './actions.js';
 import { rebuildRequest } from './jobs.js';
+import { isWebAddress } from './mod_words.js';
 
 // --- Small shapes ---
 
@@ -35,9 +36,11 @@ export function emptyLine(text) {
   return el('p', { class: 'pp-empty', text });
 }
 
-/// A link that opens in a new tab, marked as leaving the viewer.
-export function outLink(href, text) {
-  return el('a', { href, target: '_blank', rel: 'noopener', text });
+/// A link that opens in a new tab. An address that is not http(s) is shown
+/// as plain text instead, so scraped data can never put a script in a link.
+export function outLink(href, text, attrs = {}) {
+  if (!isWebAddress(href)) return el('span', { ...attrs, text });
+  return el('a', { ...attrs, href, target: '_blank', rel: 'noopener', text });
 }
 
 export function fold(label, content) {
@@ -163,7 +166,7 @@ export function imageList(images, captions = {}) {
   return el('ul', { class: 'pp-pictures' }, images.map((img) => {
     const text = el('div', { class: 'pp-picture-text' }, [
       img.alt ? el('div', { class: 'pp-picture-alt', text: img.alt }) : null,
-      el('a', { class: 'pp-url', href: img.originalUrl, target: '_blank', rel: 'noopener', text: img.originalUrl }),
+      outLink(img.originalUrl, img.originalUrl, { class: 'pp-url' }),
     ]);
     if (discordLinkExpired(img.originalUrl)) {
       text.append(el('div', {
@@ -173,13 +176,13 @@ export function imageList(images, captions = {}) {
     }
     const seen = captions[img.originalUrl];
     if (seen) text.append(pictureSeen(seen));
+    const web = isWebAddress(img.originalUrl);
+    const thumb = el('img', {
+      class: 'pp-thumb', src: web ? img.originalUrl : null, alt: img.alt || '',
+      loading: 'lazy', referrerpolicy: 'no-referrer',
+    });
     return el('li', { class: 'pp-picture' }, [
-      el('a', { class: 'pp-thumb-link', href: img.originalUrl, target: '_blank', rel: 'noopener' }, [
-        el('img', {
-          class: 'pp-thumb', src: img.originalUrl, alt: img.alt || '',
-          loading: 'lazy', referrerpolicy: 'no-referrer',
-        }),
-      ]),
+      web ? el('a', { class: 'pp-thumb-link', href: img.originalUrl, target: '_blank', rel: 'noopener' }, [thumb]) : thumb,
       text,
     ]);
   }));
@@ -220,7 +223,7 @@ function shortUrl(u, max = 52) {
 
 /// A shortened URL; the link and its hover text keep the full address.
 function urlLink(display, href) {
-  return el('a', { class: 'pp-url', href, target: '_blank', rel: 'noopener', title: href, text: display });
+  return outLink(href, display, { class: 'pp-url', title: href });
 }
 
 /// Shortens cell text and keeps the full value on hover.
@@ -313,7 +316,7 @@ function modCard(mod, ruleUrls) {
   if (mod.image) {
     // Stored as `ext:<url>`, like the thread thumbnail.
     const src = String(mod.image).replace(/^ext:/, '');
-    card.append(el('img', {
+    if (isWebAddress(src)) card.append(el('img', {
       class: 'pp-mod-image', src, alt: mod.name || 'mod image', loading: 'lazy', referrerpolicy: 'no-referrer',
     }));
   }
@@ -385,7 +388,7 @@ function extrasBlock(extras) {
       el('div', { class: 'pp-support-link' }, [
         badge(s.type || 'other'),
         s.label ? el('span', { text: s.label }) : null,
-        el('a', { class: 'pp-url', href: s.url, target: '_blank', rel: 'noopener', text: s.url }),
+        outLink(s.url, s.url, { class: 'pp-url' }),
       ])
     )))]);
   }

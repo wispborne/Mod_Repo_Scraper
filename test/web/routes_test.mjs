@@ -26,6 +26,13 @@ test('hash parts leave the query out', () => {
   assert.deepEqual(hashParts('#/posts/a%20b'), ['posts', 'a b']);
 });
 
+test('a broken % escape is kept as written instead of throwing', () => {
+  assert.deepEqual(hashParts('#/mods/50%off'), ['mods', '50%off']);
+  assert.deepEqual(hashParts('#/mods/%E0%A4%A'), ['mods', '%E0%A4%A']);
+  assert.equal(movedAddress('#/mods/50%off'), null);
+  assert.equal(navEntryFor(hashParts('#/mods/50%off')).id, 'mods');
+});
+
 test('a page and its detail pages light the same nav entry', () => {
   assert.equal(navEntryFor([]).id, 'control');
   assert.equal(navEntryFor(['runs']).id, 'runs');
@@ -50,6 +57,8 @@ test('addresses from the old viewer open their new pages', () => {
   assert.equal(movedAddress('#/merge/groups/7?run=r1'), '#/explorer/groups/7?run=r1');
   assert.equal(movedAddress('#/merge/removals/sameSource'), '#/explorer/removals?kind=sameSource');
   assert.equal(movedAddress('#/log'), '#/files');
+  assert.equal(movedAddress('#/requirement-names'), '#/dependency-names');
+  assert.equal(movedAddress('#/requirement-names/anything?x=1'), '#/dependency-names');
 });
 
 test('addresses this viewer uses are left alone', () => {

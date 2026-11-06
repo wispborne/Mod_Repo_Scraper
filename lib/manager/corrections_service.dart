@@ -47,17 +47,39 @@ class CorrectionsService implements JobRunner {
       throw ArgumentError('The corrections service cannot run ${request.kind.name}.');
     }
     reporter.phase('Corrections');
-    final corrections = request.corrections;
+    // Checked again here, although the request was checked when it was sent:
+    // the files can change while the job waits in the queue.
+    final edits = _applyAll(request.corrections, reporter.log);
+    await edits.write(reporter.log);
+    return JobOutcome(itemsDone: request.corrections.length, itemsTotal: request.corrections.length);
+  }
+
+  /// Why [corrections] would be refused if the job ran now, or null when every
+  /// one of them can be saved. Applies them to copies of the files held in
+  /// memory, exactly as the job does, and writes nothing. The message is the
+  /// one the job would fail with.
+  String? refusalOf(List<Correction> corrections) {
+    try {
+      _applyAll(corrections, (_) {});
+      return null;
+    } on StateError catch (e) {
+      return e.message;
+    }
+  }
+
+  /// Applies [corrections] in order to copies of the files held in memory.
+  /// Throws a [StateError] naming every refused correction, or when a file
+  /// exists but cannot be read. Writes nothing.
+  _Edits _applyAll(List<Correction> corrections, void Function(String line) log) {
     if (corrections.isEmpty) {
       throw StateError('There are no corrections to save. Nothing was saved.');
     }
-
     final edits = _Edits(dataPath: dataPath, outputPath: outputPath, day: takedownDay(_now()));
     final refused = <String>[];
     for (var i = 0; i < corrections.length; i++) {
       final correction = corrections[i];
       try {
-        edits.apply(correction, reporter.log);
+        edits.apply(correction, log);
       } on _Refused catch (e) {
         refused.add('Correction ${i + 1} (${describeCorrection(correction)}): ${e.reason}');
       }
@@ -65,9 +87,7 @@ class CorrectionsService implements JobRunner {
     if (refused.isNotEmpty) {
       throw StateError('Nothing was saved. ${refused.join(' ')}');
     }
-
-    await edits.write(reporter.log);
-    return JobOutcome(itemsDone: corrections.length, itemsTotal: corrections.length);
+    return edits;
   }
 }
 

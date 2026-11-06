@@ -266,8 +266,15 @@ export async function render({ content, onLeave }) {
       let text;
       if (m.why === 'working') {
         text = `Current local data can only be compared on the Facts tab, so ${runName(m.to)} is shown instead.`;
+      } else if (m.why === 'otherTab' && m.nearest && m.nearest !== m.to) {
+        const otherSide = m.side === 'a' ? 'newer' : 'older';
+        text = `${runName(m.from)} has no snapshot for the ${tab} tab. `
+          + `The closest snapshot, ${runName(m.nearest)}, is already on the ${otherSide} side. Showing ${runName(m.to)} instead.`;
       } else if (m.why === 'otherTab') {
         text = `${runName(m.from)} saved nothing for the ${tab} tab, so the run saved nearest to it is shown: ${runName(m.to)}.`;
+      } else if (m.why === 'oldest') {
+        text = `No earlier snapshot to compare with ${runName(m.from)}. Showing it on the older side. `
+          + `The newer side shows ${m.to === WORKING ? 'current local data' : runName(m.to)}.`;
       } else {
         text = `${m.from} is no longer kept, so ${runName(m.to)} is shown instead.`;
       }
@@ -374,6 +381,18 @@ export async function render({ content, onLeave }) {
     if (mine !== ticket) return;
     refresh.disabled = false;
     refresh.textContent = 'Refresh';
+
+    // Show the server's error when a snapshot cannot be read.
+    if (answer.missing) {
+      clear(counts);
+      clear(pagerSlot);
+      clear(liveNote);
+      results.replaceChildren(el('div', { class: 'pp-missing ch-message' }, [
+        el('p', { text: answer.hint || 'One of those snapshots is no longer kept. Pick another.' }),
+      ]));
+      syncFoldAll();
+      return;
+    }
 
     const items = answer.items || [];
     // Go back to the last page when this one is past the end.

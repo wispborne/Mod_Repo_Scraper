@@ -13,6 +13,21 @@ export function starmodderFile(id) {
   return `${STARMODDER}mods/${encodeURIComponent(id)}.json`;
 }
 
+/// True for an http(s) address with a host. Addresses from scraped data are
+/// only made into links when this holds: a `javascript:` address would run on
+/// the viewer's own page, which also holds the job and settings controls. The
+/// browser's own address parser decides, so tabs, line breaks and spaces
+/// hidden in the scheme are read the way a link would read them.
+export function isWebAddress(url) {
+  if (typeof url !== 'string' || !url.trim()) return false;
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !!parsed.hostname;
+  } catch {
+    return false;
+  }
+}
+
 export function modHref(id) {
   return `#/mods/${encodeURIComponent(id)}`;
 }

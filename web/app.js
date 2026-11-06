@@ -1,9 +1,10 @@
 // The viewer's router. The shared layout is drawn once. Route changes
 // redraw only the toolbar contents and page content.
 //
-// A page module exports `render({ content, parts, entry, toolbar, onLeave })`.
-// `onLeave(fn)` runs `fn` when the user leaves the page. Use it to stop
-// the status subscription.
+// A page module exports `render({ content, parts, entry, toolbar, onLeave,
+// guardLeave, gone })`. `onLeave(fn)` runs `fn` when the user leaves the page.
+// Use it to stop the status subscription. `gone()` is true once the user has
+// left the page, so a page still loading can stop before it draws anything.
 
 import { el, clear, api, askDialog } from './lib.js';
 import { hashParts, navEntryFor, DEFAULT_PAGE, tabTitle, movedAddress } from './routes.js';
@@ -57,7 +58,19 @@ let toolbar;
 let leaving = [];
 // Pages with unsaved changes return a confirmation question before navigation.
 let guards = [];
+// Each drawn page gets the next number, so work from a page already left can
+// be told apart from the page now shown.
+let generation = 0;
 let shownHash = null;
+// Where the shown page sits in the tab's history, when the browser says.
+let shownIndex = null;
+// The address shown before this page, for browsers that do not say where an
+// entry sits in the history.
+let cameFrom = null;
+// True while the "Discard unsaved changes?" question is open.
+let asking = false;
+// True after stepping back to the shown page, until that step arrives.
+let restoring = false;
 let pageName = 'Mod Repo Viewer';
 
 function drawTitle() {
@@ -74,25 +87,80 @@ async function mayLeave() {
   return true;
 }
 
-async function onHashChange() {
-  if (shownHash !== null && location.hash !== shownHash && !(await mayLeave())) {
-    // Restore the address without rendering the page again.
-    history.replaceState(null, '', shownHash);
-    return;
-  }
-  route();
+/// The current entry's place in the tab's history, or null when the browser
+/// does not say.
+function historyIndex() {
+  const entry = window.navigation && window.navigation.currentEntry;
+  return entry && typeof entry.index === 'number' && entry.index >= 0 ? entry.index : null;
 }
 
-async function route() {
+function hashOf(url) {
+  try {
+    return new URL(url).hash;
+  } catch {
+    return null;
+  }
+}
+
+function atShownPage() {
+  const now = historyIndex();
+  if (now != null && shownIndex != null) return now === shownIndex;
+  return location.hash === shownHash;
+}
+
+/// Goes back to the shown page's own history entry, without drawing it
+/// again. Stepping (rather than replacing the address) leaves the history as
+/// it was: after a link click, Back still goes where it went before; after
+/// Back, Forward still goes to the page the user tried to leave for.
+function returnToShownPage() {
+  if (atShownPage()) return;
+  restoring = true;
+  const now = historyIndex();
+  if (now != null && shownIndex != null) history.go(shownIndex - now);
+  else if (cameFrom !== null && location.hash === cameFrom) history.forward();
+  else history.back();
+}
+
+async function onHashChange(event) {
+  // The open question closes itself on this change, and that counts as
+  // "Keep editing". The question's own handler then returns to the page.
+  if (asking) return;
+  if (restoring) {
+    restoring = false;
+    if (atShownPage()) return;
+  } else if (shownHash !== null) {
+    // A page may have changed its own address (a filter or page number).
+    shownHash = hashOf(event.oldURL) || shownHash;
+  }
+  if (shownHash !== null && !atShownPage()) {
+    asking = true;
+    let leave;
+    try {
+      leave = await mayLeave();
+    } finally {
+      asking = false;
+    }
+    if (!leave) {
+      returnToShownPage();
+      return;
+    }
+  }
+  route(hashOf(event.oldURL));
+}
+
+async function route(from = null) {
+  const gen = ++generation;
+  const left = () => gen !== generation;
   // Old viewer addresses open the matching page.
   const moved = movedAddress(location.hash);
   if (moved) history.replaceState(null, '', moved);
   shownHash = location.hash;
+  shownIndex = historyIndex();
+  cameFrom = from;
+  restoring = false;
   guards = [];
   const parts = hashParts(location.hash);
-  for (const fn of leaving) {
-    try { fn(); } catch (err) { console.error(err); }
-  }
+  for (const fn of leaving) runSafely(fn);
   leaving = [];
   forgetEndedRun();
 
@@ -118,13 +186,23 @@ async function route() {
       parts: parts.slice(1),
       entry,
       toolbar,
-      onLeave: (fn) => leaving.push(fn),
-      guardLeave: (fn) => guards.push(fn),
+      // A page left while loading has already had its leave callbacks run,
+      // so a late one runs at once instead of joining the next page's list.
+      onLeave: (fn) => (left() ? runSafely(fn) : leaving.push(fn)),
+      guardLeave: (fn) => {
+        if (!left()) guards.push(fn);
+      },
+      gone: left,
     });
   } catch (err) {
     console.error(err);
-    content.append(el('p', { class: 'error-text', text: err.message }));
+    // An error from a page already left must not land on the next page.
+    if (!left()) content.append(el('p', { class: 'error-text', text: err.message }));
   }
+}
+
+function runSafely(fn) {
+  try { fn(); } catch (err) { console.error(err); }
 }
 
 /// The build number and commit, for bug reports. Left out when unknown.

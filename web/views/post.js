@@ -174,16 +174,21 @@ const OUTCOME_MARKS = {
 };
 
 /// The one line saying what the last build made of the post. The server
-/// writes the line; mod names and the post it points to become links. Nothing
-/// is shown when the server has no answer.
+/// writes the line; mod names and the post it points to become links. The
+/// line names at most five mods and no Collection, so a second line links the
+/// Collection page and every mod the line left out. Nothing is shown when the
+/// server has no answer.
 function drawOutcome(node, answer) {
   if (!answer || !answer.line) return;
-  const targets = [];
+  const modTargets = [];
   for (const mod of answer.mods || []) {
-    if (mod && mod.name && mod.id) targets.push({ text: mod.name, href: `#/mods/${encodeURIComponent(mod.id)}` });
+    if (mod && mod.id) modTargets.push({ text: mod.name || mod.id, href: `#/mods/${encodeURIComponent(mod.id)}` });
   }
+  const targets = [...modTargets];
   const c = answer.collection;
-  if (c && c.name && c.id) targets.push({ text: c.name, href: `#/mods/${encodeURIComponent(c.id)}` });
+  const collectionTarget = c && c.id
+    ? { text: c.name || c.id, href: `#/mods/${encodeURIComponent(c.id)}` } : null;
+  if (collectionTarget) targets.push(collectionTarget);
   const to = answer.pointsTo;
   if (to && to.id != null) {
     const postKind = to.kind === 'discord' ? 'discord' : 'topic';
@@ -191,12 +196,32 @@ function drawOutcome(node, answer) {
     targets.push({ text: `${postKind === 'topic' ? 'topic' : 'thread'} ${to.id}`, href });
     if (to.modName && to.modId) targets.push({ text: to.modName, href: `#/mods/${encodeURIComponent(to.modId)}` });
   }
-  node.replaceChildren(statusMark(OUTCOME_MARKS[answer.outcome] || 'idle'), el('span', {}, linkedText(answer.line, targets)));
+  const { parts, unused } = linkedText(answer.line, targets);
+  const more = [];
+  if (collectionTarget && unused.includes(collectionTarget)) {
+    more.push(el('span', { class: 'dim', text: 'Collection page: ' }), el('a', { href: collectionTarget.href, text: collectionTarget.text }));
+  }
+  if (modTargets.some((t) => unused.includes(t))) {
+    if (more.length) more.push(el('span', { class: 'dim', text: ' · ' }));
+    more.push(el('span', { class: 'dim', text: modTargets.length === 1 ? 'Mod: ' : 'Mods: ' }));
+    modTargets.forEach((t, i) => {
+      if (i) more.push(', ');
+      more.push(el('a', { href: t.href, text: t.text }));
+    });
+  }
+  // The line sits beside its mark, so the links go under it in the same box.
+  node.replaceChildren(
+    statusMark(OUTCOME_MARKS[answer.outcome] || 'idle'),
+    el('span', {}, [
+      el('span', {}, parts),
+      more.length ? el('span', { class: 'pp-outcome-links', style: 'display: block' }, more) : null,
+    ]),
+  );
 }
 
-/// `text` with the first appearance of each target's words made a link.
-/// Longer names are matched first, so "Lost.Sector Extended" is not cut short
-/// by "Lost.Sector".
+/// `text` with the first appearance of each target's words made a link, and
+/// the targets that did not appear in it. Longer names are matched first, so
+/// "Lost.Sector Extended" is not cut short by "Lost.Sector".
 function linkedText(text, targets) {
   const out = [];
   let rest = String(text);
@@ -214,7 +239,7 @@ function linkedText(text, targets) {
     left.splice(left.indexOf(best.t), 1);
   }
   if (rest) out.push(rest);
-  return out;
+  return { parts: out, unused: left };
 }
 
 // --- Take down ---

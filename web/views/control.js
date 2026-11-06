@@ -37,23 +37,42 @@ export function render({ content, toolbar, onLeave }) {
   let lastCurrent;
   let finishedRuns = [];
   let closeMenus = () => {};
+  // The latest load of the runs list, and whether the last one failed.
+  let runsLoading = Promise.resolve();
+  let runsFailed = false;
+  let loadTicket = 0;
+  // Counts status callbacks, so an older one that finishes late is ignored.
+  let statusTicket = 0;
 
+  // Reads the runs list, then Needs attention. Only the latest load's answer
+  // is drawn.
   const loadRuns = async () => {
+    const mine = ++loadTicket;
+    let runs;
     try {
       const page = await api('manager/runs', { pageSize: 12 });
-      const runs = (page && page.items) || [];
-      finishedRuns = runs.filter((r) => r.state !== 'running' && r.state !== 'queued');
-      clear(runsBody).append(...(runs.length
-        ? runs.map(runRow)
-        : [el('p', { class: 'empty', text: 'No runs yet.' })]));
+      runs = (page && page.items) || [];
     } catch (err) {
+      if (mine !== loadTicket) return;
+      runsFailed = true;
       finishedRuns = [];
       clear(runsBody).append(el('p', { class: 'empty', text: err.message }));
+      loadAttention(attention, null, () => mine === loadTicket);
+      return;
     }
+    if (mine !== loadTicket) return;
+    runsFailed = false;
+    finishedRuns = runs.filter((r) => r.state !== 'running' && r.state !== 'queued');
+    clear(runsBody).append(...(runs.length
+      ? runs.map(runRow)
+      : [el('p', { class: 'empty', text: 'No runs yet.' })]));
+    loadAttention(attention, finishedRuns[0] || null, () => mine === loadTicket);
   };
 
   onLeave(() => closeMenus());
   onLeave(subscribe(async (s) => {
+    const mine = ++statusTicket;
+    const cameBack = s.on && lastOn !== true;
     if (s.on !== lastOn) {
       lastOn = s.on;
       toolbar.actions.replaceChildren();
@@ -64,11 +83,15 @@ export function render({ content, toolbar, onLeave }) {
 
     const current = s.on && s.current ? s.current : null;
     const currentId = current ? current.record.id : null;
-    if (currentId !== lastCurrent) {
+    // Read the runs again when the current run changes, when jobs come back
+    // on (the server was down or restarted), and after a failed read.
+    if (currentId !== lastCurrent || cameBack || (s.on && runsFailed)) {
       lastCurrent = currentId;
-      await loadRuns();
-      loadAttention(attention, finishedRuns[0] || null);
+      runsLoading = loadRuns();
     }
+    // Wait for any load still going, even one an earlier callback started.
+    await runsLoading;
+    if (mine !== statusTicket || !main.isConnected) return;
     if (s.on) {
       if (current) run.show(current.record, current);
       else run.show(finishedRuns[0] || null, null);
@@ -316,13 +339,16 @@ const ATTENTION = [
   { key: 'modsWithoutDownload', label: 'Mods with no download', where: '#/mods?filters=noDownload' },
 ];
 
-async function loadAttention(node, lastRun) {
+/// Draws Needs attention. `stillWanted()` is false once a newer load started.
+async function loadAttention(node, lastRun, stillWanted) {
   let counts = {};
   try {
     counts = (await api('attention')) || {};
   } catch {
     counts = {};
   }
+  // A newer load has started; let it draw the panel.
+  if (!stillWanted()) return;
   const items = [];
   const errors = lastRun && lastRun.counters && lastRun.counters.errors;
   if (errors) {

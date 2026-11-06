@@ -332,6 +332,54 @@ void main() {
       expect(body['changedCount'], 1);
     });
 
+    test('each mod on a topic holding several is compared on its own',
+        () async {
+      // Topic 34161 gives one mod per listing.
+      await saveTwo(
+        before: [
+          mod('Lost.Sector', topic: '34161'),
+          mod('Industrial.Evolution', topic: '34161', version: '0.97a'),
+          mod('Useful.Tithes', topic: '34161'),
+        ],
+        after: [
+          mod('Lost.Sector', topic: '34161'),
+          mod('Industrial.Evolution', topic: '34161', version: '0.98a'),
+          mod('Useful.Tithes', topic: '34161'),
+          mod('Corrupt.Officials', topic: '34161'),
+          mod('Second Added', topic: '34161'),
+        ],
+      );
+
+      final body = await compare();
+      expect(body['sameCount'], 2);
+      expect(body['changedCount'], 1);
+      expect(body['addedCount'], 2);
+
+      final rows = (body['items'] as List).cast<Map<String, dynamic>>();
+      final changed = rows.singleWhere((r) => r['kind'] == 'changed');
+      expect(changed['name'], 'Industrial.Evolution');
+      expect(changed.containsKey('note'), isFalse);
+      expect((changed['changes'] as List).map((c) => c['field']),
+          ['gameVersionReq']);
+
+      // Each row has its own key, so opening one does not open the others.
+      final keys = rows.map((r) => r['key']).toSet();
+      expect(keys, hasLength(rows.length));
+    });
+
+    test('a topic that gained a second mod keeps comparing its first',
+        () async {
+      await saveTwo(
+        before: [mod('Pack', topic: '35651')],
+        after: [mod('Pack', topic: '35651'), mod('Fork', topic: '35651')],
+      );
+
+      final body = await compare();
+      expect(body['sameCount'], 1);
+      expect(body['addedCount'], 1);
+      expect((body['items'] as List).single['name'], 'Fork');
+    });
+
     test('a mod with no forum link still lines up by name and author',
         () async {
       await saveTwo(

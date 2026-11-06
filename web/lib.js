@@ -45,7 +45,11 @@ export async function api(path, params = {}) {
 /// and removes it once and calls `onShut(value)`. Every way out (buttons,
 /// Escape, the back button) goes through `shut`: some browsers never send the
 /// dialog's own close event.
-export function showDialog(box, onShut) {
+///
+/// Moving to another page closes the dialog, unless `stayOnPageChange` is
+/// set. Use that for a dialog that follows work outside the page, such as an
+/// update.
+export function showDialog(box, onShut, { stayOnPageChange = false } = {}) {
   let done = false;
   const shut = (value) => {
     if (done) return;
@@ -61,7 +65,7 @@ export function showDialog(box, onShut) {
     shut(null);
   });
   box.addEventListener('close', () => shut(null));
-  window.addEventListener('hashchange', onLeave);
+  if (!stayOnPageChange) window.addEventListener('hashchange', onLeave);
   document.body.append(box);
   box.showModal();
   return shut;

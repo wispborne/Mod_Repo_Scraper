@@ -248,10 +248,13 @@ export function render({ content, onLeave }) {
   };
 
   const start = async (kind) => {
-    const record = await confirmAndStart(postJobRequest(kind, [...ticked]));
+    const request = postJobRequest(kind, [...ticked]);
+    const record = await confirmAndStart(request);
     if (!record) return;
-    // Clear ticks only after the server accepts the job.
-    ticked.clear();
+    // Clear ticks only after the server accepts the job, and only the ones it
+    // was sent: a forum-only job leaves the ticked Discord threads ticked.
+    for (const topicId of request.topicIds || []) ticked.delete(`topic:${topicId}`);
+    for (const threadId of request.discordThreadIds || []) ticked.delete(`discord:${threadId}`);
     saveTicked(ticked);
     drawSelection();
     drawList();
@@ -346,6 +349,11 @@ export function render({ content, onLeave }) {
       view.page = view.pageSize ? Math.max(0, Math.ceil(data.total / view.pageSize) - 1) : 0;
       load();
       return;
+    }
+    // A page past the end comes back as the last page: keep its number.
+    if (data && !data.missing && Number.isInteger(data.page) && data.pageSize && data.page !== view.page) {
+      view.page = data.page;
+      saveAddress();
     }
     state.data = data;
     drawNumbers();

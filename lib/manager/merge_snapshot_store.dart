@@ -4,13 +4,14 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../bot/scraper/debug/merge_debug_data.dart';
+import 'bundle_snapshot_store.dart' show snapshotSavedAt;
 
 /// One saved merge, as the list shows it.
 class MergeSnapshotInfo {
   /// The run that made it. Same id as the run record, its log and its request.
   final String id;
 
-  /// When the file was written.
+  /// When it was saved ([snapshotSavedAt]).
   final DateTime savedAt;
 
   /// How big the file is on disk, squashed down.
@@ -96,7 +97,7 @@ class MergeSnapshotStore {
       final saved = counts[id];
       found.add(MergeSnapshotInfo(
         id: id,
-        savedAt: stat.modified,
+        savedAt: snapshotSavedAt(id, stat.modified, saved?['savedAt']),
         sizeBytes: stat.size,
         inputCount: saved?['inputCount'] as int?,
         groupCount: saved?['groupCount'] as int?,
@@ -191,6 +192,7 @@ class MergeSnapshotStore {
       'inputCount': data.inputCount,
       'groupCount': data.groupsCreated,
       'finalCount': data.finalCount,
+      'savedAt': DateTime.now().toUtc().toIso8601String(),
     };
     try {
       File(countsPath).writeAsStringSync(jsonEncode(counts));

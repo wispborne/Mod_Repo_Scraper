@@ -282,6 +282,18 @@ void main() {
       expect(page['total'], 3);
     });
 
+    test('a page past the end gives the last page, however big the number', () async {
+      for (final asked in ['3', '200000000000000000', '9223372036854775807']) {
+        final (status, page) = await get('mods?pageSize=1&page=$asked');
+        expect(status, 200, reason: 'page=$asked');
+        expect(ids(page), ['gone-mod'], reason: 'page=$asked');
+        expect(page['page'], 2, reason: 'page=$asked');
+      }
+      final (_, first) = await get('mods?pageSize=2&page=-4');
+      expect(ids(first), ['alpha', 'beta']);
+      expect(first['page'], 0);
+    });
+
     test('says what to run when there is no catalog', () async {
       File(p.join(outputsDir, 'mod-catalog.json')).deleteSync();
       final (status, body) = await get('mods');
@@ -298,7 +310,10 @@ void main() {
       expect((body['site'] as Map)['license'], 'MIT');
       expect(body['starmodderUrl'], 'https://starmodder.wispborne.com/mods/alpha/');
       expect(body['oldIds'], ['old-alpha']);
-      expect(body['unmatchedNeeds'], ['Mystery Lib', 'Optional Thing']);
+      expect(body['unmatchedNeeds'], [
+        {'name': 'Mystery Lib', 'key': 'mysterylib'},
+        {'name': 'Optional Thing', 'key': 'optionalthing'},
+      ]);
       expect(body.containsKey('takedown'), isFalse);
       expect(body['sourcePosts'], [
         {
@@ -419,10 +434,44 @@ void main() {
       expect(body['kind'], 'takenDown');
       expect(body['name'], 'Gone Mod');
       expect((body['takedown'] as Map)['status'], 'takenDown');
+      expect((body['takedown'] as Map)['entryKind'], 'mod');
+      expect((body['takedown'] as Map).containsKey('author'), isFalse);
       expect(((body['takedown'] as Map)['entry'] as Map)['on'], '2026-10-01');
       expect(body['sourcePosts'], [
         {'kind': 'discord', 'id': '777', 'title': '', 'postKind': 'discord'},
       ]);
+    });
+
+    test('a mod an author entry took down says so, naming the person', () async {
+      writeJson(p.join(dataDir, 'takedowns.json'), {
+        'mods': [],
+        'authors': [
+          {
+            'names': ['Tidal', 'tidal5590'],
+            'on': '2026-10-02',
+          },
+        ],
+      });
+      writeJson(p.join(dataDir, 'takedown-matches.json'), {
+        'builtAt': builtAt,
+        'matches': [
+          {
+            'entry': 'author:tidal',
+            'mods': [
+              {'id': 'tidal-mod', 'name': 'Tidal Mod'},
+            ],
+            'collections': [],
+            'blockedPosts': [],
+          },
+        ],
+        'removedPosts': [],
+      });
+      final body = await modAt('tidal-mod');
+      expect(body['kind'], 'takenDown');
+      final takedown = body['takedown'] as Map;
+      expect(takedown['entryKind'], 'author');
+      expect(takedown['author'], 'Tidal');
+      expect((takedown['entry'] as Map)['on'], '2026-10-02');
     });
 
     test('a mod back under a new id carries the takedown entry', () async {

@@ -53,11 +53,17 @@ export function runPanel(node) {
   let shownId;
   let shownRecord = null;
   let shownLive = false;
+  // `tail` is how many lines the next read asks for. `shownTail` is how
+  // many the last read that came back asked for.
   let tail = LOG_TAIL;
+  let shownTail = LOG_TAIL;
   let changedFor = null;
   let shownLines = [];
   let followedOnce = false;
+  let followedLive = false;
   let logAsking = false;
+  // A read asked for while another was loading. It runs when that one ends.
+  let readAgain = null;
   let laidOut = false;
 
   const tabButton = (id, text) => {
@@ -81,9 +87,11 @@ export function runPanel(node) {
   };
   drawTabs();
 
-  // More lines: 2,000 first, then five times as many each press.
+  // More lines: 2,000 first, then five times as many each press. The next
+  // size is worked out from what is shown, so a second press before the
+  // read comes back does not skip a step.
   moreButton.addEventListener('click', () => {
-    tail = tail === LOG_TAIL ? 2000 : tail * 5;
+    tail = shownTail === LOG_TAIL ? 2000 : shownTail * 5;
     if (shownRecord) readLog(shownRecord, shownLive);
   });
 
@@ -94,11 +102,17 @@ export function runPanel(node) {
   };
 
   async function readLog(record, live) {
-    if (logAsking) return;
+    if (logAsking) {
+      // Only the latest request is kept. It runs once this read ends.
+      readAgain = { record, live };
+      return;
+    }
     logAsking = true;
+    const asked = tail;
     try {
-      const log = await api(`manager/runs/${encodeURIComponent(record.id)}/log`, { tail });
+      const log = await api(`manager/runs/${encodeURIComponent(record.id)}/log`, { tail: asked });
       if (record.id !== shownId) return;
+      shownTail = asked;
       if (!log || log.missing) {
         logNote.textContent = 'No log is available for this run.';
         moreButton.hidden = true;
@@ -112,6 +126,9 @@ export function runPanel(node) {
       logNote.textContent = err.message;
     } finally {
       logAsking = false;
+      const again = readAgain;
+      readAgain = null;
+      if (again && again.record.id === shownId) readLog(again.record, again.live);
     }
   }
 
@@ -126,12 +143,15 @@ export function runPanel(node) {
     for (let i = 0; i < dropped && logBox.firstChild; i++) logBox.firstChild.remove();
     for (let i = shownLines.length - dropped; i < lines.length; i++) logBox.append(logLine(lines[i]));
     shownLines = lines;
-    if (!followedOnce) {
-      followedOnce = true;
+    // A finished run opens at the top. A running one opens at the bottom and
+    // follows new lines, even when it was first drawn as not running.
+    if (!followedOnce || (live && !followedLive)) {
       logBox.scrollTop = live ? logBox.scrollHeight : 0;
     } else {
       logBox.scrollTop = Math.max(0, logBox.scrollHeight - logBox.clientHeight - fromBottom);
     }
+    followedOnce = true;
+    if (live) followedLive = true;
   }
 
   return {
@@ -165,7 +185,10 @@ export function runPanel(node) {
         shownId = record.id;
         shownLines = [];
         followedOnce = false;
+        followedLive = false;
         tail = LOG_TAIL;
+        shownTail = LOG_TAIL;
+        readAgain = null;
         moreButton.hidden = true;
         logBox.replaceChildren();
         logNote.textContent = waiting ? 'Waiting in the queue. Nothing logged yet.' : 'Loading…';

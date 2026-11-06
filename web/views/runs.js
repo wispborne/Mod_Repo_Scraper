@@ -17,6 +17,7 @@ export function render({ content, onLeave }) {
 
   // Ignore responses to older requests once a newer request starts.
   let ticket = 0;
+  let failed = false;
   const load = async () => {
     const mine = ++ticket;
     history.replaceState(null, '', buildHash(['runs'], { page: page > 0 ? page + 1 : null }));
@@ -25,10 +26,12 @@ export function render({ content, onLeave }) {
       data = await api('manager/runs', { page, pageSize });
     } catch (err) {
       if (mine !== ticket) return;
+      failed = true;
       clear(body).append(el('p', { class: 'error-text', text: err.message }));
       return;
     }
     if (mine !== ticket) return;
+    failed = false;
     const items = (data && data.items) || [];
     const total = (data && data.total) || 0;
     // Return to the last page if old runs were removed and this page is now empty.
@@ -50,11 +53,15 @@ export function render({ content, onLeave }) {
     );
   };
 
-  // Refresh when the running job changes to show the finished run.
+  // Refresh when the running job changes to show the finished run, when jobs
+  // come back on (the server was down or restarted), and after a failed read.
   let lastCurrent;
+  let lastOn = null;
   onLeave(subscribe((s) => {
     const current = s.current && s.current.record ? s.current.record.id : null;
-    if (current === lastCurrent) return;
+    const cameBack = s.on && lastOn !== true;
+    lastOn = !!s.on;
+    if (current === lastCurrent && !cameBack && !(s.on && failed)) return;
     lastCurrent = current;
     load();
   }));

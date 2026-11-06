@@ -199,6 +199,14 @@ function entryTitle({ entry, isAuthor }) {
   return isAuthor ? (entry.names || []).join(', ') : (entry.name || entry.id);
 }
 
+/// Every name in a pending author takedown, in lower case.
+function pendingAuthorNames() {
+  return new Set(pendingItems()
+    .filter((i) => i.correction.kind === 'takeDownAuthor')
+    .flatMap((i) => i.correction.names || [])
+    .map((n) => String(n).trim().toLowerCase()));
+}
+
 /// The pending item that restores `key`, or null.
 function pendingRestore(key) {
   const wanted = correctionKey({ kind: 'restore', entry: key });
@@ -582,7 +590,7 @@ function modForm(state) {
           text: takenDown().has(mod.id)
             ? 'already taken down'
             : pendingNow(mod)
-              ? 'take-down pending'
+              ? 'takedown pending'
               : mod.collection
                 ? 'Collection page'
                 : authors.slice(0, 2).join(', ') + (authors.length > 2 ? ` +${authors.length - 2}` : ''),
@@ -654,6 +662,8 @@ function authorForm(state) {
       const others = author.others || [];
       const gone = takenDown();
       const already = [author.name, ...others].some((n) => gone.has(n.toLowerCase()));
+      const pendingNames = pendingAuthorNames();
+      const pending = [author.name, ...others].some((n) => pendingNames.has(n.toLowerCase()));
       return [
         el('span', { class: 'td-suggestion-name' }, [
           author.name,
@@ -662,7 +672,11 @@ function authorForm(state) {
         ]),
         el('span', {
           class: 'td-suggestion-count',
-          text: already ? 'already taken down' : `${author.mods} mod${author.mods === 1 ? '' : 's'}`,
+          text: already
+            ? 'already taken down'
+            : pending
+              ? 'takedown pending'
+              : `${author.mods} mod${author.mods === 1 ? '' : 's'}`,
         }),
       ];
     },
@@ -746,6 +760,11 @@ export async function previewAndAdd({ modId = null, authors = [] }) {
     : { kind: 'takeDownAuthor', names: authors };
   if (isPending(correction)) {
     await noticeDialog('Already pending', 'This takedown is already in the pending changes.');
+    return false;
+  }
+  const alreadyPending = authors.filter((name) => pendingAuthorNames().has(name.trim().toLowerCase()));
+  if (alreadyPending.length) {
+    await noticeDialog('Already pending', `Already pending: ${alreadyPending.join(', ')}.`);
     return false;
   }
 

@@ -183,6 +183,11 @@ export function render({ content, onLeave }) {
       load();
       return;
     }
+    // A page past the end comes back as the last page: keep its number.
+    if (data && !data.missing && Number.isInteger(data.page) && data.pageSize && data.page !== view.page) {
+      view.page = data.page;
+      saveAddress();
+    }
     state.data = data;
     drawFilters();
     drawList();

@@ -153,16 +153,17 @@ class ViewerApi {
   }
 
   /// Slices [rows] to the requested page and wraps them in the list envelope.
-  /// A page size of 0 means every row, on one page.
+  /// A page size of 0 (or less) means every row, on one page. A page past the
+  /// end gives the last page, so a huge page number cannot overflow.
   Map<String, dynamic> _paged(
       List<Map<String, dynamic>> rows, int page, int pageSize) {
     final total = rows.length;
-    if (pageSize == 0) return _listEnvelope(rows, total, 0, 0);
-    final start = page * pageSize;
-    final slice = start >= total
-        ? const <Map<String, dynamic>>[]
-        : rows.sublist(start, (start + pageSize).clamp(0, total));
-    return _listEnvelope(slice, total, page, pageSize);
+    if (pageSize <= 0) return _listEnvelope(rows, total, 0, 0);
+    final lastPage = total == 0 ? 0 : (total - 1) ~/ pageSize;
+    final shown = page < 0 ? 0 : (page > lastPage ? lastPage : page);
+    final start = shown * pageSize;
+    final end = start + pageSize > total ? total : start + pageSize;
+    return _listEnvelope(rows.sublist(start, end), total, shown, pageSize);
   }
 
   // --- Topics ---
@@ -1166,6 +1167,16 @@ class ViewerApi {
         report = jsonDecode(reportFile.readAsStringSync());
       } catch (_) {
         report = null;
+      }
+    }
+    // Every row carries the key answers are saved under, so the page can tell
+    // which pending change belongs to which row. A row with no key gets one
+    // here.
+    if (report is Map && report['names'] is List) {
+      for (final row in report['names'] as List) {
+        if (row is Map && row['key'] is! String && row['written'] is String) {
+          row['key'] = requirementKey(row['written'] as String);
+        }
       }
     }
     final store = RequirementNameStore(data.dataDir)..load();

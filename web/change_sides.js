@@ -62,8 +62,15 @@ export function runBefore(runs, id) {
 /// Returns `{ a, b, moved, nothing }`. `nothing` is true when there is not
 /// enough to compare. `moved` lists each side that could not be kept:
 /// `{ side, from, to, why }`, where `why` is 'otherTab' (that run has no
-/// snapshot on this tab), 'gone' (no longer kept) or 'working' (the data on
-/// disk is not offered on this tab).
+/// snapshot on this tab), 'gone' (no longer kept), 'working' (the data on
+/// disk is not offered on this tab) or 'oldest' (the run picked as the newer
+/// side is the oldest kept, so there is no earlier one to compare it with; it
+/// is shown as the older side instead).
+///
+/// An 'otherTab' entry also carries `nearest`, the run saved nearest to
+/// `from`. It differs from `to` when that run was already the other side.
+/// For 'oldest', `from` is the run picked and `to` the run now on the newer
+/// side; `from` is on the older side.
 export function settleSides({ runs, working = null, a = '', b = '', otherRuns = [] }) {
   const ids = new Set(runs.map((r) => r.id));
   if (!runs.length || (runs.length < 2 && !working)) {
@@ -73,14 +80,18 @@ export function settleSides({ runs, working = null, a = '', b = '', otherRuns = 
   const standIn = (side, id) => {
     const other = otherRuns.find((r) => r.id === id);
     if (other) {
-      moved.push({ side, from: id, why: 'otherTab' });
-      return nearestRun(runs, other.savedAt);
+      const nearest = nearestRun(runs, other.savedAt);
+      moved.push({ side, from: id, why: 'otherTab', nearest });
+      return nearest;
     }
     moved.push({ side, from: id, why: 'gone' });
     return '';
   };
 
   let newer = b || '';
+  // A newer side the reader picked and this tab has: it is only ever moved
+  // for being the oldest run kept, which needs a note of its own.
+  const pickedNewer = newer && newer !== WORKING && ids.has(newer) ? newer : '';
   if (newer === WORKING && !working) {
     moved.push({ side: 'b', from: WORKING, why: 'working' });
     newer = '';
@@ -100,6 +111,9 @@ export function settleSides({ runs, working = null, a = '', b = '', otherRuns = 
       const at = runs.findIndex((r) => r.id === newer);
       older = newer;
       newer = at > 0 ? runs[at - 1].id : WORKING;
+      if (pickedNewer && pickedNewer === older) {
+        moved.push({ side: 'b', from: pickedNewer, why: 'oldest' });
+      }
     }
   }
 

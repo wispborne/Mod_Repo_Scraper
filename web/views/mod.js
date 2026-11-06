@@ -24,7 +24,7 @@ import {
   diffTable, changedFieldsLine, changedFieldsTitle, expandAllButton, jobWord, isImported,
 } from '../diff_parts.js';
 import {
-  starmodderPage, starmodderFile, modHref, postHref, postKindWords, postFallbackName, postJobKeys,
+  starmodderPage, starmodderFile, modHref, isWebAddress, postHref, postKindWords, postFallbackName, postJobKeys,
   foundByWords, joinedByWords, factSource, fieldName, shortValue, saveAnswerWords, distinctNames,
   sameAuthorLabel, matchLabel,
 } from '../mod_words.js';
@@ -53,6 +53,14 @@ export async function render({ content, parts, toolbar, onLeave }) {
 
   let answer = await readMod(id);
   if (gone()) return;
+
+  // No catalog has been built yet: say so, with the server's hint.
+  if (answer.missing) {
+    main.replaceChildren(crumbs, el('div', { class: 'pp-missing' }, [
+      el('p', { text: `No catalog yet. ${answer.hint || ''}`.trim() }),
+    ]));
+    return;
+  }
 
   // An old id: draw the mod it leads to, with a note naming the old id.
   let movedFrom = null;
@@ -290,7 +298,7 @@ function picturesPanel(answer) {
   const pictures = [
     ['Forum post', listing.imageUrl],
     ['Discord post', listing.announcementImageUrl],
-  ].filter(([, url]) => url);
+  ].filter(([, url]) => isWebAddress(url));
   if (!pictures.length) return [];
   return [sidePanel({
     name: 'Card picture',
@@ -315,7 +323,9 @@ const CONFLICT_WORDS = {
 function siteFields(ctx, site) {
   const { answer } = ctx;
   const listing = site.listing || {};
-  const unmatched = new Set((answer.unmatchedNeeds || []).map(looseKey));
+  // Each unmatched name's key from the server, by its loose spelling.
+  const unmatchedList = unmatchedNeedsOf(answer);
+  const unmatched = new Map(unmatchedList.map((need) => [looseKey(need.name), need.key]));
   const shownNeeds = new Set();
 
   const needChips = (list) => el('span', { class: 'md-chips' }, list.map((need) => {
@@ -323,7 +333,8 @@ function siteFields(ctx, site) {
     if (need.id) {
       return el('a', { class: 'chip md-need', href: modHref(need.id), title: need.via ? `Required by ${need.via}.` : null, text: need.name });
     }
-    return unmatchedNeed(ctx, need.name, unmatched.has(looseKey(need.name)));
+    const loose = looseKey(need.name);
+    return unmatchedNeed(ctx, need.name, unmatched.has(loose), unmatched.get(loose));
   }));
 
   const download = listing.bestDownload;
@@ -374,9 +385,8 @@ function siteFields(ctx, site) {
     ['Last release', listing.lastReleaseDate ? String(listing.lastReleaseDate).slice(0, 10) : null],
     ['Releases', (site.releases || []).length
       ? site.releases.map((r) => `${r.newVersion}${r.seenOn ? ` (${r.seenOn})` : ''}`).join(', ') : null],
-    ['Same name', null, (site.sameNameMods || []).length ? el('span', { class: 'md-chips' }, site.sameNameMods.map(
-      (m) => (m.id ? el('a', { class: 'chip', href: modHref(m.id), text: m.name || m.id }) : el('span', { class: 'chip', text: m.name })),
-    )) : null],
+    ['Same name', null, (site.sameNameMods || []).length
+      ? el('span', { class: 'md-chips' }, site.sameNameMods.map(sameNameChip)) : null],
     ['Add-ons', null, (site.addons || []).length ? el('span', { class: 'md-chips' }, site.addons.map(
       (a) => (a.id ? el('a', { class: 'chip', href: modHref(a.id), text: a.name || a.id }) : el('span', { class: 'chip', text: a.name || '' })),
     )) : null],
@@ -384,10 +394,11 @@ function siteFields(ctx, site) {
   ];
 
   // Requirements the build could not match that no list above shows.
-  const leftOver = (answer.unmatchedNeeds || []).filter((w) => !shownNeeds.has(looseKey(w)));
+  const leftOver = unmatchedList.filter((need) => !shownNeeds.has(looseKey(need.name)));
   const children = [fieldList(rows)];
   if (leftOver.length) {
-    children.push(fieldList([['Not matched', null, el('span', { class: 'md-chips' }, leftOver.map((w) => unmatchedNeed(ctx, w, true)))]]));
+    children.push(fieldList([['Not matched', null, el('span', { class: 'md-chips' },
+      leftOver.map((need) => unmatchedNeed(ctx, need.name, true, need.key)))]]));
   }
 
   const descriptionText = site.description || '';
@@ -400,6 +411,14 @@ function siteFields(ctx, site) {
     children.push(fold('AI description', el('p', { class: 'md-fold-text', text: site.aiDescription })));
   }
   return children;
+}
+
+/// Links to the mod's page here, or to its forum thread in a new tab.
+function sameNameChip(m) {
+  const title = m.title || m.id || m.url || '';
+  if (m.id) return el('a', { class: 'chip', href: modHref(m.id), text: title });
+  if (m.url) return outLink(m.url, `${title} ↗`, { class: 'chip', title: 'Open on the forum' });
+  return el('span', { class: 'chip', text: title });
 }
 
 function otherNamesText(map) {
@@ -491,13 +510,23 @@ function pickSamePerson(authors) {
   (authors.length === 2 ? add : boxes[0]).focus();
 }
 
+/// The server's unmatched requirement names as `{ name, key }`. An answer
+/// from an older server lists plain names, with no key.
+function unmatchedNeedsOf(answer) {
+  return (answer.unmatchedNeeds || []).map((need) => (typeof need === 'string'
+    ? { name: need, key: null }
+    : { name: String(need.name || ''), key: need.key || null })).filter((need) => need.name);
+}
+
 /// A requirement the build could not match: its name, then "Match this to a
-/// mod" while the manager is on, or the pending match with Undo.
-function unmatchedNeed(ctx, written, unmatched) {
+/// mod" while the manager is on, or the pending match with Undo. `key` is the
+/// server's key for the name; a pending match is found by it, or by the loose
+/// spelling when either side has no key.
+function unmatchedNeed(ctx, written, unmatched, key = null) {
   const slot = el('span', { class: 'md-need-slot' });
   const draw = () => {
     const pending = pendingItems().filter((i) => i.correction.kind === 'matchRequirement'
-      && looseKey(i.correction.written) === looseKey(written));
+      && (i.key && key ? i.key === key : looseKey(i.correction.written) === looseKey(written)));
     const parts = [el('span', {
       class: `chip md-need${unmatched ? ' warn' : ''}`,
       title: unmatched ? 'The last build could not match this name to one of our mods.' : null,
@@ -518,7 +547,7 @@ function unmatchedNeed(ctx, written, unmatched) {
         class: 'button md-small',
         text: 'Match this to a mod',
         title: 'Pick the mod this name means.',
-        onclick: () => matchNeed(ctx, written),
+        onclick: () => matchNeed(ctx, written, key),
       }));
     }
     slot.replaceChildren(...parts);
@@ -529,7 +558,7 @@ function unmatchedNeed(ctx, written, unmatched) {
 }
 
 /// Opens the mod picker over the mods of the last website build.
-async function matchNeed(ctx, written) {
+async function matchNeed(ctx, written, key) {
   if (!ctx.pickerMods) {
     ctx.pickerMods = api('requirement-names')
       .then((body) => ((body && body.report && body.report.mods) || []))
@@ -544,6 +573,7 @@ async function matchNeed(ctx, written) {
       kind: 'matchRequirement',
       label: matchLabel(written, mod.name),
       correction: { kind: 'matchRequirement', written, modId: mod.id },
+      key: key || undefined,
     }),
   });
 }
@@ -825,7 +855,7 @@ function takenDownPage(ctx, id) {
       section('Takedown', null, [
         fieldList([
           ['Taken down on', entry.on ? String(entry.on).slice(0, 10) : null],
-          ['Taken down by', td.entry ? null : 'An author entry'],
+          ['Taken down by', takenDownBy(td)],
           ['Blocked posts', null, posts.length ? el('ul', { class: 'md-list' }, posts.map((post) => {
             const href = postHref(post);
             const title = post.title || postFallbackName(post);
@@ -840,6 +870,14 @@ function takenDownPage(ctx, id) {
     ]),
     el('div', { class: 'raw-slot' }, [rawJson(answer, 'Raw mod data (JSON)')]),
   ];
+}
+
+/// Which takedown entry left the mod out: its own mod entry, or an author
+/// entry naming the person.
+function takenDownBy(td) {
+  if (td.entryKind === 'author') return td.author ? `Author takedown: ${td.author}` : 'Author takedown';
+  if (td.entryKind === 'mod') return 'Mod takedown';
+  return null;
 }
 
 function unknownPage(answer, id) {

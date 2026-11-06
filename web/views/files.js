@@ -83,8 +83,12 @@ async function viewer({ content }, id) {
   const status = el('p', { class: 'mono dim fl-status' });
   const nav = el('div');
   const pre = el('pre', { class: 'log fl-text' });
+  // Shown in place of the text when there is none, so the text box stays on
+  // the page for the next part.
+  const emptyNote = emptyLine('');
+  emptyNote.hidden = true;
   const rawSlot = el('div', { class: 'raw-slot' });
-  const main = el('div', { class: 'pp-page fl-page' }, [crumbs, facts, status, nav, pre, rawSlot]);
+  const main = el('div', { class: 'pp-page fl-page' }, [crumbs, facts, status, nav, pre, emptyNote, rawSlot]);
   content.append(pageLayout(main));
   const gone = () => !main.isConnected;
 
@@ -125,16 +129,26 @@ async function viewer({ content }, id) {
       history.replaceState(null, '', buildHash(['files', id], { offset: data.offset > 0 ? data.offset : null }));
     }
 
+    const showText = (text) => {
+      pre.textContent = text;
+      const none = !text;
+      pre.hidden = none;
+      emptyNote.hidden = !none;
+      // A file with something in it but nothing at this offset was written
+      // again, smaller, since the offset was saved.
+      emptyNote.textContent = data.totalSize ? 'The file is now too short to show this part.' : 'The file is empty.';
+    };
+
     // A small file fetched whole is shown as formatted JSON when it is JSON.
     if (data.offset === 0 && data.eof && data.totalSize < PRETTY_LIMIT) {
       nav.replaceChildren();
       status.textContent = `${fmtBytes(data.totalSize)} · complete file`;
-      pre.textContent = tryPretty(data.content);
+      showText(data.content ? tryPretty(data.content) : '');
       return;
     }
 
     status.textContent = `${fmtBytes(data.totalSize)} · ${data.length} bytes from offset ${data.offset} · plain text`;
-    pre.textContent = data.content;
+    showText(data.content || '');
     const button = (text, disabled, target) => el('button', {
       type: 'button',
       class: 'button quiet',
@@ -153,8 +167,6 @@ async function viewer({ content }, id) {
   pre.textContent = '';
   status.textContent = 'Loading…';
   await goTo(start);
-  if (gone()) return;
-  if (!pre.textContent && !main.querySelector('.pp-missing, .error-text')) pre.replaceWith(emptyLine('The file is empty.'));
 }
 
 function tryPretty(text) {

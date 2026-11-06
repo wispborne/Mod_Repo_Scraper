@@ -262,6 +262,28 @@ void main() {
       expect(dates, {'1': '2026-11-04T22:05:53.000', '2': '2026-11-05T01:00:00.000', '3': '2026-11-04T09:00:00.000'});
     });
 
+    test('forum and Discord times sort the same way in every time zone', () async {
+      // The forum's clock has no time zone; it is compared as if it were UTC,
+      // like the Discord times. Read as the computer's own time instead, the
+      // forum topic would move above or below both threads with the zone.
+      writeJson(p.join(dataDir, 'mods-index.json'), [
+        {...summary(1, 'Forum'), 'lastPostDate': 'October 01, 2026, 10:00:00 AM'},
+      ]);
+      Map<String, dynamic> at(String id, String time) => {
+            ...thread(id, 'Thread $id'),
+            'messages': [
+              {'id': id, 'content': 'A mod.', 'timestamp': time},
+            ],
+          };
+      writeJson(p.join(dataDir, 'discord-posts.json'), {
+        '900': at('900', '2026-10-01T09:30:00.000Z'),
+        '901': at('901', '2026-10-01T10:30:00.000Z'),
+      });
+      writeJson(p.join(dataDir, 'llm-extraction-cache.json'), {});
+      expect(keys(await posts()), ['discord:901', 'topic:1', 'discord:900']);
+      expect(keys(await posts('dir=asc')), ['discord:900', 'topic:1', 'discord:901']);
+    });
+
     test('with no saved posts at all, says which file is missing', () async {
       File(p.join(dataDir, 'mods-index.json')).deleteSync();
       File(p.join(dataDir, 'discord-posts.json')).deleteSync();

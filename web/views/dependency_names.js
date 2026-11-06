@@ -128,6 +128,8 @@ export function render({ content, onLeave }) {
     if (!state.rows) return;
     const shown = filterRows(state.rows, view);
     const pageSize = view.pageSize;
+    // With every row on one page, a page number left in the address is dropped.
+    if (!pageSize) view.page = 0;
     if (pageSize && view.page * pageSize >= shown.length) view.page = Math.max(0, Math.ceil(shown.length / pageSize) - 1);
     const slice = pageSize ? shown.slice(view.page * pageSize, (view.page + 1) * pageSize) : shown;
     saveAddress();
@@ -296,11 +298,13 @@ function howMatched() {
 
 // --- Pending changes for a row ---
 
-/// The pending changes for this spelling, oldest first.
+/// The pending changes for this spelling, oldest first. A change carries the
+/// key the server saves its answer under, the same key each row has; a change
+/// without one is matched on letters and digits.
 function pendingFor(row) {
-  const key = looseKey(row.written);
+  const loose = looseKey(row.written);
   return pendingItems().filter((i) => i.correction.kind === 'matchRequirement'
-    && looseKey(i.correction.written) === key);
+    && (i.key && row.key ? i.key === row.key : looseKey(i.correction.written) === loose));
 }
 
 /// The mark on a row with a pending change, from the newest one.
@@ -329,6 +333,7 @@ function addMatch(row, mod) {
   addPending({
     kind: 'matchRequirement',
     label: matchLabel(row.written, mod.name),
+    key: row.key,
     correction: { kind: 'matchRequirement', written: row.written, modId: mod.id },
   });
 }
@@ -337,6 +342,7 @@ function addNone(row) {
   addPending({
     kind: 'matchRequirement',
     label: noneLabel(row.written),
+    key: row.key,
     correction: { kind: 'matchRequirement', written: row.written, modId: null },
   });
 }
@@ -345,6 +351,7 @@ function addForget(row) {
   addPending({
     kind: 'matchRequirement',
     label: forgetLabel(row.written),
+    key: row.key,
     correction: { kind: 'matchRequirement', written: row.written, forget: true },
   });
 }

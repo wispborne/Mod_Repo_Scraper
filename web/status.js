@@ -113,9 +113,12 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /// How the last run this page saw running ended: 'completed', 'failed',
-/// another state, or null. Cleared when a new run starts or the page changes.
+/// another state, or null. Kept until the next run this page saw ends, and
+/// cleared when the page changes.
 let watchedRunId = null;
 let ended = null;
+// Only the newest finished run sets `ended`, even if an older record arrives later.
+let endedAsk = 0;
 
 export function endedRun() {
   return ended;
@@ -126,30 +129,32 @@ export function forgetEndedRun() {
 }
 
 /// Notices a run ending. When the run this page saw is no longer current,
+/// either because nothing runs or because the next queued job has started,
 /// its record is fetched to learn how it ended. `onChange` is called after.
 export function watchRunEnds(onChange) {
   return subscribe(async (s) => {
     const current = s.current && s.current.record;
-    if (current) {
-      if (current.id !== watchedRunId) ended = null;
-      watchedRunId = current.id;
-      onChange();
-      return;
-    }
-    if (watchedRunId) {
-      const id = watchedRunId;
-      watchedRunId = null;
-      try {
-        const res = await fetch(`/api/manager/runs/${encodeURIComponent(id)}`);
-        const record = res.ok ? await res.json() : null;
-        ended = record && record.state ? record.state : null;
-        if (record) notifyRunEnded(record);
-      } catch {
-        ended = null;
-      }
-    }
+    const currentId = current ? current.id : null;
+    const finishedId = watchedRunId && watchedRunId !== currentId ? watchedRunId : null;
+    watchedRunId = currentId;
+    if (finishedId) await learnHowRunEnded(finishedId);
     onChange();
   });
+}
+
+async function learnHowRunEnded(id) {
+  const ask = ++endedAsk;
+  let record = null;
+  try {
+    const res = await fetch(`/api/manager/runs/${encodeURIComponent(id)}`);
+    record = res.ok ? await res.json() : null;
+  } catch {
+    record = null;
+  }
+  // A record not yet saved as ended says nothing about how it ended.
+  const state = record && record.state && !['queued', 'running'].includes(record.state) ? record.state : null;
+  if (ask === endedAsk) ended = state;
+  if (state) notifyRunEnded(record);
 }
 
 // --- Run notifications ---

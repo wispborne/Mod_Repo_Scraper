@@ -165,12 +165,30 @@ const List<ComparedField> _comparedFields = [
 
 final RegExp _forumTopic = RegExp(r'topic=(\d+)');
 
+/// The forum topic id in a mod's forum link, or null.
+String? _topicOf(Map<dynamic, dynamic> mod) {
+  final forumUrl = ((mod['urls'] as Map?) ?? const {})['Forum'] as String?;
+  return forumUrl == null ? null : _forumTopic.firstMatch(forumUrl)?.group(1);
+}
+
 /// Matches mods by forum topic, or by name and sorted authors with only
 /// lowercase letters retained.
-String modKey(Map<dynamic, dynamic> mod) {
-  final forumUrl = ((mod['urls'] as Map?) ?? const {})['Forum'] as String?;
-  final topic = forumUrl == null ? null : _forumTopic.firstMatch(forumUrl);
-  if (topic != null) return 'topic:${topic.group(1)}';
+///
+/// [sharedTopics] are topics that hold more than one mod in either merge being
+/// compared. The catalog makes one mod per listing, so topic 34161 gives four
+/// mods. A mod on one of those topics is keyed by its topic and its name
+/// (letters and digits), so each mod on the topic is compared on its own. A mod alone on its topic is
+/// keyed by the topic only, so it still lines up after a rename.
+String modKey(Map<dynamic, dynamic> mod,
+    {Set<String> sharedTopics = const {}}) {
+  final topic = _topicOf(mod);
+  if (topic != null) {
+    if (!sharedTopics.contains(topic)) return 'topic:$topic';
+    final name = (mod['name'] as String? ?? '')
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return 'topic:$topic|$name';
+  }
 
   final name = _flatten(mod['name'] as String? ?? '');
   final authors = (((mod['authorsList'] as List?) ?? const [])
@@ -179,6 +197,20 @@ String modKey(Map<dynamic, dynamic> mod) {
         ..sort())
       .join(',');
   return 'name:$name|$authors';
+}
+
+/// Topics holding more than one mod in [output].
+Set<String> _topicsWithSeveralMods(List<dynamic> output) {
+  final counts = <String, int>{};
+  for (final mod in output) {
+    if (mod is! Map) continue;
+    final topic = _topicOf(mod);
+    if (topic != null) counts[topic] = (counts[topic] ?? 0) + 1;
+  }
+  return {
+    for (final e in counts.entries)
+      if (e.value > 1) e.key
+  };
 }
 
 String _flatten(String value) =>
@@ -194,15 +226,22 @@ Map<String, dynamic> compareMerges({
   required List<dynamic> olderOutput,
   required List<dynamic> newerOutput,
 }) =>
+    _compareMerges(olderOutput, newerOutput, {
+      ..._topicsWithSeveralMods(olderOutput),
+      ..._topicsWithSeveralMods(newerOutput),
+    });
+
+Map<String, dynamic> _compareMerges(List<dynamic> olderOutput,
+        List<dynamic> newerOutput, Set<String> sharedTopics) =>
     compareRows(
       older: olderOutput,
       newer: newerOutput,
-      keyOf: modKey,
+      keyOf: (mod) => modKey(mod, sharedTopics: sharedTopics),
       fields: _comparedFields,
       labelOf: _label,
       authorOf: _authorLabel,
       recordKey: 'mod',
       setChangedNote:
-          'More than one mod shares this name and author, and the set of '
-          'them changed.',
+          'Several mods share this forum topic and name, or this name and '
+          'author. The list of matching mods changed.',
     );

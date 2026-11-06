@@ -403,10 +403,19 @@ function personRow(row, ctx) {
   ]);
 }
 
+/// Checks for a pending removal or choice of published name.
+/// These changes conflict, so Undo must clear one before another is offered.
+function nameChangePending(name) {
+  const wanted = lower(name);
+  return pendingItems().some((i) => (i.correction.kind === 'removeAuthorName' || i.correction.kind === 'publishAuthorAs')
+    && (i.correction.names || []).some((n) => lower(n) === wanted));
+}
+
 /// One name of a person: the name, how many mods use it, and with jobs on, a
 /// way to publish the person under it and a way to take it off.
 function nameChip(name, row, ctx, pending) {
-  const { body, on } = ctx.state;
+  const { body } = ctx.state;
+  const on = ctx.state.on && !nameChangePending(name);
   const n = modCount(body, name);
   const shown = row[0] === name;
   const last = row.filter((x) => lower(x) !== lower(name));

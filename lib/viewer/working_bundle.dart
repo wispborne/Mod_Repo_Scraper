@@ -7,6 +7,7 @@ import '../bot/scraper/qb/mod_thread_filter.dart';
 import '../bot/scraper/qb/models/assumed_download.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
+import '../catalog/takedowns.dart';
 import '../manager/bundle_snapshot_store.dart';
 import 'data_access.dart';
 
@@ -20,7 +21,10 @@ import 'data_access.dart';
 /// published or served as a bundle.
 ///
 /// Uses the publisher's [keepThreadInBundle] filter to avoid false additions
-/// and removals during a run.
+/// and removals during a run. Also leaves out the forum topics the last build
+/// took down (`removedPosts` in `takedown-matches.json`), as the publisher
+/// does with `leaveOutTopics`; otherwise a taken-down topic would always read
+/// as added.
 class WorkingBundle {
   final DataAccess data;
 
@@ -69,12 +73,14 @@ class WorkingBundle {
   Map<String, dynamic> _build(
       List<QbModSummary> index, Map<int, String> stamps) {
     final llm = data.llmCache ?? const {};
+    final takenDown = _takenDownTopics();
 
     // Match publication: filter using isMod and attach LLM mods to the index.
     final sorted = index.toList()
       ..sort((a, b) => a.topicId.compareTo(b.topicId));
     final kept = <QbModSummary>[];
     for (final summary in sorted) {
+      if (takenDown.contains(summary.topicId)) continue;
       final entry = llm[summary.topicId];
       if (!keepThreadInBundle(
           title: summary.title, llmSaidMod: entry?.isMod, inModIndex: summary.inModIndex)) {
@@ -109,6 +115,25 @@ class WorkingBundle {
       'index': [for (final s in kept) s.toMap()],
       'details': details,
       'assumedDownloads': downloads,
+    };
+  }
+
+  /// The forum topics whose mods the last build took down, so its bundle left
+  /// them out.
+  Set<int> _takenDownTopics() {
+    final Map<String, dynamic>? matches;
+    try {
+      matches = data.takedownMatches;
+    } catch (_) {
+      return const {};
+    }
+    final removed = matches?['removedPosts'];
+    if (removed is! List) return const {};
+    return {
+      for (final key in removed)
+        if ('$key'.startsWith('forum:'))
+          if (int.tryParse('$key'.substring('forum:'.length)) case final id?)
+            id,
     };
   }
 
@@ -209,12 +234,16 @@ class WorkingBundle {
     'assumed-downloads-cache.json',
   ];
 
+  /// Read for what the last build took down. Part of the cache stamp, but not
+  /// of [lastWrittenAt]: a build writes it, a run's scraping does not.
+  static const String _takedownMatchesFile = TakedownList.matchesFileName;
+
   /// Cache stamp covering detail files, the index, LLM results and downloads.
   String _stampOf(Map<int, String> details) {
     final keys = details.keys.toList()..sort();
     final parts = <String>[
       for (final key in keys) '$key=${details[key]}',
-      for (final name in _dataFileNames)
+      for (final name in [..._dataFileNames, _takedownMatchesFile])
         '$name=${_fileStamp(p.join(data.dataDir, name)) ?? '-'}',
     ];
     return BundleSnapshotStore.fingerprintOf(parts.join('|')) ?? '-';

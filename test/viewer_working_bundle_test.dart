@@ -166,6 +166,34 @@ void main() {
     expect(body['changedCount'], 0);
   });
 
+  test('a topic the last build took down is left out, as the publisher does',
+      () async {
+    // The published bundle left topic 2 out (`leaveOutTopics`).
+    await publish('20260701T100000Z-fullRun', [summary(1)], {1: detail(1)});
+    writeWorking([summary(1), summary(2)], {1: detail(1), 2: detail(2)});
+    File(p.join(dataDir, 'takedown-matches.json')).writeAsStringSync(jsonEncode({
+      'builtAt': '2026-07-01T00:00:00Z',
+      'matches': <dynamic>[],
+      'removedPosts': ['discord:123', 'forum:2'],
+    }));
+
+    final body = await get('bundle/compare?b=working');
+    expect(body['addedCount'], 0);
+    expect(body['sameCount'], 1);
+
+    // A restore puts it back on the next build, and the working side follows.
+    File(p.join(dataDir, 'takedown-matches.json'))
+      ..writeAsStringSync(jsonEncode({
+        'builtAt': '2026-07-02T00:00:00Z',
+        'matches': <dynamic>[],
+        'removedPosts': <dynamic>[],
+      }))
+      // Two writes this close can share a modified time on Windows.
+      ..setLastModifiedSync(DateTime.now().add(const Duration(minutes: 1)));
+    final restored = await get('bundle/compare?b=working');
+    expect(restored['addedCount'], 1);
+  });
+
   test('the data on disk cannot be the older side', () async {
     writeWorking([summary(1)], {1: detail(1)});
     final res = await api.router(Request(
