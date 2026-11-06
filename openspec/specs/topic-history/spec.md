@@ -3,9 +3,7 @@
 ## Purpose
 
 Tell one topic's story across the saved bundles: which runs changed it and what each one changed, read like a git log, so a wrong download link or a stale LLM answer can be traced to the run that introduced it.
-
 ## Requirements
-
 ### Requirement: One topic's history across the saved bundles
 The system SHALL be able to build one topic's history from the kept bundle snapshots: walking them oldest to newest, pulling that topic's record from each, and reporting an entry for every neighbouring pair where the record changed. Each entry SHALL name the run that saved the newer snapshot, when it was saved, and the changed fields with their values — list fields excepted, see below. Runs where the topic did not change SHALL produce no entry. Only the fields the bundle comparison already compares SHALL be looked at, using the same labels, so the two pages never disagree about what changed or what to call it.
 
@@ -60,10 +58,10 @@ For a changed list field, the history entry SHALL report added, removed and chan
 - **THEN** the entry reports that mod's version as old → new, not the whole LLM answer
 
 ### Requirement: The history page
-The viewer SHALL show the history as a standalone page reached from the thread page, rendered as a log, newest first: a vertical rail with one entry per changing run, each collapsed to a summary line built from the changed fields' labels and expanded on click to the diff. The foot of the rail SHALL say that older runs are not kept and when history starts. The page SHALL be reachable at both `#/topics/<id>/history` and `#/bundle/<id>/history`, with the breadcrumb running back through the matching list and the thread page.
+The viewer SHALL show the history as a standalone page reached from the topic's source post page, rendered as a log, newest first: a vertical rail with one entry per changing run, each collapsed to a summary line built from the changed fields' labels and expanded on click to the diff. The foot of the rail SHALL say that older runs are not kept and when history starts. The page SHALL be at `#/posts/topic/<id>/history`, with the breadcrumb running back through Source posts and the source post page.
 
 #### Scenario: Opening a topic's history
-- **WHEN** the user clicks History on a thread page
+- **WHEN** the user clicks History on a topic's source post page
 - **THEN** the history page opens for that topic, entries newest first, each summarised in field labels ("post text, downloads")
 
 #### Scenario: Reading one entry
@@ -76,7 +74,7 @@ The viewer SHALL show the history as a standalone page reached from the thread p
 
 #### Scenario: Never in a bundle
 - **WHEN** the topic is in none of the kept snapshots
-- **THEN** the page says the thread is not in any saved bundle, worded apart from "the same in all of them"
+- **THEN** the page says the thread is not in any saved bundle, using different wording from "the same in all of them"
 
 #### Scenario: Where history ends
 - **WHEN** the user scrolls to the foot of the log
@@ -96,3 +94,4 @@ When the topic's on-disk data is newer than the published bundle, or the topic i
 #### Scenario: Viewing only
 - **WHEN** the manager is off and the topic has unpublished changes
 - **THEN** the unpublished entry appears without a Rebuild button
+

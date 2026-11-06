@@ -4,7 +4,6 @@
 
 Take every piece of work as a plain request saying exactly what to do, run them one at a time, and allow them to be cancelled — so the command line and the website share one engine.
 ## Requirements
-
 ### Requirement: A job is an explicit request
 The manager core SHALL accept work only as a job request that fully describes what to do: the kind, and (per kind) topic ids, scope, boards, page limits, whether to run LLM extraction, and whether replaying cached HTML is allowed. The service SHALL read environment (tokens, keys, endpoints, data path) and guardrails (spend caps, throttle delays, page caps) from the config file at construction, and SHALL NOT read job-shape config keys (`qb_scope`, `qb_boards`, `qb_use_cached`, `llm_enabled`, page limits) at any point.
 
@@ -76,3 +75,30 @@ The service SHALL report progress (items done, total, current item, phase) and l
 #### Scenario: The core has no console wiring
 - **WHEN** the service runs a job with a test reporter attached
 - **THEN** the test reporter receives progress updates and the service writes nothing directly to the console progress bar
+
+### Requirement: The LLM catch-up job can read every post again
+A `llmCoveragePass` request SHALL accept `llmRereadAll` (default false). When it is false, the job SHALL behave as before: only posts with no answer, or whose post or prompt changed, are sent to the LLM. When it is true, the job SHALL also treat every saved answer made before the job started, and every saved answer with no time, as out of date. It SHALL walk forum topics and Discord threads together as one list, in order of their saved answer's time: posts with no answer or no time first, then oldest first. The per-run LLM call limit SHALL still apply. A saved answer SHALL NOT be moved to a new fingerprint in place of a call when it is older than the job's start.
+
+#### Scenario: Only changed
+- **WHEN** a `llmCoveragePass` runs without `llmRereadAll`
+- **THEN** a post whose saved answer is up to date requires no LLM call
+
+#### Scenario: All, under the call limit
+- **WHEN** a `llmCoveragePass` with `llmRereadAll` runs and the call limit is higher than the number of saved posts
+- **THEN** every saved post is sent to the LLM once
+
+#### Scenario: All, stopped by the call limit
+- **WHEN** an "All" run is stopped by the call limit after reading the oldest 200 posts, and another "All" run starts
+- **THEN** the second run starts with the posts the first run did not reach
+
+### Requirement: Saving several corrections as one job
+A `saveCorrections` request SHALL carry a list of corrections: take down a mod, take down a person, restore a takedown entry, join two author names as one person, mark two author names as different people, remove a name from a person, choose the name a person is published under, and match a dependency name to a mod, to none of our mods, or forget its saved answer. The job SHALL apply them in order and check the results with the same rules as the single-correction jobs before writing anything. If any correction is refused, the job SHALL fail, write nothing, and name every refused correction and explain why it was refused. Otherwise it SHALL save the files that changed, merge `ModRepo.json` again, rebuild the bundle, catalog and website once, and publish when `publishAfter` is set. It SHALL make no network call other than the publish, and no LLM call.
+
+#### Scenario: Three kinds at once
+- **WHEN** a `saveCorrections` job carries a takedown, an author pair and a dependency name match
+- **THEN** all three files are saved and the outputs are rebuilt once
+
+#### Scenario: One refused
+- **WHEN** one of three corrections takes down a mod id that does not exist
+- **THEN** the job fails naming that correction, and none of the three files changes
+

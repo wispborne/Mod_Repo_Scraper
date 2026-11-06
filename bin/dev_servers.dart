@@ -8,11 +8,10 @@ import 'package:path/path.dart' as p;
 /// Runs the public website and the results viewer together, for working on
 /// them. Started by `tool/run-sites-dev.bat`.
 ///
-/// Each server reloads its own open pages when a file in `site/`, `web/` or
-/// `web2/` changes. This adds the other half: when a Dart file in `lib/` or
-/// `bin/` changes, or `pubspec.lock` does, both servers are stopped and started
-/// again on the new code, and their open pages reload once the new server
-/// answers.
+/// Each server reloads its own open pages when a file in `site/` or `web/`
+/// changes. When a Dart file in `lib/` or `bin/`, or `pubspec.lock`, changes,
+/// both servers restart with the new code. Their open pages reload once
+/// the new server answers.
 ///
 /// The viewer is not restarted while it is running or holding a job, because
 /// that would stop the job. It is restarted once the job ends.
@@ -20,10 +19,6 @@ Future<void> main(List<String> args) async {
   final parser = ArgParser()
     ..addOption('site-port', defaultsTo: '8099')
     ..addOption('viewer-port', defaultsTo: '8085')
-    ..addOption('ui',
-        defaultsTo: 'v2',
-        allowed: ['v1', 'v2'],
-        help: 'Which viewer is served at /. The other one is at /v1/ or /v2/.')
     ..addFlag('help', abbr: 'h', negatable: false);
   final ArgResults opts;
   try {
@@ -52,8 +47,6 @@ Future<void> main(List<String> args) async {
     '--reload',
     '--port',
     viewerPort,
-    '--ui',
-    opts['ui'] as String,
   ]);
   final servers = [site, viewer];
 

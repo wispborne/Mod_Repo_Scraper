@@ -1,170 +1,165 @@
-// Hash router. Views export render(root, parts); parts excludes the view id.
+// The viewer's router. The shared layout is drawn once. Route changes
+// redraw only the toolbar contents and page content.
+//
+// A page module exports `render({ content, parts, entry, toolbar, onLeave })`.
+// `onLeave(fn)` runs `fn` when the user leaves the page. Use it to stop
+// the status subscription.
 
-import { el, clear, hashParts, errorPanel, loading, api } from './lib.js';
-import * as home from './views/home.js';
-import * as topics from './views/topics.js';
-import * as topic from './views/topic.js';
-import * as llmTest from './views/llm_test.js';
-import * as merge from './views/merge.js';
-import * as modrepo from './views/modrepo.js';
-import * as discord from './views/discord.js';
-import * as bundle from './views/bundle.js';
-import * as files from './views/files.js';
-import * as log from './views/log.js';
+import { el, clear, api, askDialog } from './lib.js';
+import { hashParts, navEntryFor, DEFAULT_PAGE, tabTitle, movedAddress } from './routes.js';
+import { mountRail, mountToolbar, mountStatusBar, pageLayout } from './frame.js';
+import { subscribe, status, watchRunEnds, endedRun, forgetEndedRun } from './status.js';
+import { mountUpdateLink } from './update.js';
+import * as control from './views/control.js';
 import * as runs from './views/runs.js';
 import * as run from './views/run.js';
+import * as settings from './views/settings.js';
 import * as takedowns from './views/takedowns.js';
-import * as requirementNames from './views/requirement_names.js';
 import * as authorAliases from './views/author_aliases.js';
-import { mountHeaderChip } from './manager.js';
-import { mountUpdateNotice } from './update.js';
-import { icon } from './icons.js';
+import * as dependencyNames from './views/dependency_names.js';
+import * as posts from './views/posts.js';
+import * as post from './views/post.js';
+import * as postHistory from './views/post_history.js';
+import * as mods from './views/mods.js';
+import * as mod from './views/mod.js';
+import * as changes from './views/changes.js';
+import * as explorer from './views/explorer.js';
+import * as llmTest from './views/llm_test.js';
+import * as files from './views/files.js';
 
-// The longest matching route is active, so Details diff takes precedence over
-// the bundle list for #/bundle/changes.
-const NAV_SECTIONS = [
-  {
-    items: [
-      { route: ['home'], label: 'Home', icon: 'home' },
-    ],
-  },
-  {
-    title: 'Data',
-    items: [
-      { route: ['topics'], label: 'Topics', icon: 'list-details' },
-      { route: ['modrepo'], label: 'Mod Catalog', icon: 'packages' },
-      { route: ['bundle'], label: 'Mod Details', icon: 'package-export' },
-    ],
-  },
-  {
-    title: 'Jobs',
-    items: [
-      { route: ['runs'], label: 'Runs and queue', icon: 'player-play' },
-    ],
-  },
-  {
-    title: 'Corrections',
-    items: [
-      { route: ['takedowns'], label: 'Takedowns', icon: 'eye-off' },
-      { route: ['dependency-names'], label: 'Dependencies', icon: 'link' },
-      { route: ['author-aliases'], label: 'Author aliases', icon: 'users' },
-    ],
-  },
-  {
-    title: 'Debug',
-    items: [
-      { route: ['merge'], label: 'Catalog explorer', icon: 'git-merge' },
-      { route: ['merge', 'changes'], label: 'Catalog diff', icon: 'git-compare' },
-      { route: ['bundle', 'changes'], label: 'Details diff', icon: 'file-diff' },
-      { route: ['llm-test'], label: 'LLM test report', icon: 'flask' },
-      { route: ['files'], label: 'Files', icon: 'files' },
-      { route: ['log'], label: 'Log', icon: 'terminal-2' },
-    ],
-  },
-];
-
-// Detail routes share their parent view's navigation entry.
-const ROUTES = {
-  home: home.render,
-  // Numeric topic paths open a detail page; the bare route opens the list.
-  topics: (root, parts) =>
-    parts.length && /^\d+$/.test(parts[0])
-      ? topic.render(root, parts)
-      : topics.render(root, parts),
-  runs: (root, parts) =>
-    parts.length ? run.render(root, parts) : runs.render(root, parts),
-  'llm-test': llmTest.render,
-  merge: merge.render,
-  modrepo: modrepo.render,
-  discord: discord.render,
-  bundle: bundle.render,
-  files: files.render,
-  log: log.render,
-  takedowns: takedowns.render,
-  'dependency-names': requirementNames.render,
-  'author-aliases': authorAliases.render,
-  // The page's first address, kept so old links still open it.
-  'requirement-names': requirementNames.render,
+const PAGES = {
+  control,
+  runs,
+  settings,
+  takedowns,
+  'author-aliases': authorAliases,
+  'dependency-names': dependencyNames,
+  posts,
+  mods,
+  changes,
+  explorer,
+  'llm-test': llmTest,
+  files,
 };
 
-function routeMatches(route, parts) {
-  return route.length <= parts.length
-    && route.every((seg, i) => seg === parts[i]);
+/// Detail pages: a page id with something after it, such as `#/runs/<id>`.
+const DETAIL_PAGES = {
+  runs: run,
+  explorer,
+  files,
+  mods: mod,
+  // #/posts/<kind>/<id>, and #/posts/topic/<id>/history.
+  posts: { render: (ctx) => (ctx.parts[2] === 'history' ? postHistory : post).render(ctx) },
+};
+
+let markCurrent;
+let toolbar;
+let leaving = [];
+// Pages with unsaved changes return a confirmation question before navigation.
+let guards = [];
+let shownHash = null;
+let pageName = 'Mod Repo Viewer';
+
+function drawTitle() {
+  document.title = tabTitle({ pageName, current: status() && status().current, ended: endedRun() });
 }
 
-function renderNav(parts) {
-  let active = null;
-  for (const section of NAV_SECTIONS) {
-    for (const item of section.items) {
-      if (!routeMatches(item.route, parts)) continue;
-      if (!active || item.route.length > active.route.length) active = item;
-    }
+/// Asks first when the page has unsaved work. Returns false to stay.
+async function mayLeave() {
+  for (const guard of guards) {
+    const question = guard();
+    if (!question) continue;
+    return askDialog({ title: question, message: 'Your changes on this page are not saved.', confirmLabel: 'Discard', cancelLabel: 'Keep editing' });
   }
+  return true;
+}
 
-  const nav = document.getElementById('nav');
-  clear(nav);
-  for (const section of NAV_SECTIONS) {
-    if (section.title) {
-      nav.append(el('div', { class: 'nav-section-title', text: section.title }));
-    }
-    for (const item of section.items) {
-      nav.append(
-        el('a', {
-          href: `#/${item.route.join('/')}`,
-          class: item === active ? 'active' : '',
-        }, [
-          item.icon ? icon(item.icon) : null,
-          el('span', { text: item.label }),
-        ])
-      );
-    }
+async function onHashChange() {
+  if (shownHash !== null && location.hash !== shownHash && !(await mayLeave())) {
+    // Restore the address without rendering the page again.
+    history.replaceState(null, '', shownHash);
+    return;
   }
+  route();
 }
 
 async function route() {
-  const parts = hashParts();
-  const viewId = parts[0] || 'home';
-  const rest = parts.slice(1);
-  renderNav(parts.length ? parts : ['home']);
+  // Old viewer addresses open the matching page.
+  const moved = movedAddress(location.hash);
+  if (moved) history.replaceState(null, '', moved);
+  shownHash = location.hash;
+  guards = [];
+  const parts = hashParts(location.hash);
+  for (const fn of leaving) {
+    try { fn(); } catch (err) { console.error(err); }
+  }
+  leaving = [];
+  forgetEndedRun();
 
-  const root = document.getElementById('app');
-  clear(root).append(loading());
+  const entry = navEntryFor(parts);
+  markCurrent(entry ? entry.id : null);
+  pageName = entry ? entry.label : 'Page not found';
+  toolbar.reset(pageName);
+  drawTitle();
 
-  const handler = ROUTES[viewId];
-  if (!handler) {
-    clear(root).append(errorPanel(new Error(`Page not found: ${viewId}`)));
+  const content = clear(document.getElementById('content'));
+  window.scrollTo(0, 0);
+  if (!entry) {
+    content.append(pageLayout(el('div', { class: 'note' }, [
+      el('h2', { class: 'panel-heading', text: 'Page not found' }),
+      el('p', { text: `There is no page at #/${parts.join('/')}. Choose a page from the menu.` }),
+    ])));
     return;
   }
+  const page = (parts.length > 1 && DETAIL_PAGES[entry.id]) || PAGES[entry.id];
   try {
-    await handler(root, rest);
+    await page.render({
+      content,
+      parts: parts.slice(1),
+      entry,
+      toolbar,
+      onLeave: (fn) => leaving.push(fn),
+      guardLeave: (fn) => guards.push(fn),
+    });
   } catch (err) {
-    clear(root).append(errorPanel(err));
-    // eslint-disable-next-line no-console
     console.error(err);
+    content.append(el('p', { class: 'error-text', text: err.message }));
   }
 }
 
-// Show the build identifier for bug reports; omit it when unavailable.
-async function showVersion(element) {
-  if (!element) return;
+/// The build number and commit, for bug reports. Left out when unknown.
+async function showVersion(node) {
   try {
-    const version = await api('version');
-    if (!version || !version.build) return;
-
-    element.textContent = `v${version.build} · ${version.commit}`;
-    element.title = version.date
-      ? `Built from commit ${version.commit} on ${version.date}.`
-      : `Built from commit ${version.commit}.`;
+    const v = await api('version');
+    if (!v || !v.build) return;
+    node.textContent = `v${v.build} · ${v.commit}`;
+    node.title = v.date ? `Built from commit ${v.commit} on ${v.date}.` : `Built from commit ${v.commit}.`;
   } catch {
-    // Version metadata is optional.
+    // The version is optional.
   }
 }
 
-window.addEventListener('hashchange', route);
+window.addEventListener('hashchange', onHashChange);
+// Also confirm unsaved changes before reloading or closing the tab.
+window.addEventListener('beforeunload', (e) => {
+  if (guards.some((g) => g())) e.preventDefault();
+});
 window.addEventListener('DOMContentLoaded', () => {
-  mountHeaderChip(document.getElementById('status-chip'));
-  mountUpdateNotice(document.getElementById('update-notice'));
-  showVersion(document.getElementById('site-version'));
-  if (!location.hash) location.hash = '#/home';
-  else route();
+  markCurrent = mountRail(document.getElementById('rail'));
+  toolbar = mountToolbar(document.getElementById('toolbar'));
+  const bar = mountStatusBar(document.getElementById('statusbar'));
+  bar.drawStatus(null);
+  subscribe(bar.drawStatus);
+  watchRunEnds(drawTitle);
+  showVersion(bar.version);
+  mountUpdateLink(bar.update);
+
+  document.getElementById('skip-link').addEventListener('click', () => {
+    document.getElementById('content').focus();
+  });
+
+  if (!location.hash || location.hash === '#' || location.hash === '#/') {
+    history.replaceState(null, '', `#/${DEFAULT_PAGE}`);
+  }
+  route();
 });

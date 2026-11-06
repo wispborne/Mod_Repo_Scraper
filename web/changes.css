@@ -1,0 +1,74 @@
+/* What changed. The rows reuse the history pages' ph-* styles in post.css and
+   the legend's pl-legend in posts.css. Only the colour names on :root in
+   style.css are used. */
+
+.ch-page { padding-top: 0; }
+.ch-tabs { border-top: 0; }
+.ch-body { display: grid; gap: 10px; padding: 14px 20px 0; min-width: 0; }
+.ch-intro { color: var(--dim); }
+.ch-intro:empty, .ch-notes:empty, .ch-live:empty { display: none; }
+
+/* --- The picker -------------------------------------------------------- */
+
+.ch-picker { display: grid; gap: 6px; min-width: 0; }
+.ch-sides { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; }
+.ch-side { display: grid; gap: 4px; min-width: 0; flex: 0 1 380px; }
+.ch-select { width: 100%; }
+.ch-runs { display: flex; flex-wrap: wrap; gap: 2px 18px; color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); }
+.ch-run { overflow-wrap: anywhere; }
+.ch-run code { font-family: var(--mono); }
+.ch-notes { display: grid; gap: 6px; }
+.ch-note, .ch-live {
+  padding: 6px 12px; font-size: var(--small); line-height: var(--small-line-height);
+  border: 1px solid var(--frame); background: var(--panel);
+}
+.ch-note { border-left: 3px solid var(--warning); }
+.ch-live { border-left: 3px solid var(--running); }
+.ch-nothing { padding: 4px 0 18px; }
+
+/* --- Search and counts ------------------------------------------------- */
+
+.ch-search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ch-search-row[hidden] { display: none; }
+.ch-search { flex: 1 1 280px; max-width: 420px; font-family: var(--sans); font-size: var(--text-size); }
+
+.ch-counts { display: flex; flex-wrap: wrap; gap: 8px; }
+.ch-counts:empty { display: none; }
+.ch-count {
+  display: grid; gap: 2px; min-width: 120px; padding: 6px 12px; text-align: left;
+  border: 1px solid var(--line); border-left: 3px solid var(--line);
+  background: var(--panel); color: var(--dim); font: inherit; cursor: pointer;
+}
+.ch-count.good { border-left-color: var(--done); }
+.ch-count.bad { border-left-color: var(--failed); }
+.ch-count.warn { border-left-color: var(--warning); }
+button.ch-count:hover { border-color: var(--action); border-left-color: var(--action); }
+.ch-count.on { border-color: var(--action); border-left-color: var(--action); background: var(--raised); }
+.ch-count.still { cursor: default; }
+.ch-count-value { font: 600 18px/22px var(--mono); color: var(--text); }
+.ch-count.zero .ch-count-value { color: var(--faint); }
+.ch-count-label { font-size: var(--small); line-height: var(--small-line-height); }
+
+/* --- The rows ---------------------------------------------------------- */
+
+.ch-list { display: grid; gap: 6px; min-width: 0; padding-bottom: 4px; }
+.ch-filter-note { color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); }
+.ch-message { padding: 8px 0; }
+.ch-name { overflow-wrap: anywhere; min-width: 0; }
+.ch-author { color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); overflow-wrap: anywhere; }
+.ch-mod-links { display: inline-flex; flex-wrap: wrap; gap: 6px 16px; }
+.ch-mod-links:empty { display: none; }
+.ch-urls { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: var(--small); line-height: var(--small-line-height); }
+.ch-urls a { overflow-wrap: anywhere; }
+
+/* --- Narrow screens ---------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .ch-body { padding-left: 12px; padding-right: 12px; }
+  .ch-side { flex: 1 1 100%; }
+  .ch-search { max-width: none; }
+  .ch-count { min-width: 0; flex: 1 1 40%; }
+}
+
+/* The run panel's What it changed links (web/run_panel.js). */
+.run-changed-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }

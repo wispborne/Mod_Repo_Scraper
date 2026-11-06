@@ -1,426 +1,611 @@
-// Author aliases: the names that belong to one person. Edits are saved by one
-// manager job, so they share the data lock and the run history.
+// Author aliases: the names that belong to one person. The page only reads.
+// Each action adds a pending change; nothing is written until the pending
+// changes are saved, which runs one job for all of them. The lists are drawn
+// as the server sends them. A pending change is marked on the rows it names,
+// but the page does not try to work out what the list will look like after
+// the save: the save job is the one place the rules run.
 
-import { api, el, clear, breadcrumbs, go } from '../lib.js';
-import * as manager from '../manager.js';
+import { el, clear, api, askDialog } from '../lib.js';
+import { pageLayout, sidePanel, statusMark } from '../frame.js';
+import { subscribe, status } from '../status.js';
+import { hashQuery, buildHash } from '../routes.js';
+import {
+  addPending, onPendingChange, pendingItems, removePending, correctionKey,
+} from '../pending.js';
+import { pendingPanel } from '../pending_view.js';
 
+/// How many suggestions show before "Show all".
 const SUGGESTIONS_SHOWN = 20;
 
-// Unsaved edits survive moving to another page and back.
-let draft = null;
+/// How many of a suggestion's mods are named before "and N more".
+const MODS_NAMED = 3;
 
-export async function render(root) {
-  clear(root);
-  root.append(breadcrumbs([{ label: 'Author aliases' }]));
-  root.append(el('h1', { text: 'Author aliases' }));
+/// The correction kinds this page adds.
+const AUTHOR_KINDS = new Set(['sameAuthor', 'differentAuthors', 'removeAuthorName', 'publishAuthorAs']);
 
-  const body = await api('author-aliases');
-  const status = manager.status() || await manager.refresh();
-  const managerOn = !!status?.on;
+/// The sentence the other pages use when jobs are off.
+function managerOffText(s) {
+  if (s && s.offline) return 'The server could not be reached. Author aliases cannot be changed.';
+  return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
+    + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
+}
 
-  const page = el('div', { class: 'stack' });
-  root.append(page);
-  page.append(el('p', {
-    class: 'takedown-intro',
-    text: 'Each row is one person and every name they use. Mods credited to any of the names '
-      + 'are credited to one author. The first name is the one shown on the site and in TriOS.',
-  }));
-  if (body.error) {
-    page.append(el('div', { class: 'missing error' }, [
-      el('h3', { text: 'The alias file cannot be read' }),
-      el('p', { text: body.error }),
-    ]));
-    return;
-  }
-
-  const original = { rows: body.rows, notSame: body.notSame || [] };
-  if (!draft || draft.base !== JSON.stringify(original)) {
-    draft = { base: JSON.stringify(original), rows: copy(original.rows), notSame: copy(original.notSame) };
-  }
-  const counts = body.modCounts || {};
-  const state = { search: '', showAllSuggestions: false, focusRow: null };
-
-  const saveBar = el('div', { class: 'req-save-bar' });
-  const suggestionsBox = el('div', { class: 'stack' });
-  const peopleBox = el('div', { class: 'stack' });
-  const nameOptions = el('datalist', { id: 'alias-name-options' },
-    (body.names || []).map((name) => el('option', { value: name })));
-  page.append(nameOptions, saveBar, suggestionsBox, peopleBox);
-
-  const draw = () => {
-    drawSaveBar(saveBar, original, managerOn, draw);
-    drawSuggestions(suggestionsBox, body, state, managerOn, draw);
-    drawPeople(peopleBox, original, counts, state, managerOn, draw);
+export function render({ content, onLeave }) {
+  const query = hashQuery(location.hash);
+  // `body` is the server's answer, or null before it arrives.
+  const state = {
+    body: null,
+    on: null,
+    search: (query.get('q') || '').trim(),
+    showAll: query.get('all') === '1',
+    // The person whose "Add a name" box is open, by their first name.
+    adding: null,
   };
-  draw();
-}
 
-function copy(rows) {
-  return rows.map((row) => [...row]);
-}
+  const main = el('div', { class: 'aa-page' }, [el('p', { class: 'empty', text: 'Loading…' })]);
+  const formSlot = el('div');
+  // One list of names for every name box on the page.
+  const options = el('datalist', { id: 'aa-name-options' });
+  content.append(pageLayout(main, [pendingPanel(), formSlot]), options);
 
-const lower = (name) => name.toLowerCase();
-const rowKey = (row) => row.map(lower).join('\n');
-
-/// The row in the draft holding [name], ignoring capitals.
-function rowHolding(name) {
-  return draft.rows.find((row) => row.some((n) => lower(n) === lower(name)));
-}
-
-function isDismissed(a, b) {
-  return draft.notSame.some((pair) => {
-    const names = pair.map(lower);
-    return names.includes(lower(a)) && names.includes(lower(b));
-  });
-}
-
-// ----------------------------------------------------------------- Save bar
-
-/// What the draft changes, one line each, compared with what is in force.
-function changesFrom(original) {
-  const before = new Map(original.rows.map((row) => [rowKey(row), row]));
-  const after = new Map(draft.rows.map((row) => [rowKey(row), row]));
-  const lines = [];
-  for (const [key, row] of after) if (!before.has(key)) lines.push(`Now: ${row.join(', ')}`);
-  for (const [key, row] of before) if (!after.has(key)) lines.push(`Was: ${row.join(', ')}`);
-  const pairKey = (pair) => pair.map(lower).sort().join('\n');
-  const oldPairs = new Set(original.notSame.map(pairKey));
-  for (const pair of draft.notSame) {
-    if (!oldPairs.has(pairKey(pair))) lines.push(`Different people: ${pair.join(' and ')}`);
-  }
-  const newPairs = new Set(draft.notSame.map(pairKey));
-  for (const pair of original.notSame) {
-    if (!newPairs.has(pairKey(pair))) lines.push(`No longer marked different: ${pair.join(' and ')}`);
-  }
-  return lines;
-}
-
-/// Why the draft cannot be saved yet, or null.
-function problem() {
-  const seen = new Map();
-  for (const row of draft.rows) {
-    if (row.length < 2) return `"${row[0]}" needs a second name, or remove that person.`;
-    for (const name of row) {
-      const other = seen.get(lower(name));
-      if (other && other !== row) return `"${name}" is listed for two people.`;
-      seen.set(lower(name), row);
-    }
-  }
-  return null;
-}
-
-function drawSaveBar(bar, original, managerOn, redraw) {
-  clear(bar);
-  if (!managerOn) return;
-  const changes = changesFrom(original);
-  if (!changes.length) return;
-  const blocked = problem();
-  bar.append(...[
-    el('span', {
-      text: `${changes.length} unsaved ${changes.length === 1 ? 'change' : 'changes'}`,
-      title: changes.join('\n'),
-    }),
-    blocked ? el('span', { class: 'takedown-warning-text', text: blocked }) : null,
-    el('button', {
-      class: 'btn btn-primary',
-      text: 'Save and rebuild',
-      disabled: blocked ? 'true' : null,
-      onclick: async () => {
-        const request = {
-          kind: 'setAuthorAliases',
-          authorAliasPeople: draft.rows,
-          authorAliasNotSame: draft.notSame,
-          collectMergeDebug: true,
-        };
-        const run = await manager.confirmAndSubmit(request);
-        if (!run) return;
-        draft = null;
-        go(`#/runs/${run.id}`);
-      },
-    }),
-    el('button', {
-      class: 'btn',
-      text: 'Discard changes',
-      onclick: () => {
-        draft.rows = copy(original.rows);
-        draft.notSame = copy(original.notSame);
-        redraw();
-      },
-    }),
-  ].filter(Boolean));
-}
-
-// -------------------------------------------------------------- Suggestions
-
-function drawSuggestions(box, body, state, managerOn, redraw) {
-  clear(box);
-  const open = (body.suggestions || []).filter((s) => {
-    const row = rowHolding(s.forum);
-    const together = row && row.some((n) => lower(n) === lower(s.discord));
-    return !together && !isDismissed(s.forum, s.discord);
-  });
-  box.append(el('div', { class: 'alias-section-head' }, [
-    el('h2', { text: 'Possible aliases' }),
-    el('span', { class: 'badge badge-dim', text: String(open.length) }),
-  ]));
-  if (!body.hasCatalog) {
-    box.append(el('p', { class: 'dim', text: 'Build the catalog to see possible aliases.' }));
-    return;
-  }
-  if (!open.length) {
-    box.append(el('p', { class: 'dim', text: 'Nothing to check. Every mod\'s forum and Discord names match.' }));
-    return;
-  }
-  box.append(el('p', {
-    class: 'takedown-intro',
-    text: 'The forum and Discord name a different author for the same mod. Often it is one person '
-      + 'with two accounts. Sometimes it is a team, or a fork posted by someone else.',
-  }));
-
-  const shown = state.showAllSuggestions ? open : open.slice(0, SUGGESTIONS_SHOWN);
-  box.append(el('div', { class: 'table-wrapper' }, [
-    el('table', { class: 'req-table alias-suggestions' }, [
-      el('thead', {}, [el('tr', {}, [
-        el('th', { text: 'Forum' }),
-        el('th', { text: 'Discord' }),
-        el('th', { text: 'Mods with both' }),
-        managerOn ? el('th', { text: '' }) : null,
-      ])]),
-      el('tbody', {}, shown.map((s) => suggestionRow(s, managerOn, state, redraw))),
-    ]),
-  ]));
-  if (open.length > shown.length) {
-    box.append(el('button', {
-      class: 'btn req-small alias-more',
-      text: `Show all ${open.length}`,
-      onclick: () => { state.showAllSuggestions = true; redraw(); },
+  const saveAddress = () => {
+    history.replaceState(null, '', buildHash(['author-aliases'], {
+      q: state.search || null,
+      all: state.showAll ? '1' : null,
     }));
-  }
-}
-
-function suggestionRow(s, managerOn, state, redraw) {
-  const mods = s.mods.slice(0, 3).map((m, i) => [
-    i ? ', ' : null,
-    el('a', { href: `#/modrepo?q=${encodeURIComponent(m.name)}`, text: m.name }),
-  ]).flat();
-  if (s.mods.length > 3) mods.push(el('span', { class: 'dim', text: ` and ${s.mods.length - 3} more` }));
-  return el('tr', {}, [
-    el('td', { class: 'alias-who' }, [el('strong', { text: s.forum })]),
-    el('td', { class: 'alias-who' }, [el('strong', { text: s.discord })]),
-    el('td', {}, mods),
-    managerOn ? el('td', {}, [el('div', { class: 'req-edit alias-actions' }, [
-      el('button', {
-        class: 'btn req-small',
-        text: 'Same person',
-        title: `Add "${s.discord}" as another name for "${s.forum}".`,
-        onclick: () => {
-          joinNames(s.forum, s.discord);
-          redraw();
-        },
-      }),
-      el('button', {
-        class: 'btn req-small',
-        text: 'Different people',
-        title: 'Stop suggesting this pair.',
-        onclick: () => { draft.notSame.push([s.forum, s.discord]); redraw(); },
-      }),
-    ])]) : null,
-  ]);
-}
-
-/// Puts [a] and [b] in one row, joining the rows they are already in, and
-/// returns that row.
-function joinNames(a, b) {
-  const rowA = rowHolding(a);
-  const rowB = rowHolding(b);
-  if (rowA && rowB && rowA !== rowB) {
-    rowA.push(...rowB.filter((n) => !rowA.some((m) => lower(m) === lower(n))));
-    draft.rows.splice(draft.rows.indexOf(rowB), 1);
-    return rowA;
-  }
-  if (rowA) { if (!rowB) rowA.push(b); return rowA; }
-  if (rowB) { rowB.push(a); return rowB; }
-  const row = [a, b];
-  draft.rows.unshift(row);
-  return row;
-}
-
-// ------------------------------------------------------------------- People
-
-function drawPeople(box, original, counts, state, managerOn, redraw) {
-  clear(box);
-  const originalKeys = new Set(original.rows.map(rowKey));
-  const search = el('input', {
-    type: 'search',
-    class: 'req-search',
-    placeholder: 'Search names',
-    value: state.search,
-    oninput: () => {
-      state.search = search.value.trim().toLowerCase();
-      drawTable();
-      search.focus();
-    },
-  });
-  box.append(el('div', { class: 'alias-section-head' }, [
-    el('h2', { text: 'People' }),
-    el('span', { class: 'badge badge-dim', text: String(draft.rows.length) }),
-  ]));
-  box.append(el('div', { class: 'req-toolbar' }, [
-    search,
-    managerOn ? el('button', {
-      class: 'btn',
-      text: 'Add a person',
-      onclick: () => {
-        const row = [];
-        draft.rows.unshift(row);
-        state.focusRow = row;
-        state.search = '';
-        redraw();
-      },
-    }) : null,
-  ]));
-  const tableBox = el('div');
-  box.append(tableBox);
-
-  const drawTable = () => {
-    clear(tableBox);
-    const shown = draft.rows.filter((row) => !state.search || !row.length
-      || row.some((n) => lower(n).includes(state.search)));
-    if (!shown.length) {
-      tableBox.append(el('p', { class: 'dim', text: 'No names match.' }));
-      return;
-    }
-    tableBox.append(el('div', { class: 'table-wrapper' }, [
-      el('table', { class: 'req-table alias-table' }, [
-        el('thead', {}, [el('tr', {}, [
-          el('th', { text: 'Shown as' }),
-          el('th', { text: 'Other names' }),
-          managerOn ? el('th', { text: '' }) : null,
-        ])]),
-        el('tbody', {}, shown.map((row) =>
-          personRow(row, counts, !originalKeys.has(rowKey(row)), state, managerOn, redraw))),
-      ]),
-    ]));
-    const focus = tableBox.querySelector('.alias-focus input');
-    if (focus) {
-      focus.focus();
-      focus.closest('tr').scrollIntoView({ block: 'nearest' });
-    }
-    state.focusRow = null;
   };
-  drawTable();
+
+  const ctx = { state, redraw: () => drawMain(), saveAddress };
+
+  const load = async () => {
+    try {
+      state.body = await api('author-aliases');
+    } catch (err) {
+      state.body = { error: err.message, rows: [], notSame: [], suggestions: [], names: [], modCounts: {} };
+    }
+  };
+
+  const drawMain = () => {
+    if (!state.body) return;
+    clear(main).append(...mainPanel(ctx));
+  };
+
+  const drawSide = () => {
+    if (state.on && state.body && !state.body.error) {
+      formSlot.replaceChildren(sidePanel({ name: 'Join two names', body: joinForm(ctx) }));
+    } else if (state.on === false) {
+      formSlot.replaceChildren(sidePanel({
+        name: 'Viewing only',
+        body: el('p', { class: 'aa-side-note', text: managerOffText(status()) }),
+      }));
+    } else {
+      formSlot.replaceChildren();
+    }
+  };
+
+  onLeave(onPendingChange(drawMain));
+
+  let lastRunId;
+  onLeave(subscribe(async (s) => {
+    if (s.on !== state.on) {
+      state.on = s.on;
+      drawSide();
+      drawMain();
+    }
+    // A job that just ended may have changed the list: read it again.
+    const runId = s.current ? s.current.record.id : null;
+    if (lastRunId !== undefined && runId !== lastRunId && lastRunId !== null) {
+      await load();
+      options.replaceChildren(...nameOptions(state.body));
+      drawMain();
+      drawSide();
+    }
+    lastRunId = runId;
+  }));
+
+  load().then(() => {
+    options.replaceChildren(...nameOptions(state.body));
+    state.on = status() ? status().on : state.on;
+    drawMain();
+    drawSide();
+  });
 }
 
+// --- Names ---
+
+const lower = (name) => String(name).toLowerCase();
+
+/// The person (a row of names) holding `name`, ignoring capitals, or null.
+function rowHolding(rows, name) {
+  return rows.find((row) => row.some((n) => lower(n) === lower(name))) || null;
+}
+
+function modCount(body, name) {
+  return (body.modCounts || {})[lower(name)] || 0;
+}
+
+/// The old page's words for how many mods use a name.
 function modsLine(n) {
   return n ? `${n} ${n === 1 ? 'mod uses' : 'mods use'} this name` : 'No mod in the catalog uses this name';
 }
 
-function nameChip(name, row, counts, managerOn, redraw) {
-  const n = counts[lower(name)] || 0;
+// --- Labels for pending changes, in the shapes the save job uses ---
+
+const sameLabel = (a, b) => `"${a}" and "${b}" are the same person`;
+const differentLabel = (a, b) => `"${a}" and "${b}" are different people`;
+const takeOffLabel = (a) => `Take "${a}" off its person`;
+const publishLabel = (a) => `Publish the person as "${a}"`;
+
+/// The pending item for `correction`, or null.
+function pendingFor(correction) {
+  const wanted = correctionKey(correction);
+  return pendingItems().find((i) => correctionKey(i.correction) === wanted) || null;
+}
+
+/// Pending author changes that name any of `names`.
+function pendingNaming(names) {
+  const wanted = new Set(names.map(lower));
+  return pendingItems().filter((i) => AUTHOR_KINDS.has(i.correction.kind)
+    && (i.correction.names || []).some((n) => wanted.has(lower(n))));
+}
+
+function undoButton(item) {
+  return el('button', {
+    type: 'button',
+    class: 'button quiet aa-small',
+    text: 'Undo',
+    title: 'Remove this change from the pending changes.',
+    onclick: () => removePending(item.id),
+  });
+}
+
+/// Adds "these two names are the same person". If the names belong to two
+/// different people, asks before adding the change because saving joins them.
+/// Resolves true when the change was added.
+async function addSame(body, a, b) {
+  const rowA = rowHolding(body.rows || [], a);
+  const rowB = rowHolding(body.rows || [], b);
+  if (rowA && rowB && rowA !== rowB) {
+    const yes = await askDialog({
+      title: 'Join two people?',
+      message: `"${a}" is a name of one person (${rowA.join(', ')}). "${b}" is a name of another (${rowB.join(', ')}).`
+        + `\n\nSaving joins them into one person with all their names. The person is shown as "${rowA[0]}".`,
+      confirmLabel: 'Join them',
+    });
+    if (!yes) return false;
+  }
+  return addPending({ kind: 'sameAuthor', label: sameLabel(a, b), correction: { kind: 'sameAuthor', names: [a, b] } });
+}
+
+// --- The page ---
+
+function mainPanel(ctx) {
+  const { body } = ctx.state;
+  const rows = body.rows || [];
+  const parts = [
+    el('div', { class: 'aa-head' }, [
+      el('h2', { class: 'panel-heading', text: 'Alias list' }),
+      el('div', { class: 'aa-counts' }, [
+        countChip(rows.length, 'person', 'people'),
+        body.saved != null
+          ? el('span', {
+            class: 'aa-source',
+            text: body.saved ? 'Saved list' : 'Built-in list',
+            title: body.saved
+              ? 'The list saved in author-aliases.json, plus any built-in row added to the code since.'
+              : 'Nothing is saved yet, so the rows built into the code are in use.',
+          })
+          : null,
+      ]),
+    ]),
+    el('p', {
+      class: 'aa-intro',
+      text: 'Each row is one person and every name they use. Mods credited to any of the names '
+        + 'are credited to one author. The first name is the one shown on the site and in TriOS.',
+    }),
+  ];
+  if (body.error) {
+    parts.push(el('div', { class: 'aa-banner bad' }, [
+      el('strong', { text: 'The alias file cannot be read' }),
+      el('p', { text: body.error }),
+    ]));
+    return parts;
+  }
+  parts.push(suggestionsSection(ctx), peopleSection(ctx), differentSection(ctx));
+  return parts;
+}
+
+function countChip(n, one, many) {
+  return el('span', { class: 'chip' }, [el('b', { text: String(n) }), ` ${n === 1 ? one : many}`]);
+}
+
+function sectionHead(title, count) {
+  return el('h2', { class: 'aa-section-head' }, [
+    el('span', { class: 'panel-heading', text: title }),
+    el('span', { class: 'aa-section-count', text: String(count) }),
+  ]);
+}
+
+// --- Possible aliases ---
+
+function suggestionsSection(ctx) {
+  const { state } = ctx;
+  const { body } = state;
+  const all = body.suggestions || [];
+  const section = el('section', { class: 'aa-section' }, [sectionHead('Possible aliases', all.length)]);
+  if (!body.hasCatalog) {
+    section.append(el('p', { class: 'aa-note dim', text: 'Build the catalog to see possible aliases.' }));
+    return section;
+  }
+  if (!all.length) {
+    section.append(el('p', { class: 'aa-note dim', text: 'Nothing to check. Every mod\'s forum and Discord names match.' }));
+    return section;
+  }
+  section.append(el('p', {
+    class: 'aa-note',
+    text: 'The forum and Discord name a different author for the same mod. Often it is one person '
+      + 'with two accounts. Sometimes it is a team, or a fork posted by someone else.',
+  }));
+  const shown = state.showAll ? all : all.slice(0, SUGGESTIONS_SHOWN);
+  section.append(el('div', { class: 'aa-entries' }, shown.map((s) => suggestionRow(s, ctx))));
+  if (all.length > shown.length) {
+    section.append(el('div', { class: 'aa-more' }, [el('button', {
+      type: 'button',
+      class: 'button',
+      text: `Show all ${all.length}`,
+      onclick: () => { state.showAll = true; ctx.saveAddress(); ctx.redraw(); },
+    })]));
+  }
+  return section;
+}
+
+function suggestionRow(s, ctx) {
+  const { body, on } = ctx.state;
+  const same = pendingFor({ kind: 'sameAuthor', names: [s.forum, s.discord] });
+  const different = pendingFor({ kind: 'differentAuthors', names: [s.forum, s.discord] });
+  const pending = same || different;
+
+  const mods = s.mods || [];
+  const modLinks = mods.slice(0, MODS_NAMED).flatMap((m, i) => [
+    i ? ', ' : null,
+    el('a', {
+      href: buildHash(['mods'], { q: m.name }),
+      text: m.name,
+    }),
+  ]);
+  if (mods.length > MODS_NAMED) modLinks.push(el('span', { class: 'dim', text: ` and ${mods.length - MODS_NAMED} more` }));
+
+  const tags = [];
+  if (same) tags.push(el('span', { class: 'tag aa-tag-pending', text: 'Same person pending' }));
+  if (different) tags.push(el('span', { class: 'tag aa-tag-pending', text: 'Different people pending' }));
+
+  let actions = null;
+  if (pending) {
+    actions = [undoButton(pending)];
+  } else if (on) {
+    actions = [
+      el('button', {
+        type: 'button',
+        class: 'button',
+        text: 'These are the same person',
+        title: `Add "${s.discord}" as another name for "${s.forum}".`,
+        onclick: () => addSame(body, s.forum, s.discord),
+      }),
+      el('button', {
+        type: 'button',
+        class: 'button quiet',
+        text: 'Different people',
+        title: 'Stop suggesting this pair.',
+        onclick: () => addPending({
+          kind: 'differentAuthors',
+          label: differentLabel(s.forum, s.discord),
+          correction: { kind: 'differentAuthors', names: [s.forum, s.discord] },
+        }),
+      }),
+    ];
+  }
+
+  return el('article', { class: `aa-entry${pending ? ' is-pending' : ''}` }, [
+    statusMark(pending ? 'warning' : 'idle'),
+    el('div', { class: 'aa-entry-main' }, [
+      el('div', { class: 'aa-pair' }, [
+        nameWithWhere(body, s.forum, 'Forum'),
+        nameWithWhere(body, s.discord, 'Discord'),
+        ...tags,
+      ]),
+      el('div', { class: 'aa-mods' }, [el('span', { class: 'aa-label', text: 'Mods with both' }), ' ', ...modLinks]),
+    ]),
+    actions ? el('div', { class: 'aa-entry-actions' }, actions) : null,
+  ]);
+}
+
+/// A name with where it came from and how many mods use it.
+function nameWithWhere(body, name, where) {
+  const n = modCount(body, name);
+  const row = rowHolding(body.rows || [], name);
+  return el('span', { class: 'aa-who', title: row ? `${modsLine(n)}. Already a name of the person shown as "${row[0]}".` : modsLine(n) }, [
+    el('span', { class: 'aa-where', text: where }),
+    el('strong', { text: name }),
+    n ? el('span', { class: 'aa-count', text: String(n) }) : null,
+  ]);
+}
+
+// --- People ---
+
+function peopleSection(ctx) {
+  const { state } = ctx;
+  const rows = state.body.rows || [];
+  const listBox = el('div', { class: 'aa-entries' });
+  const search = el('input', {
+    type: 'search',
+    class: 'input aa-search',
+    placeholder: 'Search names',
+    'aria-label': 'Search names',
+    value: state.search,
+  });
+  const drawList = () => {
+    const q = lower(state.search);
+    const shown = q ? rows.filter((row) => row.some((n) => lower(n).includes(q))) : rows;
+    clear(listBox);
+    if (!rows.length) {
+      listBox.append(el('p', { class: 'aa-note dim', text: 'No names are joined yet.' }));
+    } else if (!shown.length) {
+      listBox.append(el('p', { class: 'aa-note dim', text: 'No names match.' }));
+    } else {
+      listBox.append(
+        el('div', { class: 'aa-entry aa-people-head', 'aria-hidden': 'true' }, [
+          el('span'),
+          el('div', { class: 'aa-person-names' }, [
+            el('span', { class: 'aa-label', text: 'Shown as' }),
+            el('span', { class: 'aa-label', text: 'Other names' }),
+          ]),
+        ]),
+        ...shown.map((row) => personRow(row, ctx)),
+      );
+    }
+  };
+  search.addEventListener('input', () => {
+    state.search = search.value.trim();
+    ctx.saveAddress();
+    drawList();
+  });
+  drawList();
+  return el('section', { class: 'aa-section' }, [
+    sectionHead('People', rows.length),
+    el('div', { class: 'aa-toolbar' }, [search]),
+    listBox,
+  ]);
+}
+
+function personRow(row, ctx) {
+  const { on } = ctx.state;
+  const [first, ...rest] = row;
+  const pending = pendingNaming(row);
+  const pendingNames = new Set(pending.flatMap((i) => (i.correction.names || []).map(lower)));
+
+  const chip = (name) => nameChip(name, row, ctx, pendingNames.has(lower(name)));
+  const others = el('div', { class: 'aa-names' }, rest.map(chip));
+  if (on) others.append(addNameBox(row, ctx));
+
+  return el('article', { class: `aa-entry aa-person${pending.length ? ' is-pending' : ''}` }, [
+    statusMark(pending.length ? 'warning' : 'idle'),
+    el('div', { class: 'aa-entry-main' }, [
+      el('div', { class: 'aa-person-names' }, [
+        el('div', { class: 'aa-shown' }, [chip(first)]),
+        el('div', { class: 'aa-others' }, [others]),
+      ]),
+      pending.length ? el('ul', { class: 'aa-pending' }, pending.map((item) => el('li', {}, [
+        el('span', { class: 'tag aa-tag-pending', text: 'Pending' }),
+        el('span', { class: 'aa-pending-label', text: item.label }),
+        undoButton(item),
+      ]))) : null,
+    ]),
+  ]);
+}
+
+/// One name of a person: the name, how many mods use it, and with jobs on, a
+/// way to publish the person under it and a way to take it off.
+function nameChip(name, row, ctx, pending) {
+  const { body, on } = ctx.state;
+  const n = modCount(body, name);
   const shown = row[0] === name;
+  const last = row.filter((x) => lower(x) !== lower(name));
+  const takeOffTitle = last.length < 2
+    ? `${takeOffLabel(name)}. "${last.join('')}" has no other name left, so this person is no longer an alias.`
+    : `${takeOffLabel(name)}.`;
   return el('span', {
-    class: `alias-name${shown ? ' shown' : ''}${n ? '' : ' unused'}`,
+    class: `aa-name${shown ? ' shown' : ''}${n ? '' : ' unused'}${pending ? ' is-pending' : ''}`,
     title: modsLine(n),
   }, [
-    managerOn && !shown
+    on && !shown
       ? el('button', {
-        class: 'alias-name-text',
+        type: 'button',
+        class: 'aa-name-text',
         text: name,
-        title: `${modsLine(n)}. Click to show this person as "${name}".`,
-        onclick: () => {
-          row.splice(row.indexOf(name), 1);
-          row.unshift(name);
-          redraw();
-        },
+        title: `${modsLine(n)}. Click to publish the person as "${name}".`,
+        onclick: () => addPending({
+          kind: 'publishAuthorAs',
+          label: publishLabel(name),
+          correction: { kind: 'publishAuthorAs', names: [name] },
+        }),
       })
-      : el('span', { class: 'alias-name-text', text: name }),
-    n ? el('span', { class: 'alias-count', text: String(n) }) : null,
-    managerOn
+      : el('span', { class: 'aa-name-text', text: name }),
+    n ? el('span', { class: 'aa-count', text: String(n) }) : null,
+    on
       ? el('button', {
-        class: 'alias-remove',
+        type: 'button',
+        class: 'aa-remove',
         text: '×',
-        title: `Remove "${name}"`,
-        'aria-label': `Remove ${name}`,
-        onclick: () => {
-          row.splice(row.indexOf(name), 1);
-          redraw();
-        },
+        title: takeOffTitle,
+        'aria-label': takeOffLabel(name),
+        onclick: () => addPending({
+          kind: 'removeAuthorName',
+          label: takeOffLabel(name),
+          correction: { kind: 'removeAuthorName', names: [name] },
+        }),
       })
       : null,
   ]);
 }
 
-function personRow(row, counts, changed, state, managerOn, redraw) {
-  const [first, ...rest] = row;
-  const message = el('div', { class: 'alias-message' });
-  const input = el('input', {
-    class: 'req-pick alias-add',
-    list: 'alias-name-options',
-    placeholder: row.length ? 'Add a name' : 'First name',
-    onkeydown: (e) => { if (e.key === 'Enter') add(); },
-  });
-  const addBox = el('span', { class: 'alias-add-box' });
-  const openAdd = () => {
-    clear(addBox);
-    addBox.append(input, el('button', { class: 'btn req-small', text: 'Add', onclick: () => add() }));
+/// "+ Add name" on a person, which opens a box for one more name. Adding it
+/// is "the shown name and this name are the same person".
+function addNameBox(row, ctx) {
+  const { state } = ctx;
+  const box = el('span', { class: 'aa-add-box' });
+  const key = lower(row[0]);
+  const open = () => {
+    state.adding = key;
+    const message = el('span', { class: 'aa-message warn-text' });
+    const input = el('input', {
+      class: 'input aa-add',
+      list: 'aa-name-options',
+      placeholder: 'Add a name',
+      'aria-label': `Another name for ${row[0]}`,
+    });
+    const add = async () => {
+      const name = input.value.trim();
+      if (!name) return;
+      if (row.some((n) => lower(n) === lower(name))) {
+        message.textContent = `"${name}" is already listed here.`;
+        return;
+      }
+      // Cleared first: adding redraws the page, and the new box must stay shut.
+      state.adding = null;
+      if (await addSame(state.body, row[0], name)) return;
+      state.adding = key;
+      if (pendingFor({ kind: 'sameAuthor', names: [row[0], name] })) message.textContent = 'This change is already pending.';
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); add(); }
+      if (e.key === 'Escape') { state.adding = null; close(); }
+    });
+    box.replaceChildren(
+      input,
+      el('button', { type: 'button', class: 'button aa-small', text: 'Add', onclick: add }),
+      el('button', {
+        type: 'button', class: 'button quiet aa-small', text: 'Cancel',
+        onclick: () => { state.adding = null; close(); },
+      }),
+      message,
+    );
     input.focus();
   };
-  const add = () => {
-    const name = input.value.trim();
-    if (!name) return;
-    if (row.some((n) => lower(n) === lower(name))) {
-      message.textContent = `"${name}" is already listed here.`;
-      return;
-    }
-    const other = rowHolding(name);
-    if (other) {
-      message.textContent = `"${name}" already belongs to another person (shown as ${other[0]}). `
-        + 'Remove it there first.';
-      return;
-    }
-    row.push(name);
-    state.focusRow = row;
-    redraw();
+  const close = () => {
+    box.replaceChildren(el('button', {
+      type: 'button',
+      class: 'link-button aa-add-open',
+      text: '+ Add name',
+      title: 'Add another name this person uses.',
+      onclick: open,
+    }));
   };
+  close();
+  // Kept open across a redraw, once the box is on the page.
+  if (state.adding === key) queueMicrotask(() => { if (state.adding === key && box.isConnected) open(); });
+  return box;
+}
 
-  if (managerOn) {
-    if (row.length < 2 || state.focusRow === row) {
-      addBox.append(input, el('button', { class: 'btn req-small', text: 'Add', onclick: () => add() }));
-    } else {
-      addBox.append(el('button', {
-        class: 'alias-add-open',
-        text: '+ Add name',
-        title: 'Add another name this person uses.',
-        onclick: openAdd,
-      }));
-    }
+/// The names to suggest in a name box: every name the catalog credits, and
+/// every name already on a person.
+function nameOptions(body) {
+  const seen = new Map();
+  for (const name of [...(body.names || []), ...(body.rows || []).flat()]) {
+    if (!seen.has(lower(name))) seen.set(lower(name), name);
   }
+  return [...seen.values()].map((name) => el('option', { value: name }));
+}
 
-  const classes = [changed ? 'req-changed' : '', state.focusRow === row ? 'alias-focus' : ''].join(' ').trim();
-  return el('tr', { class: classes || null }, [
-    el('td', { class: 'alias-shown' }, [
-      first != null
-        ? nameChip(first, row, counts, managerOn, redraw)
-        : el('span', { class: 'dim', text: 'New person' }),
-    ]),
-    el('td', {}, [
-      el('div', { class: 'alias-names' }, [
-        ...rest.map((name) => nameChip(name, row, counts, managerOn, redraw)),
-        row.length === 1 ? el('span', { class: 'badge badge-warning', text: 'Needs a second name' }) : null,
-        managerOn ? addBox : null,
-      ]),
-      message,
-    ]),
-    managerOn ? el('td', { class: 'alias-row-actions' }, [
-      el('button', {
-        class: 'btn req-small',
-        text: 'Remove person',
-        title: 'Stop treating these names as one person.',
-        onclick: () => {
-          draft.rows.splice(draft.rows.indexOf(row), 1);
-          redraw();
-        },
-      }),
-    ]) : null,
+// --- Different people ---
+
+function differentSection(ctx) {
+  const { body } = ctx.state;
+  const pairs = (body.notSame || []).filter((p) => Array.isArray(p) && p.length === 2);
+  const section = el('section', { class: 'aa-section' }, [sectionHead('Different people', pairs.length)]);
+  if (!pairs.length) {
+    section.append(el('p', { class: 'aa-note dim', text: 'No pairs are marked as different people.' }));
+    return section;
+  }
+  section.append(el('p', {
+    class: 'aa-note',
+    text: 'These pairs are not suggested as possible aliases. Marking a pair changes nothing else.',
+  }));
+  section.append(el('div', { class: 'aa-entries' }, pairs.map(([a, b]) => differentRow(a, b, ctx))));
+  return section;
+}
+
+function differentRow(a, b, ctx) {
+  const { body, on } = ctx.state;
+  const same = pendingFor({ kind: 'sameAuthor', names: [a, b] });
+  let action = null;
+  if (same) {
+    action = undoButton(same);
+  } else if (on) {
+    action = el('button', {
+      type: 'button',
+      class: 'button quiet',
+      text: 'These are the same person',
+      title: `Add "${b}" as another name for "${a}". This also removes the mark.`,
+      onclick: () => addSame(body, a, b),
+    });
+  }
+  const name = (n) => el('span', { class: 'aa-who', title: modsLine(modCount(body, n)) }, [
+    el('strong', { text: n }),
+    modCount(body, n) ? el('span', { class: 'aa-count', text: String(modCount(body, n)) }) : null,
   ]);
+  return el('article', { class: `aa-entry${same ? ' is-pending' : ''}` }, [
+    statusMark(same ? 'warning' : 'idle'),
+    el('div', { class: 'aa-entry-main' }, [
+      el('div', { class: 'aa-pair' }, [
+        name(a),
+        el('span', { class: 'dim', text: 'and' }),
+        name(b),
+        same ? el('span', { class: 'tag aa-tag-pending', text: 'Same person pending' }) : null,
+      ]),
+    ]),
+    action ? el('div', { class: 'aa-entry-actions' }, [action]) : null,
+  ]);
+}
+
+// --- Join two names by hand ---
+
+function joinForm(ctx) {
+  const { state } = ctx;
+  const message = el('p', { class: 'aa-hint warn-text', hidden: true });
+  const field = (label) => el('input', {
+    type: 'text', class: 'input aa-input', list: 'aa-name-options', autocomplete: 'off', spellcheck: 'false',
+    placeholder: label, 'aria-label': label,
+  });
+  const first = field('First name');
+  const second = field('Second name');
+  const say = (text) => { message.textContent = text; message.hidden = !text; };
+
+  const form = el('form', { class: 'aa-form' }, [
+    el('p', {
+      class: 'aa-hint',
+      text: 'Pick names from the list, or type any name. When neither name belongs to a person yet, '
+        + 'the new person is shown as the first name.',
+    }),
+    first,
+    second,
+    message,
+    el('div', {}, [el('button', { type: 'submit', class: 'button primary', text: 'These are the same person' })]),
+  ]);
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const a = first.value.trim();
+    const b = second.value.trim();
+    if (!a || !b) { say('Enter two names.'); return; }
+    if (lower(a) === lower(b)) { say('Enter two different names.'); return; }
+    const rowA = rowHolding(state.body.rows || [], a);
+    if (rowA && rowA.some((n) => lower(n) === lower(b))) { say(`"${a}" and "${b}" are already one person.`); return; }
+    if (pendingFor({ kind: 'sameAuthor', names: [a, b] })) { say('This change is already pending.'); return; }
+    say('');
+    if (await addSame(state.body, a, b)) {
+      first.value = '';
+      second.value = '';
+      first.focus();
+    }
+  });
+  return form;
 }

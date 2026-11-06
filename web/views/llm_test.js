@@ -1,158 +1,131 @@
-// #/llm-test — renders llm-test-output.json as a readable report.
+// LLM test report: llm-test-output.json as a readable report, and the only
+// button that starts an LLM test job.
 
-import { api, el, clear, missingPanel, MissingFile, go, noticeDialog, breadcrumbs, expandAllButton } from '../lib.js';
-import * as manager from '../manager.js';
-import { extrasBlock } from './extraction_views.js';
+import { el, api } from '../lib.js';
+import { pageLayout } from '../frame.js';
+import { subscribe, status } from '../status.js';
+import { confirmAndStart } from '../actions.js';
+import { badge, section, emptyLine, fold, llmModsBlock, normUrl, when } from '../post_parts.js';
+import { expandAllButton } from '../diff_parts.js';
 
-export async function render(root) {
-  clear(root);
-  root.append(breadcrumbs([{ label: 'LLM test report' }]));
-  root.append(el('h1', { text: 'LLM test report' }));
+/// The sentence the other pages use when jobs are off.
+function managerOffText(s) {
+  if (s && s.offline) return 'The server could not be reached. The LLM test cannot be started.';
+  return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
+    + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
+}
 
-  // This page is the only UI entry point for the non-persisting LLM test job.
-  const status = manager.status() || await manager.refresh();
-  if (status && status.on) {
-    root.append(el('div', { class: 'topic-actions' }, [
-      el('button', {
-        class: 'btn btn-primary',
-        text: 'Run LLM test',
-        title: 'Test the LLM prompt on a few topics and save a report.',
-        onclick: async () => {
-          try {
-            const record = await manager.confirmAndSubmit({ kind: 'llmTest' });
-            if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
-          } catch (err) {
-            noticeDialog('Could not start job', err.message);
-          }
-        },
-      }),
-      el('span', {
-        class: 'selection-hint',
-        text: 'Reload after the test finishes to see the report.',
-      }),
-    ]));
-  }
+export async function render({ content, toolbar, onLeave }) {
+  const startNote = el('div');
+  const reportSlot = el('div', {}, [emptyLine('Loading…')]);
+  const main = el('div', { class: 'pp-page lt-page' }, [startNote, reportSlot]);
+  content.append(pageLayout(main));
 
-  const data = await api('llm-test');
-  if (data instanceof MissingFile) {
-    root.append(missingPanel(data));
+  // Update the button and its note when the manager turns on or off.
+  let on = null;
+  onLeave(subscribe((s) => {
+    if (!!s.on === on) return;
+    on = !!s.on;
+    const button = el('button', {
+      type: 'button',
+      class: 'button primary',
+      text: 'Run LLM test',
+      title: 'Test the LLM prompt on a few topics and save a report.',
+      onclick: async () => {
+        const record = await confirmAndStart({ kind: 'llmTest' });
+        if (record) location.hash = `#/runs/${encodeURIComponent(record.id)}`;
+      },
+    });
+    toolbar.actions.replaceChildren(...(on ? [button] : []));
+    startNote.replaceChildren(el('p', {
+      class: 'lt-note dim',
+      text: on ? 'Reload after the test finishes to see the report.' : managerOffText(status()),
+    }));
+  }));
+
+  let data;
+  try {
+    data = await api('llm-test');
+  } catch (err) {
+    reportSlot.replaceChildren(el('p', { class: 'error-text', text: err.message }));
     return;
   }
-
-  root.append(
-    el('div', { class: 'stat-grid' }, [
-      stat('Generated at', data.generatedAt || '—'),
-      stat('Prompt version', data.promptVersion ?? '—'),
-      stat('LLM calls', data.callCount ?? '—'),
-      stat('Topics', (data.topics || []).length),
-    ])
-  );
+  if (!main.isConnected) return;
+  if (data.missing) {
+    reportSlot.replaceChildren(el('div', { class: 'pp-missing' }, [
+      el('p', { text: `${data.file} is unavailable` }),
+      el('p', { class: 'dim', text: data.hint || 'Run the scraper to produce it.' }),
+    ]));
+    return;
+  }
 
   const topics = data.topics || [];
-  if (!topics.length) {
-    root.append(el('p', { class: 'loading', text: 'No topics in the report.' }));
-    return;
-  }
+  const chip = (label, value) => el('span', { class: 'chip' }, [`${label} `, el('b', { text: String(value) })]);
+  const head = el('header', { class: 'pp-head' }, [
+    el('div', { class: 'pp-meta' }, [
+      chip('Generated at', when(data.generatedAt) || '—'),
+      chip('Prompt version', data.promptVersion ?? '—'),
+      chip('LLM calls', data.callCount ?? '—'),
+      chip('Topics', topics.length),
+    ]),
+  ]);
 
   // Expand topic blocks together, leaving nested input and answer folds alone.
-  const list = el('div', {});
-  for (const t of topics) {
-    list.append(topicBlock(t));
-  }
-  root.append(el('div', { class: 'toolbar' }, [
-    expandAllButton(list, ':scope > details'),
-  ]));
-  root.append(list);
+  const list = el('div', { class: 'lt-topics' }, topics.map(topicBlock));
+  const bar = topics.length ? el('div', { class: 'lt-bar' }, [expandAllButton(list, ':scope > details')]) : null;
+  reportSlot.replaceChildren(
+    head,
+    topics.length
+      ? section('Topics', topics.length, [bar, list])
+      : el('div', { class: 'pp-sections' }, [emptyLine('No topics in the report.')]),
+  );
+}
+
+/// How many mods and downloads grounding removed, or null when none.
+function droppedWords(dropped) {
+  if (!dropped || typeof dropped !== 'object') return null;
+  const words = [];
+  if (dropped.mods) words.push(`${dropped.mods} mod${dropped.mods === 1 ? '' : 's'}`);
+  if (dropped.downloads) words.push(`${dropped.downloads} download${dropped.downloads === 1 ? '' : 's'}`);
+  return words.length ? `Dropped ${words.join(' and ')}` : null;
 }
 
 function topicBlock(t) {
-  const details = el('details', { class: 'panel', style: 'margin-bottom:10px;' });
   const grounded = t.parsedGrounded || {};
   const mods = grounded.mods || [];
   const dlCount = mods.reduce((n, m) => n + ((m.downloads || []).length), 0);
-  details.append(
-    el('summary', {}, [
-      el('strong', { text: `#${t.topicId} — ${t.title || ''}` }),
-      ' ',
-      el('span', { class: 'badge badge-secondary', text: `${mods.length} mod${mods.length === 1 ? '' : 's'}` }),
-      ' ',
-      el('span', { class: 'badge badge-secondary', text: `${dlCount} downloads` }),
-      t.dropped ? el('span', { class: 'badge badge-warning', text: 'dropped' }) : null,
-    ])
-  );
-  const body = el('div', {});
+  const dropped = droppedWords(t.dropped);
+  const notMod = t.isMod === false || t.isMod === 'false';
+  const rules = t.rulesVsLlm;
+  const ruleUrls = new Set(((rules && rules.ruleLinks) || []).map(normUrl));
 
-  if (t.tokenUsage) {
-    body.append(el('p', { class: 'field-value', text: t.tokenUsage }));
-  }
-
+  const body = el('div', { class: 'lt-topic-body' });
+  body.append(el('p', { class: 'dim' }, [
+    el('a', { href: `#/posts/topic/${encodeURIComponent(t.topicId)}`, text: `Source post page for topic ${t.topicId}` }),
+  ]));
+  if (t.tokenUsage) body.append(el('p', { class: 'mono dim', text: t.tokenUsage }));
   if (mods.length) {
-    body.append(el('h3', { text: 'Mods (grounded)' }));
-    for (const m of mods) body.append(modBlock(m));
+    body.append(el('h4', { class: 'pp-subhead', text: 'Mods (grounded)' }));
+    body.append(llmModsBlock(mods, ruleUrls));
   }
-  if (t.rulesVsLlm) {
-    body.append(el('h3', { text: 'Rules vs LLM' }));
-    body.append(el('pre', { class: 'raw', text: typeof t.rulesVsLlm === 'string' ? t.rulesVsLlm : JSON.stringify(t.rulesVsLlm, null, 2) }));
+  if (rules) {
+    body.append(fold('Rules vs LLM', el('pre', {
+      class: 'pp-pre',
+      text: typeof rules === 'string' ? rules : JSON.stringify(rules, null, 2),
+    })));
   }
+  if (t.inputSent) body.append(fold('Input sent to the LLM', el('pre', { class: 'pp-pre', text: t.inputSent })));
+  if (t.rawAnswer) body.append(fold('Raw model answer', el('pre', { class: 'pp-pre', text: t.rawAnswer })));
 
-  body.append(collapsedPre('Input sent to the LLM', t.inputSent));
-  body.append(collapsedPre('Raw model answer', t.rawAnswer));
-
-  details.append(body);
-  return details;
-}
-
-function modBlock(mod) {
-  const box = el('div', { style: 'margin:6px 0 12px;' });
-  const head = el('div', { style: 'margin-bottom:4px;' }, [
-    el('strong', { text: mod.name || '(unnamed mod)' }),
-    ' ',
-    el('span', { class: 'badge badge-secondary', text: mod.role || 'main' }),
-  ]);
-  if (mod.requires) head.append(' ', el('span', { class: 'field-value', text: `requires ${mod.requires}` }));
-  box.append(head);
-  if ((mod.downloads || []).length) box.append(downloadsTable(mod.downloads));
-  // The same layout the thread page uses; the raw answer is in its fold below.
-  if (mod.extras && Object.keys(mod.extras).length) box.append(extrasBlock(mod.extras));
-  return box;
-}
-
-function downloadsTable(downloads) {
-  const wrap = el('div', { class: 'table-wrapper' });
-  const table = el('table');
-  table.append(el('thead', {}, el('tr', {}, [
-    el('th', { text: 'Kind' }),
-    el('th', { text: 'Confidence' }),
-    el('th', { text: 'Host' }),
-    el('th', { text: 'File name' }),
-    el('th', { text: 'URL' }),
-  ])));
-  const tbody = el('tbody');
-  for (const d of downloads) {
-    const tr = el('tr', { class: 'dl-row' });
-    tr.append(el('td', { text: d.kind || 'direct' }));
-    tr.append(el('td', { class: 'conf-' + (d.confidence || ''), text: d.confidence || '—' }));
-    tr.append(el('td', { text: d.sourceHost || '—' }));
-    tr.append(el('td', { text: d.fileName || '—' }));
-    tr.append(el('td', {}, el('a', { href: d.resolvedDirectUrl || d.url, target: '_blank', text: d.label ? `${d.label} — ${d.url}` : (d.url || '') })));
-    tbody.append(tr);
-  }
-  table.append(tbody);
-  wrap.append(table);
-  return wrap;
-}
-
-function collapsedPre(label, text) {
-  if (!text) return document.createTextNode('');
-  return el('details', {}, [
-    el('summary', { text: label }),
-    el('pre', { class: 'raw', text }),
-  ]);
-}
-
-function stat(label, value) {
-  return el('div', { class: 'stat-card' }, [
-    el('div', { class: 'label', text: label }),
-    el('div', { class: 'value', text: String(value) }),
+  return el('details', { class: 'lt-topic' }, [
+    el('summary', {}, [
+      el('span', { class: 'mono', text: `#${t.topicId}` }),
+      el('span', { class: 'lt-title', text: t.title || '' }),
+      badge(`${mods.length} mod${mods.length === 1 ? '' : 's'}`),
+      badge(`${dlCount} download${dlCount === 1 ? '' : 's'}`),
+      notMod ? badge('Not a mod', 'warn') : null,
+      dropped ? badge(dropped, 'warn') : null,
+    ]),
+    body,
   ]);
 }

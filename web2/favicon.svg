@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- The new viewer's tab icon: the nav rail's sand triangle on a panel-coloured
-       tile, with the corner brackets the main panels carry. Lines sit on whole
-       pixels at 32px. -->
-  <rect width="32" height="32" fill="#171c22"/>
-  <path d="M3 10V3h7M29 22v7h-7" fill="none" stroke="#e3b45a" stroke-width="2"/>
-  <path d="M16 8l8 15H8z" fill="#e3b45a"/>
-</svg>

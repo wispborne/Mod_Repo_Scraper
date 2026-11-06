@@ -3,9 +3,7 @@
 ## Purpose
 
 Push the current output files to the public GitHub repo TriOS reads, on demand from the browser, as an ordinary manager job — so fresh output does not have to wait for the twice-a-day cron script.
-
 ## Requirements
-
 ### Requirement: Publishing is a job the manager can run
 The manager SHALL offer a `publishOutputs` job kind that publishes the current output files to the target GitHub repo. The job SHALL make sure a clone of the target repo is present and current, copy `outputs/ModRepo.json` and `outputs/forum-data-bundle.json` into it, stage the changes, and — only when something changed — commit and push. It SHALL push over the host's existing git/SSH auth and touch no network of its own beyond git. The job SHALL send nothing to an LLM and SHALL not scrape.
 
@@ -29,15 +27,15 @@ The publish service SHALL be built once with its environment — the target repo
 - **THEN** it can ask for a publish but cannot name the repo URL, the clone folder, or any credential
 
 ### Requirement: A publish rides the shared queue, lock, history and log
-The `publishOutputs` kind SHALL be owned by a publish `JobRunner` wired through the same `JobRouter` as the QB and ModRepo services, so a publish SHALL take its turn in the one queue, hold the single-writer lock while it runs, appear in the run history with its own log, and report progress to the same status chip. A publish SHALL never run at the same time as a scrape or merge.
+The `publishOutputs` kind SHALL be owned by a publish `JobRunner` wired through the same `JobRouter` as the QB and ModRepo services, so a publish SHALL take its turn in the one queue, hold the single-writer lock while it runs, appear in the run history with its own log, and report progress to the same status bar. A publish SHALL never run at the same time as a scrape or merge.
 
 #### Scenario: Publish waits behind a running job
 - **WHEN** a publish job is submitted while a scrape or merge is running
-- **THEN** it is queued behind that job, shows in the queue on the Runs view, and starts when the running job ends
+- **THEN** it is queued behind that job, shows in the queue on the Control page, and starts when the running job ends
 
 #### Scenario: Publish appears in history
 - **WHEN** a publish job finishes
-- **THEN** it is listed in the run history with its kind, timing and state, and its log can be opened from its detail page
+- **THEN** it is listed in the run history with its kind, timing and state, and its log can be opened from its run page
 
 ### Requirement: A failed publish is reported plainly, never as a silent no-op
 When git fails — the clone cannot be reached, the push is rejected, or the service runs as a user without push access — the publish job SHALL record the run as failed and SHALL put the git error in the run's log. A publish SHALL never report success without having pushed the changed files.
@@ -52,3 +50,4 @@ The publish service SHALL check for cancellation before it commits and pushes. A
 #### Scenario: Cancelled before the push
 - **WHEN** the user cancels a `publishOutputs` job before it has pushed
 - **THEN** the run is recorded as cancelled, nothing is pushed, and the log says the target repo was left as it was
+

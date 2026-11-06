@@ -1,172 +1,309 @@
-// #/takedowns — the takedown list: mods and people left out of everything we
-// publish, at their request. The page and the preview only read; every change
-// is a manager job, so it waits in the queue and shows in the run history.
+// Takedowns: mods and people left out of everything we publish, at their
+// request. The page only reads. Taking something down or restoring it adds a
+// pending change; nothing is written until the pending changes are saved,
+// which runs one job for all of them.
 
+import { el, clear, api, noticeDialog, showDialog, shortTime } from '../lib.js';
+import { pageLayout, sidePanel, statusMark } from '../frame.js';
+import { subscribe, status } from '../status.js';
 import {
-  api, el, clear, missingPanel, MissingFile, breadcrumbs, go, noticeDialog,
-} from '../lib.js';
-import * as manager from '../manager.js';
+  addPending, isPending, onPendingChange, pendingItems, removePending, correctionKey,
+} from '../pending.js';
+import { pendingPanel } from '../pending_view.js';
 
+/// How many suggestions a form's box shows at once.
+const SUGGESTION_COUNT = 8;
 
-export async function render(root) {
-  clear(root);
-  root.append(breadcrumbs([{ label: 'Takedowns' }]));
+/// The sentence the other pages use when jobs are off.
+function managerOffText(s) {
+  if (s && s.offline) return 'The server could not be reached. Takedowns cannot be changed.';
+  return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
+    + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
+}
 
-  const body = await api('takedowns');
-  if (body instanceof MissingFile) {
-    root.append(el('h1', { text: 'Takedowns' }));
-    return root.append(missingPanel(body));
-  }
-  if (body.error) {
-    root.append(el('h1', { text: 'Takedowns' }));
-    return root.append(el('div', { class: 'missing error' }, [el('h3', { text: body.error })]));
-  }
+export function render({ content, onLeave }) {
+  // What the page knows. `catalog` is the catalog's mods and Collection pages
+  // (from /api/takedowns/mods), or null when the catalog cannot be read.
+  const state = { list: null, matches: new Map(), builtAt: null, error: null, catalog: null, on: null };
 
-  const status = manager.status() || await manager.refresh();
-  const managerOn = !!(status && status.on);
-  const list = body.list || { mods: [], authors: [] };
-  const matches = new Map(((body.matches && body.matches.matches) || []).map((m) => [m.entry, m]));
-  const builtAt = body.matches && body.matches.builtAt;
+  const main = el('div', { class: 'td-page' }, [el('p', { class: 'empty', text: 'Loading…' })]);
+  const formSlot = el('div');
+  content.append(pageLayout(main, [pendingPanel(), formSlot]));
 
-  const mods = (list.mods || []).map((entry) => describeEntry(entry.id, entry, matches));
-  const authors = (list.authors || []).map((entry) => describeEntry(authorEntryKey(entry), entry, matches));
-  const warnings = [...mods, ...authors].filter((e) => e.warn).length;
+  const load = async () => {
+    const [body, mods] = await Promise.all([
+      api('takedowns').catch((err) => ({ error: err.message })),
+      api('takedowns/mods').catch(() => null),
+    ]);
+    state.error = body && body.error ? body.error : null;
+    state.list = (body && body.list) || { mods: [], authors: [] };
+    state.matches = new Map(((body && body.matches && body.matches.matches) || []).map((m) => [m.entry, m]));
+    state.builtAt = (body && body.matches && body.matches.builtAt) || null;
+    state.catalog = mods && Array.isArray(mods.mods) ? mods.mods : null;
+  };
 
-  root.append(el('div', { class: 'takedown-header' }, [
-    el('h1', { text: 'Takedowns' }),
-    el('div', { class: 'takedown-counts' }, [
-      countChip(mods.length, 'mod', 'mods'),
-      countChip(authors.length, 'author', 'authors'),
-      builtAt ? el('span', { class: 'takedown-built', text: `Last build ${formatWhen(builtAt)}` }) : null,
-    ]),
-  ]));
+  const drawMain = () => {
+    if (!state.list) return;
+    clear(main).append(...mainPanel(state));
+  };
 
-  const page = el('div', { class: 'stack' });
-  page.append(el('p', {
-    class: 'takedown-intro',
-    text: 'These mods and all mods credited to these authors are excluded from the catalog, the mod details and Starmodder. '
-      + 'The list is published with the outputs for anyone to read. It does not include reasons for removal.',
+  const drawSide = () => {
+    if (state.on) {
+      formSlot.replaceChildren(sidePanel({ name: 'Take down', body: takedownForms(state) }));
+    } else if (state.on === false) {
+      formSlot.replaceChildren(sidePanel({
+        name: 'Viewing only',
+        body: el('p', { class: 'td-side-note', text: managerOffText(status()) }),
+      }));
+    } else {
+      formSlot.replaceChildren();
+    }
+  };
+
+  onLeave(onPendingChange(drawMain));
+
+  let lastRunId;
+  onLeave(subscribe(async (s) => {
+    if (s.on !== state.on) {
+      state.on = s.on;
+      drawSide();
+      drawMain();
+    }
+    // A job that just ended may have changed the list: read it again.
+    const runId = s.current ? s.current.record.id : null;
+    if (lastRunId !== undefined && runId !== lastRunId && lastRunId !== null) {
+      await load();
+      drawMain();
+    }
+    lastRunId = runId;
   }));
 
-  if (warnings) {
-    page.append(el('div', { class: 'notice-banner' }, [
-      el('div', { class: 'notice-text' }, [
-        el('strong', { text: `${warnings} ${warnings === 1 ? 'entry' : 'entries'} excluded nothing from the last build` }),
-        el('div', { text: 'They are listed first below, with what to check.' }),
+  load().then(() => {
+    state.on = status() ? status().on : state.on;
+    drawMain();
+    drawSide();
+  });
+}
+
+// --- The list ---
+
+function mainPanel(state) {
+  const { list, builtAt, on } = state;
+  const mods = (list.mods || []).map((entry) => describeEntry(entry.id, entry, state));
+  const authors = (list.authors || []).map((entry) => describeEntry(authorEntryKey(entry), entry, state));
+  const returned = mods.filter((e) => e.warn === 'returned').length;
+  const nothing = [...mods, ...authors].filter((e) => e.warn === 'nothing').length;
+
+  const parts = [
+    el('div', { class: 'td-head' }, [
+      el('h2', { class: 'panel-heading', text: 'Takedown list' }),
+      el('div', { class: 'td-counts' }, [
+        countChip(mods.length, 'mod', 'mods'),
+        countChip(authors.length, 'author', 'authors'),
+        builtAt ? el('span', { class: 'td-built', title: builtAt, text: `Last build ${shortTime(builtAt)}` }) : null,
       ]),
-    ]));
+    ]),
+    el('p', {
+      class: 'td-intro',
+      text: 'These mods and all mods credited to these authors are excluded from the catalog, the mod details and Starmodder. '
+        + 'The list is published with the outputs for anyone to read. It does not include reasons for removal.',
+    }),
+  ];
+
+  if (state.error) parts.push(el('p', { class: 'td-banner bad', text: state.error }));
+
+  if (returned || nothing) {
+    const lines = [];
+    if (returned) {
+      lines.push(el('p', {}, [
+        el('strong', { text: `${returned} taken-down ${returned === 1 ? 'mod is' : 'mods are'} back under a new id.` }),
+        ' Take each one down again using its new id.',
+      ]));
+    }
+    if (nothing) {
+      lines.push(el('p', {}, [
+        el('strong', { text: `${nothing} ${nothing === 1 ? 'entry' : 'entries'} excluded nothing from the last build.` }),
+        ' Check what is written under each one.',
+      ]));
+    }
+    lines.push(el('p', { class: 'dim', text: 'They are listed first below.' }));
+    parts.push(el('div', { class: 'td-banner', role: 'note' }, lines));
   }
 
-  if (managerOn) page.append(takedownCard(list));
-
-  if (!mods.length && !authors.length) {
-    page.append(el('div', { class: 'takedown-empty' }, [
-      el('h3', { text: 'Nothing is taken down' }),
+  if (!mods.length && !authors.length && !state.error) {
+    parts.push(el('div', { class: 'note' }, [
+      el('h2', { class: 'panel-heading', text: 'Nothing is taken down' }),
       el('p', {
-        text: managerOn
-          ? 'Use the Take down box above, or the "Take down" button on a Mod Catalog or thread page.'
+        text: on
+          ? 'Use the Take down panel to add a mod or an author.'
           : 'Takedowns are added from the viewer when the manager is on.',
       }),
     ]));
   }
-  if (mods.length) page.append(entrySection('Mods', mods, builtAt, managerOn));
-  if (authors.length) page.append(entrySection('Authors', authors, builtAt, managerOn));
-  root.append(page);
+  if (mods.length) parts.push(entrySection('Mods', mods, state));
+  if (authors.length) parts.push(entrySection('Authors', authors, state));
+  return parts;
 }
 
 function countChip(n, one, many) {
-  return el('span', { class: 'takedown-count' }, [el('strong', { text: String(n) }), ` ${n === 1 ? one : many}`]);
-}
-
-function formatWhen(iso) {
-  const when = new Date(iso);
-  return Number.isNaN(when.getTime()) ? iso : when.toLocaleString();
+  return el('span', { class: 'chip' }, [el('b', { text: String(n) }), ` ${n === 1 ? one : many}`]);
 }
 
 function authorEntryKey(entry) {
   return `author:${(entry.names || [])[0] || ''}`;
 }
 
-/// An entry with what the last build did with it.
-function describeEntry(key, entry, matches) {
-  const match = matches.get(key);
-  const removed = match ? [...(match.mods || []), ...(match.collections || [])] : [];
-  return { key, entry, match, warn: !!match && removed.length === 0, isAuthor: key.startsWith('author:') };
+/// The post a key such as `forum:34161#Useful.Tithes` belongs to.
+function postOf(key) {
+  const at = key.indexOf('#');
+  return at < 0 ? key : key.slice(0, at);
 }
 
-/// One group of entries. The ones that excluded nothing come first.
-function entrySection(title, items, builtAt, managerOn) {
-  const sorted = [...items].sort((a, b) => Number(b.warn) - Number(a.warn));
-  return el('section', { class: 'takedown-section' }, [
-    el('h2', {}, [title, el('span', { class: 'takedown-section-count', text: String(items.length) })]),
-    el('div', { class: 'takedown-list' }, sorted.map((item) => entryRow(item, builtAt, managerOn))),
+/// An entry with what the last build did with it. `warn` is null, 'nothing'
+/// (it left out nothing) or 'returned' (a mod entry that left out nothing
+/// while one of its posts is still a source post of a catalog mod: the mod
+/// most likely came back under a new id). The same rule as /api/attention.
+/// `backOn` is the catalog's mods from those posts.
+function describeEntry(key, entry, state) {
+  const isAuthor = key.startsWith('author:');
+  const match = state.matches.get(key) || null;
+  const removed = match ? [...(match.mods || []), ...(match.collections || [])] : [];
+  let warn = null;
+  let backOn = [];
+  if (match && removed.length === 0) {
+    warn = 'nothing';
+    if (!isAuthor && state.catalog) {
+      const posts = new Set((entry.posts || []).map(postOf));
+      backOn = state.catalog.filter((m) => !m.collection && (m.posts || []).some((p) => posts.has(p)));
+      if (backOn.length) warn = 'returned';
+    }
+  }
+  return { key, entry, match, warn, backOn, isAuthor };
+}
+
+/// One group of entries. Mods back under a new id come first, then the
+/// entries that excluded nothing.
+function entrySection(title, items, state) {
+  const order = { returned: 0, nothing: 1 };
+  const sorted = [...items].sort((a, b) => (order[a.warn] ?? 2) - (order[b.warn] ?? 2));
+  return el('section', { class: 'td-section' }, [
+    el('h2', { class: 'td-section-head' }, [
+      el('span', { class: 'panel-heading', text: title }),
+      el('span', { class: 'td-section-count', text: String(items.length) }),
+    ]),
+    el('div', { class: 'td-entries' }, sorted.map((item) => entryRow(item, state))),
   ]);
 }
 
-/// One entry as a row: what it is, what it blocks, what it excluded last time.
-function entryRow({ key, entry, match, warn, isAuthor }, builtAt, managerOn) {
-  const title = isAuthor ? (entry.names || []).join(', ') : (entry.name || entry.id);
+function entryTitle({ entry, isAuthor }) {
+  return isAuthor ? (entry.names || []).join(', ') : (entry.name || entry.id);
+}
 
-  const meta = el('div', { class: 'takedown-meta' });
+/// The pending item that restores `key`, or null.
+function pendingRestore(key) {
+  const wanted = correctionKey({ kind: 'restore', entry: key });
+  return pendingItems().find((i) => correctionKey(i.correction) === wanted) || null;
+}
+
+/// One entry: what it is, what it blocks, what it excluded last time.
+function entryRow(item, state) {
+  const { key, entry, match, warn, isAuthor } = item;
+  const restoring = isPending({ kind: 'restore', entry: key });
+
+  const meta = el('div', { class: 'td-meta' });
   if (!isAuthor) {
-    meta.append(el('code', { class: 'takedown-id', text: entry.id }));
+    meta.append(el('code', { class: 'td-id', text: entry.id }));
     const posts = entry.posts || [];
     if (posts.length) {
       for (const post of posts) {
         const named = post.includes('#');
         meta.append(el('span', {
-          class: 'takedown-post',
+          class: 'td-post',
           title: named ? 'Only this mod\'s listing on the post is blocked.' : 'The whole post is blocked.',
         }, [el('code', { text: post }), named ? ' · listing' : ' · whole post']));
       }
     } else {
-      meta.append(el('span', { class: 'takedown-post', text: 'Collection page only' }));
+      meta.append(el('span', { class: 'td-post', text: 'Collection page only' }));
     }
   } else if ((entry.names || []).length > 1) {
-    meta.append(el('span', { class: 'takedown-post', text: `${entry.names.length} names` }));
+    meta.append(el('span', { class: 'td-post', text: `${entry.names.length} names` }));
   }
-  meta.append(el('span', { class: 'takedown-added', text: `Added ${entry.on}` }));
+  meta.append(el('span', { class: 'td-added', text: `Added ${entry.on}` }));
 
-  const row = el('article', { class: `takedown-row${warn ? ' is-warning' : ''}` }, [
-    el('div', { class: 'takedown-row-main' }, [
-      el('div', { class: 'takedown-row-title' }, [
-        el('h3', { text: title }),
-        warn ? el('span', { class: 'badge badge-warning', text: 'Nothing excluded' }) : null,
-      ]),
+  const tags = [];
+  if (warn === 'returned') tags.push(el('span', { class: 'tag tag-warning', text: 'Back under a new id' }));
+  if (warn === 'nothing') tags.push(el('span', { class: 'tag tag-warning', text: 'Nothing excluded' }));
+  if (restoring) tags.push(el('span', { class: 'tag td-tag-pending', text: 'Restore pending' }));
+
+  let action = null;
+  if (restoring) {
+    action = el('button', {
+      type: 'button',
+      class: 'button quiet',
+      text: 'Undo',
+      title: 'Remove this restore from the pending changes.',
+      onclick: () => {
+        const pending = pendingRestore(key);
+        if (pending) removePending(pending.id);
+      },
+    });
+  } else if (state.on) {
+    action = el('button', { type: 'button', class: 'button', text: 'Restore', onclick: () => confirmRestore(item) });
+  }
+
+  const mark = warn ? 'warning' : match ? 'done' : 'idle';
+  return el('article', { class: `td-entry${warn ? ' is-warning' : ''}${restoring ? ' is-pending' : ''}` }, [
+    statusMark(mark),
+    el('div', { class: 'td-entry-main' }, [
+      el('div', { class: 'td-entry-title' }, [el('h3', { text: entryTitle(item) }), ...tags]),
       meta,
-      outcome({ entry, match, warn, isAuthor }, builtAt),
+      outcome(item, state),
     ]),
-    managerOn
-      ? el('div', { class: 'takedown-row-actions' }, [
-        el('button', { class: 'btn', text: 'Restore', onclick: () => confirmRestore(key, entry, match) }),
-      ])
-      : null,
+    action ? el('div', { class: 'td-entry-actions' }, [action]) : null,
   ]);
-  return row;
 }
 
-/// What the entry excluded from the last build, or why nothing.
-function outcome({ entry, match, warn, isAuthor }, builtAt) {
+/// What the entry excluded from the last build, or why it excluded nothing.
+function outcome({ entry, match, warn, backOn, isAuthor }, state) {
   if (!match) {
     return el('p', {
-      class: 'takedown-outcome dim',
-      text: builtAt ? 'The last build did not have this entry yet.' : 'No build has run with the takedown list yet.',
+      class: 'td-outcome dim',
+      text: state.builtAt ? 'The last build did not have this entry yet.' : 'No build has run with the takedown list yet.',
     });
   }
-  if (warn) {
-    return el('p', {
-      class: 'takedown-outcome takedown-warning-text',
-      text: isAuthor
-        ? 'This entry excluded no mods from the last build. The author may be using a new name. Add a new author entry with that name.'
-        : 'This entry excluded nothing from the last build. The mod may have returned under a new id, or its post may be gone. '
-          + 'If it has a new id, take it down again using that id.',
-    });
+  if (warn === 'returned') {
+    return el('div', { class: 'td-outcome' }, [
+      el('p', {
+        class: 'warn-text',
+        text: 'This entry excluded nothing from the last build, but its post is still in the catalog. '
+          + 'The mod has most likely returned under a new id. Take it down again using that id.',
+      }),
+      el('ul', { class: 'td-list plain' }, backOn.map((mod) => el('li', { class: 'td-back' }, [
+        el('span', { class: 'td-back-name', text: mod.name }),
+        el('code', { class: 'td-id', text: mod.id }),
+        state.on || isPending({ kind: 'takeDownMod', modId: mod.id }) ? takeDownLink(mod.id) : null,
+      ]))),
+    ]);
+  }
+  if (warn === 'nothing') {
+    let text;
+    if (isAuthor) {
+      text = 'This entry excluded no mods from the last build. The author may be using a new name. '
+        + 'Add a new author entry with that name.';
+    } else if (state.catalog) {
+      text = 'This entry excluded nothing from the last build, and its post is no longer in the catalog. '
+        + 'The post may be gone.';
+    } else {
+      text = 'This entry excluded nothing from the last build. The mod may have returned under a new id, or its post may be gone. '
+        + 'If it has a new id, take it down again using that id.';
+    }
+    return el('p', { class: 'td-outcome warn-text', text });
   }
   // A mod entry that excluded just its own mod needs no list repeating its name.
   const onlyItself = !isAuthor && !(match.collections || []).length
     && (match.mods || []).length === 1 && match.mods[0].id === entry.id;
   if (onlyItself) {
-    return el('p', { class: 'takedown-outcome takedown-done', text: '✓ Excluded from the last build' });
+    return el('p', { class: 'td-outcome td-done', text: 'Excluded from the last build' });
   }
   const items = [
     ...(match.mods || []).map((mod) => el('li', {}, [
@@ -177,50 +314,74 @@ function outcome({ entry, match, warn, isAuthor }, builtAt) {
       el('span', { text: c.name }), el('span', { class: 'dim', text: ' · Collection page' }),
     ])),
   ];
-  return el('div', { class: 'takedown-outcome' }, [
-    el('span', { class: 'takedown-outcome-label', text: `Excluded from the last build (${items.length})` }),
-    el('ul', { class: 'takedown-excluded' }, items),
+  return el('div', { class: 'td-outcome' }, [
+    el('span', { class: 'td-label', text: `Excluded from the last build (${items.length})` }),
+    el('ul', { class: 'td-list' }, items),
   ]);
 }
 
-async function confirmRestore(key, entry, match) {
-  const isAuthor = key.startsWith('author:');
-  const name = isAuthor ? (entry.names || []).join(', ') : (entry.name || entry.id);
-  const back = [
-    ...((match && match.mods) || []).map((mod) => el('div', { class: 'td-row' }, [
-      el('span', { class: 'td-row-text' }, [
-        el('span', { class: 'td-row-name', text: mod.name }),
-        el('code', { class: 'td-row-id', text: mod.id }),
-      ]),
-    ])),
-    ...((match && match.collections) || []).map((c) => el('div', { class: 'td-row' }, [
-      el('span', { class: 'td-row-text' }, [
-        el('span', { class: 'td-row-name', text: c.name }),
-        el('span', { class: 'td-row-sub', text: 'Collection page' }),
-      ]),
-    ])),
+/// A small "Take down" button for one catalog mod, beside a warning.
+function takeDownLink(modId) {
+  if (isPending({ kind: 'takeDownMod', modId })) {
+    return el('span', { class: 'tag td-tag-pending', text: 'Take-down pending' });
+  }
+  return el('button', {
+    type: 'button',
+    class: 'button danger td-small',
+    text: 'Take down',
+    onclick: () => previewAndAdd({ modId }),
+  });
+}
+
+// --- Labels for pending changes ---
+
+/// `"A"`, `"A" and "B"`, or `"A", "B" and "C"`.
+function quoted(names) {
+  const q = names.map((n) => `"${n}"`);
+  return q.length <= 1 ? q.join('') : `${q.slice(0, -1).join(', ')} and ${q[q.length - 1]}`;
+}
+
+function takeDownLabel(preview) {
+  if (preview.kind !== 'mod') return `Take down all mods by ${quoted(preview.names)}`;
+  return preview.isCollection
+    ? `Take down the Collection page "${preview.name}"`
+    : `Take down "${preview.name}"`;
+}
+
+function restoreLabel({ entry, isAuthor }) {
+  return isAuthor
+    ? `Restore all mods by ${quoted(entry.names || [])}`
+    : `Restore "${entry.name || entry.id}"`;
+}
+
+// --- Restore ---
+
+async function confirmRestore(item) {
+  const { key, entry, match, isAuthor } = item;
+  const rows = [
+    ...((match && match.mods) || []).map((mod) => dialogRow(mod.name, el('code', { class: 'td-id', text: mod.id }))),
+    ...((match && match.collections) || []).map((c) => dialogRow(c.name, el('span', { class: 'dim', text: 'Collection page' }))),
   ];
   const restoreText = 'The entry is removed from the takedown list. Everything it hid comes back at its old address.';
   const count = backCount(match);
-  // With no count from the last build, the sentence stands on its own.
-  const body = [count ? summary(count, restoreText) : el('p', { class: 'td-note', text: restoreText })];
-  if (back.length) body.push(section('Coming back (from the last build)', el('div', { class: 'td-rows td-rows-scroll' }, back)));
-  body.push(el('p', {
-    class: 'td-note',
-    text: 'Every output is rebuilt from saved files. No pages are fetched. The LLM is not called.',
-  }));
-  const answer = await takedownDialog({
+  const body = [count ? summary(count, restoreText) : el('p', { text: restoreText })];
+  if (rows.length) body.push(section('Coming back (from the last build)', el('div', { class: 'td-rows scroll' }, rows)));
+  const yes = await confirmDialog({
     eyebrow: isAuthor ? 'Restore an author\'s mods' : 'Restore a mod',
-    title: name,
+    title: entryTitle(item),
     body,
     confirmLabel: 'Restore',
   });
-  if (!answer) return;
-  await send({ kind: 'restoreTakedown', takedownEntry: key, publishAfter: answer.publishAfter, collectMergeDebug: true });
+  if (!yes) return;
+  addPending({
+    kind: 'restore',
+    label: restoreLabel(item),
+    correction: { kind: 'restore', entry: key },
+  });
 }
 
-/// "4 mods", "1 page" or "4 mods, 1 page": what a restore brings back. Empty when the
-/// last build has no record of the entry.
+/// "4 mods", "1 page" or "4 mods, 1 page": what a restore brings back. Empty
+/// when the last build has no record of the entry.
 function backCount(match) {
   const mods = ((match && match.mods) || []).length;
   const pages = ((match && match.collections) || []).length;
@@ -230,34 +391,30 @@ function backCount(match) {
   ].filter(Boolean).join(', ');
 }
 
-/// The "Take down" card: one tab for a mod or Collection page, one for an
-/// author's mods.
-function takedownCard(list) {
+// --- The Take down forms ---
+
+/// Two tabs: one for a mod or Collection page, one for an author's mods.
+function takedownForms(state) {
   const tabs = [
-    { label: 'A mod or Collection page', body: modForm(list) },
-    { label: 'An author\'s mods', body: authorForm(list) },
+    { label: 'A mod', body: modForm(state) },
+    { label: 'An author', body: authorForm(state) },
   ];
-  const bar = el('div', { class: 'takedown-tabs', role: 'tablist' });
-  const holder = el('div', { class: 'takedown-tab-holder' });
-  const show = (i) => {
+  const bar = el('div', { class: 'td-tabs', role: 'tablist' });
+  const holder = el('div', { class: 'td-tab-body' });
+  const show = (i, focus) => {
     [...bar.children].forEach((tab, n) => {
-      tab.classList.toggle('active', n === i);
+      tab.classList.toggle('on', n === i);
       tab.setAttribute('aria-selected', String(n === i));
     });
     holder.replaceChildren(tabs[i].body);
     const field = tabs[i].body.querySelector('input');
-    if (field) field.focus();
+    if (focus && field) field.focus();
   };
   tabs.forEach((tab, i) => bar.append(el('button', {
-    type: 'button', role: 'tab', class: 'takedown-tab', text: tab.label, onclick: () => show(i),
+    type: 'button', role: 'tab', class: 'tab', text: tab.label, onclick: () => show(i, true),
   })));
-  const card = el('div', { class: 'panel takedown-form' }, [el('h3', { text: 'Take down' }), bar, holder]);
-  [...bar.children].forEach((tab, n) => {
-    tab.classList.toggle('active', n === 0);
-    tab.setAttribute('aria-selected', String(n === 0));
-  });
-  holder.append(tabs[0].body);
-  return card;
+  show(0, false);
+  return el('div', { class: 'td-forms' }, [bar, holder]);
 }
 
 /// The post a pasted forum or Discord link (or a `forum:123` key) points at,
@@ -275,269 +432,82 @@ function postKeyOf(text) {
   return null;
 }
 
-/// The form for taking down one mod or Collection page. Typing finds mods by
-/// name, id or author; a pasted thread link lists that thread's mods.
-function modForm(list) {
-  const takenDown = new Set((list.mods || []).map((m) => m.id));
-  let known = [];
-  api('takedowns/mods').then((body) => {
-    if (body && Array.isArray(body.mods)) known = body.mods;
-  }).catch(() => {});
-
+/// A text box with a list of suggestions under it, worked with the arrow
+/// keys, Enter and Escape. `find(text)` returns `{ items, more, empty }`;
+/// `row(item)` draws one suggestion; `usable(item)` says whether it can be
+/// picked; `pick(item)` is called with the chosen one. `onEnter(text)` is
+/// called when Enter is pressed with no suggestion chosen.
+function comboBox({ id, label, placeholder, find, row, usable, pick, onEnter = null }) {
   const input = el('input', {
-    type: 'text', class: 'takedown-names', autocomplete: 'off',
-    placeholder: 'Mod name, id, author, or a thread link',
-    role: 'combobox', 'aria-label': 'Mod to take down', 'aria-autocomplete': 'list',
-    'aria-controls': 'takedown-mod-suggestions', 'aria-expanded': 'false',
+    type: 'text', class: 'input td-input', autocomplete: 'off', spellcheck: 'false',
+    placeholder,
+    role: 'combobox', 'aria-label': label, 'aria-autocomplete': 'list',
+    'aria-controls': id, 'aria-expanded': 'false',
   });
-  const box = el('div', { class: 'takedown-name-box' }, [input]);
-  const suggestions = el('ul', {
-    class: 'takedown-suggestions', id: 'takedown-mod-suggestions', role: 'listbox', hidden: '',
-  });
-  const empty = el('p', { class: 'takedown-form-hint takedown-no-match', hidden: '' });
+  const list = el('ul', { class: 'td-suggestions', id, role: 'listbox', hidden: true });
+  const note = el('p', { class: 'td-hint warn-text', hidden: true });
   let shown = [];
   let active = -1;
 
   const hide = () => {
-    suggestions.hidden = true;
+    list.hidden = true;
     input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
     shown = [];
     active = -1;
   };
-
   const highlight = (i) => {
     active = i;
-    [...suggestions.children].forEach((li, n) => li.classList.toggle('active', n === i));
-    if (i >= 0) input.setAttribute('aria-activedescendant', `takedown-mod-suggestion-${i}`);
+    [...list.children].forEach((li, n) => li.classList.toggle('on', n === i));
+    if (i >= 0) input.setAttribute('aria-activedescendant', `${id}-${i}`);
     else input.removeAttribute('aria-activedescendant');
   };
-
-  const pick = async (mod) => {
-    if (takenDown.has(mod.id)) return;
+  const choose = (item) => {
+    if (!usable(item)) return;
     hide();
-    input.value = '';
-    await previewAndConfirm({ modId: mod.id });
+    pick(item);
   };
-
   const suggest = () => {
+    note.hidden = true;
     const text = input.value.trim();
-    const q = text.toLowerCase();
-    empty.hidden = true;
-    if (!q) return hide();
-    const post = postKeyOf(text);
-    let found;
-    if (post) {
-      found = known.filter((m) => (m.posts || []).includes(post));
-    } else {
-      const ranked = [];
-      for (const mod of known) {
-        const name = mod.name.toLowerCase();
-        const id = mod.id.toLowerCase();
-        let rank = -1;
-        if (name.startsWith(q) || id.startsWith(q)) rank = 0;
-        else if (name.includes(q) || id.includes(q)) rank = 1;
-        else if ((mod.authors || []).some((a) => a.toLowerCase().includes(q))) rank = 2;
-        if (rank >= 0) ranked.push([rank, mod]);
-      }
-      ranked.sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name));
-      found = ranked.map(([, mod]) => mod);
-    }
-    shown = found.slice(0, SUGGESTION_COUNT);
-    clear(suggestions);
+    if (!text) return hide();
+    const found = find(text);
+    shown = found.items.slice(0, SUGGESTION_COUNT);
+    clear(list);
     if (!shown.length) {
       hide();
-      empty.textContent = post
-        ? `No mod in the catalog comes from ${post}.`
-        : 'No mod or Collection page in the catalog matches.';
-      empty.hidden = false;
+      if (found.empty) {
+        note.textContent = found.empty;
+        note.hidden = false;
+      }
       return;
     }
-    shown.forEach((mod, i) => {
-      const already = takenDown.has(mod.id);
-      const authors = mod.authors || [];
+    shown.forEach((item, i) => {
+      const ok = usable(item);
       const li = el('li', {
-        id: `takedown-mod-suggestion-${i}`, role: 'option',
-        class: `takedown-suggestion${already ? ' is-disabled' : ''}`,
-        'aria-disabled': already ? 'true' : null,
-      }, [
-        el('span', { class: 'takedown-suggestion-name' }, [
-          mod.name,
-          el('span', { class: 'takedown-suggestion-others', text: mod.id }),
-        ]),
-        el('span', {
-          class: 'takedown-suggestion-count',
-          text: already
-            ? 'already taken down'
-            : mod.collection
-              ? 'Collection page'
-              : authors.slice(0, 2).join(', ') + (authors.length > 2 ? ` +${authors.length - 2}` : ''),
-        }),
-      ]);
-      // Before the input loses focus, so the pick is not lost to the blur.
-      li.addEventListener('mousedown', (e) => { e.preventDefault(); pick(mod); });
-      suggestions.append(li);
+        id: `${id}-${i}`, role: 'option',
+        class: `td-suggestion${ok ? '' : ' disabled'}`,
+        'aria-disabled': ok ? null : 'true',
+      }, row(item));
+      // Select before the input loses focus and hides the suggestions.
+      li.addEventListener('mousedown', (e) => { e.preventDefault(); choose(item); });
+      list.append(li);
     });
-    if (found.length > shown.length) {
-      suggestions.append(el('li', {
-        class: 'takedown-suggestion-more', role: 'presentation',
-        text: `${found.length - shown.length} more. Keep typing to narrow it down.`,
+    const more = found.items.length - shown.length;
+    if (more > 0) {
+      list.append(el('li', {
+        class: 'td-suggestion-more', role: 'presentation',
+        text: `${more} more. Keep typing to narrow it down.`,
       }));
     }
-    suggestions.hidden = false;
+    list.hidden = false;
     input.setAttribute('aria-expanded', 'true');
-    highlight(shown.findIndex((m) => !takenDown.has(m.id)));
+    highlight(shown.findIndex(usable));
   };
 
   input.addEventListener('input', suggest);
   input.addEventListener('focus', () => { if (input.value.trim()) suggest(); });
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' && shown.length) {
-      e.preventDefault();
-      highlight((active + 1) % shown.length);
-    } else if (e.key === 'ArrowUp' && shown.length) {
-      e.preventDefault();
-      highlight((active - 1 + shown.length) % shown.length);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (active >= 0 && shown[active]) pick(shown[active]);
-    } else if (e.key === 'Escape') {
-      hide();
-    }
-  });
-  input.addEventListener('blur', () => hide());
-
-  return el('div', { class: 'takedown-tab-body' }, [
-    el('p', {
-      class: 'dim',
-      text: 'Excludes one mod, and blocks only the posts it comes from. Other mods on a shared post stay published. '
-        + 'A Collection page can be taken down too; the mods it lists stay published.',
-    }),
-    el('div', { class: 'takedown-combo' }, [box, suggestions]),
-    empty,
-    el('p', {
-      class: 'takedown-form-hint',
-      text: 'Pick a mod to see exactly what would be removed. Nothing changes until you confirm.',
-    }),
-  ]);
-}
-
-/// How many suggestions the author box shows at once.
-const SUGGESTION_COUNT = 8;
-
-/// The form for taking down every mod credited to one person. Names are added
-/// as chips; typing suggests the names credited in the current catalog.
-function authorForm(list) {
-  const names = [];
-  const takenDown = (list.authors || []).flatMap((a) => a.names || []).map((n) => n.toLowerCase());
-  let known = [];
-  api('takedowns/authors').then((body) => {
-    if (body && Array.isArray(body.authors)) known = body.authors;
-  }).catch(() => {});
-
-  const chips = el('div', { class: 'takedown-chips' });
-  const input = el('input', {
-    type: 'text', class: 'takedown-names', autocomplete: 'off',
-    placeholder: 'Type an author name',
-    role: 'combobox', 'aria-label': 'Author names', 'aria-autocomplete': 'list',
-    'aria-controls': 'takedown-suggestions', 'aria-expanded': 'false',
-  });
-  const box = el('div', { class: 'takedown-name-box' }, [chips, input]);
-  const suggestions = el('ul', { class: 'takedown-suggestions', id: 'takedown-suggestions', role: 'listbox', hidden: '' });
-  const preview = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Preview', disabled: '' });
-  let shown = [];
-  let active = -1;
-
-  const drawChips = () => {
-    clear(chips);
-    for (const name of names) {
-      chips.append(el('span', { class: 'takedown-chip' }, [
-        name,
-        el('button', {
-          type: 'button', class: 'takedown-chip-remove', 'aria-label': `Remove ${name}`, text: '×',
-          onclick: () => { names.splice(names.indexOf(name), 1); drawChips(); input.focus(); },
-        }),
-      ]));
-    }
-    if (names.length) preview.removeAttribute('disabled');
-    else preview.setAttribute('disabled', '');
-    input.placeholder = names.length ? 'Add another name' : 'Type an author name';
-  };
-
-  const add = (name) => {
-    const clean = name.trim();
-    if (clean && !names.some((n) => n.toLowerCase() === clean.toLowerCase())) names.push(clean);
-    input.value = '';
-    hide();
-    drawChips();
-    input.focus();
-  };
-
-  const hide = () => {
-    suggestions.hidden = true;
-    input.setAttribute('aria-expanded', 'false');
-    shown = [];
-    active = -1;
-  };
-
-  const highlight = (i) => {
-    active = i;
-    [...suggestions.children].forEach((li, n) => li.classList.toggle('active', n === i));
-    if (i >= 0) input.setAttribute('aria-activedescendant', `takedown-suggestion-${i}`);
-    else input.removeAttribute('aria-activedescendant');
-  };
-
-  const suggest = () => {
-    const q = input.value.trim().toLowerCase();
-    if (!q) return hide();
-    const picked = new Set(names.map((n) => n.toLowerCase()));
-    const starts = [];
-    const inside = [];
-    for (const author of known) {
-      const spellings = [author.name, ...(author.others || [])].map((n) => n.toLowerCase());
-      if (spellings.some((n) => picked.has(n))) continue;
-      if (spellings.some((n) => n.startsWith(q))) starts.push(author);
-      else if (spellings.some((n) => n.includes(q))) inside.push(author);
-    }
-    shown = [...starts, ...inside].slice(0, SUGGESTION_COUNT);
-    clear(suggestions);
-    if (!shown.length) return hide();
-    shown.forEach((author, i) => {
-      const others = author.others || [];
-      const already = [author.name, ...others].some((n) => takenDown.includes(n.toLowerCase()));
-      const li = el('li', {
-        id: `takedown-suggestion-${i}`, role: 'option', class: 'takedown-suggestion',
-      }, [
-        el('span', { class: 'takedown-suggestion-name' }, [
-          author.name,
-          // A takedown matches these spellings too, so they are not separate choices.
-          others.length
-            ? el('span', { class: 'takedown-suggestion-others', text: `also ${others.join(', ')}` })
-            : null,
-        ]),
-        el('span', {
-          class: 'takedown-suggestion-count',
-          text: already ? 'already taken down' : `${author.mods} mod${author.mods === 1 ? '' : 's'}`,
-        }),
-      ]);
-      // Before the input loses focus, so the pick is not lost to the blur.
-      li.addEventListener('mousedown', (e) => { e.preventDefault(); add(author.name); });
-      suggestions.append(li);
-    });
-    suggestions.hidden = false;
-    input.setAttribute('aria-expanded', 'true');
-    highlight(0);
-  };
-
-  input.addEventListener('input', () => {
-    // A comma ends a name, for anyone pasting a list.
-    if (input.value.includes(',')) {
-      const parts = input.value.split(',');
-      const rest = parts.pop();
-      for (const part of parts) if (part.trim()) add(part);
-      input.value = rest;
-    }
-    suggest();
-  });
+  input.addEventListener('blur', hide);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown' && shown.length) {
       e.preventDefault();
@@ -548,128 +518,266 @@ function authorForm(list) {
     } else if (e.key === 'Enter') {
       if (active >= 0 && shown[active]) {
         e.preventDefault();
-        add(shown[active].name);
-      } else if (input.value.trim()) {
+        choose(shown[active]);
+      } else if (onEnter) {
+        onEnter(e);
+      } else {
         e.preventDefault();
-        add(input.value);
       }
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Escape' && !list.hidden) {
+      e.preventDefault();
       hide();
-    } else if (e.key === 'Backspace' && !input.value && names.length) {
+    }
+  });
+
+  return { input, suggest, hide, root: el('div', { class: 'td-combo' }, [input, list]), note };
+}
+
+/// The form for taking down one mod or Collection page. Typing finds mods by
+/// name, id or author; a pasted thread link lists that thread's mods.
+function modForm(state) {
+  const takenDown = () => new Set((state.list.mods || []).map((m) => m.id));
+  const pendingNow = (mod) => isPending({ kind: 'takeDownMod', modId: mod.id });
+
+  const box = comboBox({
+    id: 'td-mod-suggestions',
+    label: 'Mod to take down',
+    placeholder: 'Mod name, id, author, or a thread link',
+    find(text) {
+      const known = state.catalog || [];
+      const q = text.toLowerCase();
+      const post = postKeyOf(text);
+      let items;
+      if (post) {
+        items = known.filter((m) => (m.posts || []).includes(post));
+      } else {
+        const ranked = [];
+        for (const mod of known) {
+          const name = mod.name.toLowerCase();
+          const id = mod.id.toLowerCase();
+          let rank = -1;
+          if (name.startsWith(q) || id.startsWith(q)) rank = 0;
+          else if (name.includes(q) || id.includes(q)) rank = 1;
+          else if ((mod.authors || []).some((a) => a.toLowerCase().includes(q))) rank = 2;
+          if (rank >= 0) ranked.push([rank, mod]);
+        }
+        ranked.sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name));
+        items = ranked.map(([, mod]) => mod);
+      }
+      const empty = !state.catalog
+        ? 'The catalog could not be read. Build the catalog first.'
+        : post ? `No mod in the catalog comes from ${post}.` : 'No mod or Collection page in the catalog matches.';
+      return { items, empty };
+    },
+    usable: (mod) => !takenDown().has(mod.id) && !pendingNow(mod),
+    row(mod) {
+      const authors = mod.authors || [];
+      return [
+        el('span', { class: 'td-suggestion-name' }, [
+          mod.name,
+          el('span', { class: 'td-suggestion-others', text: mod.id }),
+        ]),
+        el('span', {
+          class: 'td-suggestion-count',
+          text: takenDown().has(mod.id)
+            ? 'already taken down'
+            : pendingNow(mod)
+              ? 'take-down pending'
+              : mod.collection
+                ? 'Collection page'
+                : authors.slice(0, 2).join(', ') + (authors.length > 2 ? ` +${authors.length - 2}` : ''),
+        }),
+      ];
+    },
+    pick(mod) {
+      box.input.value = '';
+      previewAndAdd({ modId: mod.id });
+    },
+  });
+
+  return el('div', { class: 'td-form' }, [
+    el('p', {
+      class: 'td-hint',
+      text: 'Excludes one mod, and blocks only the posts it comes from. Other mods on a shared post stay published. '
+        + 'A Collection page can be taken down too; the mods it lists stay published.',
+    }),
+    box.root,
+    box.note,
+    el('p', {
+      class: 'td-hint',
+      text: 'Pick a mod to see exactly what would be removed. Nothing changes until you confirm.',
+    }),
+  ]);
+}
+
+/// The form for taking down every mod credited to one person. Names are added
+/// as chips; typing suggests the names credited in the current catalog.
+function authorForm(state) {
+  const names = [];
+  const takenDown = () => new Set((state.list.authors || []).flatMap((a) => a.names || []).map((n) => n.toLowerCase()));
+  let known = [];
+  api('takedowns/authors').then((body) => {
+    if (body && Array.isArray(body.authors)) known = body.authors;
+  }).catch(() => {});
+
+  const chips = el('div', { class: 'td-chips' });
+  const preview = el('button', { type: 'submit', class: 'button primary', text: 'Preview', disabled: true });
+
+  const add = (name) => {
+    const clean = name.trim();
+    if (clean && !names.some((n) => n.toLowerCase() === clean.toLowerCase())) names.push(clean);
+    box.input.value = '';
+    box.hide();
+    drawChips();
+    box.input.focus();
+  };
+
+  const box = comboBox({
+    id: 'td-author-suggestions',
+    label: 'Author names',
+    placeholder: 'Type an author name',
+    find(text) {
+      const q = text.toLowerCase();
+      const picked = new Set(names.map((n) => n.toLowerCase()));
+      const starts = [];
+      const inside = [];
+      for (const author of known) {
+        const spellings = [author.name, ...(author.others || [])].map((n) => n.toLowerCase());
+        if (spellings.some((n) => picked.has(n))) continue;
+        if (spellings.some((n) => n.startsWith(q))) starts.push(author);
+        else if (spellings.some((n) => n.includes(q))) inside.push(author);
+      }
+      return { items: [...starts, ...inside] };
+    },
+    usable: () => true,
+    row(author) {
+      const others = author.others || [];
+      const gone = takenDown();
+      const already = [author.name, ...others].some((n) => gone.has(n.toLowerCase()));
+      return [
+        el('span', { class: 'td-suggestion-name' }, [
+          author.name,
+          // A takedown matches these spellings too, so they are not separate choices.
+          others.length ? el('span', { class: 'td-suggestion-others', text: `also ${others.join(', ')}` }) : null,
+        ]),
+        el('span', {
+          class: 'td-suggestion-count',
+          text: already ? 'already taken down' : `${author.mods} mod${author.mods === 1 ? '' : 's'}`,
+        }),
+      ];
+    },
+    pick: (author) => add(author.name),
+    // Enter with no suggestion chosen adds the typed name; with an empty box
+    // it submits the form.
+    onEnter(e) {
+      if (box.input.value.trim()) {
+        e.preventDefault();
+        add(box.input.value);
+      }
+    },
+  });
+
+  const drawChips = () => {
+    clear(chips);
+    for (const name of names) {
+      chips.append(el('span', { class: 'td-chip' }, [
+        el('span', { text: name }),
+        el('button', {
+          type: 'button', class: 'td-chip-remove', 'aria-label': `Remove ${name}`, text: '×',
+          onclick: () => { names.splice(names.indexOf(name), 1); drawChips(); box.input.focus(); },
+        }),
+      ]));
+    }
+    chips.hidden = names.length === 0;
+    preview.disabled = names.length === 0;
+    box.input.placeholder = names.length ? 'Add another name' : 'Type an author name';
+  };
+
+  box.input.addEventListener('input', () => {
+    // A comma ends a name, for anyone pasting a list.
+    if (box.input.value.includes(',')) {
+      const parts = box.input.value.split(',');
+      const rest = parts.pop();
+      for (const part of parts) if (part.trim()) add(part);
+      box.input.value = rest;
+      box.suggest();
+    }
+  });
+  box.input.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !box.input.value && names.length) {
       names.pop();
       drawChips();
     }
   });
-  input.addEventListener('blur', () => hide());
-  box.addEventListener('click', () => input.focus());
+  drawChips();
 
-  const form = el('form', { class: 'takedown-tab-body' }, [
+  const form = el('form', { class: 'td-form' }, [
     el('p', {
-      class: 'dim',
+      class: 'td-hint',
       text: 'Excludes every mod that credits this person, including mods added later and mods made with others. '
         + 'Names are matched using the same rules as author names in the merge.',
     }),
-    el('div', { class: 'takedown-form-row' }, [
-      el('div', { class: 'takedown-combo' }, [box, suggestions]),
-      preview,
-    ]),
-    el('p', { class: 'takedown-form-hint', text: 'Press Enter to add a name. Add every name the person goes by.' }),
+    chips,
+    el('div', { class: 'td-form-row' }, [box.root, preview]),
+    box.note,
+    el('p', { class: 'td-hint', text: 'Press Enter to add a name. Add every name the person goes by.' }),
   ]);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (input.value.trim()) add(input.value);
+    if (box.input.value.trim()) add(box.input.value);
     if (!names.length) return;
-    await previewAndConfirm({ authors: [...names] });
+    const added = await previewAndAdd({ authors: [...names] });
+    if (added) {
+      names.length = 0;
+      drawChips();
+    }
   });
   return form;
 }
 
+// --- Preview, then add a pending change ---
 
-/// The "Take down" button on the Mod Catalog's page for one mod.
-export function takeDownModButton(modId) {
-  return el('button', {
-    class: 'btn btn-danger',
-    text: 'Take down',
-    title: 'Leave this mod out of everything we publish, at its owner\'s request.',
-    onclick: () => previewAndConfirm({ modId }),
-  });
-}
+/// Shows what a takedown would leave out, then adds it to the pending changes
+/// if confirmed. Resolves true when it was added. The source post page uses
+/// it too.
+export async function previewAndAdd({ modId = null, authors = [] }) {
+  const correction = modId
+    ? { kind: 'takeDownMod', modId }
+    : { kind: 'takeDownAuthor', names: authors };
+  if (isPending(correction)) {
+    await noticeDialog('Already pending', 'This takedown is already in the pending changes.');
+    return false;
+  }
 
-/// The "Take down" button on a thread's page. It lists the catalog's mods from
-/// the thread first when there are several, and is not drawn when there are
-/// none.
-export async function takeDownThreadButton(postKey) {
-  const body = await api('takedowns/preview', { post: postKey });
-  if (body instanceof MissingFile || !body || body.error) return null;
-  const mods = body.mods || [];
-  if (!mods.length) return null;
-  return el('button', {
-    class: 'btn btn-danger',
-    text: 'Take down',
-    title: 'Leave a mod from this thread out of everything we publish, at its owner\'s request.',
-    onclick: async () => {
-      const modId = mods.length === 1 ? mods[0].id : await pickMod(mods);
-      if (modId) await previewAndConfirm({ modId });
-    },
-  });
-}
-
-/// Asks which of a thread's mods to take down. Resolves the id, or null.
-function pickMod(mods) {
-  return new Promise((resolve) => {
-    const box = el('dialog', { class: 'ask-dialog takedown-dialog' });
-    let picked = null;
-    const list = el('div', { class: 'td-pick' });
-    for (const mod of mods) {
-      list.append(el('button', {
-        type: 'button', class: 'td-pick-row',
-        onclick: () => { picked = mod.id; box.close(); },
-      }, [
-        el('span', { class: 'td-row-text' }, [
-          el('span', { class: 'td-row-name', text: mod.name }),
-          el('code', { class: 'td-row-id', text: mod.id }),
-        ]),
-        el('span', { class: 'td-pick-arrow', 'aria-hidden': 'true', text: '›' }),
-      ]));
-    }
-    const cancel = el('button', { type: 'button', class: 'btn', text: 'Cancel', onclick: () => box.close() });
-    box.append(
-      dialogHeader('Take down a mod', 'Which mod?', () => box.close()),
-      el('p', { class: 'td-lead', text: `The catalog lists ${mods.length} mods from this thread. Choose the one to take down.` }),
-      list,
-      el('div', { class: 'dialog-buttons' }, [cancel]),
-    );
-    box.addEventListener('close', () => { box.remove(); resolve(picked); });
-    document.body.append(box);
-    box.showModal();
-    cancel.focus();
-  });
-}
-
-/// Shows what a takedown would leave out, then sends the job if confirmed.
-async function previewAndConfirm({ modId = null, authors = [] }) {
   const params = new URLSearchParams();
   if (modId) params.set('mod', modId);
   for (const name of authors) params.append('author', name);
   let preview;
   try {
-    const res = await fetch(`/api/takedowns/preview?${params}`);
-    preview = await res.json();
+    const res = await fetch(`/api/takedowns/preview?${params}`, { headers: { accept: 'application/json' } });
+    preview = await res.json().catch(() => null);
+    if (!preview) throw new Error(`Server returned ${res.status} ${res.statusText}.`);
   } catch (err) {
-    return noticeDialog('Could not preview the takedown', err.message);
+    await noticeDialog('Could not preview the takedown', err.message);
+    return false;
   }
-  if (preview.error) return noticeDialog('Could not preview the takedown', preview.error);
+  if (preview.error) {
+    await noticeDialog('Could not preview the takedown', preview.error);
+    return false;
+  }
 
   const isMod = preview.kind === 'mod';
   if (isMod && preview.alreadyTakenDown) {
-    return noticeDialog('Already taken down', `"${preview.id}" is already on the takedown list.`);
+    await noticeDialog('Already taken down', `"${preview.id}" is already on the takedown list.`);
+    return false;
   }
   if (!isMod && (preview.alreadyTakenDown || []).length) {
-    return noticeDialog('Already taken down', `${preview.alreadyTakenDown.join(', ')} is already on the takedown list.`);
+    await noticeDialog('Already taken down', `${preview.alreadyTakenDown.join(', ')} is already on the takedown list.`);
+    return false;
   }
 
   const modCount = isMod ? (preview.isCollection ? 0 : 1) : (preview.mods || []).length;
-  const answer = await takedownDialog({
+  const yes = await confirmDialog({
     eyebrow: isMod ? (preview.isCollection ? 'Take down a Collection page' : 'Take down a mod') : 'Take down an author\'s mods',
     title: isMod ? preview.name : preview.names.join(', '),
     body: isMod ? modPreview(preview) : authorPreview(preview),
@@ -679,10 +787,13 @@ async function previewAndConfirm({ modId = null, authors = [] }) {
     danger: true,
     publicNote: true,
   });
-  if (!answer) return;
-  await send(isMod
-    ? { kind: 'takeDown', takedownModId: preview.id, publishAfter: answer.publishAfter, collectMergeDebug: true }
-    : { kind: 'takeDown', takedownAuthors: preview.names, publishAfter: answer.publishAfter, collectMergeDebug: true });
+  if (!yes) return false;
+  addPending({
+    kind: correction.kind,
+    label: takeDownLabel(preview),
+    correction: isMod ? { kind: 'takeDownMod', modId: preview.id } : { kind: 'takeDownAuthor', names: preview.names },
+  });
+  return true;
 }
 
 function modPreview(preview) {
@@ -690,7 +801,7 @@ function modPreview(preview) {
     return [
       summary('1 page', 'The Collection page is removed. The mods it lists stay published.'),
       el('p', {
-        class: 'td-note',
+        class: 'td-dialog-note',
         text: 'To remove those mods too, take each one down, or take down all mods credited to their author.',
       }),
       appliesTo({ modRepo: 'skip' }),
@@ -700,21 +811,14 @@ function modPreview(preview) {
   const posts = preview.posts || [];
   const parts = [
     summary('1 mod', 'Hidden from the catalog, the mod details and Starmodder.', preview.id),
-    section(`Blocked posts (${posts.length})`, el('div', { class: 'td-rows' }, posts.map((post) => el('div', { class: 'td-row' }, [
-      el('span', { class: 'td-row-text' }, [
-        el('code', { class: 'td-row-name', text: post.key }),
-        el('span', {
-          class: 'td-row-sub',
-          text: post.whole
-            ? 'No other mod comes from this post.'
-            : 'Other mods come from this post. They stay published.',
-        }),
-      ]),
+    section(`Blocked posts (${posts.length})`, el('div', { class: 'td-rows' }, posts.map((post) => dialogRow(
+      el('code', { text: post.key }),
       el('span', {
-        class: `td-pill ${post.whole ? '' : 'td-pill-info'}`,
+        class: `td-pill${post.whole ? '' : ' info'}`,
         text: post.whole ? 'Whole post' : 'This listing only',
       }),
-    ])))),
+      post.whole ? 'No other mod comes from this post.' : 'Other mods come from this post. They stay published.',
+    )))),
   ];
   const also = alsoAffected(preview.collections, (c) => `${c.name}: loses this mod, ${c.modsLeft} left`, preview.oldIds);
   if (also) parts.push(also);
@@ -722,7 +826,7 @@ function modPreview(preview) {
   parts.push(appliesTo({ modRepo: partial ? 'partial' : 'yes' }));
   if (partial) {
     parts.push(el('p', {
-      class: 'td-note td-note-warning',
+      class: 'td-dialog-note warn-text',
       text: `ModRepo.json cannot leave out one mod of several on a shared post (${preview.notInModRepo.join(', ')}). `
         + 'TriOS may keep listing this mod until the switch to mod-catalog.json.',
     }));
@@ -743,25 +847,22 @@ function authorPreview(preview) {
       'Hidden from the catalog, the mod details and Starmodder, plus any mod that credits this person later.',
     ));
     const loose = mods.filter((mod) => !typed.has(String(mod.credit).toLowerCase())).length;
-    parts.push(section(`Mods (${mods.length})`, el('div', { class: 'td-rows td-rows-scroll' }, mods.map((mod) => {
+    parts.push(section(`Mods (${mods.length})`, el('div', { class: 'td-rows scroll' }, mods.map((mod) => {
       const exact = typed.has(String(mod.credit).toLowerCase());
-      return el('div', { class: 'td-row' }, [
-        el('span', { class: 'td-row-text' }, [
-          el('span', { class: 'td-row-name', text: mod.name }),
-          el('code', { class: 'td-row-id', text: mod.id }),
-        ]),
+      return dialogRow(
+        mod.name,
         el('span', {
-          class: `td-pill ${exact ? '' : 'td-pill-check'}`,
-          title: exact
-            ? 'Credited under a name you entered.'
-            : 'Credited under another spelling. Check this is the same person.',
+          class: `td-pill${exact ? '' : ' check'}`,
+          title: exact ? 'Credited under a name you entered.' : 'Credited under another spelling. Check this is the same person.',
           text: mod.credit,
         }),
-      ]);
+        null,
+        mod.id,
+      );
     }))));
     if (loose) {
       parts.push(el('p', {
-        class: 'td-note td-note-warning',
+        class: 'td-dialog-note warn-text',
         text: `${loose} matched under another spelling (marked). Names that differ only in capitals, punctuation `
           + 'or digits on the end count as the same person. Check each one.',
       }));
@@ -773,34 +874,46 @@ function authorPreview(preview) {
   return parts;
 }
 
+// --- Dialog parts ---
+
+/// One row in a dialog list: a name (text or node), something on the right,
+/// and an optional line under the name or id beside it.
+function dialogRow(name, right, sub = null, id = null) {
+  return el('div', { class: 'td-row' }, [
+    el('span', { class: 'td-row-text' }, [
+      typeof name === 'string' ? el('span', { class: 'td-row-name', text: name }) : name,
+      id ? el('code', { class: 'td-id', text: id }) : null,
+      sub ? el('span', { class: 'td-row-sub', text: sub }) : null,
+    ]),
+    right,
+  ]);
+}
+
 /// The count in large type, with one line saying what happens to it.
 function summary(count, text, id = null) {
   return el('div', { class: 'td-summary' }, [
     el('span', { class: 'td-summary-count', text: count }),
-    el('span', { class: 'td-summary-text' }, [
-      text,
-      id ? el('code', { class: 'td-row-id', text: id }) : null,
-    ]),
+    el('span', { class: 'td-summary-text' }, [text, id ? el('code', { class: 'td-id', text: id }) : null]),
   ]);
 }
 
 function section(label, content) {
-  return el('div', { class: 'td-section' }, [el('div', { class: 'td-label', text: label }), content]);
+  return el('div', { class: 'td-dialog-section' }, [el('div', { class: 'td-label', text: label }), content]);
 }
 
-/// Collections and old addresses the takedown also touches, or null.
+/// Collections and old addresses also affected by the takedown, or null.
 function alsoAffected(collections = [], describe, oldIds = []) {
   const rows = [
     ...collections.map((c) => el('li', { text: describe(c) })),
     ...oldIds.map((id) => el('li', {}, ['Old address ', el('code', { text: id }), ' stops working'])),
   ];
   if (!rows.length) return null;
-  return section('Also affected', el('ul', { class: 'td-also' }, rows));
+  return section('Also affected', el('ul', { class: 'td-list' }, rows));
 }
 
-/// Which outputs the takedown reaches. `modRepo` is 'yes', 'partial' or 'skip'.
+/// Which outputs the takedown affects. `modRepo` is 'yes', 'partial' or 'skip'.
 function appliesTo({ modRepo }) {
-  const item = (label, state, note) => el('li', { class: `td-applies-${state}`, title: note || '' }, [
+  const item = (label, state, note) => el('li', { class: `td-applies-${state}`, title: note || null }, [
     el('span', { class: 'td-applies-mark', 'aria-hidden': 'true', text: state === 'yes' ? '✓' : state === 'partial' ? '!' : '–' }),
     label,
   ]);
@@ -814,66 +927,30 @@ function appliesTo({ modRepo }) {
   ]));
 }
 
-function dialogHeader(eyebrow, title, onClose) {
-  return el('div', { class: 'td-header' }, [
-    el('div', {}, [
-      el('div', { class: 'td-eyebrow', text: eyebrow }),
-      el('h3', { text: title }),
-    ]),
-    el('button', { type: 'button', class: 'td-close', 'aria-label': 'Close', text: '×', onclick: onClose }),
-  ]);
-}
-
-/// A confirm box with a "Publish when done" choice. Resolves
-/// `{ publishAfter }` on confirm, or null. Cancel has the focus, so Enter
-/// never takes anything down by accident.
-function takedownDialog({ eyebrow, title, body, confirmLabel, danger = false, publicNote = false }) {
+/// A confirm dialog for a takedown or a restore. Resolves true on confirm.
+/// For a takedown, Cancel has the focus, so Enter never takes anything down
+/// by accident.
+function confirmDialog({ eyebrow, title, body, confirmLabel, danger = false, publicNote = false }) {
   return new Promise((resolve) => {
-    const box = el('dialog', { class: 'ask-dialog takedown-dialog' });
-    const publish = el('input', { type: 'checkbox', id: 'takedown-publish' });
-    const yes = el('button', { type: 'button', class: danger ? 'btn btn-danger btn-danger-solid' : 'btn btn-primary', text: confirmLabel });
-    const no = el('button', { type: 'button', class: 'btn', text: 'Cancel' });
-    let confirmed = false;
-    yes.addEventListener('click', () => { confirmed = true; box.close(); });
-    no.addEventListener('click', () => box.close());
-
-    box.append(
-      dialogHeader(eyebrow, title, () => box.close()),
-      el('div', { class: 'td-body' }, body),
-      el('div', { class: 'td-footer' }, [
-        el('label', { class: 'td-publish', for: 'takedown-publish' }, [
-          publish,
-          el('span', {}, [
-            el('strong', { text: 'Publish when done' }),
-            el('span', {
-              class: 'td-publish-note',
-              text: 'Sends the catalog, the mod details and the website. ModRepo.json goes out with the next scheduled '
-                + 'publish, which runs twice a day.',
-            }),
-          ]),
-      ]),
+    const yes = el('button', { type: 'button', class: danger ? 'button danger' : 'button primary', text: confirmLabel });
+    const no = el('button', { type: 'button', class: 'button', text: 'Cancel' });
+    const box = el('dialog', { class: 'dialog td-dialog' }, [
+      el('div', { class: 'td-eyebrow', text: eyebrow }),
+      el('h2', { text: title }),
+      el('div', { class: 'td-dialog-body' }, body),
       publicNote ? el('p', {
-        class: 'td-footnote',
+        class: 'td-dialog-note dim',
         text: 'This entry will appear in the public takedown list, which is published with the outputs. It has no reason in it.',
       }) : null,
+      el('p', {
+        class: 'td-dialog-note td-pending-note',
+        text: 'This is added to the pending changes. Nothing is written until you save them.',
+      }),
       el('div', { class: 'dialog-buttons' }, [no, yes]),
-      ]),
-    );
-    box.addEventListener('close', () => {
-      box.remove();
-      resolve(confirmed ? { publishAfter: publish.checked } : null);
-    });
-    document.body.append(box);
-    box.showModal();
-    no.focus();
+    ]);
+    const shut = showDialog(box, (value) => resolve(value === true));
+    yes.addEventListener('click', () => shut(true));
+    no.addEventListener('click', () => shut(false));
+    (danger ? no : yes).focus();
   });
-}
-
-async function send(request) {
-  try {
-    const record = await manager.submitJob(request);
-    if (record) go(`#/runs/${encodeURIComponent(record.id)}`);
-  } catch (err) {
-    noticeDialog('Could not start the job', err.message);
-  }
 }

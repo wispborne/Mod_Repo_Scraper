@@ -84,8 +84,16 @@ jobs:
       # config.example.properties rides along because the viewer's Settings page
       # reads the note for each setting out of it, from the folder the config
       # file is in.
+      #
+      # web2/ contains only a note. The viewer used to have two page folders.
+      # The update script on the host may still list both folders.
+      # It stops the update if a listed folder is missing.
+      # Drop this once the host's script no longer lists web2.
       - name: Pack the server with the pages it serves
-        run: tar czf mod_repo_scraper_server.tar.gz mod_repo_scraper_server web web2 site config.example.properties
+        run: |
+          mkdir -p web2
+          echo "Not used. The viewer's pages are in web/." > web2/README.txt
+          tar czf mod_repo_scraper_server.tar.gz mod_repo_scraper_server web web2 site config.example.properties
 
       # Made through Gitea's own API with plain curl. The GitHub release action
       # only talks to GitHub's API, which Gitea's does not match.

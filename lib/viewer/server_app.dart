@@ -31,25 +31,22 @@ Handler buildServerHandler({
   };
 }
 
-/// Serves one viewer at `/` and the other under `/<otherPrefix>/`.
-///
-/// Both viewers use relative addresses for their files. Redirect
-/// `/<otherPrefix>` to `/<otherPrefix>/` so the browser loads `style.css`
-/// from the viewer folder. Without the slash, it would load from the root.
-Handler twoViewers({
-  required Handler root,
-  required String otherPrefix,
-  required Handler other,
-}) {
+/// The folders the old and new viewers were served from while both existed.
+const formerViewerPrefixes = ['v1', 'v2'];
+
+/// Serves [viewer] at `/`. Redirects `/v1/...` and `/v2/...` to the same
+/// address without the prefix. Bookmarks from when both viewers were served
+/// still work because the browser keeps the `#/...` part through a redirect.
+Handler withFormerViewerAddresses(Handler viewer) {
   return (Request request) {
     final path = request.url.path;
-    if (path == otherPrefix) {
-      final query = request.url.hasQuery ? '?${request.url.query}' : '';
-      return Response.found('/$otherPrefix/$query');
+    for (final prefix in formerViewerPrefixes) {
+      if (path == prefix || path.startsWith('$prefix/')) {
+        final rest = path == prefix ? '' : path.substring(prefix.length + 1);
+        final query = request.url.hasQuery ? '?${request.url.query}' : '';
+        return Response.found('/$rest$query');
+      }
     }
-    if (path.startsWith('$otherPrefix/')) {
-      return other(request.change(path: otherPrefix));
-    }
-    return root(request);
+    return viewer(request);
   };
 }

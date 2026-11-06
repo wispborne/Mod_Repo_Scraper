@@ -246,18 +246,26 @@ Then open http://127.0.0.1:8085/ . Flags (all optional, defaults shown):
 The pages themselves only read. The one thing that writes is the manager, and
 only when you ask it to run a job.
 
-The page has these views:
+The viewer has these pages, in three groups down the left:
 
-| View | What it shows |
+| Page | What it shows |
 |------|---------------|
-| Topics | Every forum topic, searchable and filterable (no download, low-confidence only, LLM found downloads the rules missed, more than one mod, placeholder, missing game version, WIP). Open one to see the rendered post beside the rule-based downloads and the LLM's per-mod results. When the manager is on, each row has a tick box for picking mods to act on. |
-| Runs | What is running now, what is waiting, and every past run. Start a job, stop the running one, and open a run to read its record and its log. |
-| LLM Test | The LLM test-mode report (`llm-test-output.json`), if you ran a test pass. |
-| Merge | The merge run: summary, phase timings, match groups with reasons, and the pre-dedup / same-source / validation removals. Needs `merge-debug.json` (see below). |
-| ModRepo | The merged `ModRepo.json`, with each mod's contributing sources. |
-| Bundle | The `forum-data-bundle.json` that TriOS receives, plus a labeled card that approximates how TriOS shows a mod. |
-| Files | The known output files, with a raw viewer (JSON pretty-printed; large files loaded in chunks). |
-| Log | `ModRepo.log`, with a text filter and jump-to-end. |
+| Control | The job buttons, the running job or the last finished one with its log, what needs attention, the queue and recent runs. |
+| Run history | Every past run. Open one to read its record, its log and what it changed. |
+| Settings | The settings in `config.properties`, which you can change here. Tokens are never shown. |
+| Takedowns | Mods and authors taken off everything we publish, and what each entry left out. |
+| Author aliases | The names each person goes by, and pairs that might be one person. |
+| Dependency names | How each spelling of a required mod's name was matched to a mod. |
+| Mods | Every mod in the catalog. Open one to see what Starmodder shows, where each fact came from and its history. |
+| Source posts | Every forum topic and Discord thread, searchable and filterable. Open one to see the post, the downloads and what the LLM found. |
+| What changed | What changed in the mods or in their facts between two runs. |
+| Catalog explorer | Why a saved merge combined each group of posts into one mod. |
+| LLM test report | The LLM test-mode report (`llm-test-output.json`), if you ran a test pass. |
+| Files | The output files and caches, each as raw text. |
+
+Corrections (takedowns, author aliases, dependency names) collect in a Pending
+changes list. They are saved together with one rebuild. The search box at the
+top finds mods, posts and runs.
 
 ### Merge debug data
 

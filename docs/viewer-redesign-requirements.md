@@ -23,7 +23,7 @@ Each part of the build gets its own openspec change that refers to this file.
 
 ## Layout and look
 
-Chosen from the prototypes in `web/prototype-control/`: the "Workbench" layout (variant C)
+The chosen layout is "Workbench" (variant C), from the prototypes in `design-samples/viewer-prototypes/`. The prototypes were in `web/prototype-control/` while the previous viewer existed.
 in the "Homeworld" colours from `space-themes.html`, shown together as variant D.
 
 ### Layout
@@ -87,6 +87,8 @@ The Action colour and the Warning colour must stay clearly different. Action mea
 - The new viewer is built in a new folder, `web2/`, and served by the same server behind a
   switch (`--ui v2` or a second port), so the old and new viewers can be opened against the
   same data and compared.
+- **Done.** The new viewer moved from `web2/` to `web/`. The previous viewer
+  was deleted. The `--ui` option was removed.
 - It ships all at once. At the switch-over, `web2/` replaces `web/` and the old folder is
   deleted. The same openspec change rewrites or removes the specs that describe today's
   viewer (`viewer-server`, `viewer-output-browsing`, `viewer-merge-explorer`,

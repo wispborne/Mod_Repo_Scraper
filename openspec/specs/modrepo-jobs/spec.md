@@ -38,7 +38,7 @@ The ModRepo service SHALL be built once with its environment (where the source c
 
 #### Scenario: Merge and QB share one queue
 - **WHEN** a CLI merge is delegated to a running manager that is busy with a QB run
-- **THEN** the merge is queued behind it, shows in the queue on the Runs view, and starts when the QB run ends
+- **THEN** the merge is queued behind it, shows in the queue on the Control page, and starts when the QB run ends
 
 ### Requirement: A cancelled merge leaves the output alone
 The ModRepo service SHALL check for cancellation between sources and between merge phases. A job cancelled before the merge finished SHALL write neither `ModRepo.json` nor a snapshot, and SHALL say in its log that the existing output was left as it was. Source cache files already written SHALL be kept.
@@ -52,9 +52,9 @@ The ModRepo service SHALL check for cancellation between sources and between mer
 - **THEN** `forum_cache.json` holds the fresh Forum results and no merge output is written
 
 ### Requirement: A merge run reports its progress
-The ModRepo service SHALL report phases by name (each source, then the merge, then the save) and SHALL report how many mods have been merged out of how many, so the progress bar means something on the long step.
+The ModRepo service SHALL report phases by name (each source, then the merge, then the save) and SHALL report how many mods have been merged out of how many, so the progress bar shows progress during the long merge step.
 
 #### Scenario: Watching a merge from the browser
-- **WHEN** a merge job is running and the user is on the Runs view
+- **WHEN** a merge job is running and the user is on the Control page
 - **THEN** the phase name and the merged-so-far count update about once a second without reloading the page
 
