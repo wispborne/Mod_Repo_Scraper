@@ -98,7 +98,7 @@ test('the from choice is kept in the address', () => {
   assert.equal(describeFilters(readFilters('game=any&from=index', CURRENT)),
     'Forum: mod index');
   assert.equal(describeFilters(readFilters('game=any&from=discord', CURRENT)),
-    'From Discord');
+    'Posted on Discord');
 });
 
 test('an unreadable saved list is empty', () => {

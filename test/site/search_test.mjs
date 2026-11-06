@@ -993,10 +993,13 @@ describe('asking about one field', () => {
       (mod) => (mod.sources || []).includes('forum') && !(mod.sources || []).includes('discord')));
   });
 
-  test('from is the same as source', () => {
+  test('posted-on, from and source are the same', () => {
     for (const where of ['forum', 'discord', 'nexus']) {
+      assert.deepEqual(ids(`posted-on:${where}`), ids(`source:${where}`), where);
       assert.deepEqual(ids(`from:${where}`), ids(`source:${where}`), where);
     }
+    exactly('-posted-on:discord',
+      idsWhere((mod) => !(mod.sources || []).includes('discord')));
   });
 
   test('has and is ask yes-or-no questions', () => {
@@ -1272,7 +1275,8 @@ describe('suggested search terms', () => {
   };
 
   test('typing the start of a term name suggests that term', () => {
-    assert.deepEqual(offered('fr'), ['from:']);
+    assert.deepEqual(offered('po'), ['posted-on:']);
+    assert.deepEqual(offered('posted-'), ['posted-on:']);
     assert.deepEqual(offered('a'), ['author:']);
     assert.deepEqual(offered('HA'), ['has:']);
   });
@@ -1286,23 +1290,24 @@ describe('suggested search terms', () => {
 
   test('a lone minus offers every term, with the minus', () => {
     const all = offered('-');
-    assert.ok(all.includes('-from:'));
+    assert.ok(all.includes('-posted-on:'));
     assert.ok(all.every((insert) => insert.startsWith('-')));
-    assert.deepEqual(offered('-f'), ['-from:']);
+    assert.deepEqual(offered('-p'), ['-posted-on:']);
   });
 
-  test('from: offers the forum and Discord, and never Nexus', () => {
-    assert.deepEqual(offered('from:'), ['from:forum', 'from:discord']);
-    assert.deepEqual(offered('-from:d'), ['-from:discord']);
+  test('posted-on: offers the forum and Discord, and never Nexus', () => {
+    assert.deepEqual(offered('posted-on:'), ['posted-on:forum', 'posted-on:discord']);
+    assert.deepEqual(offered('-posted-on:d'), ['-posted-on:discord']);
   });
 
   test('a value already typed in full is not offered again', () => {
-    assert.deepEqual(offered('from:forum'), []);
+    assert.deepEqual(offered('posted-on:forum'), []);
     assert.deepEqual(offered('has:ai'), []);
   });
 
   test('an older spelling of a term is kept as typed', () => {
     assert.deepEqual(offered('source:d'), ['source:discord']);
+    assert.deepEqual(offered('from:d'), ['from:discord']);
     assert.deepEqual(offered('categories:lib'), ['categories:Libraries']);
   });
 
@@ -1343,30 +1348,30 @@ describe('suggested search terms', () => {
   });
 
   test('suggestions apply to the term under the cursor', () => {
-    const text = 'pirate fr factions';
-    assert.deepEqual(offered(text, 9), ['from:']);
+    const text = 'pirate po factions';
+    assert.deepEqual(offered(text, 9), ['posted-on:']);
     const found = searchCompletions(fixture, text, 9);
     const picked = applyCompletion(text, found, found.items[0]);
-    assert.deepEqual(picked, { text: 'pirate from: factions', cursor: 12 });
+    assert.deepEqual(picked, { text: 'pirate posted-on: factions', cursor: 17 });
   });
 
   test('picking a value replaces the whole term and adds a space after it', () => {
-    const found = searchCompletions(fixture, 'pirate -from:fo');
-    assert.deepEqual(applyCompletion('pirate -from:fo', found, found.items[0]),
-      { text: 'pirate -from:forum ', cursor: 19 });
+    const found = searchCompletions(fixture, 'pirate -posted-on:fo');
+    assert.deepEqual(applyCompletion('pirate -posted-on:fo', found, found.items[0]),
+      { text: 'pirate -posted-on:forum ', cursor: 24 });
     // The replacement includes the opening quote.
     const quoted = searchCompletions(fixture, 'category:"ships an');
     assert.equal(applyCompletion('category:"ships an', quoted, quoted.items[0]).text,
       'category:"Ships and weapons" ');
     // Before a comma, no space is added.
-    const beforeComma = searchCompletions(fixture, 'from:fo,x', 7);
-    assert.equal(applyCompletion('from:fo,x', beforeComma, beforeComma.items[0]).text,
-      'from:forum,x');
+    const beforeComma = searchCompletions(fixture, 'posted-on:fo,x', 12);
+    assert.equal(applyCompletion('posted-on:fo,x', beforeComma, beforeComma.items[0]).text,
+      'posted-on:forum,x');
   });
 
   // Skip `has:` and `is:` because the fixture has none of their yes-or-no fields.
   test('every value offered finds at least one mod', () => {
-    for (const term of ['from:', 'category:', 'version:', 'author:dark']) {
+    for (const term of ['posted-on:', 'category:', 'version:', 'author:dark']) {
       for (const insert of offered(term)) {
         assert.ok(searchMods(fixture, insert).length > 0, `${insert} found nothing`);
       }

@@ -440,7 +440,7 @@ function mountHeaderSearch() {
     // answers best. Both give nothing until there is something to look for.
     const hits = suggestMods(mods, wanted, SUGGESTION_COUNT);
     const people = peopleMatching(mods, wanted, PEOPLE_SUGGESTION_COUNT);
-    // Show terms such as `from:` or its values first, to complete the word
+    // Show terms such as `posted-on:` or its values first, to complete the word
     // under the cursor.
     completions = completionsFor(box, mods);
 

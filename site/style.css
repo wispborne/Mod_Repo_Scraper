@@ -654,7 +654,7 @@ h3 { font-size: var(--type-big); line-height: 1.25; margin: 0 0 6px; }
   border-bottom: 1px solid var(--border);
 }
 .person-thumb { background: var(--primary-faint); }
-/* Search terms such as `from:` and their descriptions. Use the help panel's
+/* Search terms such as `posted-on:` and their descriptions. Use the help panel's
    example style because both show text the user can type. */
 .completion { cursor: pointer; }
 .completion-term {

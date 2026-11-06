@@ -563,7 +563,7 @@ function drawControls(places, mods, state, onChange, onSaved, onLayout) {
 
   const layoutSwitch = layoutToggle(layout, onLayout);
 
-  // Add the "?" help panel and suggestions such as `from:` to the search box.
+  // Add the "?" help panel and suggestions such as `posted-on:` to the search box.
   const searchField = searchHelpField(search);
   attachCompletionMenu(search, () => mods);
 

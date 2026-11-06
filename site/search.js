@@ -291,9 +291,9 @@ const FIELDS = {
   version: (mod) => [mod.gameVersion],
   gameversion: (mod) => [mod.gameVersion],
   modversion: (mod) => [mod.modVersion],
-  // Where the mod was found: forum or discord. `source:` was its first
-  // name and still works, but reads too much like source code.
-  from: (mod) => mod.sources || [],
+  // Where the mod was posted: forum or discord. `source:` was its first
+  // name and `from:` its second. Both still work, so old links keep working.
+  'posted-on': (mod) => mod.sources || [],
   url: (mod) => [mod.forumUrl, mod.discordUrl,
     mod.bestDownload && mod.bestDownload.url],
   summary: (mod) => [mod.summary],
@@ -301,8 +301,9 @@ const FIELDS = {
 // The plural reads as naturally as the singular, so both are accepted.
 FIELDS.authors = FIELDS.author;
 FIELDS.categories = FIELDS.category;
-FIELDS.source = FIELDS.from;
-FIELDS.sources = FIELDS.from;
+FIELDS.from = FIELDS['posted-on'];
+FIELDS.source = FIELDS['posted-on'];
+FIELDS.sources = FIELDS['posted-on'];
 
 /// The yes-or-no questions a reader can ask with `has:` or `is:`, as in
 /// `has:source` or `-is:wip`. The same questions as Browse's switches, plus
@@ -357,7 +358,7 @@ function closeOpenQuote(text) {
   return comma < 0 ? `${text}"` : `${text.slice(0, comma)}"${text.slice(comma)}`;
 }
 
-const FIELD_TERM = /^([a-z]+):(.*)$/is;
+const FIELD_TERM = /^([a-z][a-z-]*):(.*)$/is;
 
 /// One piece of a group, read as what it asks for. Gives back a list, because
 /// a plain word that clean-up turns into several ("seeker-unidentified") is
@@ -548,7 +549,7 @@ export function peopleMatching(mods, text, count) {
 // --- Suggesting search terms as they are typed ---
 
 /// Search terms in display order. Plural and older spellings (`authors`,
-/// `gameversion`, `source:`) still work but are omitted to keep the list short.
+/// `gameversion`, `from:`, `source:`) still work but are omitted to keep the list short.
 /// `values` lists what can follow the colon. For long lists, `needsTyping`
 /// waits for a letter before showing suggestions.
 const COMPLETION_FIELDS = [
@@ -561,7 +562,7 @@ const COMPLETION_FIELDS = [
   { key: 'version', note: 'Game version, e.g. 0.98', group: 'Game versions', values: versionValues },
   { key: 'modversion', note: 'Mod version' },
   {
-    key: 'from', note: 'Posted on', group: 'Posted on',
+    key: 'posted-on', note: 'Forum or Discord', group: 'Posted on',
     values: () => [
       { value: 'forum', note: 'Starsector forum' },
       { value: 'discord', note: 'Unofficial Starsector Discord' },
@@ -594,8 +595,9 @@ const COMPLETION_ALIASES = {
   authors: 'author',
   categories: 'category',
   gameversion: 'version',
-  source: 'from',
-  sources: 'from',
+  from: 'posted-on',
+  source: 'posted-on',
+  sources: 'posted-on',
 };
 
 /// How many suggestions the list shows at most.
@@ -688,8 +690,8 @@ const asTyped = (value) => (/[\s,+]/.test(value) ? `"${value}"` : value);
 /// search box suggests them.
 ///
 /// - A word with no colon is matched against the names of the search terms,
-///   so `fr` offers `from:`. A lone minus offers every term with a minus.
-/// - After the colon, the values that term knows are offered: `from:` offers
+///   so `po` offers `posted-on:`. A lone minus offers every term with a minus.
+/// - After the colon, the values that term knows are offered: `posted-on:` offers
 ///   forum and Discord, `category:` the categories in use, and so on.
 ///
 /// Returns `{ start, end, group, items }`. `start` and `end` mark the text
@@ -710,7 +712,7 @@ export function searchCompletions(mods, text, cursor) {
   if (colon < 0) {
     if (!body && !minus) return null;
     const wanted = body.toLowerCase();
-    if (!/^[a-z]*$/.test(wanted)) return null;
+    if (!/^[a-z-]*$/.test(wanted)) return null;
     const items = COMPLETION_FIELDS
       .filter((field) => field.key.startsWith(wanted))
       .map((field) => ({

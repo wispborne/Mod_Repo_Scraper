@@ -1,4 +1,4 @@
-// Shows search suggestions: `from:` offers forum and Discord, `category:`
+// Shows search suggestions: `posted-on:` offers forum and Discord, `category:`
 // offers categories, and so on. `searchCompletions` in `search.js` chooses
 // the suggestions. This file displays them.
 //
