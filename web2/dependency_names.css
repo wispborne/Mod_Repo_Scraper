@@ -1,0 +1,105 @@
+/* The Dependency names page uses only the colour names defined on :root in style.css. */
+
+.dn-page { padding: 0 0 12px; }
+.dn-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: 16px 20px 8px;
+}
+.dn-built { font: var(--small)/17px var(--mono); color: var(--faint); }
+.dn-intro { padding: 0 20px 12px; color: var(--dim); max-width: 80ch; }
+
+.dn-banner {
+  display: grid; gap: 4px;
+  margin: 0 20px 12px; padding: 10px 14px;
+  border: 1px solid var(--warning); border-left-width: 3px;
+}
+.dn-banner strong { color: var(--warning); font-weight: 600; }
+.dn-banner.bad { border-color: var(--failed); color: var(--failed); }
+
+.dn-toolbar { padding: 0 20px 10px; }
+.dn-search { max-width: 360px; font-family: var(--sans); font-size: var(--text-size); }
+.dn-filters { flex-wrap: wrap; }
+.dn-filter-count { margin-left: 8px; color: var(--faint); letter-spacing: 0; }
+.tab.on .dn-filter-count { color: var(--dim); }
+.dn-empty { padding: 14px 20px; }
+
+/* --- The table --------------------------------------------------------- */
+
+.dn-table td { white-space: normal; vertical-align: top; }
+.dn-table td:first-child, .dn-table th:first-child { padding-left: 20px; }
+.dn-table tr.is-pending td { background: var(--panel); }
+.dn-table tr.is-pending td:first-child { box-shadow: inset 2px 0 0 var(--warning); }
+.dn-written strong { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.dn-match { min-width: 160px; }
+.dn-mod { display: grid; }
+.dn-mod a { color: var(--text); overflow-wrap: anywhere; }
+.dn-mod a:hover { color: var(--action); }
+.dn-id { font: var(--small)/17px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
+.dn-tag-pending {
+  display: table; margin-top: 4px; color: var(--warning); overflow-wrap: anywhere;
+  /* A mod name keeps its own capitals. */
+  text-transform: none; letter-spacing: 0;
+}
+.dn-source { white-space: nowrap !important; }
+.dn-source-cell { display: inline-flex; align-items: center; gap: 8px; }
+.dn-actions { width: 1%; }
+.dn-buttons { display: flex; gap: 6px; }
+.button.dn-small { height: 24px; padding: 0 9px; font-size: var(--small); }
+
+/* --- Side panels ------------------------------------------------------- */
+
+.dn-side-note { padding: 10px var(--pad); color: var(--dim); }
+.dn-how { margin: 0; padding: 10px var(--pad) 12px; display: grid; gap: 8px; }
+.dn-how dt { font-weight: 600; color: var(--text); }
+.dn-how dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: 17px; }
+
+/* --- The mod picker ---------------------------------------------------- */
+
+.dn-dialog { width: min(520px, calc(100vw - 32px)); }
+.dn-dialog h2 { overflow-wrap: anywhere; }
+.dn-eyebrow {
+  font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--action); margin-bottom: 4px;
+}
+.dn-dialog-facts { color: var(--dim); }
+.dn-field { display: grid; gap: 6px; }
+.dn-input { font-family: var(--sans); font-size: var(--text-size); }
+.dn-hint { font-size: var(--small); line-height: 17px; color: var(--faint); }
+.dialog p.dn-hint { margin: 8px 0 0; }
+.dialog p.dn-pending-note { margin-top: 12px; color: var(--dim); }
+.dn-picks {
+  list-style: none; margin: 6px 0 0; padding: 4px 0;
+  border: 1px solid var(--line); background: var(--background);
+  max-height: 300px; overflow: auto;
+}
+.dn-pick {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  padding: 5px 10px; cursor: pointer;
+}
+.dn-pick.on { background: var(--raised); }
+.dn-pick.disabled { cursor: default; color: var(--faint); }
+.dn-pick-name { overflow-wrap: anywhere; }
+.dn-pick-more { padding: 5px 10px; font-size: var(--small); line-height: 17px; color: var(--faint); }
+
+/* --- Narrow screens: each row becomes a block ------------------------- */
+
+@media (max-width: 640px) {
+  .dn-head, .dn-intro, .dn-toolbar { padding-left: 12px; padding-right: 12px; }
+  .dn-banner { margin-left: 12px; margin-right: 12px; }
+  .dn-search { max-width: none; }
+  .dn-table thead { display: none; }
+  .dn-table, .dn-table tbody { display: block; }
+  .dn-table tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px;
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+  }
+  .dn-table tr.is-pending { background: var(--panel); box-shadow: inset 2px 0 0 var(--warning); }
+  .dn-table tr.is-pending td, .dn-table tr.is-pending td:first-child { background: none; box-shadow: none; }
+  .dn-table td { display: block; padding: 0; border: 0; }
+  .dn-table td:first-child { padding-left: 0; }
+  .dn-table .dn-written { grid-column: 1; }
+  .dn-table td.num { grid-column: 2; grid-row: 1; }
+  .dn-table td.num::after { content: ' mods'; color: var(--faint); }
+  .dn-table .dn-match, .dn-table .dn-source, .dn-table .dn-actions { grid-column: 1 / -1; min-width: 0; width: auto; }
+  .dn-buttons { flex-wrap: wrap; }
+}

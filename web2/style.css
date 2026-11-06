@@ -180,6 +180,7 @@ p { margin: 0; }
 .pending-label { overflow-wrap: anywhere; }
 .pending-publish { padding: 6px var(--pad); border-top: 1px solid var(--line); }
 .pending-actions { display: flex; gap: 8px; padding: 6px var(--pad) 12px; }
+.pending-off { padding: 2px var(--pad) 0; font-size: var(--small); line-height: 17px; }
 .icon-button {
   display: inline-flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; padding: 0; border: 0; background: none;

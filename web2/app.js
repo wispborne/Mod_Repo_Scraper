@@ -16,12 +16,16 @@ import * as runs from './views/runs.js';
 import * as run from './views/run.js';
 import * as settings from './views/settings.js';
 import * as takedowns from './views/takedowns.js';
+import * as authorAliases from './views/author_aliases.js';
+import * as dependencyNames from './views/dependency_names.js';
 
 const PAGES = {
   control,
   runs,
   settings,
   takedowns,
+  'author-aliases': authorAliases,
+  'dependency-names': dependencyNames,
 };
 
 /// Detail pages: a page id with something after it, such as `#/runs/<id>`.

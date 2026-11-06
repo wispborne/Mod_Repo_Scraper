@@ -5,7 +5,7 @@
 import { el, noticeDialog, showDialog } from './lib.js';
 import { icon } from './icons.js';
 import { sidePanel } from './frame.js';
-import { refresh } from './status.js';
+import { refresh, status, subscribe } from './status.js';
 import {
   pendingItems, removePending, clearPending, onPendingChange, saveRequest,
 } from './pending.js';
@@ -32,14 +32,17 @@ function pendingList(onAction = () => {}) {
   box.checked = publishAfter;
   box.addEventListener('change', () => { publishAfter = box.checked; });
 
+  const off = jobsAreOff();
   return el('div', { class: 'pending-body' }, [
     list,
     el('label', { class: 'check pending-publish' }, [box, 'Publish afterwards']),
+    off ? el('p', { class: 'pending-off warn-text', text: "Jobs are off on this server, so changes can't be saved." }) : null,
     el('div', { class: 'pending-actions' }, [
       el('button', {
         type: 'button',
         class: 'button primary',
         text: 'Save all',
+        disabled: off,
         onclick: () => { onAction(); saveAll(); },
       }),
       el('button', {
@@ -50,6 +53,24 @@ function pendingList(onAction = () => {}) {
       }),
     ]),
   ]);
+}
+
+/// Whether the server's manager is known to be off. Keep the button enabled
+/// until the first status response.
+function jobsAreOff() {
+  const s = status();
+  return !!(s && !s.on);
+}
+
+/// Calls `fn` when the manager turns on or off. Returns a function that stops
+/// listening for status changes.
+function onJobsOnOff(fn) {
+  let last = null;
+  return subscribe((s) => {
+    if (s.on === last) return;
+    last = s.on;
+    fn();
+  });
 }
 
 /// The toolbar button: "N pending", shown only while the list is not empty.
@@ -92,6 +113,7 @@ export function mountPendingButton(host) {
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   onPendingChange(draw);
+  onJobsOnOff(draw);
   draw();
 }
 
@@ -108,7 +130,9 @@ export function pendingPanel() {
     const n = pendingItems().length;
     wrap.replaceChildren(...(n ? [sidePanel({ name: 'Pending changes', count: n, body: pendingList() })] : []));
   };
-  const stop = onPendingChange(draw);
+  const stopPending = onPendingChange(draw);
+  const stopJobs = onJobsOnOff(draw);
+  const stop = () => { stopPending(); stopJobs(); };
   draw();
   // Known to be on the page once the page has been drawn.
   setTimeout(() => { placed = true; }, 0);

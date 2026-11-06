@@ -1,0 +1,111 @@
+/* The Author aliases page uses only the colour names defined on :root in style.css. */
+
+.aa-page { padding: 0 0 24px; }
+.aa-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: 16px 20px 8px;
+}
+.aa-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.aa-source { font: var(--small)/17px var(--mono); color: var(--faint); margin-left: 4px; }
+.aa-intro { padding: 0 20px 12px; color: var(--dim); max-width: 80ch; }
+
+.aa-banner {
+  display: grid; gap: 4px;
+  margin: 0 20px 12px; padding: 10px 14px;
+  border: 1px solid var(--warning); border-left-width: 3px;
+}
+.aa-banner.bad { border-color: var(--failed); color: var(--failed); }
+
+.aa-section { padding-top: 8px; }
+.aa-section-head {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  padding: 8px 20px; border-bottom: 1px solid var(--line);
+}
+.aa-section-count { font: 600 var(--label)/16px var(--mono); color: var(--faint); }
+.aa-note { padding: 10px 20px 4px; max-width: 80ch; color: var(--dim); }
+.aa-more { padding: 10px 20px 0; }
+.aa-toolbar { padding: 10px 20px 6px; }
+.aa-search { max-width: 320px; font-family: var(--sans); font-size: var(--text-size); }
+
+.aa-entry {
+  display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px 10px; align-items: start;
+  padding: 10px 20px 10px 18px;
+  border-left: 2px solid transparent; border-bottom: 1px solid var(--line);
+}
+.aa-entry > .mark { margin-top: 6px; }
+.aa-entry.is-pending { border-left-color: var(--warning); background: var(--panel); }
+.aa-entry-main { display: grid; gap: 6px; min-width: 0; }
+.aa-entry-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.aa-tag-pending { color: var(--warning); }
+.button.aa-small { height: 24px; padding: 0 9px; font-size: var(--small); }
+
+.aa-label {
+  font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--faint);
+}
+.aa-pair { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.aa-who { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
+.aa-who strong { color: var(--heading); font-weight: 600; overflow-wrap: anywhere; }
+.aa-where { font: var(--small)/17px var(--mono); color: var(--faint); }
+.aa-count { font: var(--small)/17px var(--mono); color: var(--dim); }
+.aa-mods { font-size: var(--small); line-height: 17px; color: var(--dim); overflow-wrap: anywhere; }
+
+/* A person: the shown name on the left, the other names beside it. */
+.aa-person-names {
+  display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 6px 16px; align-items: start;
+}
+.aa-shown, .aa-others { display: grid; gap: 4px; min-width: 0; justify-items: start; }
+.aa-people-head { padding-top: 6px; padding-bottom: 4px; }
+.aa-names { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.aa-name {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  padding: 0 2px 0 8px; border: 1px solid var(--line); background: var(--raised);
+  font-size: var(--small); line-height: 22px;
+}
+.aa-name.shown { border-color: var(--frame); }
+.aa-name.shown .aa-name-text { color: var(--heading); font-weight: 600; }
+.aa-name.unused .aa-name-text { color: var(--dim); }
+.aa-name.is-pending { border-color: var(--warning); }
+.aa-name:not(:has(.aa-remove)) { padding-right: 8px; }
+.aa-name-text {
+  padding: 0; border: 0; background: none; color: var(--text);
+  font: inherit; text-align: left; overflow-wrap: anywhere;
+}
+button.aa-name-text { cursor: pointer; }
+button.aa-name-text:hover { color: var(--action); text-decoration: underline; }
+.aa-remove {
+  width: 20px; height: 20px; padding: 0; border: 0; background: none;
+  color: var(--faint); font: inherit; cursor: pointer;
+}
+.aa-remove:hover { color: var(--failed); }
+
+.aa-add-box { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.aa-add-open { font-size: var(--small); line-height: 22px; }
+.input.aa-add { width: 200px; height: 24px; font-family: var(--sans); }
+.aa-message { font-size: var(--small); line-height: 17px; }
+.aa-message:empty { display: none; }
+
+.aa-pending { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.aa-pending li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.aa-pending-label { overflow-wrap: anywhere; }
+
+/* --- The side panels --------------------------------------------------- */
+
+.aa-side-note { padding: 10px var(--pad); color: var(--dim); }
+.aa-form { display: grid; gap: 8px; padding: 10px var(--pad) 12px; }
+.aa-hint { font-size: var(--small); line-height: 17px; color: var(--faint); }
+.aa-hint.warn-text { color: var(--warning); }
+.aa-input { font-family: var(--sans); font-size: var(--text-size); }
+
+/* --- Narrow screens ---------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .aa-head, .aa-intro, .aa-section-head, .aa-note, .aa-more, .aa-toolbar { padding-left: 12px; padding-right: 12px; }
+  .aa-banner { margin-left: 12px; margin-right: 12px; }
+  .aa-entry { grid-template-columns: 12px minmax(0, 1fr); padding-left: 10px; padding-right: 12px; }
+  .aa-entry-actions { grid-column: 2; justify-content: flex-start; }
+  .aa-person-names { grid-template-columns: minmax(0, 1fr); }
+  .aa-people-head { display: none; }
+  .aa-search { max-width: none; }
+}
