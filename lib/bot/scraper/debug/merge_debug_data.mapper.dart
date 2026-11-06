@@ -35,6 +35,8 @@ class GroupMatchReasonMapper extends EnumMapper<GroupMatchReason> {
         return GroupMatchReason.nameAndDownload;
       case r'forumUrl':
         return GroupMatchReason.forumUrl;
+      case r'sameId':
+        return GroupMatchReason.sameId;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -51,6 +53,8 @@ class GroupMatchReasonMapper extends EnumMapper<GroupMatchReason> {
         return r'nameAndDownload';
       case GroupMatchReason.forumUrl:
         return r'forumUrl';
+      case GroupMatchReason.sameId:
+        return r'sameId';
     }
   }
 }

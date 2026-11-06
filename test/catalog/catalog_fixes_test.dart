@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:mod_repo_scraper/bot/scraper/debug/merge_debug_collector.dart';
+import 'package:mod_repo_scraper/bot/scraper/debug/merge_debug_data.dart';
 import 'package:mod_repo_scraper/bot/scraper/mod_merger.dart';
 import 'package:http/http.dart' as http;
 import 'package:mod_repo_scraper/bot/scraper/qb/download_resolver.dart';
@@ -132,6 +134,21 @@ void main() {
 
       expect(merged, hasLength(1));
       expect(merged.single.sourcePosts, hasLength(3));
+    });
+
+    test('the merge debug data says when two posts were joined because they shared an id', () async {
+      final collector = MergeDebugCollector();
+      await ModMerger().mergeListings(
+        [
+          _dronesListing(ref: forum('25888', _drones), author: 'Dreadnought70', download: _dronesZip),
+          _dronesListing(ref: discord('1271590391065477143', _drones), author: 'Dreadnought70', download: _dronesZip),
+        ],
+        debugCollector: collector,
+        existingIdOf: (post) => 'all-the-domain-drones',
+      );
+
+      final reasons = collector.data.groups.expand((g) => g.matchEntries).single.reasons;
+      expect(reasons, contains(GroupMatchReason.sameId));
     });
 
     test('the same name with different files and different authors stays apart', () async {

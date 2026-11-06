@@ -426,7 +426,10 @@ class ModMerger {
           refusedJoins++;
           continue;
         }
-        if (entry != null) debugPairEntries!.add((a, entry));
+        if (entry != null) {
+          if (pass == 0) entry.reasons.add(GroupMatchReason.sameId);
+          debugPairEntries!.add((a, entry));
+        }
       }
     }
     if (refusedJoins > 0) {

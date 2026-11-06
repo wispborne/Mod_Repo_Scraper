@@ -32,9 +32,10 @@ class PreDedupEntry with PreDedupEntryMappable {
   });
 }
 
-/// Why two mods were matched during grouping.
+/// Why two mods were matched during grouping. [sameId] is added to the other
+/// reasons when the posts already shared a permanent id and were joined first.
 @MappableEnum()
-enum GroupMatchReason { nameAndAuthor, strippedNameAndAuthor, nameAndDownload, forumUrl }
+enum GroupMatchReason { nameAndAuthor, strippedNameAndAuthor, nameAndDownload, forumUrl, sameId }
 
 /// A single match decision within a group.
 @MappableClass()

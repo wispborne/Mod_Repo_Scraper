@@ -1,0 +1,107 @@
+/* The Mods list, the mod page and the Collection page. They reuse the Source
+   posts list (pl-*) and source post page (pp-*, ph-*) styles, and the mod
+   picker's dn-* styles. Only the colour names on :root in style.css are used. */
+
+/* --- The Mods list --- */
+
+.ml-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.ml-search { flex: 1 1 280px; max-width: 420px; font-family: var(--sans); font-size: var(--text-size); }
+.ml-count { color: var(--faint); font: var(--small)/17px var(--mono); }
+.ml-table td { vertical-align: top; }
+.ml-name { white-space: normal !important; min-width: 220px; }
+.ml-name a { display: block; overflow-wrap: anywhere; }
+.ml-id { display: block; font: var(--small)/17px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
+.ml-authors, .ml-sources { white-space: normal !important; color: var(--dim); overflow-wrap: break-word; min-width: 110px; }
+.ml-game, .ml-version { color: var(--dim); }
+.ml-notes { white-space: normal !important; }
+.ml-notes .tag + .tag { margin-left: 6px; }
+.ml-gone .ml-name a { color: var(--dim); }
+
+/* --- The mod page --- */
+
+.md-line { color: var(--text); overflow-wrap: anywhere; }
+.md-status { display: flex; align-items: flex-start; gap: 8px; }
+/* Level with the middle of the first line (19px). */
+.md-status .mark { flex: none; margin-top: 6px; }
+.md-old-id { font: var(--small)/19px var(--mono); color: var(--text); }
+.md-note {
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px;
+  border: 1px solid var(--frame); border-left: 3px solid var(--action); background: var(--panel);
+}
+.md-note .icon { flex: none; margin-top: 2px; color: var(--action); }
+.md-page > .md-note { margin: 14px 20px 0; flex-direction: column; }
+.md-authors { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+
+.button.md-small { height: 24px; padding: 0 9px; font-size: var(--small); }
+
+.md-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.md-need-slot { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+a.chip.md-need { color: var(--text); }
+a.chip.md-need:hover { color: var(--action); text-decoration: none; }
+.chip.md-need.warn { text-transform: none; letter-spacing: 0; }
+.md-need-slot .dn-tag-pending { margin-top: 0; }
+.md-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.md-list a { overflow-wrap: anywhere; }
+.md-quote { color: var(--dim); font-size: var(--small); line-height: 17px; }
+.md-fold-text { color: var(--dim); }
+.md-from-list { margin-top: 2px; font-size: var(--small); line-height: 17px; }
+
+.md-table td { vertical-align: top; white-space: normal; }
+.md-table tr:last-child td { border-bottom: 0; }
+.md-field { color: var(--dim); white-space: nowrap !important; }
+.md-value { overflow-wrap: anywhere; min-width: 160px; }
+.md-source { min-width: 180px; overflow-wrap: anywhere; }
+.md-post a { overflow-wrap: anywhere; }
+.md-post-kind { display: block; font: var(--small)/17px var(--mono); color: var(--faint); }
+.md-llm { overflow-wrap: anywhere; }
+
+.md-history { padding: 0; }
+.md-history-bar { display: flex; justify-content: flex-end; }
+
+.md-names { display: grid; gap: 6px; margin: 10px 0 4px; }
+.md-names .check { overflow-wrap: anywhere; }
+
+/* --- The Collection page --- */
+
+.md-collection { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.md-collection li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.md-collection .ml-id { display: inline; }
+
+/* --- Narrow screens --- */
+
+@media (max-width: 640px) {
+  .ml-search { max-width: none; }
+  .ml-table thead { display: none; }
+  .ml-table, .ml-table tbody { display: block; }
+  .ml-table tbody tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px;
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+  }
+  .ml-table td { display: block; padding: 0; border: 0; white-space: normal; }
+  .ml-table td:first-child { padding-left: 0; }
+  .ml-table td.ml-name { grid-column: 1 / -1; min-width: 0; }
+  .ml-table td.ml-authors { grid-column: 1; }
+  .ml-table td.ml-game { grid-column: 2; grid-row: 2; text-align: right; }
+  .ml-table td.ml-sources { grid-column: 1; }
+  .ml-table td.ml-version { grid-column: 2; grid-row: 3; text-align: right; }
+  .ml-table td.ml-download { grid-column: 1; }
+  .ml-table td.ml-download::before { content: 'Download: '; color: var(--faint); }
+  .ml-table td.ml-notes { grid-column: 1 / -1; }
+  .ml-table td.ml-notes:empty { display: none; }
+
+  .md-page > .md-note { margin-left: 12px; margin-right: 12px; }
+  .md-table thead { display: none; }
+  .md-table, .md-table tbody { display: block; }
+  .md-table tr { display: grid; gap: 2px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .md-table tr:last-child { border-bottom: 0; }
+  .md-table td { display: block; padding: 0; border: 0; min-width: 0; }
+  .md-field { white-space: normal !important; }
+}
+
+/* --- The card picture side panel --- */
+
+.md-pictures { display: grid; gap: 12px; padding: 10px var(--pad) 12px; }
+.md-picture { margin: 0; display: grid; gap: 4px; }
+.md-picture img { display: block; max-width: 100%; max-height: 180px; background: var(--panel); border: 1px solid var(--line); }
+.md-picture figcaption { color: var(--faint); font-size: var(--small); line-height: 17px; }
+.ml-filter-count { color: inherit; opacity: .75; font-family: var(--mono); }

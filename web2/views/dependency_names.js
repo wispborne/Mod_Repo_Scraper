@@ -6,12 +6,13 @@
 // The list is the server's answer as it is. A row with a pending change is
 // marked, but the page never guesses what the save will change.
 
-import { el, clear, api, showDialog, shortTime, pager, pageSizePreference } from '../lib.js';
+import { el, clear, api, shortTime, pager, pageSizePreference } from '../lib.js';
 import { pageLayout, sidePanel, statusMark } from '../frame.js';
 import { subscribe, status } from '../status.js';
-import { hashQuery, buildHash, oldViewerAddress } from '../routes.js';
+import { hashQuery, buildHash } from '../routes.js';
 import { addPending, onPendingChange, pendingItems, removePending } from '../pending.js';
 import { pendingPanel } from '../pending_view.js';
+import { looseKey, openModPicker } from '../mod_picker.js';
 
 const PAGE_ID = 'dependency-names';
 
@@ -34,9 +35,6 @@ const FILTERS = [
   ['unused', 'Not used', 'Saved answers that no mod used in the last build.'],
 ];
 const FILTER_KEYS = new Set(FILTERS.map(([key]) => key));
-
-/// How many mods the picker shows at once.
-const SUGGESTION_COUNT = 8;
 
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
@@ -295,11 +293,6 @@ function howMatched() {
 
 // --- Pending changes for a row ---
 
-/// Match pending changes to rows using only letters and digits. Ignore case.
-function looseKey(text) {
-  return String(text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
 /// The pending changes for this spelling, oldest first.
 function pendingFor(row) {
   const key = looseKey(row.written);
@@ -396,11 +389,7 @@ function matchView(row, modNames) {
   if (row.id) {
     const name = row.name || modNames.get(row.id);
     return el('span', { class: 'dn-mod' }, [
-      el('a', {
-        href: oldViewerAddress(location.pathname, `modrepo?q=${encodeURIComponent(name || row.id)}`),
-        text: name || row.id,
-        title: 'Open in the old viewer\'s Mod Catalog.',
-      }),
+      el('a', { href: `#/mods/${encodeURIComponent(row.id)}`, text: name || row.id }),
       el('code', { class: 'dn-id', text: name ? row.id : 'unknown id' }),
     ]);
   }
@@ -462,50 +451,10 @@ function actionsView(row, pending, state) {
 
 // --- The mod picker ---
 
-/// Our mods whose name or id holds `text`, best first: the same name, then
-/// names starting with it, then names holding it, then names the text holds
-/// (for a spelling with a version on the end).
-function findMods(mods, text) {
-  const q = looseKey(text);
-  if (!q) return [];
-  const ranked = [];
-  for (const mod of mods) {
-    const name = looseKey(mod.name);
-    const id = looseKey(mod.id);
-    let rank = -1;
-    if (name === q || id === q) rank = 0;
-    else if (name.startsWith(q) || id.startsWith(q)) rank = 1;
-    else if (name.includes(q) || id.includes(q)) rank = 2;
-    else if ((name.length >= 4 && q.includes(name)) || (id.length >= 4 && q.includes(id))) rank = 3;
-    if (rank >= 0) ranked.push([rank, mod]);
-  }
-  ranked.sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name));
-  return ranked.map(([, mod]) => mod);
-}
-
-/// A dialog with a search box over our mods. Picking one adds the pending
-/// change and closes the dialog.
+/// The shared mod picker, with what is known about this spelling. Picking a
+/// mod adds the pending change.
 function openPicker(row, state) {
   const { mods, modNames } = state;
-  const current = row.by === 'hand' ? row.id : null;
-  const input = el('input', {
-    type: 'text',
-    class: 'input dn-input',
-    placeholder: 'Mod name or id',
-    autocomplete: 'off',
-    spellcheck: 'false',
-    role: 'combobox',
-    'aria-label': 'Mod',
-    'aria-autocomplete': 'list',
-    'aria-controls': 'dn-picks',
-    'aria-expanded': 'false',
-  });
-  const list = el('ul', { class: 'dn-picks', id: 'dn-picks', role: 'listbox', hidden: true });
-  const note = el('p', { class: 'dn-hint', hidden: true });
-  let shown = [];
-  let active = -1;
-
-  const cancel = el('button', { type: 'button', class: 'button', text: 'Cancel' });
   const name = row.id ? (row.name || modNames.get(row.id) || row.id) : null;
   let now = 'Not matched.';
   if (row.id) now = `Matched to "${name}" by ${row.by === 'hand' ? 'hand' : row.by === 'rule' ? 'the rules' : 'the LLM'}.`;
@@ -513,97 +462,11 @@ function openPicker(row, state) {
     now = row.saved.by === 'hand' ? 'Marked by hand as none of our mods.' : 'The LLM said it is none of our mods.';
   }
   const used = row.count === 1 ? 'Used by 1 mod in the last build.' : `Used by ${row.count || 0} mods in the last build.`;
-  const box = el('dialog', { class: 'dialog dn-dialog' }, [
-    el('div', { class: 'dn-eyebrow', text: 'Match a dependency name' }),
-    el('h2', { text: row.written }),
-    el('p', { class: 'dn-dialog-facts', text: `${used} ${now}` }),
-    el('label', { class: 'dn-field' }, [
-      el('span', { class: 'dn-hint', text: 'Type part of a mod\'s name or id and pick it from the list.' }),
-      input,
-    ]),
-    note,
-    list,
-    el('p', {
-      class: 'dn-hint dn-pending-note',
-      text: 'This is added to the pending changes. Nothing is written until you save them.',
-    }),
-    el('div', { class: 'dialog-buttons' }, [cancel]),
-  ]);
-  const shut = showDialog(box, () => {});
-  cancel.addEventListener('click', () => shut(false));
-
-  const usable = (mod) => mod.id !== current;
-  const choose = (mod) => {
-    if (!usable(mod)) return;
-    addMatch(row, mod);
-    shut(true);
-  };
-  const highlight = (i) => {
-    active = i;
-    [...list.children].forEach((li, n) => li.classList.toggle('on', n === i));
-    if (i >= 0) input.setAttribute('aria-activedescendant', `dn-pick-${i}`);
-    else input.removeAttribute('aria-activedescendant');
-  };
-  const suggest = () => {
-    const found = mods.length ? findMods(mods, input.value) : [];
-    shown = found.slice(0, SUGGESTION_COUNT);
-    clear(list);
-    note.hidden = true;
-    if (!shown.length) {
-      list.hidden = true;
-      input.setAttribute('aria-expanded', 'false');
-      highlight(-1);
-      if (!mods.length) {
-        note.textContent = 'The mod list comes from the last website build. There is no build yet.';
-        note.hidden = false;
-      } else if (looseKey(input.value)) {
-        note.textContent = 'No mod in the catalog matches.';
-        note.hidden = false;
-      }
-      return;
-    }
-    shown.forEach((mod, i) => {
-      const ok = usable(mod);
-      const li = el('li', {
-        id: `dn-pick-${i}`,
-        role: 'option',
-        class: `dn-pick${ok ? '' : ' disabled'}`,
-        'aria-disabled': ok ? null : 'true',
-      }, [
-        el('span', { class: 'dn-pick-name', text: mod.name }),
-        el('code', { class: 'dn-id', text: ok ? mod.id : `${mod.id} · current match` }),
-      ]);
-      li.addEventListener('mousedown', (e) => { e.preventDefault(); choose(mod); });
-      list.append(li);
-    });
-    const more = found.length - shown.length;
-    if (more > 0) {
-      list.append(el('li', {
-        class: 'dn-pick-more', role: 'presentation', text: `${more} more. Keep typing to narrow it down.`,
-      }));
-    }
-    list.hidden = false;
-    input.setAttribute('aria-expanded', 'true');
-    highlight(shown.findIndex(usable));
-  };
-
-  input.addEventListener('input', suggest);
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' && shown.length) {
-      e.preventDefault();
-      highlight((active + 1) % shown.length);
-    } else if (e.key === 'ArrowUp' && shown.length) {
-      e.preventDefault();
-      highlight((active - 1 + shown.length) % shown.length);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (active >= 0 && shown[active]) choose(shown[active]);
-    }
+  openModPicker({
+    written: row.written,
+    facts: `${used} ${now}`,
+    mods,
+    current: row.by === 'hand' ? row.id : null,
+    onPick: (mod) => addMatch(row, mod),
   });
-
-  // Start from the spelling itself: it often finds the mod straight away.
-  input.value = row.written;
-  suggest();
-  input.focus();
-  input.select();
 }

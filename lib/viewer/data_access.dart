@@ -14,6 +14,7 @@ import '../catalog/takedowns.dart';
 import '../manager/bundle_snapshot_store.dart';
 import '../manager/merge_snapshot_store.dart';
 import '../site/catalog_extras.dart';
+import '../site/fact_sources_file.dart';
 import 'working_bundle.dart';
 
 /// One file the raw-file/log endpoints are allowed to serve, addressed by a
@@ -198,6 +199,40 @@ class DataAccess {
     },
   );
 
+  /// The website's list records (`outputs/site/mods.json`), by mod id.
+  late final _MtimeCache<Map<String, Map<String, dynamic>>> _siteModsCache = _MtimeCache(
+    _siteModsFile,
+    (s) => {
+      for (final mod in ((jsonDecode(s) as Map<String, dynamic>)['mods'] as List<dynamic>? ?? const []))
+        if (mod is Map<String, dynamic> && mod['id'] is String) mod['id'] as String: mod,
+    },
+  );
+
+  /// How many conflicts each mod's own post names, from
+  /// `outputs/site/conflicts.json`, by mod id.
+  late final _MtimeCache<Map<String, int>> _siteConflictsCache = _MtimeCache(
+    File(p.join(outputsDir, 'site', 'conflicts.json')),
+    (s) => {
+      for (final mod in ((jsonDecode(s) as Map<String, dynamic>)['mods'] as List<dynamic>? ?? const []))
+        if (mod is Map && mod['modId'] is String) mod['modId'] as String: ((mod['conflicts'] as List?) ?? const []).length,
+    },
+  );
+
+  /// One cache per published mod file, created on its first request.
+  final Map<String, _MtimeCache<Map<String, dynamic>>> _siteModFileCaches = {};
+
+  /// The takedown list as saved (`takedowns.json`).
+  late final _MtimeCache<Map<String, dynamic>> _takedownListCache = _MtimeCache(
+      File(p.join(dataDir, TakedownList.fileName)), (s) => jsonDecode(s) as Map<String, dynamic>);
+
+  /// Where each published fact came from, as the last website build saved it.
+  late final _MtimeCache<FactSourcesFile> _factSourcesCache = _MtimeCache(FactSourcesFile.fileIn(dataDir),
+      (s) => FactSourcesFile.fromMap(jsonDecode(s) as Map<String, dynamic>));
+
+  /// The permanent ids as saved (`mod-ids.json`).
+  late final _MtimeCache<Map<String, dynamic>> _modIdsCache =
+      _MtimeCache(File(p.join(dataDir, 'mod-ids.json')), (s) => jsonDecode(s) as Map<String, dynamic>);
+
   /// What the takedowns left out of the last catalog build.
   late final _MtimeCache<Map<String, dynamic>> _takedownMatchesCache = _MtimeCache(
       File(p.join(dataDir, TakedownList.matchesFileName)), (s) => jsonDecode(s) as Map<String, dynamic>);
@@ -289,6 +324,37 @@ class DataAccess {
 
   /// `takedown-matches.json` as saved, or null when there is none.
   Map<String, dynamic>? get takedownMatches => _takedownMatchesCache.get();
+
+  /// The website's list records by mod id, or null when the website has not
+  /// been built.
+  Map<String, Map<String, dynamic>>? get siteMods => _siteModsCache.get();
+
+  /// How many conflicts each mod's own post names, by mod id, or null when
+  /// the website has not been built.
+  Map<String, int>? get siteConflictCounts => _siteConflictsCache.get();
+
+  static final RegExp _modIdShape = RegExp(r'^[a-z0-9][a-z0-9-]*$');
+
+  /// `outputs/site/mods/<id>.json` as published, or null when there is no
+  /// such file. An id that is not lowercase letters, digits and dashes is
+  /// never looked for, so no address can reach outside the folder.
+  Map<String, dynamic>? siteModFile(String id) {
+    if (!_modIdShape.hasMatch(id)) return null;
+    final cache = _siteModFileCaches.putIfAbsent(
+        id,
+        () => _MtimeCache(File(p.join(outputsDir, 'site', 'mods', '$id.json')),
+            (s) => jsonDecode(s) as Map<String, dynamic>));
+    return cache.get();
+  }
+
+  /// `takedowns.json` as saved, or null when there is none.
+  Map<String, dynamic>? get takedownList => _takedownListCache.get();
+
+  /// `fact-sources.json`, or null when no website build has saved one.
+  FactSourcesFile? get factSources => _factSourcesCache.get();
+
+  /// `mod-ids.json` as saved, or null when there is none.
+  Map<String, dynamic>? get modIds => _modIdsCache.get();
 
   /// `catalog-left-out.json`, or null when no catalog build has saved one.
   LeftOutPosts? get leftOutPosts => _leftOutCache.get();

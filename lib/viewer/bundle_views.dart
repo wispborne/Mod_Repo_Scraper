@@ -23,6 +23,15 @@ final List<ComparedField> bundleFields = [
       label: 'the author\'s other posts', itemsOf: _extraPostItems),
 ];
 
+/// Fields compared for one Discord thread in a saved bundle. The mod history
+/// reads it as `{name, url, llm: {mods}}`. The LLM's mods use the same
+/// comparison as a forum topic's.
+final List<ComparedField> discordThreadFields = [
+  const ComparedField('name', label: 'thread name'),
+  const ComparedField('url', label: 'thread address'),
+  const ComparedField('llm', label: 'LLM facts', itemsOf: _llmItems),
+];
+
 /// One mod index line as a reader would name it: "Name by Author [0.98a] in Faction Mods".
 List<Map<String, dynamic>> _indexLineItems(Object? before, Object? after) {
   List<String> named(Object? value) => [

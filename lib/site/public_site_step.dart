@@ -10,6 +10,7 @@ import '../catalog/discord_posts.dart';
 import '../catalog/mod_catalog.dart';
 import '../catalog/takedowns.dart';
 import '../bot/scraper/qb/llm/picture_caption_store.dart';
+import 'fact_sources_file.dart';
 import 'mod_id_store.dart';
 import 'public_data_builder.dart';
 import 'release_detector.dart';
@@ -173,6 +174,7 @@ class PublicSiteStep {
     }
     await builder.write(data);
     await _writeRequirementReport(data);
+    _writeFactSources(data, catalog.generatedAt);
 
     _say(
         log,
@@ -204,6 +206,18 @@ class PublicSiteStep {
     } catch (e) {
       _log.warning('Could not save ${file.path}. The viewer\'s Dependency '
           'names page shows the previous build: $e');
+    }
+  }
+
+  /// Saves each published fact's source and the catalog's build time for the
+  /// viewer's mod page. The file is never published. If writing fails, the
+  /// build continues, but the viewer has no sources for this build.
+  void _writeFactSources(PublicSiteData data, DateTime catalogBuiltAt) {
+    try {
+      FactSourcesFile(builtAt: catalogBuiltAt, mods: data.factSources).write(dataPath);
+    } catch (e) {
+      _log.warning('Could not save ${FactSourcesFile.fileName}. The viewer '
+          'cannot say where each fact came from until the next build: $e');
     }
   }
 

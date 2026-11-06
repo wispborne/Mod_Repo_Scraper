@@ -21,6 +21,8 @@ import * as dependencyNames from './views/dependency_names.js';
 import * as posts from './views/posts.js';
 import * as post from './views/post.js';
 import * as postHistory from './views/post_history.js';
+import * as mods from './views/mods.js';
+import * as mod from './views/mod.js';
 
 const PAGES = {
   control,
@@ -30,11 +32,13 @@ const PAGES = {
   'author-aliases': authorAliases,
   'dependency-names': dependencyNames,
   posts,
+  mods,
 };
 
 /// Detail pages: a page id with something after it, such as `#/runs/<id>`.
 const DETAIL_PAGES = {
   runs: run,
+  mods: mod,
   // #/posts/<kind>/<id>, and #/posts/topic/<id>/history.
   posts: { render: (ctx) => (ctx.parts[2] === 'history' ? postHistory : post).render(ctx) },
 };

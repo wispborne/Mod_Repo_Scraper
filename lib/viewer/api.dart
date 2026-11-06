@@ -20,6 +20,7 @@ import 'author_alias_views.dart';
 import 'bundle_views.dart';
 import 'data_access.dart';
 import 'merge_views.dart';
+import 'mod_views.dart';
 import 'post_views.dart';
 import 'site_version.dart';
 
@@ -35,6 +36,7 @@ class ViewerApi {
   ViewerApi(this.data);
 
   late final PostViews _postViews = PostViews(data);
+  late final ModViews _modViews = ModViews(data);
 
   Handler get router {
     final r = Router();
@@ -46,6 +48,10 @@ class ViewerApi {
 
     r.get('/posts', _posts);
     r.get('/posts/outcome', _postOutcome);
+
+    r.get('/mods', _mods);
+    r.get('/mods/<id>/history', _modHistory);
+    r.get('/mods/<id>', _modDetail);
 
     r.get('/merge/runs', _mergeRuns);
     r.get('/merge/summary', _mergeSummary);
@@ -302,6 +308,47 @@ class ViewerApi {
     if (answer == null) {
       return _json({'error': 'kind must be topic or discord.'}, status: 400);
     }
+    return _json(answer);
+  }
+
+  // --- Mods: one per permanent id in the last catalog ---
+
+  static const String _noCatalogHint = 'Run Rebuild from saved, or a merge, to build the catalog.';
+
+  /// The Mods list. Takes `q`, `filters` (comma-separated: `noDownload`,
+  /// `takenDown`, `conflicts`, `aiStated`), `sort` (`name`, `id`, `authors`,
+  /// `gameVersion`, `conflicts`), `dir` (`asc` or `desc`) and the usual
+  /// paging. `counts` cover every row, regardless of the query.
+  Response _mods(Request req) {
+    final query = req.url.queryParameters;
+    final listed = _modViews.list(
+      q: query['q'] ?? '',
+      filters: {
+        for (final f in (query['filters'] ?? '').split(','))
+          if (f.trim().isNotEmpty) f.trim(),
+      },
+      sort: query['sort'] ?? 'name',
+      descending: query['dir'] == 'desc',
+    );
+    if (listed == null) return _missing('modrepo', _noCatalogHint);
+    return _json({
+      ..._paged(listed.rows, _page(req), _pageSize(req)),
+      'counts': listed.counts,
+    });
+  }
+
+  /// One mod, Collection, old id, taken-down mod or unknown id. Each response
+  /// has status 200 and includes its `kind`.
+  Response _modDetail(Request req, String id) {
+    final answer = _modViews.mod(id);
+    if (answer == null) return _missing('modrepo', _noCatalogHint);
+    return _json(answer);
+  }
+
+  /// The saved runs in which one mod changed, newest first.
+  Future<Response> _modHistory(Request req, String id) async {
+    final answer = await _modViews.history(id);
+    if (answer == null) return _missing('modrepo', _noCatalogHint);
     return _json(answer);
   }
 

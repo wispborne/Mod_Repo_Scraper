@@ -67,9 +67,15 @@ class _JoinedMod {
   /// source posts. Null when none of them has one.
   final LlmMod? facts;
 
+  /// The answer that supplied each field in [facts], by LLM field name.
+  final Map<String, FactOrigin> factSources;
+
   /// The LLM's answer for the mod's Discord thread, when it has one. A
   /// Discord-only mod's add-ons are read off it.
   final DiscordThreadAnswer? discordAnswer;
+
+  /// The mod's Discord thread, from its saved source posts.
+  final String? discordThreadId;
 
   const _JoinedMod({
     required this.mod,
@@ -78,7 +84,9 @@ class _JoinedMod {
     this.topicId,
     this.partOfThreadTitle,
     this.facts,
+    this.factSources = const {},
     this.discordAnswer,
+    this.discordThreadId,
   });
 }
 
@@ -194,6 +202,11 @@ class PublicSiteData {
   /// which mod it was matched to and how. Written to the viewer's report.
   final Map<String, RequirementNameSeen> requirementNames;
 
+  /// Where each published fact of each mod came from, by mod id and then by
+  /// published field name. Saved for the viewer as `fact-sources.json`; never
+  /// published.
+  final Map<String, Map<String, FactOrigin>> factSources;
+
   const PublicSiteData({
     required this.list,
     required this.details,
@@ -204,6 +217,7 @@ class PublicSiteData {
     this.unmatchedNeeds = const {},
     this.requiredMods = const [],
     this.requirementNames = const {},
+    this.factSources = const {},
   });
 }
 
@@ -376,8 +390,9 @@ class PublicDataBuilder {
       final topicId = forumPost?.id;
       final thread = topicId == null ? null : threads[topicId];
       final discordPost = catalogMod.discordPost;
-      final facts = _factsFor(catalogMod, threads, discordAnswers,
+      final chosen = _factsFor(catalogMod, threads, discordAnswers,
           onMissing: (post) => missingFacts.add('"$id" ($post)'));
+      final facts = chosen?.facts;
       joined.add(_JoinedMod(
         mod: mod,
         id: id,
@@ -395,7 +410,9 @@ class PublicDataBuilder {
                   }
                 : null),
         facts: facts,
+        factSources: chosen?.sources ?? const {},
         discordAnswer: discordPost == null ? null : discordAnswers[discordPost.id],
+        discordThreadId: discordPost?.id,
       ));
     }
 
@@ -426,6 +443,7 @@ class PublicDataBuilder {
 
     final listRecords = <PublicMod>[];
     final details = <String, PublicModDetail>{};
+    final factSources = <String, Map<String, FactOrigin>>{};
 
     for (final entry in joined) {
       final mod = entry.mod;
@@ -488,6 +506,16 @@ class PublicDataBuilder {
         addonSource: addonSource,
         requirements: requirements,
       );
+      factSources[id] = _factOriginsFor(
+        entry: entry,
+        record: record,
+        detail: details[id]!,
+        thread: thread,
+        threadDownloads: threadDownloads,
+        ownSection: ownSection,
+        discordPosts: discordPosts,
+        addonSource: addonSource,
+      );
     }
 
     // What each mod's requirements need in turn. This waits for every record,
@@ -529,6 +557,7 @@ class PublicDataBuilder {
       unmatchedNeeds: Map.of(requirements.unmatched),
       requiredMods: _requiredMods(joined, listRecords),
       requirementNames: Map.of(requirements.seen),
+      factSources: factSources,
     );
   }
 
@@ -625,7 +654,7 @@ class PublicDataBuilder {
   /// The mod's facts: the LLM's answer for each of its source posts, looked up
   /// by the post's id and the LLM's name for the mod, and put together by
   /// [chooseFacts] — the forum's answer first, Discord's filling its gaps.
-  static LlmMod? _factsFor(
+  static ChosenFacts? _factsFor(
     CatalogMod catalogMod,
     Map<String, QbModSummary> threads,
     Map<String, DiscordThreadAnswer> discordAnswers, {
@@ -640,14 +669,15 @@ class PublicDataBuilder {
           final thread = threads[post.id];
           final llmMod = _named(thread?.llm?.mods, name);
           if (llmMod != null) {
-            sources.add(FactSource(llmMod, SourceKind.forum, postedAt: parseForumDate(thread?.lastPostDate)));
+            sources.add(FactSource(llmMod, SourceKind.forum,
+                postedAt: parseForumDate(thread?.lastPostDate), ref: post.ref));
           } else {
             onMissing?.call(post.ref.key);
           }
         case SourceKind.discord:
           final llmMod = _named(discordAnswers[post.id]?.mods, name);
           if (llmMod != null) {
-            sources.add(FactSource(llmMod, SourceKind.discord));
+            sources.add(FactSource(llmMod, SourceKind.discord, ref: post.ref));
           } else {
             onMissing?.call(post.ref.key);
           }
@@ -655,8 +685,150 @@ class PublicDataBuilder {
           break;
       }
     }
-    return chooseFacts(sources);
+    return chooseFactsWithSources(sources);
   }
+
+  /// Where each published field of one mod came from, by published field name
+  /// (`modVersion`, `license`, `description`…). The LLM's fields take their
+  /// source from [chooseFactsWithSources]; the rest follow the same choices
+  /// [_listRecord] and [_detailRecord] make. A field with nothing published
+  /// has no entry. Fields not listed here (the gallery, the dates, the
+  /// same-name mods) have no source recorded.
+  Map<String, FactOrigin> _factOriginsFor({
+    required _JoinedMod entry,
+    required PublicMod record,
+    required PublicModDetail detail,
+    required QbModSummary? thread,
+    required List<AssumedDownloadCandidate> threadDownloads,
+    required String? ownSection,
+    required DiscordPostsFile discordPosts,
+    required QbModSummary? addonSource,
+  }) {
+    final mod = entry.mod;
+    final chosen = entry.facts;
+    final extras = chosen?.extras;
+    final llm = entry.factSources;
+    final out = <String, FactOrigin>{};
+    final forum = entry.topicId == null
+        ? null
+        : FactOrigin.post(SourcePostRef(kind: SourceKind.forum, id: entry.topicId!));
+    final discordThread = _discordThreadIdIn(record.discordUrl) ?? entry.discordThreadId;
+    final discord = discordThread == null
+        ? null
+        : FactOrigin.post(SourcePostRef(kind: SourceKind.discord, id: discordThread));
+    // The post the mod was read from: its forum topic, else its Discord thread.
+    final ownPost = forum ?? discord;
+
+    void put(String field, FactOrigin? origin, bool published) {
+      if (origin != null && published) out[field] = origin;
+    }
+
+    bool has(Object? value) => switch (value) {
+          null => false,
+          String s => s.trim().isNotEmpty,
+          Iterable i => i.isNotEmpty,
+          Map m => m.isNotEmpty,
+          _ => true,
+        };
+
+    put('name', FactOrigin.merged, has(record.name));
+    final shownByLlm = chosen != null &&
+        chosen.name.trim().isNotEmpty &&
+        modNamesMatch(chosen.name.trim(), mod.name) &&
+        displayName(chosen.name.trim()).isNotEmpty;
+    put('displayName', shownByLlm ? llm['name'] : FactOrigin.merged, has(record.displayName));
+    put('authors', FactOrigin.merged, has(record.authors));
+    put('categories', FactOrigin.merged, has(record.categories));
+    put('rawCategories', FactOrigin.merged, has(detail.rawCategories));
+    put('forumUrl', FactOrigin.merged, has(record.forumUrl));
+    put('discordUrl', FactOrigin.merged, has(record.discordUrl));
+    put('nexusUrl', FactOrigin.merged, has(record.nexusUrl));
+
+    final gameFromMerge = _namesAVersion(mod.gameVersionReq) && has(mod.gameVersionReq);
+    put('gameVersion', gameFromMerge ? FactOrigin.merged : forum, has(record.gameVersion));
+    put('modVersion', has(extras?.version) ? llm['version'] : FactOrigin.merged, has(record.modVersion));
+
+    // The picture: the LLM's pick, the announcement's (the merge), or one of
+    // the forum post's own (a rated or first screenshot, or the avatar).
+    final shown = record.imageUrl;
+    final merged = mod.getImages().values;
+    final announced = stripExternalPrefix(merged.isEmpty ? null : merged.first.url);
+    final picture = shown == null
+        ? null
+        : shown == stripExternalPrefix(chosen?.image)
+            ? llm['image']
+            : shown == announced
+                ? FactOrigin.merged
+                : forum;
+    put('imageUrl', picture, has(shown));
+    put('announcementImageUrl', FactOrigin.merged, has(record.announcementImageUrl));
+
+    // The summary under the name, in the order _listRecord tries them.
+    final section = llm['descriptionAnchors'] ?? forum;
+    final FactOrigin? summary;
+    if (summaryOfExcerpt(plainWordsOf(ownSection)) != null) {
+      summary = section;
+    } else if (usableSummary(mod.summary) != null) {
+      summary = FactOrigin.merged;
+    } else if (summaryOfDiscordPost(discordPosts.firstTextFor(record.discordUrl)) != null) {
+      summary = discord;
+    } else {
+      summary = llm['summary'];
+    }
+    put('summary', summary, has(record.summary));
+    put('aiSummary', llm['summary'], has(record.aiSummary));
+
+    final FactOrigin? description = detail.descriptionIsForumPost
+        ? (_isSharedThread(thread) ? section : forum)
+        : detail.descriptionIsGenerated
+            ? llm['summary']
+            : FactOrigin.merged;
+    put('description', description, has(detail.description));
+    put('aiDescription', llm['summary'], has(detail.aiDescription));
+    put('discordPostHtml', discord, has(detail.discordPostHtml));
+
+    final FactOrigin downloads = (chosen?.downloads.isNotEmpty ?? false)
+        ? (llm['downloads'] ?? FactOrigin.merged)
+        : threadDownloads.isNotEmpty
+            ? FactOrigin.rules
+            : FactOrigin.merged;
+    put('downloads', downloads, has(detail.downloads));
+    put('bestDownload', downloads, has(record.bestDownload));
+
+    put('changelog', llm['changelog'], has(detail.changelog));
+    put('changelogUrl', llm['changelog'], has(detail.changelogUrl));
+    put('license', llm['license'], has(detail.license));
+    put('sourceCodeUrl', llm['sourceCode'], has(detail.sourceCodeUrl));
+    put('supportLinks', llm['supportLinks'], has(detail.supportLinks));
+    put('saveCompatibilityText', llm['saveCompatibility'], has(detail.saveCompatibilityText));
+    put('canAdd', llm['saveCompatibility'], has(detail.canAdd));
+    put('saveCompatible', llm['saveCompatibility'], has(record.saveCompatible));
+    put('updateCompatibilityText', llm['updateNotes'], has(detail.updateCompatibilityText));
+    put('canUpdate', llm['updateNotes'], has(detail.canUpdate));
+    put('removalCompatibilityText', llm['removalCompatibility'], has(detail.removalCompatibilityText));
+    put('canRemove', llm['removalCompatibility'], has(detail.canRemove));
+    put('needs', llm['needs'], has(record.needs));
+    put('optionalNeeds', llm['optionalNeeds'], has(detail.optionalNeeds));
+    put('conflicts', llm['conflicts'], has(detail.conflicts));
+    put('aiUse', llm['aiUse'], detail.aiUse != null);
+    put('usesAi', llm['aiUse'], has(record.usesAi));
+    put('aiUses', llm['aiUse'], has(record.aiUses));
+    put('nicknames', llm['nicknames'], has(record.nicknames));
+    put('isTool', llm['isTool'], record.isTool == true);
+
+    final addonsFrom = thread != null ? forum : (addonSource != null ? discord : null);
+    put('addons', addonsFrom, has(detail.addons));
+    put('releases', FactOrigin.rules, has(detail.releases));
+    put('lastReleaseDate', FactOrigin.rules, has(record.lastReleaseDate));
+    put('partOfThreadTitle', ownPost, has(record.partOfThreadTitle));
+    put('threadLastPostOn', forum, has(record.threadLastPostOn));
+    return out;
+  }
+
+  static final RegExp _discordThreadInUrl = RegExp(r'/channels/\d+/(\d+)');
+
+  static String? _discordThreadIdIn(String? url) =>
+      url == null ? null : _discordThreadInUrl.firstMatch(url)?.group(1);
 
   /// The LLM mod with exactly this name. The catalog wrote the name down from
   /// the same answer, so it is the same string; capitals are forgiven in case

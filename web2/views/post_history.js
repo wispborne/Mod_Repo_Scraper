@@ -193,7 +193,7 @@ function logEntry(entry, title) {
 
 /// The kind of job that saved the snapshot, read from the end of the run id
 /// ("…Z-rebuildBundle"), in plain words.
-function jobWord(id) {
+export function jobWord(id) {
   const kind = String(id || '').split('-')[1] || '';
   return {
     fullRun: 'full run',
@@ -218,7 +218,7 @@ function jobWord(id) {
 
 /// True for a snapshot imported from the published repo's git history. Its
 /// name ends in `-imported`.
-function isImported(id) {
+export function isImported(id) {
   return String(id || '').endsWith('-imported');
 }
 
@@ -226,7 +226,7 @@ function isImported(id) {
 
 /// One button that opens or shuts every fold matched by `selector`. Its label
 /// says what a press would do. It keeps up with folds opened one at a time.
-function expandAllButton(container, selector) {
+export function expandAllButton(container, selector) {
   const button = el('button', { type: 'button', class: 'button' });
   const folds = () => [...container.querySelectorAll(selector)];
   const refresh = () => {
@@ -245,13 +245,13 @@ function expandAllButton(container, selector) {
 }
 
 /// "name, downloads and 3 more".
-function changedFieldsLine(changes, limit = 3) {
+export function changedFieldsLine(changes, limit = 3) {
   const names = changes.map((c) => c.field).filter(Boolean);
   if (names.length <= limit) return names.join(', ');
   return `${names.slice(0, limit).join(', ')} and ${names.length - limit} more`;
 }
 
-function changedFieldsTitle(changes) {
+export function changedFieldsTitle(changes) {
   const names = changes.map((c) => c.field).filter(Boolean);
   return names.length ? names.join(', ') : null;
 }
@@ -260,7 +260,7 @@ function changedFieldsTitle(changes) {
 
 /// One row per changed field. A list or map lists only its changed entries.
 /// Ported from the old viewer's web/views/diff_table.js.
-function diffTable(changes) {
+export function diffTable(changes) {
   // Older and Newer headings only when a row shows both values.
   const sided = changes.some((c) => !c.items && !c.note);
   const headings = sided ? ['Field', 'Older', 'Newer'] : ['Field', 'What changed'];
