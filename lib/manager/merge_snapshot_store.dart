@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../bot/scraper/debug/merge_debug_data.dart';
-import 'bundle_snapshot_store.dart' show snapshotSavedAt;
+import 'bundle_snapshot_store.dart' show runIdTime, snapshotSavedAt;
 
 /// One saved merge, as the list shows it.
 class MergeSnapshotInfo {
@@ -13,6 +13,15 @@ class MergeSnapshotInfo {
 
   /// When it was saved ([snapshotSavedAt]).
   final DateTime savedAt;
+
+  /// When its run started, from the run id. Null when the id carries no time.
+  final DateTime? startedAt;
+
+  /// When the snapshot was written: the time recorded when it was saved, or
+  /// the file's modified time for a snapshot saved before that was recorded.
+  /// A copy of the data folder can make the file time later than the save,
+  /// never earlier.
+  final DateTime writtenAt;
 
   /// How big the file is on disk, squashed down.
   final int sizeBytes;
@@ -23,14 +32,16 @@ class MergeSnapshotInfo {
   final int? groupCount;
   final int? finalCount;
 
-  const MergeSnapshotInfo({
+  MergeSnapshotInfo({
     required this.id,
     required this.savedAt,
     required this.sizeBytes,
+    DateTime? writtenAt,
+    this.startedAt,
     this.inputCount,
     this.groupCount,
     this.finalCount,
-  });
+  }) : writtenAt = writtenAt ?? savedAt;
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -95,9 +106,13 @@ class MergeSnapshotStore {
       if (id == null) continue;
       final stat = entry.statSync();
       final saved = counts[id];
+      final recorded = saved?['savedAt'];
+      final recordedAt = recorded is String ? DateTime.tryParse(recorded)?.toUtc() : null;
       found.add(MergeSnapshotInfo(
         id: id,
-        savedAt: snapshotSavedAt(id, stat.modified, saved?['savedAt']),
+        savedAt: snapshotSavedAt(id, stat.modified, recorded),
+        startedAt: runIdTime(id),
+        writtenAt: recordedAt ?? stat.modified.toUtc(),
         sizeBytes: stat.size,
         inputCount: saved?['inputCount'] as int?,
         groupCount: saved?['groupCount'] as int?,

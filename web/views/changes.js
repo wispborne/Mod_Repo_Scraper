@@ -17,7 +17,9 @@ import { badge, when } from '../post_parts.js';
 import {
   diffTable, changedFieldsLine, changedFieldsTitle, expandAllButton, jobWord, isImported,
 } from '../diff_parts.js';
-import { WORKING, TABS, tabFrom, settleSides, openFrom, openParam } from '../change_sides.js';
+import {
+  WORKING, TABS, tabFrom, settleSides, openFrom, openParam, postForMod, modsToLink,
+} from '../change_sides.js';
 
 const TAB = {
   mods: {
@@ -395,12 +397,9 @@ export async function render({ content, onLeave }) {
     }
 
     const items = answer.items || [];
-    // Go back to the last page when this one is past the end.
-    if (!items.length && view.page > 0 && answer.total > 0) {
-      view.page = view.pageSize ? Math.max(0, Math.ceil(answer.total / view.pageSize) - 1) : 0;
-      load();
-      return;
-    }
+    // A page past the end is answered with the last page. Keep the page the
+    // server sent, so the address names it too.
+    if (Number.isInteger(answer.page)) view.page = answer.page;
 
     drawLiveNote(answer);
     drawCounts(answer);
@@ -472,9 +471,6 @@ export async function render({ content, onLeave }) {
 
 // --- Rows ---
 
-const FORUM_TOPIC = /topic=(\d+)/;
-const DISCORD_THREAD = /discord(?:app)?\.com\/channels\/\d+\/(\d+)/i;
-
 /// The closed row: what happened, the name, who made it, and which fields
 /// changed on a line of its own under the name.
 function cardSummary(row, fallbackName) {
@@ -500,13 +496,12 @@ function modCard(row) {
   const card = el('details', { class: 'ph-card ch-card', 'data-key': row.key || '' });
   card.append(cardSummary(row, '(no name)'));
 
-  const topic = (String(urls.Forum || '').match(FORUM_TOPIC) || [])[1] || null;
-  const thread = topic ? null : (String(urls.Discord || '').match(DISCORD_THREAD) || [])[1] || null;
-  const post = topic ? { kind: 'topic', id: topic } : (thread ? { kind: 'discord', id: thread } : null);
+  // A forum link that is not one of the mod's own sources is not its post.
+  const post = postForMod(mod);
 
   const modSlot = el('span', { class: 'ch-mod-links' });
   const links = el('div', { class: 'ph-actions' }, [modSlot]);
-  if (post) {
+  if (post && post.own) {
     links.append(el('a', {
       href: `#/posts/${post.kind}/${encodeURIComponent(post.id)}`,
       text: 'Open source post',
@@ -538,20 +533,23 @@ async function fillModLinks(slot, post, name) {
   slot.replaceChildren(el('span', { class: 'dim', text: 'Finding the mod page…' }));
   let outcome;
   try {
-    outcome = await api('posts/outcome', post);
+    outcome = await api('posts/outcome', { kind: post.kind, id: post.id });
   } catch {
     slot.replaceChildren(findInMods());
     return;
   }
   const mods = (outcome && outcome.mods) || [];
-  if (!mods.length) {
+  if (!mods.length && post.own) {
     // The server's own words, such as "Not in the last build."
     slot.replaceChildren(el('span', { class: 'dim', text: (outcome && outcome.line) || '' }));
     return;
   }
-  const flat = (s) => String(s || '').toLowerCase();
-  const same = mods.filter((m) => flat(m.name) === flat(name));
-  const shown = same.length === 1 ? same : mods;
+  const shown = modsToLink(mods, name, post.own);
+  if (!shown.length) {
+    // The post is only linked from this mod, and none of its mods has this name.
+    slot.replaceChildren(findInMods());
+    return;
+  }
   slot.replaceChildren(...shown.map((m) => el('a', {
     href: `#/mods/${encodeURIComponent(m.id)}`,
     text: shown.length === 1 ? 'Open mod page' : `Mod page: ${m.name || m.id}`,

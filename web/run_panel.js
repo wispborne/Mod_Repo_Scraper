@@ -8,6 +8,7 @@ import { kindLabel, percent, buildHash } from './routes.js';
 import { progressBar, statusMark } from './frame.js';
 import { describeJob, duration } from './jobs.js';
 import { confirmAndStart, confirmAndStop } from './actions.js';
+import { queuedAt, startedAt, runTime } from './run_record.js';
 
 export const MARK_FOR_STATE = {
   running: 'running',
@@ -66,12 +67,20 @@ export function runPanel(node) {
   let readAgain = null;
   let laidOut = false;
 
+  // How far from the bottom the reader was when the log was last on screen.
+  // A hidden log box cannot be scrolled, so this is where it goes back to.
+  let keptFromBottom = 0;
+  const logOnScreen = () => logBox.getClientRects().length > 0;
+  const fromBottomNow = () => Math.max(0, logBox.scrollHeight - logBox.scrollTop - logBox.clientHeight);
+
   const tabButton = (id, text) => {
     const b = el('button', { type: 'button', class: 'tab', role: 'tab', text });
     b.dataset.tab = id;
     b.addEventListener('click', () => {
+      if (logOnScreen()) keptFromBottom = fromBottomNow();
       openTab = id;
       drawTabs();
+      placeLog(shownLive, keptFromBottom);
     });
     return b;
   };
@@ -86,6 +95,22 @@ export function runPanel(node) {
     for (const [id, pane] of Object.entries(panes)) pane.hidden = id !== openTab;
   };
   drawTabs();
+
+  // Scrolls the log once it is on screen. A finished run opens at the top. A
+  // running one opens at the bottom and follows new lines, even when it was
+  // first drawn as not running. After that, the reader's distance from the
+  // bottom is kept. Nothing counts as done while the log is hidden.
+  function placeLog(live, fromBottom) {
+    if (!shownLines.length || !logOnScreen()) return;
+    if (!followedOnce || (live && !followedLive)) {
+      logBox.scrollTop = live ? logBox.scrollHeight : 0;
+      followedOnce = true;
+      if (live) followedLive = true;
+    } else {
+      logBox.scrollTop = Math.max(0, logBox.scrollHeight - logBox.clientHeight - fromBottom);
+    }
+    keptFromBottom = fromBottomNow();
+  }
 
   // More lines: 2,000 first, then five times as many each press. The next
   // size is worked out from what is shown, so a second press before the
@@ -138,20 +163,13 @@ export function runPanel(node) {
     logNote.textContent = lines.length
       ? `Showing the last ${lines.length} of ${total} lines.`
       : 'Nothing logged yet.';
-    const fromBottom = Math.max(0, logBox.scrollHeight - logBox.scrollTop - logBox.clientHeight);
+    const fromBottom = logOnScreen() ? fromBottomNow() : keptFromBottom;
     const dropped = linesDroppedFromTop(shownLines, lines);
     for (let i = 0; i < dropped && logBox.firstChild; i++) logBox.firstChild.remove();
     for (let i = shownLines.length - dropped; i < lines.length; i++) logBox.append(logLine(lines[i]));
     shownLines = lines;
-    // A finished run opens at the top. A running one opens at the bottom and
-    // follows new lines, even when it was first drawn as not running.
-    if (!followedOnce || (live && !followedLive)) {
-      logBox.scrollTop = live ? logBox.scrollHeight : 0;
-    } else {
-      logBox.scrollTop = Math.max(0, logBox.scrollHeight - logBox.clientHeight - fromBottom);
-    }
-    followedOnce = true;
-    if (live) followedLive = true;
+    keptFromBottom = fromBottom;
+    placeLog(live, fromBottom);
   }
 
   return {
@@ -186,6 +204,7 @@ export function runPanel(node) {
         shownLines = [];
         followedOnce = false;
         followedLive = false;
+        keptFromBottom = 0;
         tail = LOG_TAIL;
         shownTail = LOG_TAIL;
         readAgain = null;
@@ -221,7 +240,7 @@ function drawHead(node, record, live) {
   const sub = live
     ? [live.phase, live.item].filter(Boolean).join(' · ') || 'Starting…'
     : waiting
-      ? `Queued ${shortTime(record.queuedAt)}`
+      ? `Queued ${shortTime(queuedAt(record)) || 'at an unknown time'}`
       : `Finished ${shortTime(record.finishedAt) || 'at an unknown time'}`;
   const action = waiting ? null : live
     ? el('button', { type: 'button', class: 'button danger', onclick: () => confirmAndStop(record) }, [icon('stop', 12), 'Stop'])
@@ -264,7 +283,7 @@ function drawChips(node, record, live) {
   const items = [
     live
       ? chip('elapsed', duration(record.startedAt, null) || '—')
-      : el('span', { class: 'chip' }, ['Took ', el('b', { text: duration(record.startedAt, record.finishedAt) || '—' })]),
+      : el('span', { class: 'chip' }, ['Took ', el('b', { text: (startedAt(record) && duration(record.startedAt, record.finishedAt)) || '—' })]),
     chip(c.llmCalls === 1 ? 'LLM call' : 'LLM calls', c.llmCalls || 0),
     chip(c.errors === 1 ? 'error' : 'errors', c.errors || 0, c.errors ? 'bad' : ''),
   ];
@@ -334,10 +353,10 @@ function drawRecord(node, record) {
   const rows = [
     ['Run', record.id],
     ['Job', describeJob(record.request || {})],
-    ['Queued', shortTime(record.queuedAt)],
-    ['Started', shortTime(record.startedAt)],
+    ['Queued', shortTime(queuedAt(record))],
+    ['Started', shortTime(startedAt(record))],
     ['Finished', record.finishedAt ? shortTime(record.finishedAt) : 'Not finished'],
-    ['Took', duration(record.startedAt, record.finishedAt)],
+    ['Took', startedAt(record) ? duration(record.startedAt, record.finishedAt) : ''],
     ['Done', c.itemsTotal ? `${c.itemsDone || 0} of ${c.itemsTotal}` : String(c.itemsDone || 0)],
     ['Errors', String(c.errors || 0)],
     ['LLM calls', String(c.llmCalls || 0)],
@@ -385,6 +404,6 @@ export function runRow(record) {
       kind,
       errors ? el('span', { class: 'failed-text', text: ` · ${errors} ${errors === 1 ? 'error' : 'errors'}` }) : null,
     ]),
-    el('span', { class: 'row-time', text: shortTime(record.startedAt || record.queuedAt) }),
+    el('span', { class: 'row-time', text: shortTime(runTime(record)) }),
   ]);
 }

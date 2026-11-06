@@ -183,5 +183,7 @@ export function tabTitle({ pageName, current, ended }) {
   }
   if (ended === 'completed') return `✓ Done · ${pageName} · ${viewer}`;
   if (ended === 'failed') return `✗ Failed · ${pageName} · ${viewer}`;
+  // A run stopped by a server restart.
+  if (ended === 'interrupted') return `✗ Interrupted · ${pageName} · ${viewer}`;
   return `${pageName} · ${viewer}`;
 }

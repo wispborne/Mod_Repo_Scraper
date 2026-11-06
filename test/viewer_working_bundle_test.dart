@@ -212,6 +212,17 @@ void main() {
     expect(jsonEncode(body), contains('No snapshot has been saved yet'));
   });
 
+  test('a saved side that is gone says so, not that nothing is scraped', () async {
+    await publish('20260701T100000Z-fullRun', [summary(1)], {1: detail(1)});
+    writeWorking([summary(1)], {1: detail(1)});
+    final gone = await get('bundle/compare?a=20260601T100000Z-fullRun&b=working');
+    expect(gone['hint'], 'This snapshot is no longer kept. Pick another.');
+
+    File(p.join(dataDir, 'mods-index.json')).deleteSync();
+    final empty = await get('bundle/compare?a=20260701T100000Z-fullRun&b=working');
+    expect(empty['hint'], 'There is no scraped data on disk to compare against yet.');
+  });
+
   test('the answer carries no post text and no whole snapshot', () async {
     await publish('20260701T100000Z-fullRun', [summary(1)], {1: detail(1)});
     writeWorking(
@@ -219,5 +230,64 @@ void main() {
 
     final body = await get('bundle/compare?b=working');
     expect(jsonEncode(body), isNot(contains('Secret words')));
+  });
+
+  group('the LLM setting', () {
+    // The LLM read topic 1 (one mod) and topic 3 (not a mod) when it was on.
+    // With it off the publisher is given no LLM store, so its bundles carry
+    // no `llm` field and keep topic 3.
+    final chatter = summary(3, title: 'What is everyone playing?').copyWith(inModIndex: false);
+    final cache = {
+      '1': {
+        'fingerprint': 'abc',
+        'schemaVersion': 1,
+        'promptVersion': 1,
+        'isMod': true,
+        'mods': [
+          {'name': 'Mod 1', 'role': 'main'}
+        ],
+        'answeredAt': '2026-06-01T00:00:00Z',
+      },
+      '3': {
+        'fingerprint': 'def',
+        'schemaVersion': 1,
+        'promptVersion': 1,
+        'isMod': false,
+        'mods': <dynamic>[],
+      },
+    };
+
+    Future<void> setUpRun() async {
+      await publish('20260701T100000Z-fullRun', [summary(1), chatter], {1: detail(1), 3: detail(3)});
+      writeWorking([summary(1), chatter], {1: detail(1), 3: detail(3)}, llm: cache);
+    }
+
+    void writeConfig(String llmEnabled) =>
+        File(p.join(dir.path, 'config.properties')).writeAsStringSync('# test\nllm_enabled = $llmEnabled\n');
+
+    test('the data on disk is built without the LLM, as the publisher builds it', () async {
+      await setUpRun();
+      writeConfig('false');
+      final body = await get('bundle/compare?b=working');
+      expect(body['changedCount'], 0, reason: jsonEncode(body['items']));
+      expect(body['goneCount'], 0);
+      expect(body['sameCount'], 2);
+    });
+
+    test('with the LLM on, its answers are used', () async {
+      await setUpRun();
+      writeConfig('true');
+      final body = await get('bundle/compare?b=working');
+      expect(body['goneCount'], 1, reason: 'topic 3 is not a mod');
+      expect(body['changedCount'], 1, reason: 'topic 1 gains the LLM facts');
+    });
+
+    test('with no config file, the newest saved bundle shows the LLM was off', () async {
+      await setUpRun();
+      expect(data.llmEnabledInConfig, isNull);
+      final body = await get('bundle/compare?b=working');
+      expect(body['changedCount'], 0, reason: jsonEncode(body['items']));
+      expect(body['goneCount'], 0);
+    });
   });
 }

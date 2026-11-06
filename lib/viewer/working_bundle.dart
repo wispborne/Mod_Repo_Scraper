@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../bot/scraper/qb/html_processor.dart';
+import '../bot/scraper/qb/llm/extraction_store.dart';
 import '../bot/scraper/qb/mod_thread_filter.dart';
 import '../bot/scraper/qb/models/assumed_download.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
@@ -25,6 +26,10 @@ import 'data_access.dart';
 /// took down (`removedPosts` in `takedown-matches.json`), as the publisher
 /// does with `leaveOutTopics`; otherwise a taken-down topic would always read
 /// as added.
+///
+/// The LLM's answers are used only when the publisher would use them: with
+/// `llm_enabled=false` it is given no LLM store, so its bundles carry no `llm`
+/// field and drop no topic as "not a mod". See [llmOn].
 class WorkingBundle {
   final DataAccess data;
 
@@ -49,10 +54,11 @@ class WorkingBundle {
     if (index == null) return null;
 
     final stamps = _detailStamps();
-    final stamp = _stampOf(stamps);
+    final useLlm = llmOn;
+    final stamp = '${_stampOf(stamps)}|llm=$useLlm';
     if (_built != null && _builtStamp == stamp) return _built;
 
-    _built = _build(index, stamps);
+    _built = _build(index, stamps, useLlm: useLlm);
     _builtStamp = stamp;
     return _built;
   }
@@ -70,9 +76,47 @@ class WorkingBundle {
     return index.map((s) => s.scrapedAt).reduce((a, b) => a.isAfter(b) ? a : b);
   }
 
+  /// Whether a bundle published now would carry the LLM's answers.
+  ///
+  /// Uses `llm_enabled` from the config file when available. Otherwise, checks
+  /// the newest saved bundle. If it has no `llm` fields despite having mod
+  /// answers saved before it, treats the LLM as off. Uses LLM answers in all
+  /// other cases, including when no bundle has been saved.
+  bool get llmOn => data.llmEnabledInConfig ?? !_newestSnapshotLeftOutLlm();
+
+  _SnapshotLlm? _snapshotLlm;
+
+  bool _newestSnapshotLeftOutLlm() {
+    final runs = data.bundleRuns();
+    if (runs.isEmpty) return false;
+    final newest = runs.first;
+    var held = _snapshotLlm;
+    if (held == null || held.id != newest.id) {
+      final index = data.bundleRunUncached(newest.id)?['index'];
+      final topics = index is List ? index.whereType<Map>().toList() : const <Map>[];
+      held = _snapshotLlm = _SnapshotLlm(
+        id: newest.id,
+        savedAt: newest.savedAt,
+        anyLlm: topics.any((topic) => topic['llm'] != null),
+        topicIds: {
+          for (final topic in topics)
+            if (topic['topicId'] case final int id) id,
+        },
+      );
+    }
+    if (held.anyLlm) return false;
+    for (final entry in (data.llmCache ?? const <int, LlmStoreEntry>{}).entries) {
+      if (!held.topicIds.contains(entry.key)) continue;
+      if (entry.value.toThreadData().isEmpty) continue;
+      final answered = entry.value.answeredAt;
+      if (answered == null || answered.isBefore(held.savedAt)) return true;
+    }
+    return false;
+  }
+
   Map<String, dynamic> _build(
-      List<QbModSummary> index, Map<int, String> stamps) {
-    final llm = data.llmCache ?? const {};
+      List<QbModSummary> index, Map<int, String> stamps, {required bool useLlm}) {
+    final llm = useLlm ? (data.llmCache ?? const {}) : const <int, LlmStoreEntry>{};
     final takenDown = _takenDownTopics();
 
     // Match publication: filter using isMod and attach LLM mods to the index.
@@ -262,4 +306,16 @@ class _HeldDetail {
   final Map<String, dynamic> detail;
 
   _HeldDetail(this.stamp, this.detail);
+}
+
+/// What [WorkingBundle.llmOn] needs to know about the newest saved bundle.
+class _SnapshotLlm {
+  final String id;
+  final DateTime savedAt;
+
+  /// Whether any of its topics carries an `llm` field.
+  final bool anyLlm;
+  final Set<int> topicIds;
+
+  _SnapshotLlm({required this.id, required this.savedAt, required this.anyLlm, required this.topicIds});
 }

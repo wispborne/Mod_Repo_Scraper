@@ -6,7 +6,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   WORKING, tabFrom, nearestRun, runBefore, settleSides, openFrom, openParam,
+  postForMod, modsToLink,
 } from '../../web/change_sides.js';
+import { isImported } from '../../web/diff_parts.js';
 
 // Newest first, as the server lists them. Real ids from one day of runs:
 // the cron's catalog and mod details snapshots come from two different runs.
@@ -176,4 +178,42 @@ test('open rows go to and from the address', () => {
   assert.equal(openParam(['topic:1', 'topic:2'], ['topic:1', 'topic:2']), 'all');
   // One row open out of one is named, so the link still names it after a refresh.
   assert.equal(openParam(['topic:1'], ['topic:1']), 'topic:1');
+});
+
+test('a snapshot imported from git is told apart from a real run', () => {
+  assert.equal(isImported('20260417T032007Z-imported'), true);
+  // A second commit in the same second.
+  assert.equal(isImported('20260417T032007Z-imported-2'), true);
+  assert.equal(isImported('20260417T032007Z-imported-12'), true);
+  assert.equal(isImported('20261105T073912Z-fullRun'), false);
+  assert.equal(isImported('20261105T073912Z-fullRun-2'), false);
+  assert.equal(isImported('20260417T032007Z-imported-x'), false);
+});
+
+test('a Mods-tab row is found through its own post', () => {
+  const forum = 'https://fractalsoftworks.com/forum/index.php?topic=25868.0';
+  const discord = 'https://discord.com/channels/187635036525166592/1355071745366822950';
+  assert.deepEqual(postForMod({ urls: { Forum: forum, Discord: discord }, sources: ['Index', 'Discord'] }),
+    { kind: 'topic', id: '25868', own: true });
+  // Found only on Discord: its forum link may be a requirement's topic.
+  assert.deepEqual(postForMod({ urls: { Forum: forum, Discord: discord }, sources: ['Discord'] }),
+    { kind: 'discord', id: '1355071745366822950', own: true });
+  assert.deepEqual(postForMod({ urls: { Forum: forum }, sources: ['Discord'] }),
+    { kind: 'topic', id: '25868', own: false });
+  // An older snapshot with no sources keeps using its forum link.
+  assert.deepEqual(postForMod({ urls: { Forum: forum } }), { kind: 'topic', id: '25868', own: true });
+  assert.equal(postForMod({ urls: {} }), null);
+});
+
+test('a row links only a mod it names, unless the post is its own', () => {
+  const magicLib = [{ id: 'magiclib', name: 'MagicLib' }];
+  // A Discord-only mod linking MagicLib's topic is not MagicLib.
+  assert.deepEqual(modsToLink(magicLib, 'Some Ship Pack', false), []);
+  assert.deepEqual(modsToLink(magicLib, 'Magic Lib', false), magicLib);
+  // Its own post: one mod is that mod, whatever the name.
+  assert.deepEqual(modsToLink(magicLib, 'MagicLib 1.4', true), magicLib);
+  const hartley = [{ id: 'a', name: 'Lost.Sector' }, { id: 'b', name: 'Useful.Tithes' }];
+  assert.deepEqual(modsToLink(hartley, 'Useful Tithes', true), [hartley[1]]);
+  assert.deepEqual(modsToLink(hartley, 'Something else', true), hartley);
+  assert.deepEqual(modsToLink(hartley, 'Something else', false), []);
 });

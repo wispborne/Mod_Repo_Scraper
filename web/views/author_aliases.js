@@ -10,7 +10,7 @@ import { pageLayout, sidePanel, statusMark } from '../frame.js';
 import { subscribe, status } from '../status.js';
 import { hashQuery, buildHash } from '../routes.js';
 import {
-  addPending, onPendingChange, pendingItems, removePending, correctionKey,
+  addPending, onPendingChange, pendingItems, removePending, correctionKey, heldBackNameChanges,
 } from '../pending.js';
 import { pendingPanel } from '../pending_view.js';
 
@@ -382,8 +382,9 @@ function personRow(row, ctx) {
   const [first, ...rest] = row;
   const pending = pendingNaming(row);
   const pendingNames = new Set(pending.flatMap((i) => (i.correction.names || []).map(lower)));
+  const held = heldBackNameChanges(row, pending);
 
-  const chip = (name) => nameChip(name, row, ctx, pendingNames.has(lower(name)));
+  const chip = (name) => nameChip(name, row, ctx, pendingNames.has(lower(name)), held);
   const others = el('div', { class: 'aa-names' }, rest.map(chip));
   if (on) others.append(addNameBox(row, ctx));
 
@@ -405,6 +406,7 @@ function personRow(row, ctx) {
 
 /// Checks for a pending removal or choice of published name.
 /// These changes conflict, so Undo must clear one before another is offered.
+/// `heldBackNameChanges` does the same for the person's other names.
 function nameChangePending(name) {
   const wanted = lower(name);
   return pendingItems().some((i) => (i.correction.kind === 'removeAuthorName' || i.correction.kind === 'publishAuthorAs')
@@ -412,8 +414,10 @@ function nameChangePending(name) {
 }
 
 /// One name of a person: the name, how many mods use it, and with jobs on, a
-/// way to publish the person under it and a way to take it off.
-function nameChip(name, row, ctx, pending) {
+/// way to publish the person under it and a way to take it off. `held` says
+/// which of the two a pending change on another of the person's names holds
+/// back.
+function nameChip(name, row, ctx, pending, held) {
   const { body } = ctx.state;
   const on = ctx.state.on && !nameChangePending(name);
   const n = modCount(body, name);
@@ -426,7 +430,7 @@ function nameChip(name, row, ctx, pending) {
     class: `aa-name${shown ? ' shown' : ''}${n ? '' : ' unused'}${pending ? ' is-pending' : ''}`,
     title: modsLine(n),
   }, [
-    on && !shown
+    on && !shown && !held.publish
       ? el('button', {
         type: 'button',
         class: 'aa-name-text',
@@ -440,7 +444,7 @@ function nameChip(name, row, ctx, pending) {
       })
       : el('span', { class: 'aa-name-text', text: name }),
     n ? el('span', { class: 'aa-count', text: String(n) }) : null,
-    on
+    on && !held.remove
       ? el('button', {
         type: 'button',
         class: 'aa-remove',

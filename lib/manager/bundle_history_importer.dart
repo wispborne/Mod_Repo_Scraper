@@ -39,7 +39,8 @@ class BundleHistoryImporter {
   }
 
   /// True when [id] names an imported snapshot rather than a real run.
-  static bool isImportedId(String id) => id.endsWith('-$idSuffix');
+  /// A second commit in the same second (`-imported-2`) counts too.
+  static bool isImportedId(String id) => isImportedSnapshotId(id);
 
   /// True when a `--repo` value names a folder on this machine rather than
   /// something to clone.

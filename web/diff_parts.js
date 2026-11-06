@@ -71,9 +71,10 @@ export function jobWord(id) {
 }
 
 /// True for a snapshot imported from the published repo's git history. Its
-/// name ends in `-imported`.
+/// name ends in `-imported`, or `-imported-2`, `-imported-3`… when two commits
+/// were made in the same second.
 export function isImported(id) {
-  return String(id || '').endsWith('-imported');
+  return /-imported(-\d+)?$/.test(String(id || ''));
 }
 
 // --- The diff ---

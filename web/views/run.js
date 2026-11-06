@@ -6,25 +6,33 @@ import { subscribe } from '../status.js';
 import { kindLabel } from '../routes.js';
 import { pageLayout } from '../frame.js';
 import { runPanel } from '../run_panel.js';
+import { runTime } from '../run_record.js';
 
 export async function render({ content, parts, onLeave }) {
   const id = parts[0] || '';
   const crumbs = el('div');
+  // A failed read is shown here, above the panel, so the panel and the last
+  // record read stay as they were.
+  const problem = el('p', { class: 'error-text', hidden: true });
   const main = el('div', { class: 'run-panel' });
   const raw = el('div', { class: 'raw-slot' });
-  content.append(pageLayout(el('div', { class: 'detail-page' }, [crumbs, main, raw])));
+  content.append(pageLayout(el('div', { class: 'detail-page' }, [crumbs, problem, main, raw])));
 
   const drawCrumbs = (record) => crumbs.replaceChildren(breadcrumbs([
     { label: 'Run history', href: '#/runs' },
     { label: record
-      ? `${kindLabel(record.request && record.request.kind)} · ${shortTime(record.startedAt || record.queuedAt)}`
+      ? `${kindLabel(record.request && record.request.kind)} · ${shortTime(runTime(record))}`
       : id },
   ]));
   drawCrumbs(null);
 
   const panel = runPanel(main);
+  // The last record read. A failed read keeps it.
   let record = null;
   let rawFor = null;
+  // True when the record has to be read again on the next status answer
+  // from the server: a read failed, or the server could not be reached.
+  let readOwed = false;
 
   const showRecord = (r) => {
     record = r;
@@ -37,17 +45,28 @@ export async function render({ content, parts, onLeave }) {
     }
   };
 
-  const fetchRecord = async () => {
-    try {
-      const r = await api(`manager/runs/${encodeURIComponent(id)}`);
-      showRecord(r);
-      return r;
-    } catch (err) {
-      record = null;
-      raw.replaceChildren();
-      main.replaceChildren(el('p', { class: 'error-text', text: err.message }));
-      return null;
+  // Reads that overlap share one request.
+  let reading = null;
+  const fetchRecord = () => {
+    if (!reading) {
+      reading = (async () => {
+        try {
+          const r = await api(`manager/runs/${encodeURIComponent(id)}`);
+          readOwed = false;
+          problem.hidden = true;
+          showRecord(r);
+          return r;
+        } catch (err) {
+          readOwed = true;
+          problem.textContent = err.message;
+          problem.hidden = false;
+          return null;
+        } finally {
+          reading = null;
+        }
+      })();
     }
+    return reading;
   };
 
   // True once the reader has moved to another page.
@@ -66,36 +85,46 @@ export async function render({ content, parts, onLeave }) {
   }
 
   let wasLive = false;
+  // Each answer that draws the panel gets the next number, so a read that
+  // comes back after a newer answer does not draw over it.
+  let drawTicket = 0;
   onLeave(subscribe(async (s) => {
-    const current = s.on && s.current && s.current.record && s.current.record.id === id ? s.current : null;
+    if (!s.on) {
+      // The server could not be reached, or jobs are off: the record cannot
+      // be read either. Read it again once the server answers.
+      drawTicket++;
+      readOwed = true;
+      shown = false;
+      problem.hidden = true;
+      panel.off(s);
+      return;
+    }
+    const current = s.current && s.current.record && s.current.record.id === id ? s.current : null;
     if (current) {
+      drawTicket++;
       wasLive = true;
       shown = true;
+      readOwed = false;
+      problem.hidden = true;
       panel.show(current.record, current);
       return;
     }
-    if (wasLive) {
-      // The run just ended: read its final record once.
-      wasLive = false;
-      const r = await fetchRecord();
-      if (gone()) return;
-      if (r) panel.show(r, null);
-      return;
-    }
-    // A waiting run is read again when it leaves the queue.
-    if (record && record.state === 'queued' && !(s.queued || []).some((q) => q.id === id)) {
-      const r = await fetchRecord();
-      if (gone()) return;
-      if (r) {
-        shown = true;
-        panel.show(r, null);
-      }
-      return;
-    }
-    // The status does not list the run as running, so draw it as saved.
+    // The status does not list the run as running, so draw it as saved. This
+    // also replaces "Viewing only" once the server answers again.
     if (record && !shown) {
       shown = true;
       panel.show(record, null);
+    }
+    // Read the record again when the run just ended (for its final record),
+    // after a failed read, and when a waiting run has left the queue.
+    const leftQueue = record && record.state === 'queued' && !(s.queued || []).some((q) => q.id === id);
+    if (wasLive || readOwed || leftQueue) {
+      const mine = drawTicket;
+      const r = await fetchRecord();
+      if (gone() || mine !== drawTicket || !r) return;
+      wasLive = false;
+      shown = true;
+      panel.show(r, null);
     }
   }));
 }

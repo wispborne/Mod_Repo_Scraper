@@ -188,23 +188,36 @@ List<Map<String, dynamic>> mapItems(Object? before, Object? after) {
   return items;
 }
 
-/// Returns added and removed list entries, ignoring order.
+/// Returns added and removed list entries, ignoring order. An entry given
+/// twice counts twice, so dropping one of two copies is reported.
 List<Map<String, dynamic>> listItems(Object? before, Object? after) {
-  Set<String> setOf(Object? value) => {
-        for (final entry in value is List ? value : const []) sameness(entry),
-      };
+  Map<String, int> countsOf(Object? value) {
+    final out = <String, int>{};
+    for (final entry in value is List ? value : const []) {
+      out.update(sameness(entry), (n) => n + 1, ifAbsent: () => 1);
+    }
+    return out;
+  }
+
   String labelOf(Object? entry) => entry is String ? entry : sameness(entry);
 
-  final was = setOf(before);
-  final now = setOf(after);
+  final was = countsOf(before);
+  final now = countsOf(after);
   final items = <Map<String, dynamic>>[];
 
+  // Each entry past the number the other side has is added or removed.
+  final seenAfter = <String, int>{};
   for (final entry in after is List ? after : const []) {
-    if (was.contains(sameness(entry))) continue;
+    final key = sameness(entry);
+    final place = seenAfter.update(key, (n) => n + 1, ifAbsent: () => 1);
+    if (place <= (was[key] ?? 0)) continue;
     items.add({'change': 'added', 'label': labelOf(entry)});
   }
+  final seenBefore = <String, int>{};
   for (final entry in before is List ? before : const []) {
-    if (now.contains(sameness(entry))) continue;
+    final key = sameness(entry);
+    final place = seenBefore.update(key, (n) => n + 1, ifAbsent: () => 1);
+    if (place <= (now[key] ?? 0)) continue;
     items.add({'change': 'removed', 'label': labelOf(entry)});
   }
   return items;

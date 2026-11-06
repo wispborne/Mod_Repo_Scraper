@@ -258,8 +258,30 @@ void main() {
       final dates = {
         for (final row in (await posts('kind=topic'))['items'] as List) row['id']: row['lastPostDate'],
       };
-      // The forum's clock is behind UTC, so 10 PM "today" was the day before.
-      expect(dates, {'1': '2026-11-04T22:05:53.000', '2': '2026-11-05T01:00:00.000', '3': '2026-11-04T09:00:00.000'});
+      // The forum's clock is behind UTC, so 10 PM "today" was the day before,
+      // and so was 9 AM "today"; 9 AM "yesterday" is the day before that.
+      expect(dates, {'1': '2026-11-04T22:05:53.000', '2': '2026-11-05T01:00:00.000', '3': '2026-11-03T09:00:00.000'});
+    });
+
+    test("'Yesterday at' is always one day before 'Today at' the same time", () async {
+      const scrapedAt = '2026-11-05T03:00:00Z';
+      writeJson(p.join(dataDir, 'mods-index.json'), [
+        {...summary(1, 'Today late'), 'lastPostDate': 'Today at 08:00:00 PM', 'scrapedAt': scrapedAt},
+        {...summary(2, 'Yesterday late'), 'lastPostDate': 'Yesterday at 08:00:00 PM', 'scrapedAt': scrapedAt},
+        {...summary(3, 'Today early'), 'lastPostDate': 'Today at 02:00:00 AM', 'scrapedAt': scrapedAt},
+        {...summary(4, 'Yesterday early'), 'lastPostDate': 'Yesterday at 02:00:00 AM', 'scrapedAt': scrapedAt},
+      ]);
+      final body = await posts('kind=topic');
+      final dates = {for (final row in body['items'] as List) row['id']: row['lastPostDate']};
+      // At 03:00 UTC, 8 PM "today" on the forum was on 4 November, so 8 PM
+      // "yesterday" was on 3 November, not on the same day as "today".
+      expect(dates, {
+        '1': '2026-11-04T20:00:00.000',
+        '2': '2026-11-03T20:00:00.000',
+        '3': '2026-11-05T02:00:00.000',
+        '4': '2026-11-04T02:00:00.000',
+      });
+      expect(keys(body), ['topic:3', 'topic:1', 'topic:4', 'topic:2']);
     });
 
     test('forum and Discord times sort the same way in every time zone', () async {
@@ -334,6 +356,25 @@ void main() {
       expect(body['outcome'], 'pointsTo');
       expect(body['line'], 'Points to topic 1, where Alpha is published.');
       expect(body['pointsTo'], {'kind': 'topic', 'id': '1', 'modId': 'alpha', 'modName': 'Alpha'});
+      expect(body['pointsToAll'], [
+        {'kind': 'topic', 'id': '1', 'modId': 'alpha', 'modName': 'Alpha'},
+      ]);
+    });
+
+    test('a post that points to several topics lists each of them', () async {
+      writeJson(p.join(dataDir, 'catalog-left-out.json'), {
+        'builtAt': builtAt,
+        'topics': {'3': 'notModNoDownload'},
+        'pointers': {'forum:5#Alpha': 'forum:1', 'forum:5#Echo': 'forum:7', 'forum:5#Beta': 'forum:1'},
+      });
+      final body = await outcome('topic', '5');
+      expect(body['outcome'], 'pointsTo');
+      expect(body['line'], 'Points to 2 other topics, where its mods are published.');
+      expect(body['pointsToAll'], [
+        {'kind': 'topic', 'id': '1', 'modId': 'alpha', 'modName': 'Alpha'},
+        {'kind': 'topic', 'id': '7'},
+        {'kind': 'topic', 'id': '1', 'modId': 'beta', 'modName': 'Beta'},
+      ]);
     });
 
     test('a post the last build never saw', () async {

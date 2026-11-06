@@ -200,6 +200,15 @@ void main() {
       expect(store.list().single.savedAt, DateTime.utc(2026, 4, 17, 3, 20, 7));
     });
 
+    test('a second commit imported in the same second is dated by its commit too', () async {
+      final store = BundleSnapshotStore(dataDir.path);
+      await store.save('20260417T032007Z-imported-2', sampleBundle());
+      expect(store.list().single.savedAt, DateTime.utc(2026, 4, 17, 3, 20, 7));
+      expect(isImportedSnapshotId('20260417T032007Z-imported-2'), isTrue);
+      expect(isImportedSnapshotId('20260417T032007Z-imported'), isTrue);
+      expect(isImportedSnapshotId('20261105T073912Z-fullRun-2'), isFalse);
+    });
+
     test('with no recorded time, the time in the run id is used', () async {
       final store = BundleSnapshotStore(dataDir.path);
       await store.save('20260417T032007Z-imported', sampleBundle());

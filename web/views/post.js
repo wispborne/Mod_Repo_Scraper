@@ -173,11 +173,9 @@ const OUTCOME_MARKS = {
   mods: 'done', collection: 'done', leftOut: 'warning', pointsTo: 'idle', takenDown: 'failed', notInBuild: 'warning',
 };
 
-/// The one line saying what the last build made of the post. The server
-/// writes the line; mod names and the post it points to become links. The
-/// line names at most five mods and no Collection, so a second line links the
-/// Collection page and every mod the line left out. Nothing is shown when the
-/// server has no answer.
+/// Links the mod and post names in the server's summary of the last build.
+/// A second line links any mods, topics and Collection page the summary
+/// left out. Nothing is shown when the server has no answer.
 function drawOutcome(node, answer) {
   if (!answer || !answer.line) return;
   const modTargets = [];
@@ -189,16 +187,36 @@ function drawOutcome(node, answer) {
   const collectionTarget = c && c.id
     ? { text: c.name || c.id, href: `#/mods/${encodeURIComponent(c.id)}` } : null;
   if (collectionTarget) targets.push(collectionTarget);
-  const to = answer.pointsTo;
-  if (to && to.id != null) {
-    const postKind = to.kind === 'discord' ? 'discord' : 'topic';
-    const href = `#/posts/${postKind}/${encodeURIComponent(to.id)}`;
-    targets.push({ text: `${postKind === 'topic' ? 'topic' : 'thread'} ${to.id}`, href });
-    if (to.modName && to.modId) targets.push({ text: to.modName, href: `#/mods/${encodeURIComponent(to.modId)}` });
+  // Each post it points to, with the mod published there. Older answers only
+  // carry the first.
+  const pointers = (answer.pointsToAll || (answer.pointsTo ? [answer.pointsTo] : []))
+    .filter((to) => to && to.id != null)
+    .map((to) => {
+      const postKind = to.kind === 'discord' ? 'discord' : 'topic';
+      return {
+        post: {
+          text: `${postKind === 'topic' ? 'topic' : 'thread'} ${to.id}`,
+          href: `#/posts/${postKind}/${encodeURIComponent(to.id)}`,
+        },
+        mod: to.modName && to.modId ? { text: to.modName, href: `#/mods/${encodeURIComponent(to.modId)}` } : null,
+      };
+    });
+  if (pointers.length === 1) {
+    targets.push(pointers[0].post);
+    if (pointers[0].mod) targets.push(pointers[0].mod);
   }
   const { parts, unused } = linkedText(answer.line, targets);
   const more = [];
+  if (pointers.length > 1) {
+    more.push(el('span', { class: 'dim', text: 'Topics: ' }));
+    pointers.forEach((to, i) => {
+      if (i) more.push(', ');
+      more.push(el('a', { href: to.post.href, text: to.post.text }));
+      if (to.mod) more.push(' (', el('a', { href: to.mod.href, text: to.mod.text }), ')');
+    });
+  }
   if (collectionTarget && unused.includes(collectionTarget)) {
+    if (more.length) more.push(el('span', { class: 'dim', text: ' · ' }));
     more.push(el('span', { class: 'dim', text: 'Collection page: ' }), el('a', { href: collectionTarget.href, text: collectionTarget.text }));
   }
   if (modTargets.some((t) => unused.includes(t))) {

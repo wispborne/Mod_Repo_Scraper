@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:mod_repo_scraper/manager/bundle_snapshot_store.dart';
 import 'package:mod_repo_scraper/viewer/api.dart';
+import 'package:mod_repo_scraper/viewer/bundle_views.dart';
 import 'package:mod_repo_scraper/viewer/data_access.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
@@ -185,6 +186,41 @@ void main() {
       expect(body['changedCount'], 1);
       expect(((body['items'] as List).first['changes'] as List)
           .map((c) => c['field']), contains('LLM facts'));
+    });
+
+    test('a change to the second of two mods with the same name is listed', () async {
+      // Discord thread 1355071745366822950 named Emergent Threats twice.
+      Map<String, dynamic> llm(String secondVersion, {bool third = false}) => {
+            'mods': [
+              {'name': 'Emergent Threats', 'extras': {'version': '1.0'}},
+              {'name': 'Emergent Threats', 'extras': {'version': secondVersion}},
+              if (third) {'name': 'Emergent Threats', 'extras': {'version': '3.0'}},
+            ]
+          };
+      await save('20260720T100000Z-fullRun', bundle([
+        {'id': 1, 'llm': llm('1.0')}
+      ]));
+      await save('20260722T100000Z-fullRun', bundle([
+        {'id': 1, 'llm': llm('1.1', third: true)}
+      ]));
+
+      final body = await get(
+          'bundle/compare?a=20260720T100000Z-fullRun&b=20260722T100000Z-fullRun');
+      expect(body['changedCount'], 1);
+      final change = ((body['items'] as List).first['changes'] as List)
+          .cast<Map<String, dynamic>>()
+          .single;
+      expect(change['field'], 'LLM facts');
+      final items = (change['items'] as List).cast<Map<String, dynamic>>();
+      expect([for (final i in items) '${i['change']} ${i['label']}'],
+          ['added Emergent Threats #3', 'changed Emergent Threats #2']);
+      expect((items.last['parts'] as List).single,
+          {'name': 'version', 'before': '1.0', 'after': '1.1'});
+    });
+
+    test('dropping one of two copies of a link is listed', () async {
+      final link = {'url': 'https://a.example/mod.zip', 'text': 'Download'};
+      expect(topicChanges({'links': [link, link]}, {'links': [link]}), isNotEmpty);
     });
 
     test('only the download that moved is listed, not all of them', () async {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -173,11 +174,38 @@ class ManagerApi {
       return _error(e.message, status: HttpStatus.badRequest);
     }
 
-    // Answers as soon as the job is on the queue. A scrape can take an hour;
-    // nobody should hold a connection open for it.
-    final record = await manager.enqueue(request);
-    return _json(record.toMap());
+    // One request at a time from here to the queue, so a save is checked
+    // against every save sent before it, even one still on its way in.
+    final previous = _submitting;
+    final turn = Completer<void>();
+    _submitting = turn.future;
+    try {
+      await previous;
+      if (request.kind == JobKind.saveCorrections) {
+        // Check before the browser removes these changes from its pending list.
+        // Apply earlier saves first. The job checks again when it runs.
+        final refusal = _correctionsService?.refusalOf(request.corrections, ahead: _correctionsAhead());
+        if (refusal != null) return _error(refusal, status: HttpStatus.badRequest);
+      }
+
+      // Answers as soon as the job is on the queue. A scrape can take an
+      // hour; nobody should hold a connection open for it.
+      final record = await manager.enqueue(request);
+      return _json(record.toMap());
+    } finally {
+      turn.complete();
+    }
   }
+
+  /// Ends when the request before has reached the queue. See [_submitJob].
+  Future<void> _submitting = Future<void>.value();
+
+  /// The corrections of each `saveCorrections` job running now or waiting to
+  /// run, in the order they will run.
+  List<List<Correction>> _correctionsAhead() => [
+        for (final run in [if (manager.currentRun case final current?) current, ...manager.queuedRuns])
+          if (run.request.kind == JobKind.saveCorrections) run.request.corrections,
+      ];
 
   /// Reads a job request, or throws [_BadRequest] with something a person can
   /// act on.
@@ -251,11 +279,6 @@ class ManagerApi {
         throw _BadRequest('A saveCorrections job needs at least one correction in '
             '"corrections".');
       }
-      // Checked here too, the same way the job checks them, so a change that
-      // cannot be saved is refused before the browser takes it off its list.
-      // The job checks again when it runs.
-      final refusal = _correctionsService?.refusalOf(request.corrections);
-      if (refusal != null) throw _BadRequest(refusal);
     }
     if (request.kind == JobKind.restoreTakedown &&
         (request.takedownEntry?.trim() ?? '').isEmpty) {
@@ -321,21 +344,24 @@ class ManagerApi {
   Response _runs(Request req) {
     // The store already keeps them newest first.
     final all = manager.history.records;
-    final page = _page(req);
     final pageSize = _pageSize(req);
-    final start = pageSize == 0 ? 0 : page * pageSize;
+    // A page past the end shows the last page. It is clamped before it is
+    // multiplied, so a huge page number cannot overflow. The answer says
+    // which page it gave.
+    final lastPage = pageSize == 0 || all.isEmpty ? 0 : (all.length - 1) ~/ pageSize;
+    final asked = _page(req);
+    final page = asked > lastPage ? lastPage : asked;
     final List<RunRecord> slice;
     if (pageSize == 0) {
       slice = all;
-    } else if (start >= all.length) {
-      slice = const [];
     } else {
+      final start = page * pageSize;
       slice = all.sublist(start, (start + pageSize).clamp(0, all.length));
     }
     return _json({
       'items': [for (final r in slice) r.toMap()],
       'total': all.length,
-      'page': pageSize == 0 ? 0 : page,
+      'page': page,
       'pageSize': pageSize,
     });
   }

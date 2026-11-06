@@ -35,6 +35,8 @@ export function render({ content, onLeave }) {
     pageSize: pageSizePreference(),
   };
   view.dir = query.get('dir') === 'asc' || query.get('dir') === 'desc' ? query.get('dir') : SORTS[view.sort];
+  // All on one page: an old page number in the address means nothing.
+  if (!view.pageSize) view.page = 0;
 
   const state = { data: null, error: null };
 
@@ -76,7 +78,7 @@ export function render({ content, onLeave }) {
       filters: [...view.filters].join(','),
       sort: view.sort === 'name' ? null : view.sort,
       dir: view.dir === SORTS[view.sort] ? null : view.dir,
-      page: view.page > 0 ? view.page + 1 : null,
+      page: view.pageSize && view.page > 0 ? view.page + 1 : null,
     }));
   };
 

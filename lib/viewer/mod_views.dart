@@ -441,8 +441,8 @@ class ModViews {
   String _joinsStamp = '';
 
   /// How each post joined its mod, from the merge debug data that goes with
-  /// [catalog]: `merge-debug.json` first, then the merge snapshot saved
-  /// closest after the catalog. Null when there is neither.
+  /// [catalog]: `merge-debug.json` first, then the merge snapshot of the run
+  /// that built the catalog. Null when there is neither.
   _Joins? _joinsFor(_Catalog catalog) {
     final debug = data.mergeDebug;
     final snapshots = data.mergeRuns();
@@ -457,11 +457,16 @@ class ModViews {
     final candidates = <Map<String, dynamic>? Function()>[
       if (debug != null) () => debug,
     ];
-    // The snapshot saved first after the catalog was built is that build's.
-    final after = snapshots.where((s) => !s.savedAt.isBefore(catalog.catalog.generatedAt)).toList();
-    if (after.isNotEmpty) {
-      final closest = after.last;
-      candidates.add(() => data.mergeSnapshots.readRaw(closest.id));
+    // The run started before the catalog was built and saved its snapshot after.
+    // Old snapshots use the file time when no save time was recorded. Copying
+    // the data folder can give those files a later time. Check newest first
+    // to avoid choosing an older build's snapshot.
+    final built = catalog.catalog.generatedAt;
+    for (final s in snapshots) {
+      final started = s.startedAt ?? s.savedAt;
+      if (started.isAfter(built) || s.writtenAt.isBefore(built)) continue;
+      candidates.add(() => data.mergeSnapshots.readRaw(s.id));
+      break;
     }
     return _joins = _Joins(candidates);
   }

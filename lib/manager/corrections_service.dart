@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:collection/collection.dart';
-import 'package:path/path.dart' as p;
 
 import '../bot/scraper/author_aliases.dart';
 import '../catalog/mod_catalog.dart';
@@ -54,27 +52,65 @@ class CorrectionsService implements JobRunner {
     return JobOutcome(itemsDone: request.corrections.length, itemsTotal: request.corrections.length);
   }
 
-  /// Why [corrections] would be refused if the job ran now, or null when every
+  /// Why [corrections] would be refused when the job runs, or null when every
   /// one of them can be saved. Applies them to copies of the files held in
   /// memory, exactly as the job does, and writes nothing. The message is the
   /// one the job would fail with.
-  String? refusalOf(List<Correction> corrections) {
+  ///
+  /// [ahead] holds the corrections of each `saveCorrections` job that will run
+  /// first: the one running now, then the queue in order. Each is applied
+  /// before [corrections], as it will be by then. A job ahead that would be
+  /// refused saves nothing when it runs, so it is left out. So is a running
+  /// job that has already saved its changes: applying them again is refused,
+  /// and the files on disk already hold them.
+  String? refusalOf(List<Correction> corrections, {List<List<Correction>> ahead = const []}) {
+    final before = <Correction>[];
+    for (final job in ahead) {
+      try {
+        _applyAll(job, (_) {}, before: before);
+        before.addAll(job);
+      } on StateError {
+        // Saves nothing when it runs.
+      }
+    }
     try {
-      _applyAll(corrections, (_) {});
+      _applyAll(corrections, (_) {}, before: before);
       return null;
     } on StateError catch (e) {
-      return e.message;
+      if (before.isEmpty) return e.message;
+      // Say so when the refusal comes only from the saves still to run.
+      try {
+        _applyAll(corrections, (_) {});
+      } on StateError {
+        return e.message;
+      }
+      return '${e.message} $countsSavesAhead';
     }
   }
+
+  /// Added to a refusal that only happens because of the saves still to run.
+  static const String countsSavesAhead =
+      'This conflicts with an earlier save that is still running or waiting to run.';
 
   /// Applies [corrections] in order to copies of the files held in memory.
   /// Throws a [StateError] naming every refused correction, or when a file
   /// exists but cannot be read. Writes nothing.
-  _Edits _applyAll(List<Correction> corrections, void Function(String line) log) {
+  ///
+  /// [before] is applied first and is not numbered. Its corrections were
+  /// already checked, so one it refuses is skipped.
+  _Edits _applyAll(List<Correction> corrections, void Function(String line) log,
+      {List<Correction> before = const []}) {
     if (corrections.isEmpty) {
       throw StateError('There are no corrections to save. Nothing was saved.');
     }
     final edits = _Edits(dataPath: dataPath, outputPath: outputPath, day: takedownDay(_now()));
+    for (final correction in before) {
+      try {
+        edits.apply(correction, (_) {});
+      } on _Refused {
+        // Checked already; see above.
+      }
+    }
     final refused = <String>[];
     for (var i = 0; i < corrections.length; i++) {
       final correction = corrections[i];
@@ -345,8 +381,7 @@ class _Edits {
       _requirements != null && !const MapEquality<String, String>().equals(_answersOf(_requirements!), _requirementsBefore);
 
   Set<String> _knownModIds() => _modIds ??= {
-        for (final mod in ModCatalog.read(File(p.join(outputPath, ModCatalog.fileName)))?.mods ?? const <CatalogMod>[])
-          mod.id,
+        for (final mod in readCatalogIn(outputPath)?.mods ?? const <CatalogMod>[]) mod.id,
       };
 
   // --- Writing ---

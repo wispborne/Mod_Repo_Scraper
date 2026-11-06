@@ -81,6 +81,7 @@ Future<void> main(List<String> args) async {
     dataDir: opts['data-dir'] as String,
     outputsDir: opts['outputs-dir'] as String,
     rootDir: opts['root-dir'] as String,
+    configPath: opts['config'] as String,
   );
 
   final webDir = opts['web-dir'] as String;

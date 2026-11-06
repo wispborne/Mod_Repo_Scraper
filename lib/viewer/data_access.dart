@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../bot/common.dart';
 import '../bot/scraper/qb/download_resolver.dart';
 import '../bot/scraper/qb/llm/extraction_store.dart';
 import '../bot/scraper/qb/llm/picture_caption_store.dart';
@@ -55,11 +56,16 @@ class _MtimeCache<T> {
 }
 
 /// Read-only access to scraper outputs, cached by file modification time.
-/// Does not open `config.properties`.
+/// From `config.properties` it reads only `llm_enabled` ([llmEnabledInConfig]),
+/// and never serves it.
 class DataAccess {
   final String dataDir;
   final String outputsDir;
   final String rootDir;
+
+  /// The config file the manager reads. Defaults to `config.properties` in
+  /// [rootDir], which is where the viewer server looks for it by default.
+  final String configPath;
 
   late final File _indexFile = File(p.join(dataDir, 'mods-index.json'));
   late final File _llmCacheFile =
@@ -274,7 +280,25 @@ class DataAccess {
     required this.dataDir,
     required this.outputsDir,
     required this.rootDir,
-  });
+    String? configPath,
+  }) : configPath = configPath ?? p.join(rootDir, 'config.properties');
+
+  late final _MtimeCache<bool> _llmSetting = _MtimeCache(
+    File(configPath),
+    (s) => Common.configFromProperties(
+            Common.parseProperties(const LineSplitter().convert(s)))
+        .enableLlm,
+  );
+
+  /// Whether `llm_enabled` is on in the config file, read the way the manager
+  /// reads it. Null when there is no config file or it cannot be read.
+  bool? get llmEnabledInConfig {
+    try {
+      return _llmSetting.get();
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// The fixed allowlist for raw-file and log endpoints.
   late final List<AllowlistEntry> allowlist = [

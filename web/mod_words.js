@@ -13,19 +13,30 @@ export function starmodderFile(id) {
   return `${STARMODDER}mods/${encodeURIComponent(id)}.json`;
 }
 
-/// True for an http(s) address with a host. Addresses from scraped data are
-/// only made into links when this holds: a `javascript:` address would run on
-/// the viewer's own page, which also holds the job and settings controls. The
-/// browser's own address parser decides, so tabs, line breaks and spaces
-/// hidden in the scheme are read the way a link would read them.
-export function isWebAddress(url) {
-  if (typeof url !== 'string' || !url.trim()) return false;
+/// The http(s) address to link for `url`, or null. Addresses from scraped
+/// data are only made into links when this gives one: a `javascript:` address
+/// would run on the viewer's own page, which also holds the job and settings
+/// controls. The browser's own address parser decides, so tabs, line breaks
+/// and spaces hidden in the scheme are read the way a link would read them.
+/// An address starting with `//` (no scheme) is read as https, which is how
+/// the forum page it came from would have opened it.
+export function webAddress(url) {
+  if (typeof url !== 'string' || !url.trim()) return null;
+  // The parser drops leading spaces and control characters, and tabs and line
+  // breaks anywhere, so `//` is looked for the same way.
+  const cleaned = url.replace(/^[\u0000-\u0020]+/, '').replace(/[\t\n\r]/g, '');
   try {
-    const parsed = new URL(url);
-    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !!parsed.hostname;
+    const parsed = new URL(cleaned.startsWith('//') ? `https:${cleaned}` : url);
+    if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || !parsed.hostname) return null;
+    return parsed.href;
   } catch {
-    return false;
+    return null;
   }
+}
+
+/// True when `webAddress` gives a link for `url`.
+export function isWebAddress(url) {
+  return webAddress(url) != null;
 }
 
 export function modHref(id) {

@@ -252,6 +252,28 @@ void main() {
     expect(everything['pageSize'], 0);
   });
 
+  test('a page past the end of the runs list gives the last page, however big the number', () async {
+    for (var i = 0; i < 3; i++) {
+      await manager.submit(JobRequest.rebuildBundle());
+    }
+    final ids = [for (final r in (await json('GET', 'runs'))['items'] as List) r['id'] as String];
+
+    for (final page in ['2', '1000000000000000001', '9223372036854775807']) {
+      final res = await call('GET', 'runs?page=$page&pageSize=2');
+      expect(res.statusCode, 200, reason: 'page $page');
+      final answer = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      expect(answer['page'], 1, reason: 'page $page');
+      expect([for (final r in answer['items'] as List) r['id']], [ids.last], reason: 'page $page');
+      expect(answer['total'], 3);
+    }
+  });
+
+  test('the runs list with no runs answers page 0', () async {
+    final answer = await json('GET', 'runs?page=1000000000000000001&pageSize=2');
+    expect(answer['items'], isEmpty);
+    expect(answer['page'], 0);
+  });
+
   test('an unknown run id is a 404 on both the record and the log', () async {
     for (final path in ['runs/nope', 'runs/nope/log']) {
       final res = await call('GET', path);

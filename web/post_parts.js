@@ -6,7 +6,7 @@
 import { el, api } from './lib.js';
 import { confirmAndStart } from './actions.js';
 import { rebuildRequest } from './jobs.js';
-import { isWebAddress } from './mod_words.js';
+import { webAddress } from './mod_words.js';
 
 // --- Small shapes ---
 
@@ -39,8 +39,9 @@ export function emptyLine(text) {
 /// A link that opens in a new tab. An address that is not http(s) is shown
 /// as plain text instead, so scraped data can never put a script in a link.
 export function outLink(href, text, attrs = {}) {
-  if (!isWebAddress(href)) return el('span', { ...attrs, text });
-  return el('a', { ...attrs, href, target: '_blank', rel: 'noopener', text });
+  const link = webAddress(href);
+  if (!link) return el('span', { ...attrs, text });
+  return el('a', { ...attrs, href: link, target: '_blank', rel: 'noopener', text });
 }
 
 export function fold(label, content) {
@@ -176,13 +177,13 @@ export function imageList(images, captions = {}) {
     }
     const seen = captions[img.originalUrl];
     if (seen) text.append(pictureSeen(seen));
-    const web = isWebAddress(img.originalUrl);
+    const web = webAddress(img.originalUrl);
     const thumb = el('img', {
-      class: 'pp-thumb', src: web ? img.originalUrl : null, alt: img.alt || '',
+      class: 'pp-thumb', src: web, alt: img.alt || '',
       loading: 'lazy', referrerpolicy: 'no-referrer',
     });
     return el('li', { class: 'pp-picture' }, [
-      web ? el('a', { class: 'pp-thumb-link', href: img.originalUrl, target: '_blank', rel: 'noopener' }, [thumb]) : thumb,
+      web ? el('a', { class: 'pp-thumb-link', href: web, target: '_blank', rel: 'noopener' }, [thumb]) : thumb,
       text,
     ]);
   }));
@@ -315,8 +316,8 @@ function modCard(mod, ruleUrls) {
   }
   if (mod.image) {
     // Stored as `ext:<url>`, like the thread thumbnail.
-    const src = String(mod.image).replace(/^ext:/, '');
-    if (isWebAddress(src)) card.append(el('img', {
+    const src = webAddress(String(mod.image).replace(/^ext:/, ''));
+    if (src) card.append(el('img', {
       class: 'pp-mod-image', src, alt: mod.name || 'mod image', loading: 'lazy', referrerpolicy: 'no-referrer',
     }));
   }

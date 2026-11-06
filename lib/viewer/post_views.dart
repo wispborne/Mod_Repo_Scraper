@@ -226,12 +226,14 @@ class PostViews {
     if (m.group(5) == 'AM' && hour == 12) hour = 0;
     final at = scrapedAt.toUtc();
     var day = DateTime.utc(at.year, at.month, at.day, hour, int.parse(m.group(3)!), int.parse(m.group(4)!));
-    if (m.group(1) == 'Yesterday') return day.subtract(const Duration(days: 1));
     // The forum writes its own clock, which is behind UTC: a "today" time
     // later than the scrape's UTC clock was on the forum's day before.
     if (day.isAfter(at)) {
       day = day.subtract(const Duration(days: 1));
     }
+    // "Yesterday" is the day before that same forum day, so it always sorts
+    // one day before "Today" at the same time.
+    if (m.group(1) == 'Yesterday') day = day.subtract(const Duration(days: 1));
     return day;
   }
 }
@@ -402,21 +404,29 @@ class _Outcomes {
     final pointers = pointersByPost[key];
     if (pointers != null && pointers.isNotEmpty) {
       final targets = {for (final pointer in pointers) pointer.target};
-      final first = pointers.first;
-      final topicId = first.target.substring(first.target.indexOf(':') + 1);
-      final target = _modOnTarget(first.target, first.llmName);
-      final pointsTo = {
-        'kind': 'topic',
-        'id': topicId,
-        if (target != null) 'modId': target.id,
-        if (target != null) 'modName': target.mod.name,
-      };
+      // Every topic it points to, with the mod published there when one is
+      // found; a topic pointed to for two mods is listed once per mod.
+      final all = <Map<String, String>>[];
+      final seen = <String>{};
+      for (final pointer in pointers) {
+        final topicId = pointer.target.substring(pointer.target.indexOf(':') + 1);
+        final mod = _modOnTarget(pointer.target, pointer.llmName);
+        if (!seen.add('$topicId ${mod?.id}')) continue;
+        all.add({
+          'kind': 'topic',
+          'id': topicId,
+          if (mod != null) 'modId': mod.id,
+          if (mod != null) 'modName': mod.mod.name,
+        });
+      }
+      final first = all.first;
+      final topicId = first['id'];
       final line = targets.length > 1
           ? 'Points to ${targets.length} other topics, where its mods are published.'
-          : target == null
+          : first['modName'] == null
               ? 'Points to topic $topicId.'
-              : 'Points to topic $topicId, where ${target.mod.name} is published.';
-      return answer('pointsTo', line, extra: {'pointsTo': pointsTo});
+              : 'Points to topic $topicId, where ${first['modName']} is published.';
+      return answer('pointsTo', line, extra: {'pointsTo': first, 'pointsToAll': all});
     }
 
     if (kind == SourceKind.forum) {

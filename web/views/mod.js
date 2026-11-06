@@ -24,7 +24,7 @@ import {
   diffTable, changedFieldsLine, changedFieldsTitle, expandAllButton, jobWord, isImported,
 } from '../diff_parts.js';
 import {
-  starmodderPage, starmodderFile, modHref, isWebAddress, postHref, postKindWords, postFallbackName, postJobKeys,
+  starmodderPage, starmodderFile, modHref, webAddress, postHref, postKindWords, postFallbackName, postJobKeys,
   foundByWords, joinedByWords, factSource, fieldName, shortValue, saveAnswerWords, distinctNames,
   sameAuthorLabel, matchLabel,
 } from '../mod_words.js';
@@ -296,9 +296,9 @@ function takedownStatus(answer) {
 function picturesPanel(answer) {
   const listing = listingOf(answer);
   const pictures = [
-    ['Forum post', listing.imageUrl],
-    ['Discord post', listing.announcementImageUrl],
-  ].filter(([, url]) => isWebAddress(url));
+    ['Forum post', webAddress(listing.imageUrl)],
+    ['Discord post', webAddress(listing.announcementImageUrl)],
+  ].filter(([, url]) => url);
   if (!pictures.length) return [];
   return [sidePanel({
     name: 'Card picture',

@@ -20,6 +20,11 @@ DateTime? runIdTime(String id) {
   return at;
 }
 
+/// True when [id] names a snapshot imported from git rather than a real run:
+/// it ends in `-imported`, or `-imported-2`, `-imported-3`… for a second commit
+/// made in the same second.
+bool isImportedSnapshotId(String id) => RegExp(r'-imported(-\d+)?$').hasMatch(id);
+
 /// When a snapshot was saved, for the lists and for finding the run saved
 /// nearest to another.
 ///
@@ -297,9 +302,10 @@ class BundleSnapshotStore {
   }
 
   /// The time to record for a snapshot saved now. A snapshot imported from git
-  /// (`-imported`) records the time in its id, which is the commit's.
+  /// ([isImportedSnapshotId]) records the time in its id, which is the
+  /// commit's.
   static String _savedNow(String runId) {
-    final at = runId.endsWith('-imported') ? runIdTime(runId) : null;
+    final at = isImportedSnapshotId(runId) ? runIdTime(runId) : null;
     return (at ?? DateTime.now()).toUtc().toIso8601String();
   }
 

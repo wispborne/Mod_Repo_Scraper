@@ -812,14 +812,21 @@ class ViewerApi {
       a = before;
     }
 
+    if (b == workingSideId && data.workingBundle() == null) {
+      return _missing('bundle-runs',
+          'There is no scraped data on disk to compare against yet.');
+    }
+
     final comparison =
         b == workingSideId ? _compareWithWorking(a) : _compareSaved(a, b);
 
     if (comparison == null) {
+      // With the data on disk as the newer side, only the saved side can be
+      // missing.
       return _missing(
           'bundle-runs',
           b == workingSideId
-              ? 'There is no scraped data on disk to compare against yet.'
+              ? 'This snapshot is no longer kept. Pick another.'
               : 'One of those snapshots is no longer kept. Pick another.');
     }
 

@@ -19,7 +19,7 @@ globalThis.dispatchEvent = target.dispatchEvent.bind(target);
 
 const {
   pendingItems, addPending, removePending, clearPending, isPending, onPendingChange, saveRequest,
-  correctionKey, PENDING_KEY,
+  correctionKey, heldBackNameChanges, PENDING_KEY,
 } = await import('../../web/pending.js');
 
 beforeEach(() => stored.clear());
@@ -133,4 +133,26 @@ test('a new dependency name change replaces a pending one for the same key', () 
     false,
   );
   assert.equal(pendingItems().length, 3);
+});
+
+test('a person with a name being taken off offers no choice of published name, and the other way round', () => {
+  const remove = (name) => ({ label: `Take "${name}" off its person`, correction: { kind: 'removeAuthorName', names: [name] } });
+  const publish = (name) => ({ label: `Publish the person as "${name}"`, correction: { kind: 'publishAuthorAs', names: [name] } });
+  const row = ['Alpha', 'beta_7'];
+
+  assert.deepEqual(heldBackNameChanges(row), { publish: false, remove: false });
+
+  addPending(remove('alpha'));
+  assert.deepEqual(heldBackNameChanges(row), { publish: true, remove: false });
+  // Another person is not affected.
+  assert.deepEqual(heldBackNameChanges(['Gamma', 'delta']), { publish: false, remove: false });
+
+  clearPending();
+  addPending(publish('beta_7'));
+  assert.deepEqual(heldBackNameChanges(row), { publish: false, remove: true });
+
+  // Other kinds of change hold nothing back.
+  clearPending();
+  addPending({ label: 'same', correction: { kind: 'sameAuthor', names: ['Alpha', 'Gamma'] } });
+  assert.deepEqual(heldBackNameChanges(row), { publish: false, remove: false });
 });

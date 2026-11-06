@@ -2,6 +2,7 @@
 // subscribe to it.
 
 import { kindLabel } from './routes.js';
+import { nextWatch, endedState } from './run_record.js';
 
 const STATUS_URL = '/api/manager/status';
 const BUSY_MS = 1000;
@@ -117,8 +118,18 @@ document.addEventListener('visibilitychange', () => {
 /// cleared when the page changes.
 let watchedRunId = null;
 let ended = null;
-// Only the newest finished run sets `ended`, even if an older record arrives later.
-let endedAsk = 0;
+// Runs seen ending whose record has not yet said how they ended, oldest
+// first. Each is asked about again on every status answer from a working
+// manager, so a run stopped by a server restart is still noticed (the
+// restarted server marks it interrupted).
+let toLearn = [];
+// Runs seen ending get the next number. Only the newest one sets `ended`,
+// even if an older record arrives later.
+let endedCount = 0;
+let endedShown = 0;
+let learning = null;
+// How many answers from the server a record may take to say it has ended.
+const MAX_ASKS = 20;
 
 export function endedRun() {
   return ended;
@@ -130,31 +141,58 @@ export function forgetEndedRun() {
 
 /// Notices a run ending. When the run this page saw is no longer current,
 /// either because nothing runs or because the next queued job has started,
-/// its record is fetched to learn how it ended. `onChange` is called after.
+/// its record is fetched to learn how it ended. A status from a server that
+/// could not be reached does not count as the run ending. `onChange` is
+/// called after.
 export function watchRunEnds(onChange) {
   return subscribe(async (s) => {
-    const current = s.current && s.current.record;
-    const currentId = current ? current.id : null;
-    const finishedId = watchedRunId && watchedRunId !== currentId ? watchedRunId : null;
-    watchedRunId = currentId;
-    if (finishedId) await learnHowRunEnded(finishedId);
+    const step = nextWatch(watchedRunId, s);
+    watchedRunId = step.watchedId;
+    if (step.endedId) toLearn.push({ id: step.endedId, number: ++endedCount, asks: 0 });
+    if (s.on && toLearn.length) await learnHowRunsEnded();
     onChange();
   });
 }
 
-async function learnHowRunEnded(id) {
-  const ask = ++endedAsk;
-  let record = null;
-  try {
-    const res = await fetch(`/api/manager/runs/${encodeURIComponent(id)}`);
-    record = res.ok ? await res.json() : null;
-  } catch {
-    record = null;
+function learnHowRunsEnded() {
+  if (!learning) {
+    learning = (async () => {
+      try {
+        for (const run of [...toLearn]) await learnHowRunEnded(run);
+      } finally {
+        learning = null;
+      }
+    })();
   }
+  return learning;
+}
+
+async function learnHowRunEnded(run) {
+  const drop = () => { toLearn = toLearn.filter((r) => r !== run); };
+  let res;
+  try {
+    res = await fetch(`/api/manager/runs/${encodeURIComponent(run.id)}`);
+  } catch {
+    // The server could not be reached. Ask again on the next answer.
+    return;
+  }
+  if (res.status === 404) {
+    drop();
+    return;
+  }
+  const record = res.ok ? await res.json().catch(() => null) : null;
   // A record not yet saved as ended says nothing about how it ended.
-  const state = record && record.state && !['queued', 'running'].includes(record.state) ? record.state : null;
-  if (ask === endedAsk) ended = state;
-  if (state) notifyRunEnded(record);
+  const state = endedState(record);
+  if (!state) {
+    if (++run.asks >= MAX_ASKS) drop();
+    return;
+  }
+  drop();
+  if (run.number > endedShown) {
+    endedShown = run.number;
+    ended = state;
+  }
+  notifyRunEnded(record);
 }
 
 // --- Run notifications ---

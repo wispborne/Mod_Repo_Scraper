@@ -277,6 +277,11 @@ List<Map<String, dynamic>> topicChanges(
 List<dynamic> _asList(Object? value) => value is List ? value : const [];
 
 /// Matches entries by key and reports additions, removals and changed parts.
+///
+/// Two entries can share a key (a thread that names one mod twice, a link
+/// given twice). Those are matched by key and then by position, the first with
+/// the first and so on, and each is labelled with its place ("Foo #2") so a
+/// change to the second one is reported too.
 List<Map<String, dynamic>> _lineUp(
   List<dynamic> before,
   List<dynamic> after, {
@@ -289,38 +294,56 @@ List<Map<String, dynamic>> _lineUp(
           Map<dynamic, dynamic> was, Map<dynamic, dynamic> now)?
       itemsOf,
 }) {
-  Map<String, Map<dynamic, dynamic>> byKey(List<dynamic> list) {
-    final out = <String, Map<dynamic, dynamic>>{};
+  Map<String, List<Map<dynamic, dynamic>>> byKey(List<dynamic> list) {
+    final out = <String, List<Map<dynamic, dynamic>>>{};
     for (final item in list) {
       if (item is! Map) continue;
-      out.putIfAbsent(keyOf(item), () => item);
+      out.putIfAbsent(keyOf(item), () => []).add(item);
     }
     return out;
   }
 
   final was = byKey(before);
   final now = byKey(after);
-  final rows = <Map<String, dynamic>>[];
+  // Keys given to more than one entry on either side get a place in the label.
+  final shared = {
+    for (final group in [was, now])
+      for (final entry in group.entries)
+        if (entry.value.length > 1) entry.key,
+  };
+  String label(String key, Map<dynamic, dynamic> item, int index) =>
+      shared.contains(key) ? '${labelOf(item)} #${index + 1}' : labelOf(item);
 
+  final rows = <Map<String, dynamic>>[];
   for (final key in now.keys) {
-    if (was.containsKey(key)) continue;
-    rows.add({'change': 'added', 'label': labelOf(now[key]!)});
+    final had = was[key]?.length ?? 0;
+    final items = now[key]!;
+    for (var i = had; i < items.length; i++) {
+      rows.add({'change': 'added', 'label': label(key, items[i], i)});
+    }
   }
   for (final key in was.keys) {
-    if (now.containsKey(key)) continue;
-    rows.add({'change': 'removed', 'label': labelOf(was[key]!)});
+    final has = now[key]?.length ?? 0;
+    final items = was[key]!;
+    for (var i = has; i < items.length; i++) {
+      rows.add({'change': 'removed', 'label': label(key, items[i], i)});
+    }
   }
   for (final key in now.keys) {
-    if (!was.containsKey(key)) continue;
-    final parts = partsOf?.call(was[key]!, now[key]!) ?? const [];
-    final inner = itemsOf?.call(was[key]!, now[key]!) ?? const [];
-    if (parts.isEmpty && inner.isEmpty) continue;
-    rows.add({
-      'change': 'changed',
-      'label': labelOf(now[key]!),
-      if (parts.isNotEmpty) 'parts': parts,
-      if (inner.isNotEmpty) 'items': inner,
-    });
+    final old = was[key];
+    if (old == null) continue;
+    final items = now[key]!;
+    for (var i = 0; i < items.length && i < old.length; i++) {
+      final parts = partsOf?.call(old[i], items[i]) ?? const [];
+      final inner = itemsOf?.call(old[i], items[i]) ?? const [];
+      if (parts.isEmpty && inner.isEmpty) continue;
+      rows.add({
+        'change': 'changed',
+        'label': label(key, items[i], i),
+        if (parts.isNotEmpty) 'parts': parts,
+        if (inner.isNotEmpty) 'items': inner,
+      });
+    }
   }
   return rows;
 }

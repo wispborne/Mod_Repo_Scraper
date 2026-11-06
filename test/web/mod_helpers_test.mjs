@@ -109,3 +109,20 @@ test('only http(s) addresses with a host count as web addresses', () => {
     42,
   ]) assert.equal(words.isWebAddress(url), false, String(url));
 });
+
+test('an address starting with // is linked as https', () => {
+  assert.equal(words.webAddress('//starsector.wiki.gg/wiki/Mods'), 'https://starsector.wiki.gg/wiki/Mods');
+  assert.equal(words.webAddress('//github.com/a/b'), 'https://github.com/a/b');
+  assert.equal(words.webAddress(' \t//github.com/a/b'), 'https://github.com/a/b');
+  assert.equal(words.isWebAddress('//github.com/a/b'), true);
+  assert.equal(words.webAddress('http://example.com/a.zip'), 'http://example.com/a.zip');
+  // Still refused, also with spaces or control characters in front.
+  for (const url of [
+    '//',
+    '\u0001//',
+    ' javascript:alert(1)',
+    '\t\u0002javascript://example.com/%0aalert(1)',
+    ' data:text/html,<script>alert(1)</script>',
+    '/relative/path',
+  ]) assert.equal(words.webAddress(url), null, JSON.stringify(url));
+});

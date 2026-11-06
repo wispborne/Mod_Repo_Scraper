@@ -11,6 +11,7 @@ import { hashParts, navEntryFor, DEFAULT_PAGE, tabTitle, movedAddress } from './
 import { mountRail, mountToolbar, mountStatusBar, pageLayout } from './frame.js';
 import { subscribe, status, watchRunEnds, endedRun, forgetEndedRun } from './status.js';
 import { mountUpdateLink } from './update.js';
+import { stepOf, withStep, arrivedStep } from './history_steps.js';
 import * as control from './views/control.js';
 import * as runs from './views/runs.js';
 import * as run from './views/run.js';
@@ -62,16 +63,31 @@ let guards = [];
 // be told apart from the page now shown.
 let generation = 0;
 let shownHash = null;
-// Where the shown page sits in the tab's history, when the browser says.
-let shownIndex = null;
-// The address shown before this page, for browsers that do not say where an
-// entry sits in the history.
-let cameFrom = null;
+// The number of the shown page's history entry (see history_steps.js).
+let shownStep = null;
 // True while the "Discard unsaved changes?" question is open.
 let asking = false;
-// True after stepping back to the shown page, until that step arrives.
-let restoring = false;
 let pageName = 'Mod Repo Viewer';
+
+// Pages write their filters and page numbers into the address with
+// `history.replaceState(null, …)`. This keeps the entry's number when they do.
+const plainReplaceState = history.replaceState.bind(history);
+history.replaceState = (state, title, url) => {
+  const step = stepOf(history.state);
+  plainReplaceState(step == null ? state : withStep(state, step), title, url);
+};
+
+/// Writes the number into the current entry, leaving its address alone.
+function numberThisEntry(step) {
+  plainReplaceState(withStep(history.state, step), '');
+}
+
+/// The current entry's number. An entry with none is new and gets one now.
+function currentStep() {
+  const { step, isNew } = arrivedStep(history.state, shownStep);
+  if (isNew) numberThisEntry(step);
+  return step;
+}
 
 function drawTitle() {
   document.title = tabTitle({ pageName, current: status() && status().current, ended: endedRun() });
@@ -87,52 +103,24 @@ async function mayLeave() {
   return true;
 }
 
-/// The current entry's place in the tab's history, or null when the browser
-/// does not say.
-function historyIndex() {
-  const entry = window.navigation && window.navigation.currentEntry;
-  return entry && typeof entry.index === 'number' && entry.index >= 0 ? entry.index : null;
-}
-
-function hashOf(url) {
-  try {
-    return new URL(url).hash;
-  } catch {
-    return null;
-  }
-}
-
-function atShownPage() {
-  const now = historyIndex();
-  if (now != null && shownIndex != null) return now === shownIndex;
-  return location.hash === shownHash;
-}
-
 /// Goes back to the shown page's own history entry, without drawing it
 /// again. Stepping (rather than replacing the address) leaves the history as
 /// it was: after a link click, Back still goes where it went before; after
-/// Back, Forward still goes to the page the user tried to leave for.
+/// Back, Forward still goes to the page the user tried to leave for. The
+/// entry numbers say which way and how far to step.
 function returnToShownPage() {
-  if (atShownPage()) return;
-  restoring = true;
-  const now = historyIndex();
-  if (now != null && shownIndex != null) history.go(shownIndex - now);
-  else if (cameFrom !== null && location.hash === cameFrom) history.forward();
-  else history.back();
+  const now = currentStep();
+  if (shownStep == null || now === shownStep) return;
+  history.go(shownStep - now);
 }
 
-async function onHashChange(event) {
+async function onHashChange() {
   // The open question closes itself on this change, and that counts as
   // "Keep editing". The question's own handler then returns to the page.
   if (asking) return;
-  if (restoring) {
-    restoring = false;
-    if (atShownPage()) return;
-  } else if (shownHash !== null) {
-    // A page may have changed its own address (a filter or page number).
-    shownHash = hashOf(event.oldURL) || shownHash;
-  }
-  if (shownHash !== null && !atShownPage()) {
+  // Back on the shown page's own entry: the step back after "Keep editing".
+  if (shownStep !== null && currentStep() === shownStep) return;
+  if (shownHash !== null) {
     asking = true;
     let leave;
     try {
@@ -145,19 +133,17 @@ async function onHashChange(event) {
       return;
     }
   }
-  route(hashOf(event.oldURL));
+  route();
 }
 
-async function route(from = null) {
+async function route() {
   const gen = ++generation;
   const left = () => gen !== generation;
   // Old viewer addresses open the matching page.
   const moved = movedAddress(location.hash);
   if (moved) history.replaceState(null, '', moved);
   shownHash = location.hash;
-  shownIndex = historyIndex();
-  cameFrom = from;
-  restoring = false;
+  shownStep = currentStep();
   guards = [];
   const parts = hashParts(location.hash);
   for (const fn of leaving) runSafely(fn);

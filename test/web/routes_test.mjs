@@ -102,6 +102,7 @@ test('the tab title follows the run', () => {
   );
   assert.equal(tabTitle({ pageName: 'Control', current: null, ended: 'completed' }), '✓ Done · Control · Mod Repo Viewer');
   assert.equal(tabTitle({ pageName: 'Control', current: null, ended: 'failed' }), '✗ Failed · Control · Mod Repo Viewer');
+  assert.equal(tabTitle({ pageName: 'Control', current: null, ended: 'interrupted' }), '✗ Interrupted · Control · Mod Repo Viewer');
   assert.equal(tabTitle({ pageName: 'Files', current: null, ended: 'cancelled' }), 'Files · Mod Repo Viewer');
 });
 

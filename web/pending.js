@@ -121,3 +121,15 @@ export function saveRequest(items, publishAfter) {
     publishAfter: !!publishAfter,
   };
 }
+
+/// Blocks conflicting name changes for one person on the Author aliases page.
+/// Removing A from a row with names A and B drops the row. A later choice to
+/// publish that person as B would fail. Pending removals therefore block
+/// choosing a published name, and pending name choices block removals.
+/// Returns `{ publish, remove }`, each true when that action is blocked.
+export function heldBackNameChanges(row, items = pendingItems()) {
+  const names = new Set((row || []).map((n) => String(n).toLowerCase()));
+  const has = (kind) => items.some((i) => i.correction && i.correction.kind === kind
+    && (i.correction.names || []).some((n) => names.has(String(n).toLowerCase())));
+  return { publish: has('removeAuthorName'), remove: has('publishAuthorAs') };
+}

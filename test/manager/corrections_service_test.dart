@@ -407,12 +407,16 @@ void main() {
   group('when the job is sent', () {
     late JobManager manager;
     late Handler handler;
+    late FakeJobRunner qb;
+    late FakeJobRunner modRepo;
 
     setUp(() async {
+      qb = FakeJobRunner();
+      modRepo = FakeJobRunner();
       manager = JobManager(
         service: JobRouter(
-          qb: FakeJobRunner(),
-          modRepo: FakeJobRunner(),
+          qb: qb,
+          modRepo: modRepo,
           publish: FakeJobRunner(),
           corrections: service,
         ),
@@ -422,11 +426,15 @@ void main() {
       handler = ManagerApi(manager: manager, dataPath: dataPath).router;
     });
 
-    tearDown(() async {
-      for (var i = 0; i < 200 && (manager.currentRun != null || manager.queuedRuns.isNotEmpty); i++) {
+    Future<void> waitForIdle() async {
+      for (var i = 0; i < 400 && (manager.currentRun != null || manager.queuedRuns.isNotEmpty); i++) {
+        qb.release();
+        modRepo.release();
         await Future<void>.delayed(const Duration(milliseconds: 5));
       }
-    });
+    }
+
+    tearDown(waitForIdle);
 
     Future<Response> send(List<Correction> corrections) async => handler(Request(
           'POST',
@@ -487,6 +495,116 @@ void main() {
       expect(takedownsFile().existsSync(), isFalse);
       expect(requirementsFile().existsSync(), isFalse);
       expect(aliasFile().readAsStringSync(), aliasesBefore);
+    });
+
+    group('a mod-catalog.json that cannot be read', () {
+      const unreadable = 'Could not read mod-catalog.json. Rebuild the outputs. Nothing was saved.';
+      File catalogFile() => File(p.join(outputPath, ModCatalog.fileName));
+
+      for (final (what, broken) in [
+        ('cut off', (String whole) => whole.substring(0, whole.length ~/ 2)),
+        ('the wrong shape', (String _) => '[1, 2, 3]'),
+        ('holding the wrong kind of mods', (String _) => '{"items": 5}'),
+      ]) {
+        test('is refused in plain words when the catalog is $what', () async {
+          catalogFile().writeAsStringSync(broken(catalogFile().readAsStringSync()));
+          final before = takedownsFile().existsSync();
+
+          for (final correction in const [
+            Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes'),
+            Correction(kind: CorrectionKind.matchRequirement, written: 'Lazy Lib', modId: 'lazylib'),
+          ]) {
+            final res = await send([correction]);
+            expect(res.statusCode, 400);
+            expect((jsonDecode(await res.readAsString()) as Map)['error'], unreadable);
+          }
+          expect(manager.history.records, isEmpty);
+          expect(takedownsFile().existsSync(), before);
+          expect(requirementsFile().existsSync(), isFalse);
+        });
+      }
+
+      test('fails the job with the same words when it breaks while the job waits', () async {
+        catalogFile().writeAsStringSync(catalogFile().readAsStringSync().substring(0, 40));
+        await expectLater(
+          run(const [Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes')]),
+          throwsA(isA<StateError>().having((e) => e.message, 'message', unreadable)),
+        );
+        await expectLater(
+          run(const [Correction(kind: CorrectionKind.matchRequirement, written: 'Lazy Lib', modId: 'lazylib')]),
+          throwsA(isA<StateError>().having((e) => e.message, 'message', unreadable)),
+        );
+        expect(takedownsFile().existsSync(), isFalse);
+        expect(requirementsFile().existsSync(), isFalse);
+      });
+    });
+
+    group('saves running or waiting to run', () {
+      test('are counted first, so a change one of them makes is refused', () async {
+        // Something else runs first, so both saves wait in the queue.
+        qb.holdUntilReleased();
+        await manager.enqueue(JobRequest.rebuildBundle());
+
+        final first = await send(const [Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes')]);
+        expect(first.statusCode, 200);
+
+        final again = await send(const [
+          Correction(kind: CorrectionKind.sameAuthor, names: ['Alpha', 'beta_7']),
+          Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes'),
+        ]);
+        expect(again.statusCode, 400);
+        expect((jsonDecode(await again.readAsString()) as Map)['error'],
+            'Nothing was saved. Correction 2 (take down "useful-tithes"): "useful-tithes" is already taken down. '
+            '${CorrectionsService.countsSavesAhead}');
+        expect(manager.queuedRuns.length + (manager.currentRun == null ? 0 : 1), 2);
+
+        final other = await send(const [
+          Correction(kind: CorrectionKind.sameAuthor, names: ['Alpha', 'beta_7']),
+          Correction(kind: CorrectionKind.takeDownMod, modId: 'corrupt-officials'),
+        ]);
+        expect(other.statusCode, 200);
+
+        await waitForIdle();
+        final states = [for (final r in manager.history.records) r.state];
+        expect(states, everyElement(RunState.completed));
+        expect(TakedownList.read(dataPath).mods.map((m) => m.id), ['useful-tithes', 'corrupt-officials']);
+        expect(savedPeople(), anyElement(equals(['Alpha', 'beta_7'])));
+      });
+
+      test('a running save that has already written its changes is not counted twice', () async {
+        modRepo.holdUntilReleased();
+        final first = await send(const [Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes')]);
+        expect(first.statusCode, 200);
+        // The corrections are saved; the job now waits in its merge step.
+        await modRepo.started.future;
+        expect(takedownsFile().existsSync(), isTrue);
+
+        final again = await send(const [Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes')]);
+        expect(again.statusCode, 400);
+        expect((jsonDecode(await again.readAsString()) as Map)['error'],
+            'Nothing was saved. Correction 1 (take down "useful-tithes"): "useful-tithes" is already taken down.');
+
+        final other = await send(const [Correction(kind: CorrectionKind.takeDownMod, modId: 'corrupt-officials')]);
+        expect(other.statusCode, 200);
+      });
+
+      test('a save waiting to run that will be refused is not counted', () async {
+        qb.holdUntilReleased();
+        await manager.enqueue(JobRequest.rebuildBundle());
+        // Put on the queue without the check, as if the files changed after it
+        // was sent. It saves nothing when it runs.
+        await manager.enqueue(JobRequest.saveCorrections(const [
+          Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes'),
+          Correction(kind: CorrectionKind.takeDownMod, modId: 'foo'),
+        ]));
+
+        final res = await send(const [Correction(kind: CorrectionKind.takeDownMod, modId: 'useful-tithes')]);
+        expect(res.statusCode, 200);
+
+        await waitForIdle();
+        expect([for (final r in manager.history.records) r.state], containsAll([RunState.failed, RunState.completed]));
+        expect(TakedownList.read(dataPath).mods.map((m) => m.id), ['useful-tithes']);
+      });
     });
   });
 }

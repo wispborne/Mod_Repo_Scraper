@@ -387,12 +387,44 @@ void main() {
       expect(((await modAt('beta'))['sourcePosts'] as List).single['joinedBy'], 'first');
     });
 
+    void writeMergeSnapshot(String runId, Map<String, dynamic> debug, {required DateTime fileTime}) {
+      File(p.join(dataDir, 'merges', '$runId.json.gz'))
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(gzip.encode(utf8.encode(jsonEncode(debug))))
+        ..setLastModifiedSync(fileTime);
+    }
+
+    // A merge from another build: alpha's Discord post is not in it.
+    Map<String, dynamic> otherBuild() => mergeDebug(outputs: [
+          [alphaForum],
+          [betaForum],
+        ]);
+
     test('how a post joined comes from the merge snapshot when merge-debug.json is gone', () async {
       File(p.join(tmp.path, 'merge-debug.json')).deleteSync();
-      final file = File(p.join(dataDir, 'merges', '20261022T000100Z-mergeModRepo.json.gz'))
-        ..parent.createSync(recursive: true)
-        ..writeAsBytesSync(gzip.encode(utf8.encode(jsonEncode(mergeDebug()))));
-      file.setLastModifiedSync(DateTime.utc(2026, 10, 22, 0, 1));
+      // Saved before the save time was recorded: the run started before the
+      // catalog was built, and the file was written after.
+      writeMergeSnapshot('20261021T235900Z-mergeModRepo', mergeDebug(), fileTime: DateTime.utc(2026, 10, 22, 0, 1));
+      // An older build's, written before the catalog, and the next run's,
+      // started after it. Neither is this build's.
+      writeMergeSnapshot('20261021T120000Z-mergeModRepo', otherBuild(), fileTime: DateTime.utc(2026, 10, 21, 12, 1));
+      writeMergeSnapshot('20261022T060000Z-mergeModRepo', otherBuild(), fileTime: DateTime.utc(2026, 10, 22, 6, 1));
+      final body = await modAt('alpha');
+      expect([for (final post in body['sourcePosts'] as List) post['joinedBy']], ['first', 'forumLink']);
+    });
+
+    test('a merge snapshot with a recorded save time is found by it', () async {
+      File(p.join(tmp.path, 'merge-debug.json')).deleteSync();
+      // The file times say nothing here (a copied folder): the recorded times
+      // decide.
+      final copied = DateTime.utc(2026, 11, 1);
+      writeMergeSnapshot('20261021T235900Z-mergeModRepo', mergeDebug(), fileTime: copied);
+      writeMergeSnapshot('20261021T235950Z-fullRun', otherBuild(), fileTime: copied);
+      writeJson(p.join(dataDir, 'merges', 'merge-counts.json'), {
+        '20261021T235900Z-mergeModRepo': {'savedAt': '2026-10-22T00:00:05.000Z'},
+        // Started before the catalog too, but saved before it was built.
+        '20261021T235950Z-fullRun': {'savedAt': '2026-10-21T23:59:58.000Z'},
+      });
       final body = await modAt('alpha');
       expect([for (final post in body['sourcePosts'] as List) post['joinedBy']], ['first', 'forumLink']);
     });

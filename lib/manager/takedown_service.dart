@@ -79,6 +79,19 @@ class TakedownService implements JobRunner {
   }
 }
 
+/// Reads `mod-catalog.json` from [outputPath], or null when there is none.
+///
+/// Throws a [StateError] in plain words when the file is there but cannot be
+/// read: cut off, not JSON, or not shaped like a catalog. Without this, the
+/// error would reach the viewer as a bare "500 Internal Server Error".
+ModCatalog? readCatalogIn(String outputPath) {
+  try {
+    return ModCatalog.read(File(p.join(outputPath, ModCatalog.fileName)));
+  } catch (_) {
+    throw StateError('Could not read ${ModCatalog.fileName}. Rebuild the outputs. Nothing was saved.');
+  }
+}
+
 /// Why a takedown change was refused, in a plain sentence.
 class TakedownRefused implements Exception {
   final String reason;
@@ -138,7 +151,7 @@ class TakedownEdits {
 
   ModCatalog? get _readCatalog {
     if (!_catalogRead) {
-      _catalog = ModCatalog.read(File(p.join(outputPath, ModCatalog.fileName)));
+      _catalog = readCatalogIn(outputPath);
       _catalogRead = true;
     }
     return _catalog;

@@ -137,3 +137,41 @@ export function openParam(openKeys, allKeys) {
   if (allKeys.length > 1 && allKeys.every((k) => open.includes(k))) return 'all';
   return open.join(';');
 }
+
+// --- Finding a Mods-tab row's mod page ---
+
+const FORUM_TOPIC = /topic=(\d+)/;
+const DISCORD_THREAD = /discord(?:app)?\.com\/channels\/\d+\/(\d+)/i;
+const FORUM_SOURCES = ['Index', 'ModdingSubforum'];
+
+/// The source post to find a Mods-tab row's mod through: `{ kind, id, own }`,
+/// or null. `own` is true when the post is one of the mod's own sources. A
+/// mod found only on Discord can keep a forum link to another mod's topic (a
+/// requirement, say), so its forum link is used only when nothing else is
+/// there, and then `own` is false.
+export function postForMod(mod) {
+  const urls = (mod && mod.urls) || {};
+  const sources = Array.isArray(mod && mod.sources) ? mod.sources : null;
+  const topic = (String(urls.Forum || '').match(FORUM_TOPIC) || [])[1] || null;
+  const thread = (String(urls.Discord || '').match(DISCORD_THREAD) || [])[1] || null;
+  // An older snapshot may not list its sources; its forum link is then taken
+  // as its own, as it always was.
+  const fromForum = !sources || sources.some((s) => FORUM_SOURCES.includes(s));
+  if (topic && fromForum) return { kind: 'topic', id: topic, own: true };
+  if (thread) return { kind: 'discord', id: thread, own: true };
+  if (topic) return { kind: 'topic', id: topic, own: false };
+  return null;
+}
+
+const looseName = (s) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+
+/// Links a row to mods with the same name. If no name matches, links all
+/// mods from its own source post (`own`). A link to another post is not
+/// enough to link that post's mods.
+export function modsToLink(mods, name, own) {
+  const list = Array.isArray(mods) ? mods : [];
+  const wanted = looseName(name);
+  const same = wanted ? list.filter((m) => looseName(m.name) === wanted) : [];
+  if (same.length) return same;
+  return own ? list : [];
+}

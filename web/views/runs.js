@@ -7,8 +7,9 @@ import { kindLabel, hashQuery, buildHash } from '../routes.js';
 import { pageLayout, statusMark } from '../frame.js';
 import { MARK_FOR_STATE, STATE_WORDS } from '../run_panel.js';
 import { duration } from '../jobs.js';
+import { runTime, startedAt } from '../run_record.js';
 
-export function render({ content, onLeave }) {
+export function render({ content, onLeave, gone }) {
   // The address counts pages from 1; the server counts from 0.
   let page = Math.max(0, (parseInt(hashQuery(location.hash).get('page'), 10) || 1) - 1);
   let pageSize = pageSizePreference();
@@ -18,27 +19,32 @@ export function render({ content, onLeave }) {
   // Ignore responses to older requests once a newer request starts.
   let ticket = 0;
   let failed = false;
-  const load = async () => {
-    const mine = ++ticket;
+  const writeAddress = () => {
     history.replaceState(null, '', buildHash(['runs'], { page: page > 0 ? page + 1 : null }));
+  };
+  const load = async () => {
+    // The address and the page belong to the next page once the reader has left.
+    if (gone()) return;
+    const mine = ++ticket;
+    writeAddress();
     let data;
     try {
       data = await api('manager/runs', { page, pageSize });
     } catch (err) {
-      if (mine !== ticket) return;
+      if (mine !== ticket || gone()) return;
       failed = true;
       clear(body).append(el('p', { class: 'error-text', text: err.message }));
       return;
     }
-    if (mine !== ticket) return;
+    if (mine !== ticket || gone()) return;
     failed = false;
     const items = (data && data.items) || [];
     const total = (data && data.total) || 0;
-    // Return to the last page if old runs were removed and this page is now empty.
-    if (!items.length && page > 0 && total > 0) {
-      page = pageSize ? Math.max(0, Math.ceil(total / pageSize) - 1) : 0;
-      load();
-      return;
+    // A page past the end (old runs were removed, or the address asked for
+    // too much) is answered with the last page, and the answer says which.
+    if (data && Number.isInteger(data.page) && data.page !== page) {
+      page = data.page;
+      writeAddress();
     }
     clear(body).append(
       items.length ? runTable(items) : el('p', { class: 'empty', text: 'No runs yet.' }),
@@ -82,8 +88,8 @@ function runTable(items) {
         STATE_WORDS[r.state] || r.state,
       ])]),
       el('td', {}, [el('a', { href, text: kindLabel(r.request && r.request.kind) })]),
-      el('td', { class: 'mono', text: shortTime(r.startedAt || r.queuedAt) }),
-      el('td', { class: 'num mono', text: r.startedAt ? duration(r.startedAt, r.finishedAt) : '' }),
+      el('td', { class: 'mono', text: shortTime(runTime(r)) }),
+      el('td', { class: 'num mono', text: startedAt(r) ? duration(r.startedAt, r.finishedAt) : '' }),
       el('td', { class: 'num mono', text: c.itemsTotal ? `${c.itemsDone || 0} / ${c.itemsTotal}` : String(c.itemsDone || 0) }),
       el('td', { class: c.errors ? 'num mono failed-text' : 'num mono', text: String(c.errors || 0) }),
       el('td', { class: 'num mono', text: String(c.llmCalls || 0) }),
