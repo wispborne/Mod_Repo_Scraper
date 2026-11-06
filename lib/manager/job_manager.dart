@@ -70,8 +70,18 @@ class RunStatusSnapshot {
 /// that promise reaches across processes too — a server and a standalone CLI
 /// pointed at one folder take turns instead of trampling each other.
 class JobManager {
-  final JobRunner service;
+  /// Runs jobs. [beforeJob] may replace it between jobs.
+  JobRunner get service => _service;
+  JobRunner _service;
+
   final RunHistoryStore history;
+
+  /// Called before each job, after acquiring the data lock. It may return a
+  /// new runner for this and subsequent jobs; null keeps the current runner.
+  /// The server uses this to reload the config file when it has
+  /// changed. A job already running keeps the runner it started with. Lines
+  /// passed to `log` go into the job's own log.
+  final Future<JobRunner?> Function(void Function(String line) log)? beforeJob;
 
   /// Guards the data folder against other processes. Null means "this is the
   /// only writer", which is what tests usually want.
@@ -87,11 +97,13 @@ class JobManager {
   bool _draining = false;
 
   JobManager({
-    required this.service,
+    required JobRunner service,
     required this.history,
     this.lock,
+    this.beforeJob,
     RunReporter Function(JobRequest request)? makeReporter,
-  }) : _makeReporter = makeReporter ?? ((_) => const SilentRunReporter());
+  })  : _service = service,
+        _makeReporter = makeReporter ?? ((_) => const SilentRunReporter());
 
   /// The run happening right now, or null when nothing is running.
   RunRecord? get currentRun => _current?.record;
@@ -164,13 +176,17 @@ class JobManager {
     // else. The wait is logged into this run's own log.
     await lock?.acquire(log: reporter.log);
 
+    // Reload after acquiring the lock so changes made while waiting for
+    // another program apply to this job.
+    final runner = await _runnerForThisJob(reporter);
+
     job.record = await history.update(job.record.copyWith(
       state: RunState.running,
       startedAt: DateTime.now().toUtc(),
     ));
 
     try {
-      final outcome = await service.runJob(
+      final outcome = await runner.runJob(
         job.request,
         reporter: _HistoryReporter(reporter, history, job, this),
         cancel: job.cancel,
@@ -195,6 +211,20 @@ class JobManager {
       await capture.stop();
       job.done.complete(job.record);
     }
+  }
+
+  /// Uses the runner returned by [beforeJob], or keeps the current runner.
+  Future<JobRunner> _runnerForThisJob(RunReporter reporter) async {
+    final hook = beforeJob;
+    if (hook == null) return _service;
+    try {
+      final fresh = await hook(reporter.log);
+      if (fresh != null) _service = fresh;
+    } catch (e) {
+      reporter.log('Could not check the settings again, so this job uses the '
+          'ones it had: $e');
+    }
+    return _service;
   }
 
   /// Keeps the live view in step with what the reporter is being told.

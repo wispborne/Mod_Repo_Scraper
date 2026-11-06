@@ -171,7 +171,14 @@ class ManagerDelegate {
 
   Future<void> _cancel() async {
     try {
-      await _client.post(_url('/jobs/cancel')).timeout(requestTimeout);
+      // Sent as JSON: the server refuses any other kind of changing request.
+      await _client
+          .post(
+            _url('/jobs/cancel'),
+            headers: {'content-type': 'application/json'},
+            body: '{}',
+          )
+          .timeout(requestTimeout);
     } catch (e) {
       reporter.log('Could not ask the manager to stop: $e');
     }

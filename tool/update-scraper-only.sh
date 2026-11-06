@@ -22,8 +22,10 @@ TOKEN_FILE=".gitea-token"
 WAIT_SECONDS=30
 
 # Everything a release replaces. Both programs and both page folders come from
-# the same build, so they are swapped together or not at all.
-ITEMS=(mod_repo_scraper mod_repo_scraper_server web site)
+# the same build, so they are swapped together or not at all. The example
+# config holds the notes the viewer's Settings page shows; the real
+# config.properties is never touched.
+ITEMS=(mod_repo_scraper mod_repo_scraper_server web web2 site config.example.properties)
 BACKUP=".update-backup"
 
 mode=update

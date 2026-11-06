@@ -2,6 +2,8 @@
 // subscribe to it. Copied from web/manager.js, which will be removed
 // when the new viewer replaces the old one.
 
+import { kindLabel } from './routes.js';
+
 const STATUS_URL = '/api/manager/status';
 const BUSY_MS = 1000;
 const IDLE_MS = 5000;
@@ -142,10 +144,45 @@ export function watchRunEnds(onChange) {
         const res = await fetch(`/api/manager/runs/${encodeURIComponent(id)}`);
         const record = res.ok ? await res.json() : null;
         ended = record && record.state ? record.state : null;
+        if (record) notifyRunEnded(record);
       } catch {
         ended = null;
       }
     }
     onChange();
   });
+}
+
+// --- Run notifications ---
+
+const NOTIFY_KEY = 'viewer2Notify';
+
+/// Whether run notifications are enabled in this browser.
+export function notificationsWanted() {
+  try { return localStorage.getItem(NOTIFY_KEY) === 'on'; } catch { return false; }
+}
+
+export function setNotificationsWanted(on) {
+  try {
+    if (on) localStorage.setItem(NOTIFY_KEY, 'on');
+    else localStorage.removeItem(NOTIFY_KEY);
+  } catch { /* storage blocked */ }
+}
+
+const ENDED_WORDS = { completed: 'finished', failed: 'failed', cancelled: 'was stopped', interrupted: 'was interrupted' };
+
+/// Shows one silent notification when this page detects a run ending.
+/// Requires notifications to be enabled and browser permission granted.
+function notifyRunEnded(record) {
+  if (!notificationsWanted() || typeof Notification === 'undefined') return;
+  if (Notification.permission !== 'granted') return;
+  const kind = kindLabel(record.request && record.request.kind);
+  const mark = record.state === 'completed' ? '✓' : '✗';
+  try {
+    new Notification(`${mark} ${kind} ${ENDED_WORDS[record.state] || record.state}`, {
+      body: 'Mod Repo Viewer',
+      silent: true,
+      tag: record.id,
+    });
+  } catch { /* some browsers only allow notifications from a service worker */ }
 }

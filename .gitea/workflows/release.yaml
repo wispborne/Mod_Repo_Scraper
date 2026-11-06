@@ -80,8 +80,12 @@ jobs:
       # HTML, stylesheet and scripts, and a publish copies it into the published
       # repo next to the data it reads. Without it the published repo holds the
       # mod data and no pages to show it with.
+      #
+      # config.example.properties rides along because the viewer's Settings page
+      # reads the note for each setting out of it, from the folder the config
+      # file is in.
       - name: Pack the server with the pages it serves
-        run: tar czf mod_repo_scraper_server.tar.gz mod_repo_scraper_server web site
+        run: tar czf mod_repo_scraper_server.tar.gz mod_repo_scraper_server web web2 site config.example.properties
 
       # Made through Gitea's own API with plain curl. The GitHub release action
       # only talks to GitHub's API, which Gitea's does not match.

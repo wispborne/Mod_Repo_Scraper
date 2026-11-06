@@ -33,111 +33,122 @@ class Common {
         return null;
       }
 
-      final properties = <String, String>{};
-      final lines = file.readAsLinesSync();
-
-      for (final line in lines) {
-        if (line.trim().isEmpty || line.trim().startsWith('#')) {
-          continue;
-        }
-        final parts = line.split('=');
-        if (parts.length >= 2) {
-          final key = parts[0].trim();
-          final value = parts.sublist(1).join('=').trim();
-          properties[key] = value;
-        }
-      }
-
+      final properties = parseProperties(file.readAsLinesSync());
       _warnUnknownKeys(properties.keys);
-
-      return BotConfig(
-        logLevel: properties['log_level'] ?? 'INFO',
-        // ModRepo pipeline.
-        enableModRepo: properties['modrepo_enabled']?.toLowerCase() != 'false',
-        useCached: properties['modrepo_use_cached']?.toLowerCase() == 'true',
-        lessScraping: properties['modrepo_less_scraping']?.toLowerCase() == 'true',
-        enableForums: properties['modrepo_forums_enabled']?.toLowerCase() == 'true',
-        enableDiscord: properties['modrepo_discord_enabled']?.toLowerCase() == 'true',
-        enableNexus: properties['modrepo_nexus_enabled']?.toLowerCase() == 'true',
-        discordAuthToken: properties['modrepo_discord_auth_token'],
-        nexusApiToken: properties['modrepo_nexus_api_token'],
-        discordServerId: properties['modrepo_discord_server_id'],
-        discordForumChannelIdsAndGameVersions:
-            _parseForumChannelIds(properties['modrepo_discord_forum_channels']),
-        keepAllGameVersionsFromSameSource:
-            properties['modrepo_keep_all_game_versions']?.toLowerCase() == 'true',
-        generateMergeDebug:
-            properties['modrepo_merge_debug']?.toLowerCase() == 'true',
-        modRepoMergesToKeep:
-            int.tryParse(properties['modrepo_merges_to_keep'] ?? '') ?? 20,
-        // QB pipeline.
-        enableQb: properties['qb_enabled']?.toLowerCase() == 'true',
-        qbUseCached: properties['qb_use_cached']?.toLowerCase() == 'true',
-        qbDataPath: _trimOrDefault(properties['qb_data_path'], 'qb_data')!,
-        qbRunsToKeep: int.tryParse(properties['qb_runs_to_keep'] ?? '') ?? 100,
-        qbBundlesToKeep:
-            int.tryParse(properties['qb_bundles_to_keep'] ?? '') ?? 500,
-        qbManagerUrl: _trimOrNull(properties['qb_manager_url']),
-        qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
-        qbBoards: _parseQbBoards(properties['qb_boards']),
-        qbDelayMs: int.tryParse(properties['qb_delay_ms'] ?? '') ?? 1500,
-        qbMaxPagesMain: int.tryParse(properties['qb_max_pages_main'] ?? ''),
-        qbLesserBoardMaxPages:
-            int.tryParse(properties['qb_max_pages_lesser'] ?? '') ?? 20,
-        qbMaxPagesLibraries:
-            int.tryParse(properties['qb_max_pages_libraries'] ?? ''),
-        // QB LLM extraction.
-        enableLlm: properties['llm_enabled']?.toLowerCase() == 'true',
-        llmApiToken: _trimOrNull(properties['llm_api_token']),
-        llmModel: _trimOrDefault(properties['llm_model'], 'deepseek/deepseek-chat')!,
-        llmBaseUrl: _trimOrDefault(
-            properties['llm_base_url'], 'https://openrouter.ai/api/v1/chat/completions')!,
-        llmMaxConsecutiveFailures:
-            int.tryParse(properties['llm_max_consecutive_failures'] ?? '') ?? 10,
-        llmTimeoutSeconds:
-            int.tryParse(properties['llm_timeout_seconds'] ?? '') ?? 900,
-        llmIdleTimeoutSeconds:
-            int.tryParse(properties['llm_idle_timeout_seconds'] ?? '') ?? 180,
-        llmMaxTopics: int.tryParse(properties['llm_max_topics'] ?? ''),
-        llmMaxConcurrentCalls:
-            int.tryParse(properties['llm_max_concurrent_calls'] ?? '') ?? 3,
-        llmMaxTokens: int.tryParse(properties['llm_max_tokens'] ?? ''),
-        llmMaxInputChars:
-            int.tryParse(properties['llm_max_input_chars'] ?? ''),
-        llmDisableThinking:
-            properties['llm_disable_thinking']?.toLowerCase() == 'true',
-        llmStructuredOutput:
-            properties['llm_structured_output']?.toLowerCase() == 'true',
-        enableLlmSummaries:
-            properties['llm_summaries']?.toLowerCase() == 'true',
-        llmCaptionPictures:
-            properties['llm_caption_pictures']?.toLowerCase() == 'true',
-        llmSkipScrapeReprocessOnly:
-            properties['llm_reprocess_only']?.toLowerCase() == 'true',
-        llmTestMode: properties['llm_test_mode']?.toLowerCase() == 'true',
-        llmTestLimit: int.tryParse(properties['llm_test_limit'] ?? '') ?? 5,
-        llmTestTopicIds: _parseTopicIds(properties['llm_test_topic_ids']),
-        llmFallbackBaseUrl: _trimOrNull(properties['llm_fallback_base_url']),
-        llmFallbackModel: _trimOrNull(properties['llm_fallback_model']),
-        llmFallbackApiToken: _trimOrNull(properties['llm_fallback_api_token']),
-        llmFallbackDisableThinking:
-            properties['llm_fallback_disable_thinking']?.toLowerCase() == 'true',
-        llmFallbackStructuredOutput:
-            properties['llm_fallback_structured_output']?.toLowerCase() ==
-                'true',
-        llmFallbackFreeToPaid:
-            properties['llm_fallback_free_to_paid']?.toLowerCase() == 'true',
-        // Publishing outputs to GitHub.
-        publishRepoUrl: _trimOrDefault(properties['publish_repo_url'],
-            'git@github.com:wispborne/StarsectorModRepo.git')!,
-        publishCloneDir: _trimOrNull(properties['publish_clone_dir']),
-        publishSitePath:
-            _trimOrDefault(properties['publish_site_path'], 'site')!,
-      );
+      return configFromProperties(properties);
     } catch (e) {
       stderr.writeln(e);
       return null;
     }
+  }
+
+  /// Reads `key = value` lines the way [readConfig] does: blank lines and
+  /// lines starting with `#` are skipped, the key and value are trimmed, and a
+  /// key written twice keeps its last value.
+  static Map<String, String> parseProperties(Iterable<String> lines) {
+    final properties = <String, String>{};
+    for (final line in lines) {
+      if (line.trim().isEmpty || line.trim().startsWith('#')) {
+        continue;
+      }
+      final parts = line.split('=');
+      if (parts.length >= 2) {
+        final key = parts[0].trim();
+        final value = parts.sublist(1).join('=').trim();
+        properties[key] = value;
+      }
+    }
+    return properties;
+  }
+
+  /// Builds the settings from keys and values already read. A key that is
+  /// missing gets its built-in default.
+  static BotConfig configFromProperties(Map<String, String> properties) {
+    return BotConfig(
+      logLevel: _trimOrDefault(properties['log_level'], 'INFO')!,
+      // ModRepo pipeline.
+      enableModRepo: properties['modrepo_enabled']?.toLowerCase() != 'false',
+      useCached: properties['modrepo_use_cached']?.toLowerCase() == 'true',
+      lessScraping: properties['modrepo_less_scraping']?.toLowerCase() == 'true',
+      enableForums: properties['modrepo_forums_enabled']?.toLowerCase() == 'true',
+      enableDiscord: properties['modrepo_discord_enabled']?.toLowerCase() == 'true',
+      enableNexus: properties['modrepo_nexus_enabled']?.toLowerCase() == 'true',
+      // Blank and missing mean the same: not set.
+      discordAuthToken: _trimOrNull(properties['modrepo_discord_auth_token']),
+      nexusApiToken: _trimOrNull(properties['modrepo_nexus_api_token']),
+      discordServerId: _trimOrNull(properties['modrepo_discord_server_id']),
+      discordForumChannelIdsAndGameVersions:
+          _parseForumChannelIds(properties['modrepo_discord_forum_channels']),
+      keepAllGameVersionsFromSameSource:
+          properties['modrepo_keep_all_game_versions']?.toLowerCase() == 'true',
+      generateMergeDebug:
+          properties['modrepo_merge_debug']?.toLowerCase() == 'true',
+      modRepoMergesToKeep:
+          int.tryParse(properties['modrepo_merges_to_keep'] ?? '') ?? 20,
+      // QB pipeline.
+      enableQb: properties['qb_enabled']?.toLowerCase() == 'true',
+      qbUseCached: properties['qb_use_cached']?.toLowerCase() == 'true',
+      qbDataPath: _trimOrDefault(properties['qb_data_path'], 'qb_data')!,
+      qbRunsToKeep: int.tryParse(properties['qb_runs_to_keep'] ?? '') ?? 100,
+      qbBundlesToKeep:
+          int.tryParse(properties['qb_bundles_to_keep'] ?? '') ?? 500,
+      qbManagerUrl: _trimOrNull(properties['qb_manager_url']),
+      qbScope: _trimOrDefault(properties['qb_scope'], 'newData')!,
+      qbBoards: _parseQbBoards(properties['qb_boards']),
+      qbDelayMs: int.tryParse(properties['qb_delay_ms'] ?? '') ?? 1500,
+      qbMaxPagesMain: int.tryParse(properties['qb_max_pages_main'] ?? ''),
+      qbLesserBoardMaxPages:
+          int.tryParse(properties['qb_max_pages_lesser'] ?? '') ?? 20,
+      qbMaxPagesLibraries:
+          int.tryParse(properties['qb_max_pages_libraries'] ?? ''),
+      // QB LLM extraction.
+      enableLlm: properties['llm_enabled']?.toLowerCase() == 'true',
+      llmApiToken: _trimOrNull(properties['llm_api_token']),
+      llmModel: _trimOrDefault(properties['llm_model'], 'deepseek/deepseek-chat')!,
+      llmBaseUrl: _trimOrDefault(
+          properties['llm_base_url'], 'https://openrouter.ai/api/v1/chat/completions')!,
+      llmMaxConsecutiveFailures:
+          int.tryParse(properties['llm_max_consecutive_failures'] ?? '') ?? 10,
+      llmTimeoutSeconds:
+          int.tryParse(properties['llm_timeout_seconds'] ?? '') ?? 900,
+      llmIdleTimeoutSeconds:
+          int.tryParse(properties['llm_idle_timeout_seconds'] ?? '') ?? 180,
+      llmMaxTopics: int.tryParse(properties['llm_max_topics'] ?? ''),
+      llmMaxConcurrentCalls:
+          int.tryParse(properties['llm_max_concurrent_calls'] ?? '') ?? 3,
+      llmMaxTokens: int.tryParse(properties['llm_max_tokens'] ?? ''),
+      llmMaxInputChars:
+          int.tryParse(properties['llm_max_input_chars'] ?? ''),
+      llmDisableThinking:
+          properties['llm_disable_thinking']?.toLowerCase() == 'true',
+      llmStructuredOutput:
+          properties['llm_structured_output']?.toLowerCase() == 'true',
+      enableLlmSummaries:
+          properties['llm_summaries']?.toLowerCase() == 'true',
+      llmCaptionPictures:
+          properties['llm_caption_pictures']?.toLowerCase() == 'true',
+      llmSkipScrapeReprocessOnly:
+          properties['llm_reprocess_only']?.toLowerCase() == 'true',
+      llmTestMode: properties['llm_test_mode']?.toLowerCase() == 'true',
+      llmTestLimit: int.tryParse(properties['llm_test_limit'] ?? '') ?? 5,
+      llmTestTopicIds: _parseTopicIds(properties['llm_test_topic_ids']),
+      llmFallbackBaseUrl: _trimOrNull(properties['llm_fallback_base_url']),
+      llmFallbackModel: _trimOrNull(properties['llm_fallback_model']),
+      llmFallbackApiToken: _trimOrNull(properties['llm_fallback_api_token']),
+      llmFallbackDisableThinking:
+          properties['llm_fallback_disable_thinking']?.toLowerCase() == 'true',
+      llmFallbackStructuredOutput:
+          properties['llm_fallback_structured_output']?.toLowerCase() ==
+              'true',
+      llmFallbackFreeToPaid:
+          properties['llm_fallback_free_to_paid']?.toLowerCase() == 'true',
+      // Publishing outputs to GitHub.
+      publishRepoUrl: _trimOrDefault(properties['publish_repo_url'],
+          'git@github.com:wispborne/StarsectorModRepo.git')!,
+      publishCloneDir: _trimOrNull(properties['publish_clone_dir']),
+      publishSitePath:
+          _trimOrDefault(properties['publish_site_path'], 'site')!,
+    );
   }
 
   /// Every key `readConfig` knows how to read. Anything in the config file that

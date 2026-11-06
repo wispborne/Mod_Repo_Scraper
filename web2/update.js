@@ -92,7 +92,11 @@ async function offer() {
   if (!yes) return;
 
   try {
-    const res = await fetch(URL, { method: 'POST' });
+    const res = await fetch(URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
     const answer = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(answer.error || `Server returned ${res.status} ${res.statusText}.`);
   } catch (err) {

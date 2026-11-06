@@ -26,8 +26,9 @@ class RunHistoryStore {
 
   /// How many runs to keep. Older ones are dropped, and their log files with
   /// them — the logs are what actually fill the folder up. 0 or less keeps
-  /// everything.
-  final int runsToKeep;
+  /// everything. The server changes it when the config file changes, so a new
+  /// limit applies from the next save.
+  int runsToKeep;
 
   /// Newest first, which is the order the file is written in.
   final List<RunRecord> _records = [];

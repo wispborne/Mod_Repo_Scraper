@@ -334,7 +334,8 @@ void main() {
     Future<Response> call(Handler handler, String method, String path,
             {Object? body}) async =>
         handler(Request(method, Uri.parse('http://localhost/$path'),
-            body: body == null ? null : jsonEncode(body)));
+            body: body == null ? null : jsonEncode(body),
+            headers: const {'content-type': 'application/json'}));
 
     test('a server with no updater says it cannot update itself', () async {
       final handler =

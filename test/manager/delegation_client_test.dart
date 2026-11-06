@@ -50,6 +50,7 @@ void main() {
                   ? null
                   : request.url.query),
           body: request.body.isEmpty ? null : request.body,
+          headers: request.headers,
         ));
         return http.Response(await res.readAsString(), res.statusCode);
       });

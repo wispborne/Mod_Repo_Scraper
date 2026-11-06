@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:mod_repo_scraper/bot/common.dart';
 import 'package:mod_repo_scraper/manager/author_alias_service.dart';
+import 'package:mod_repo_scraper/manager/config_reload.dart';
 import 'package:mod_repo_scraper/manager/data_lock.dart';
 import 'package:mod_repo_scraper/manager/job_manager.dart';
 import 'package:mod_repo_scraper/manager/manager_api.dart';
@@ -13,6 +14,7 @@ import 'package:mod_repo_scraper/manager/run_reporter.dart';
 import 'package:mod_repo_scraper/manager/scraper_service.dart';
 import 'package:mod_repo_scraper/manager/scraper_settings.dart';
 import 'package:mod_repo_scraper/manager/self_update.dart';
+import 'package:mod_repo_scraper/manager/settings_file.dart';
 import 'package:mod_repo_scraper/manager/takedown_service.dart';
 import 'package:mod_repo_scraper/viewer/api.dart';
 import 'package:mod_repo_scraper/viewer/data_access.dart';
@@ -26,8 +28,9 @@ import 'package:shelf_static/shelf_static.dart';
 
 /// Serves `web/` and `web2/`, the read-only viewer API and optional job management API.
 ///
-/// Binds to `127.0.0.1`. Config supplies manager settings; only the data path
-/// may be exposed over HTTP. Viewer endpoints never write; manager jobs may.
+/// Binds to `127.0.0.1`. Config supplies manager settings; no secret from it
+/// is ever sent over HTTP. Viewer endpoints never write; manager jobs and the
+/// Settings page may.
 Future<void> main(List<String> args) async {
   final parser = ArgParser()
     ..addOption('port', defaultsTo: '8085', help: 'Port to listen on.')
@@ -185,6 +188,9 @@ Future<_ManagerSetup> _buildManager({
     return _ManagerSetup(ManagerApi.offHandler(reason), reason);
   }
 
+  // Stamped before reading, so a change made while the server starts is
+  // still noticed before the first job.
+  final stamp = FileStamp.of(configPath);
   final config = Common.readConfig(configFilePath: configPath);
   if (config == null) {
     final reason = 'The manager is off: $configPath could not be read.';
@@ -205,42 +211,58 @@ Future<_ManagerSetup> _buildManager({
   Common.initTimberForConsole(config);
   Common.bridgeLoggingToTimber();
 
-  final service = ScraperService(
-    environment:
-        ScraperEnvironment.fromConfig(config, sourceCachePath: viewerRootDir),
-    guardrails: ScraperGuardrails.fromConfig(config),
-  );
-  await service.load();
+  final history =
+      RunHistoryStore(config.qbDataPath, runsToKeep: config.qbRunsToKeep);
 
-  final jobManager = JobManager(
-    service: JobRouter(
+  /// Builds every service from [settings] at startup and before a job
+  /// when the config file has changed.
+  Future<JobRunner> buildServices(BotConfig settings) async {
+    final service = ScraperService(
+      environment: ScraperEnvironment.fromConfig(settings,
+          sourceCachePath: viewerRootDir),
+      guardrails: ScraperGuardrails.fromConfig(settings),
+    );
+    await service.load();
+    history.runsToKeep = settings.qbRunsToKeep;
+    return JobRouter(
       qb: service,
       modRepo: ModRepoService(
         // Merge output must go to the folders the viewer reads.
         environment: ModRepoEnvironment.fromConfig(
-          config,
+          settings,
           workingPath: viewerRootDir,
           outputPath: viewerOutputsDir,
         ),
-        guardrails: ModRepoGuardrails.fromConfig(config),
+        guardrails: ModRepoGuardrails.fromConfig(settings),
       ),
       // Publish the output files this viewer reads.
       publish: PublishService(
         environment: PublishEnvironment.fromConfig(
-          config,
+          settings,
           outputPath: viewerOutputsDir,
         ),
       ),
       // A mod entry's posts come from the catalog this viewer shows.
       takedowns: TakedownService(
-        dataPath: config.qbDataPath,
+        dataPath: settings.qbDataPath,
         outputPath: viewerOutputsDir,
       ),
-      authorAliases: AuthorAliasService(dataPath: config.qbDataPath),
-    ),
-    history:
-        RunHistoryStore(config.qbDataPath, runsToKeep: config.qbRunsToKeep),
+      authorAliases: AuthorAliasService(dataPath: settings.qbDataPath),
+    );
+  }
+
+  final reload = ConfigReload(
+    configPath: configPath,
+    startup: config,
+    build: buildServices,
+    seen: stamp,
+  );
+
+  final jobManager = JobManager(
+    service: await buildServices(config),
+    history: history,
     lock: DataLock(dataPath: config.qbDataPath, label: 'server'),
+    beforeJob: reload.beforeJob,
     // The reporter must log so server-started runs have browsable logs.
     makeReporter: (_) => const LogRunReporter(),
   );
@@ -255,6 +277,7 @@ Future<_ManagerSetup> _buildManager({
       busy: () =>
           jobManager.currentRun != null || jobManager.queuedRuns.isNotEmpty,
     ),
+    settings: SettingsFile(configPath: configPath),
   );
   return _ManagerSetup(api.router, 'on, working on $managerDataPath');
 }

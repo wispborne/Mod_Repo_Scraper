@@ -14,6 +14,9 @@ import 'package:test/test.dart';
 
 import 'fake_job_runner.dart';
 
+/// Every changing request must be sent as JSON.
+const _jsonHeaders = {'content-type': 'application/json'};
+
 void main() {
   late Directory dir;
   late FakeJobRunner service;
@@ -48,6 +51,7 @@ void main() {
           method,
           Uri.parse('http://localhost/$path'),
           body: body == null ? null : jsonEncode(body),
+          headers: _jsonHeaders,
         ),
       );
 
@@ -143,6 +147,7 @@ void main() {
         'POST',
         Uri.parse('http://localhost/jobs'),
         body: 'not json at all',
+        headers: _jsonHeaders,
       ));
       expect(res.statusCode, 400);
       expect(jsonDecode(await res.readAsString()), {
@@ -300,6 +305,7 @@ void main() {
       'POST',
       Uri.parse('http://localhost/api/manager/jobs'),
       body: jsonEncode({'kind': 'rebuildBundle'}),
+      headers: _jsonHeaders,
     ));
     expect(refused.statusCode, 503);
 

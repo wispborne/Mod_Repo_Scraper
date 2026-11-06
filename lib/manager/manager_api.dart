@@ -9,15 +9,22 @@ import '../bot/scraper/author_aliases.dart';
 import 'job.dart';
 import 'job_manager.dart';
 import 'self_update.dart';
+import 'settings_catalog.dart';
+import 'settings_file.dart';
 
 /// The HTTP face of the manager core: start a job, watch it, stop it, and read
 /// what past runs did.
 ///
 /// Requests and answers use the core's own shapes, so there is no second set of
-/// models to keep in step. Nothing from `config.properties` is ever sent — every
-/// answer here is built by hand from the short list of fields below, and the
-/// data folder is the only setting that ever leaves the process (the CLI needs
-/// it to check both sides mean the same folder).
+/// models to keep in step. Every answer here is built by hand from a short list
+/// of fields. No secret from `config.properties` is ever sent: the settings
+/// route says only whether each token is set, and hides the user name,
+/// password and query of an address. Other settings appear only in that
+/// route's answer, and the data folder in the status too (the CLI needs it to
+/// check both sides mean the same folder).
+///
+/// Every `POST` must come from the viewer's own page or the CLI: see
+/// [sameOriginRefusal].
 class ManagerApi {
   /// The kinds that only make sense for named topics.
   static const Set<JobKind> perTopicKinds = {
@@ -39,10 +46,15 @@ class ManagerApi {
   /// which answers as "this server cannot update itself".
   final SelfUpdate? selfUpdate;
 
+  /// The config file edited by the Settings page. When null, requests return
+  /// "this server has no settings to change".
+  final SettingsFile? settings;
+
   ManagerApi({
     required this.manager,
     required String dataPath,
     this.selfUpdate,
+    this.settings,
   }) : dataPath = p.normalize(p.absolute(dataPath));
 
   Handler get router {
@@ -56,8 +68,61 @@ class ManagerApi {
     r.get('/runs/<id>/log', _runLog);
     r.get('/update', _updateStatus);
     r.post('/update', _startUpdate);
+    r.get('/settings', _settings);
+    r.post('/settings', _saveSettings);
 
-    return r.call;
+    final routes = r.call;
+    return (Request req) {
+      if (req.method == 'POST') {
+        final refused = sameOriginRefusal(req);
+        if (refused != null) {
+          return _error(refused, status: HttpStatus.forbidden);
+        }
+      }
+      return routes(req);
+    };
+  }
+
+  /// Host names that can only reach this machine.
+  static const Set<String> _loopbackHosts = {'127.0.0.1', 'localhost', '::1'};
+
+  /// The reason a POST request is rejected, or null if it is allowed.
+  ///
+  /// A page on another website open in the same browser can make the browser
+  /// post to this server. Three rules stop it:
+  /// - the request must be addressed to a loopback name, which also stops a
+  ///   website that points its own name at 127.0.0.1;
+  /// - an `Origin` header, which every browser sends with a post, must name
+  ///   this same host and port;
+  /// - the body must be JSON, which another website cannot send without this
+  ///   server's permission. The CLI sends no `Origin`, so this is the rule that
+  ///   holds for it.
+  static String? sameOriginRefusal(Request req) {
+    final target = req.requestedUri;
+    if (!_loopbackHosts.contains(target.host.toLowerCase())) {
+      return 'Changes are only accepted at 127.0.0.1 or localhost. This '
+          'request was sent to "${target.host}", so it was refused.';
+    }
+
+    final origin = req.headers['origin'];
+    if (origin != null && !_sameOrigin(origin, target)) {
+      return 'This request came from another website ($origin), so it was '
+          "refused. Changes can only be made from the viewer's own page.";
+    }
+
+    if (req.mimeType != 'application/json') {
+      return 'Changes must be sent as JSON (content-type: application/json). '
+          'Nothing was done.';
+    }
+    return null;
+  }
+
+  static bool _sameOrigin(String origin, Uri target) {
+    final parsed = Uri.tryParse(origin);
+    if (parsed == null || parsed.host.isEmpty) return false;
+    return parsed.scheme == target.scheme &&
+        parsed.host.toLowerCase() == target.host.toLowerCase() &&
+        parsed.port == target.port;
   }
 
   /// The handler to mount when there is no manager — every route says so, in
@@ -309,6 +374,87 @@ class ManagerApi {
     final refused = await update.start();
     if (refused != null) return _error(refused, status: HttpStatus.conflict);
     return _json({'started': true}, status: HttpStatus.accepted);
+  }
+
+  // --- Settings ---
+
+  static const String _noSettings =
+      'This server was started without a config file, so there are no '
+      'settings to change here.';
+
+  Response _settings(Request req) {
+    final file = settings;
+    if (file == null) return _error(_noSettings, status: HttpStatus.conflict);
+    return _json(file.describe());
+  }
+
+  Future<Response> _saveSettings(Request req) async {
+    final file = settings;
+    if (file == null) return _error(_noSettings, status: HttpStatus.conflict);
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(await req.readAsString());
+    } catch (_) {
+      return _error('The settings could not be read: the body is not JSON.',
+          status: HttpStatus.badRequest);
+    }
+    if (decoded is! Map<String, dynamic>) {
+      return _error(
+          'Send the settings as a JSON object with "set", "reset" and '
+          '"clearSecrets".',
+          status: HttpStatus.badRequest);
+    }
+    final Map<String, dynamic> body = decoded;
+
+    final set = <String, String>{};
+    final rawSet = body['set'];
+    if (rawSet != null) {
+      if (rawSet is! Map) {
+        return _error('"set" must be an object of setting names and values.',
+            status: HttpStatus.badRequest);
+      }
+      for (final entry in rawSet.entries) {
+        final value = entry.value;
+        if (value is! String && value is! num && value is! bool) {
+          return _error(
+              'The value for ${entry.key} must be text, a number, or true or '
+              'false.',
+              status: HttpStatus.badRequest);
+        }
+        set['${entry.key}'] = '$value';
+      }
+    }
+
+    List<String>? names(String field) {
+      final raw = body[field];
+      if (raw == null) return const [];
+      if (raw is! List || raw.any((e) => e is! String)) return null;
+      return raw.cast<String>();
+    }
+
+    final reset = names('reset');
+    final clearSecrets = names('clearSecrets');
+    if (reset == null || clearSecrets == null) {
+      return _error('"reset" and "clearSecrets" must be lists of setting names.',
+          status: HttpStatus.badRequest);
+    }
+
+    final List<String> saved;
+    try {
+      saved = await file.save(
+          set: set, reset: reset, clearSecrets: clearSecrets);
+    } on SettingsRefused catch (e) {
+      return _error(e.message, status: HttpStatus.badRequest);
+    }
+    return _json({
+      'saved': saved,
+      'jobRunning': manager.currentRun != null,
+      'restartNeeded': [
+        for (final key in saved)
+          if (SettingsCatalog.byKey(key)?.restart ?? false) key,
+      ],
+    });
   }
 
   // --- Small helpers ---
