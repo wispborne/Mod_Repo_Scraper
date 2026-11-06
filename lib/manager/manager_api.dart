@@ -53,12 +53,18 @@ class ManagerApi {
   /// "this server has no settings to change".
   final SettingsFile? settings;
 
+  /// Host names, besides the loopback ones, at which changes are accepted
+  /// (`viewer_allowed_hosts`). Lower case.
+  final Set<String> allowedHosts;
+
   ManagerApi({
     required this.manager,
     required String dataPath,
     this.selfUpdate,
     this.settings,
-  }) : dataPath = p.normalize(p.absolute(dataPath));
+    Set<String> allowedHosts = const {},
+  })  : dataPath = p.normalize(p.absolute(dataPath)),
+        allowedHosts = {for (final h in allowedHosts) h.toLowerCase()};
 
   Handler get router {
     final r = Router();
@@ -77,7 +83,7 @@ class ManagerApi {
     final routes = r.call;
     return (Request req) {
       if (req.method == 'POST') {
-        final refused = sameOriginRefusal(req);
+        final refused = sameOriginRefusal(req, allowedHosts: allowedHosts);
         if (refused != null) {
           return _error(refused, status: HttpStatus.forbidden);
         }
@@ -93,22 +99,30 @@ class ManagerApi {
   ///
   /// A page on another website open in the same browser can make the browser
   /// post to this server. Three rules stop it:
-  /// - the request must be addressed to a loopback name, which also stops a
+  /// - the request must be addressed to a loopback name, or to one of
+  ///   [allowedHosts] (a name a reverse proxy passes on). This also stops a
   ///   website that points its own name at 127.0.0.1;
   /// - an `Origin` header, which every browser sends with a post, must name
-  ///   this same host and port;
+  ///   this same host and port. For one of [allowedHosts] only the host is
+  ///   compared, because the proxy changes the scheme and port: the browser
+  ///   says `https://name`, and this server sees `http://name`;
   /// - the body must be JSON, which another website cannot send without this
   ///   server's permission. The CLI sends no `Origin`, so this is the rule that
   ///   holds for it.
-  static String? sameOriginRefusal(Request req) {
+  static String? sameOriginRefusal(Request req,
+      {Set<String> allowedHosts = const {}}) {
     final target = req.requestedUri;
-    if (!_loopbackHosts.contains(target.host.toLowerCase())) {
+    final host = target.host.toLowerCase();
+    final proxied = !_loopbackHosts.contains(host);
+    if (proxied && !allowedHosts.contains(host)) {
       return 'Changes are only accepted at 127.0.0.1 or localhost. This '
-          'request was sent to "${target.host}", so it was refused.';
+          'request was sent to "${target.host}", so it was refused. To accept '
+          'changes there, add ${target.host} to viewer_allowed_hosts in the '
+          'config file and restart the server.';
     }
 
     final origin = req.headers['origin'];
-    if (origin != null && !_sameOrigin(origin, target)) {
+    if (origin != null && !_sameOrigin(origin, target, hostOnly: proxied)) {
       return 'This request came from another website ($origin), so it was '
           "refused. Changes can only be made from the viewer's own page.";
     }
@@ -120,12 +134,12 @@ class ManagerApi {
     return null;
   }
 
-  static bool _sameOrigin(String origin, Uri target) {
+  static bool _sameOrigin(String origin, Uri target, {bool hostOnly = false}) {
     final parsed = Uri.tryParse(origin);
     if (parsed == null || parsed.host.isEmpty) return false;
-    return parsed.scheme == target.scheme &&
-        parsed.host.toLowerCase() == target.host.toLowerCase() &&
-        parsed.port == target.port;
+    if (parsed.host.toLowerCase() != target.host.toLowerCase()) return false;
+    return hostOnly ||
+        (parsed.scheme == target.scheme && parsed.port == target.port);
   }
 
   /// The handler to mount when there is no manager — every route says so, in

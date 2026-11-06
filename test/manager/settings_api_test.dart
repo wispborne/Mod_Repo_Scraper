@@ -365,6 +365,64 @@ void main() {
       expect(bare.statusCode, HttpStatus.forbidden);
     });
 
+    test('a name that is not listed says which setting to add it to', () async {
+      final res = await send('jobs',
+          host: 'http://scraper.example.com',
+          headers: {..._json, 'origin': 'https://scraper.example.com'});
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await read(res))['error'], contains('viewer_allowed_hosts'));
+    });
+
+    group('a host name listed in viewer_allowed_hosts', () {
+      late Handler proxied;
+
+      setUp(() {
+        proxied = ManagerApi(
+          manager: manager,
+          dataPath: dir.path,
+          allowedHosts: {'Scraper.Example.com'},
+        ).router;
+      });
+
+      Future<Response> post(String host, Map<String, String> headers) =>
+          Future.value(proxied(Request('POST', Uri.parse('$host/jobs/cancel'),
+              body: '{}', headers: headers)));
+
+      test('accepts the page behind the proxy', () async {
+        // The browser is on https; the proxy talks plain http to this server.
+        final res = await post('http://scraper.example.com',
+            {..._json, 'origin': 'https://scraper.example.com'});
+        expect(res.statusCode, 200);
+      });
+
+      test('still refuses another website', () async {
+        final res = await post('http://scraper.example.com',
+            {..._json, 'origin': 'https://evil.example.com'});
+        expect(res.statusCode, HttpStatus.forbidden);
+        expect((await read(res))['error'], contains('another website'));
+      });
+
+      test('still refuses a request that is not JSON', () async {
+        final res = await post('http://scraper.example.com', {
+          'content-type': 'text/plain',
+          'origin': 'https://scraper.example.com',
+        });
+        expect(res.statusCode, HttpStatus.forbidden);
+      });
+
+      test('still refuses a name that is not listed', () async {
+        final res = await post('http://other.example.com',
+            {..._json, 'origin': 'https://other.example.com'});
+        expect(res.statusCode, HttpStatus.forbidden);
+      });
+
+      test('keeps the full check for loopback addresses', () async {
+        final res = await post('http://127.0.0.1:8085',
+            {..._json, 'origin': 'http://127.0.0.1:9999'});
+        expect(res.statusCode, HttpStatus.forbidden);
+      });
+    });
+
     test('reading is never refused', () async {
       final res = await handler(Request(
           'GET', Uri.parse('http://127.0.0.1:8085/status'),

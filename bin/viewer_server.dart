@@ -260,7 +260,11 @@ Future<_ManagerSetup> _buildManager({
           jobManager.currentRun != null || jobManager.queuedRuns.isNotEmpty,
     ),
     settings: SettingsFile(configPath: configPath),
+    allowedHosts: config.viewerAllowedHosts,
   );
-  return _ManagerSetup(api.router, 'on, working on $managerDataPath',
+  final alsoAt = config.viewerAllowedHosts.isEmpty
+      ? ''
+      : '; changes also accepted at ${config.viewerAllowedHosts.join(', ')}';
+  return _ManagerSetup(api.router, 'on, working on $managerDataPath$alsoAt',
       runs: () => history.records);
 }

@@ -383,6 +383,13 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     opt: true,
     def: 'site',
   );
+  static Set<String> _$viewerAllowedHosts(BotConfig v) => v.viewerAllowedHosts;
+  static const Field<BotConfig, Set<String>> _f$viewerAllowedHosts = Field(
+    'viewerAllowedHosts',
+    _$viewerAllowedHosts,
+    opt: true,
+    def: const {},
+  );
 
   @override
   final MappableFields<BotConfig> fields = const {
@@ -441,6 +448,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
     #publishRepoUrl: _f$publishRepoUrl,
     #publishCloneDir: _f$publishCloneDir,
     #publishSitePath: _f$publishSitePath,
+    #viewerAllowedHosts: _f$viewerAllowedHosts,
   };
 
   static BotConfig _instantiate(DecodingData data) {
@@ -503,6 +511,7 @@ class BotConfigMapper extends ClassMapperBase<BotConfig> {
       publishRepoUrl: data.dec(_f$publishRepoUrl),
       publishCloneDir: data.dec(_f$publishCloneDir),
       publishSitePath: data.dec(_f$publishSitePath),
+      viewerAllowedHosts: data.dec(_f$viewerAllowedHosts),
     );
   }
 
@@ -622,6 +631,7 @@ abstract class BotConfigCopyWith<$R, $In extends BotConfig, $Out>
     String? publishRepoUrl,
     String? publishCloneDir,
     String? publishSitePath,
+    Set<String>? viewerAllowedHosts,
   });
   BotConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -700,6 +710,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
     String? publishRepoUrl,
     Object? publishCloneDir = $none,
     String? publishSitePath,
+    Set<String>? viewerAllowedHosts,
   }) => $apply(
     FieldCopyWithData({
       if (lessScraping != null) #lessScraping: lessScraping,
@@ -771,6 +782,7 @@ class _BotConfigCopyWithImpl<$R, $Out>
       if (publishRepoUrl != null) #publishRepoUrl: publishRepoUrl,
       if (publishCloneDir != $none) #publishCloneDir: publishCloneDir,
       if (publishSitePath != null) #publishSitePath: publishSitePath,
+      if (viewerAllowedHosts != null) #viewerAllowedHosts: viewerAllowedHosts,
     }),
   );
   @override
@@ -889,6 +901,10 @@ class _BotConfigCopyWithImpl<$R, $Out>
     publishRepoUrl: data.get(#publishRepoUrl, or: $value.publishRepoUrl),
     publishCloneDir: data.get(#publishCloneDir, or: $value.publishCloneDir),
     publishSitePath: data.get(#publishSitePath, or: $value.publishSitePath),
+    viewerAllowedHosts: data.get(
+      #viewerAllowedHosts,
+      or: $value.viewerAllowedHosts,
+    ),
   );
 
   @override

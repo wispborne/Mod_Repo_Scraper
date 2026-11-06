@@ -148,6 +148,8 @@ class Common {
       publishCloneDir: _trimOrNull(properties['publish_clone_dir']),
       publishSitePath:
           _trimOrDefault(properties['publish_site_path'], 'site')!,
+      // The results viewer.
+      viewerAllowedHosts: parseHostNames(properties['viewer_allowed_hosts']),
     );
   }
 
@@ -213,6 +215,8 @@ class Common {
     'publish_repo_url',
     'publish_clone_dir',
     'publish_site_path',
+    // The results viewer.
+    'viewer_allowed_hosts',
   };
 
   /// Every key `readConfig` knows how to read. `config.example.properties` is
@@ -257,6 +261,13 @@ class Common {
         .toSet();
     return ids.isEmpty ? null : ids;
   }
+
+  /// Parses "a.example.com, b.example.com" into a set of lower-case host names.
+  /// Blank gives an empty set.
+  static Set<String> parseHostNames(String? value) => {
+        for (final name in (value ?? '').split(','))
+          if (name.trim().isNotEmpty) name.trim().toLowerCase(),
+      };
 
   /// Parses "main,libraries,lesser" into a Set of board names.
   static Set<String> _parseQbBoards(String? value) {
@@ -530,6 +541,13 @@ class BotConfig with BotConfigMappable {
   /// from somewhere else.
   final String publishSitePath;
 
+  /// Host names, besides 127.0.0.1 and localhost, at which the results viewer
+  /// accepts changes: jobs, settings and updates. For a viewer reached through
+  /// a reverse proxy that passes its own host name on, such as
+  /// `starsector-scraper.wispborne.com`. Empty (the default) means loopback
+  /// only. Read when the server starts.
+  final Set<String> viewerAllowedHosts;
+
   /// True when the fallback provider is configured (both URL and model set).
   bool get llmFallbackEnabled =>
       (llmFallbackBaseUrl?.trim().isNotEmpty ?? false) &&
@@ -590,5 +608,6 @@ class BotConfig with BotConfigMappable {
     this.publishRepoUrl = 'git@github.com:wispborne/StarsectorModRepo.git',
     this.publishCloneDir,
     this.publishSitePath = 'site',
+    this.viewerAllowedHosts = const {},
   });
 }

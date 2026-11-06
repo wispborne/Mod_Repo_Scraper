@@ -217,6 +217,10 @@ class SettingsCatalog {
         blankAllowed: true),
     SettingSpec('publish_site_path', SettingGroup.environment, SettingKind.text,
         defaultValue: 'site'),
+    // The results viewer.
+    SettingSpec(
+        'viewer_allowed_hosts', SettingGroup.environment, SettingKind.text,
+        blankAllowed: true, restart: true, check: _hostNames),
   ];
 
   static final Map<String, SettingSpec> _byKey = {
@@ -449,6 +453,14 @@ class SettingsCatalog {
       value.split(',').every((s) => int.tryParse(s.trim()) != null)
           ? null
           : 'must be topic ids separated by commas, such as 1234,5678';
+
+  static String? _hostNames(String value) => value.split(',').every(
+          (name) => RegExp(r'^\s*[a-z0-9]([a-z0-9.-]*[a-z0-9])?\s*$',
+                  caseSensitive: false)
+              .hasMatch(name))
+      ? null
+      : 'must be host names only, separated by commas, such as '
+          'starsector-scraper.example.com (no http:// and no port)';
 
   static String? _forumChannels(String value) =>
       value.split(',').every(

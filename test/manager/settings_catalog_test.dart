@@ -83,13 +83,29 @@ void main() {
         });
   });
 
-  test('only the data folder and the log level need a restart', () {
+  test('only the data folder, the log level and the allowed hosts need a restart',
+      () {
     expect(
         SettingsCatalog.settings
             .where((s) => s.restart)
             .map((s) => s.key)
             .toSet(),
-        {'qb_data_path', 'log_level'});
+        {'qb_data_path', 'log_level', 'viewer_allowed_hosts'});
+  });
+
+  test('viewer_allowed_hosts takes host names only', () {
+    final spec = SettingsCatalog.byKey('viewer_allowed_hosts')!;
+    expect(SettingsCatalog.problemWith(spec, ''), isNull);
+    expect(
+        SettingsCatalog.problemWith(
+            spec, 'scraper.example.com, other.example.com'),
+        isNull);
+    expect(SettingsCatalog.problemWith(spec, 'https://scraper.example.com'),
+        isNotNull);
+    expect(SettingsCatalog.problemWith(spec, 'scraper.example.com:443'),
+        isNotNull);
+    expect(readLines(['viewer_allowed_hosts = A.example.com, b.example.com'])
+        .viewerAllowedHosts, {'a.example.com', 'b.example.com'});
   });
 
   group('notes', () {
