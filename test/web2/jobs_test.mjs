@@ -80,6 +80,13 @@ test('the fetch sentence names what is fetched and the LLM', () => {
   );
 });
 
+test('a fetch that names nothing to fetch still reads as a sentence', () => {
+  assert.equal(
+    describeJob({ kind: 'fetchAndUpdate' }),
+    'Fetch nothing, with no LLM calls, then rebuild every output.',
+  );
+});
+
 test('Run LLM All says it reads every post and may cost money', () => {
   const sentence = describeJob(llmRequest(true));
   assert.match(sentence, /every saved forum topic and Discord thread/);

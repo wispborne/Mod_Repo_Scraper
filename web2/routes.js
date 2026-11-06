@@ -43,6 +43,24 @@ export function hashParts(hash) {
   return path ? path.split('/').map(decodeURIComponent) : [];
 }
 
+/// The query part of `#/runs?page=2` as URLSearchParams.
+export function hashQuery(hash) {
+  const h = String(hash || '');
+  const at = h.indexOf('?');
+  return new URLSearchParams(at < 0 ? '' : h.slice(at + 1));
+}
+
+/// `#/runs?page=2` from ['runs'] and { page: 2 }. Empty values are left out.
+export function buildHash(parts, params = {}) {
+  const query = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v == null || v === '') continue;
+    query.set(k, String(v));
+  }
+  const q = query.toString();
+  return `#/${parts.map(encodeURIComponent).join('/')}${q ? `?${q}` : ''}`;
+}
+
 /// The nav entry a page belongs to. A detail page (`#/runs/<id>`) belongs to
 /// the entry its first part names. Null for an address that names no page.
 export function navEntryFor(parts) {

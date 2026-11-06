@@ -106,6 +106,11 @@ export function describeJob(request) {
         fetched.push(scope);
       }
       fetched.push(...others);
+      if (!fetched.length) {
+        return request.runLlm
+          ? 'Fetch nothing, update missing or outdated LLM results (LLM calls may cost money), then rebuild every output.'
+          : 'Fetch nothing, with no LLM calls, then rebuild every output.';
+      }
       const llm = request.runLlm
         ? ', update missing or outdated LLM results (LLM calls may cost money)'
         : ', with no LLM calls';

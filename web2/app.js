@@ -12,9 +12,17 @@ import { subscribe, status, watchRunEnds, endedRun, forgetEndedRun } from './sta
 import { mountUpdateLink } from './update.js';
 import * as placeholder from './views/placeholder.js';
 import * as control from './views/control.js';
+import * as runs from './views/runs.js';
+import * as run from './views/run.js';
 
 const PAGES = {
   control,
+  runs,
+};
+
+/// Detail pages: a page id with something after it, such as `#/runs/<id>`.
+const DETAIL_PAGES = {
+  runs: run,
 };
 
 let markCurrent;
@@ -49,7 +57,7 @@ async function route() {
     ])));
     return;
   }
-  const page = PAGES[entry.id] || placeholder;
+  const page = (parts.length > 1 && DETAIL_PAGES[entry.id]) || PAGES[entry.id] || placeholder;
   try {
     await page.render({
       content,

@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   NAV, hashParts, navEntryFor, oldViewerBase, oldViewerAddress, searchRoute, tabTitle, percent,
+  hashQuery, buildHash,
 } from '../../web2/routes.js';
 
 test('the nav rail has the three groups in order', () => {
@@ -74,4 +75,13 @@ test('percent is whole and never over 100', () => {
   assert.equal(percent(412, 1031), 39);
   assert.equal(percent(5, 0), null);
   assert.equal(percent(12, 10), 100);
+});
+
+test('the address query is read and written', () => {
+  assert.equal(hashQuery('#/runs?page=2').get('page'), '2');
+  assert.equal(hashQuery('#/runs').get('page'), null);
+  assert.equal(buildHash(['runs'], { page: 2 }), '#/runs?page=2');
+  assert.equal(buildHash(['runs'], { page: null, q: '' }), '#/runs');
+  assert.equal(buildHash(['posts', 'a b'], { q: 'lazy lib' }), '#/posts/a%20b?q=lazy+lib');
+  assert.deepEqual(hashParts(buildHash(['runs', 'x/y'])), ['runs', 'x/y']);
 });

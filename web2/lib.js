@@ -117,3 +117,81 @@ export const store = {
     try { localStorage.setItem(key, value); } catch { /* storage blocked */ }
   },
 };
+
+// --- Lists and detail pages ---
+
+/// Rows-per-page choices. 0 shows every row on one page.
+export const PAGE_SIZES = [25, 50, 100, 250, 500, 0];
+
+// Shared with the old viewer: one setting for every list in both.
+const PAGE_SIZE_KEY = 'viewerPageSize';
+const DEFAULT_PAGE_SIZE = 50;
+
+export function pageSizePreference() {
+  const raw = store.get(PAGE_SIZE_KEY);
+  // Use the default when no value is saved. Converting an empty value to 0 would show every row.
+  if (raw == null || raw === '') return DEFAULT_PAGE_SIZE;
+  const saved = Number(raw);
+  return PAGE_SIZES.includes(saved) ? saved : DEFAULT_PAGE_SIZE;
+}
+
+function pageSizeLabel(size) {
+  return size === 0 ? 'All on one page' : `${size} rows`;
+}
+
+/// Page buttons and the rows-per-page choice. `onPage(page)` gets a 0-based
+/// page; `onPageSize(size)` is called after the choice is saved.
+export function pager(page, pageSize, total, onPage, onPageSize) {
+  const showingAll = !pageSize;
+  const pages = showingAll ? 1 : Math.max(1, Math.ceil(total / pageSize));
+  const current = showingAll ? 1 : page + 1;
+  const row = el('div', { class: 'pager' });
+  const button = (text, target, disabled) => el('button', {
+    type: 'button',
+    class: 'button quiet',
+    text,
+    disabled,
+    onclick: () => onPage(target),
+  });
+
+  if (!showingAll) row.append(button('« First', 0, page <= 0), button('‹ Previous', page - 1, page <= 0));
+  row.append(el('span', {
+    class: 'pager-info',
+    text: showingAll ? `All ${total} on one page` : `Page ${current} of ${pages} (${total} total)`,
+  }));
+  if (!showingAll) row.append(button('Next ›', page + 1, current >= pages), button('Last »', pages - 1, current >= pages));
+
+  const select = el('select', { class: 'select', 'aria-label': 'Rows per page' });
+  for (const size of PAGE_SIZES) select.append(el('option', { value: String(size), text: pageSizeLabel(size) }));
+  select.value = String(PAGE_SIZES.includes(pageSize) ? pageSize : DEFAULT_PAGE_SIZE);
+  select.addEventListener('change', () => {
+    const picked = Number(select.value);
+    store.set(PAGE_SIZE_KEY, String(picked));
+    onPageSize(picked);
+  });
+  row.append(el('span', { class: 'gap' }), el('label', { class: 'pager-size' }, ['Show ', select]));
+  return row;
+}
+
+/// A trail of links back up from a detail page. Each item is
+/// `{ label, href }`; the last is the current page and is not a link.
+export function breadcrumbs(trail) {
+  const nav = el('nav', { class: 'breadcrumbs', 'aria-label': 'Breadcrumbs' });
+  trail.forEach((item, i) => {
+    if (i > 0) nav.append(el('span', { class: 'crumb-sep', 'aria-hidden': 'true', text: '›' }));
+    const last = i === trail.length - 1;
+    nav.append(last
+      ? el('span', { class: 'crumb-here', 'aria-current': 'page', text: item.label })
+      : el('a', { href: item.href, text: item.label }));
+  });
+  return nav;
+}
+
+/// A collapsed section showing the value as formatted JSON, for the end of a
+/// detail page.
+export function rawJson(value, label = 'Raw data (JSON)') {
+  return el('details', { class: 'raw-fold' }, [
+    el('summary', { text: label }),
+    el('pre', { class: 'log raw', text: JSON.stringify(value, null, 2) }),
+  ]);
+}
