@@ -319,6 +319,54 @@ void main() {
     expect(inputs.notMods, {'33546': question});
   });
 
+  test("a Discord mod's forum link to a topic that is not a mod is taken off", () async {
+    // The 0.98.5a Preview Mod's Discord post links Alex's patch notes, and the
+    // reader took that for the mod's thread. Vanguard Test links a discussion.
+    final dir = Directory.systemTemp.createTempSync('catalog_fixes_forum_link');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final store = JsonDataStore(dir.path);
+    const patchNotes = 'Starsector 0.98.5a (In Development) Patch Notes';
+    const discussion = '[0.98a] Proposed Vanguard Buff';
+    const realMod = '[0.98a] Real Mod 1.0';
+    await store.saveIndex([
+      QbModSummary(topicId: 35147, title: patchNotes, author: 'Alex'),
+      QbModSummary(topicId: 35200, title: discussion),
+      QbModSummary(topicId: 7, title: realMod),
+    ]);
+    for (final (id, title) in [(35147, patchNotes), (35200, discussion), (7, realMod)]) {
+      await store.saveDetail(QbModDetail(topicId: id, title: title, contentHtml: '<p>$title</p>'));
+    }
+    final llm = LlmExtractionStore(dir.path, flushEveryN: 1000);
+    for (final id in [35147, 35200]) {
+      await llm.put(id,
+          LlmStoreEntry(fingerprint: 'x', schemaVersion: LlmExtractionStore.schemaVersion, promptVersion: 1, mods: const [], isMod: false));
+    }
+    await llm.flush();
+
+    ScrapedMod onDiscord(String name, String thread, String topic) => ScrapedMod(
+          name: name,
+          authorsList: const ['someone'],
+          sources: const [ModSource.Discord],
+          urls: {
+            ModUrlType.Forum: 'https://fractalsoftworks.com/forum/index.php?topic=$topic.0',
+            ModUrlType.Discord: 'https://discord.com/channels/187635036525166592/$thread/$thread',
+            ModUrlType.DownloadPage: 'https://fractalsoftworks.com/forum/index.php?topic=$topic.0',
+          },
+        );
+
+    final inputs = await CatalogInputs.read(qbDataPath: dir.path, discordMods: [
+      onDiscord('0.98.5a Preview Mod', '1491137693109846038', '35147'),
+      onDiscord('Vanguard Test', '1', '35200'),
+      onDiscord('Real Mod', '2', '7'),
+    ]);
+
+    Map<ModUrlType, String> urlsOf(String name) => inputs.listings.firstWhere((l) => l.mod.name == name).mod.getUrls();
+    expect(urlsOf('0.98.5a Preview Mod').keys, [ModUrlType.Discord]);
+    expect(urlsOf('Vanguard Test').keys, [ModUrlType.Discord]);
+    // A link to a topic that is a mod stays.
+    expect(urlsOf('Real Mod')[ModUrlType.Forum], 'https://fractalsoftworks.com/forum/index.php?topic=7.0');
+  });
+
   test('a topic the index does not list is named from its title with nothing left dangling', () {
     String nameOf(String title) => forumRulesListing(QbModSummary(topicId: 1, title: title)).mod.name;
 

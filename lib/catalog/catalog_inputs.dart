@@ -88,6 +88,11 @@ class CatalogInputs {
 
     final pointers = <String, String>{};
 
+    // Every saved topic the rules decided is not a mod, whether or not the
+    // bundle keeps it. A Discord mod's forum link to one of these is not the
+    // mod's own thread.
+    final notModTopics = <String>{};
+
     // --- Forum: every topic the bundle keeps ---
     var forumTopics = 0;
     final storeDir = Directory(qbDataPath);
@@ -99,6 +104,7 @@ class CatalogInputs {
       for (final summary in await store.loadIndex()) {
         final answer = llmStore.get(summary.topicId);
         if (!keepThreadInBundle(title: summary.title, llmSaidMod: answer?.isMod, inModIndex: summary.inModIndex)) {
+          notModTopics.add('${summary.topicId}');
           continue;
         }
         if (!keepThreadInCatalog(
@@ -108,6 +114,7 @@ class CatalogInputs {
           hasDownload: downloads.getCachedCandidates(summary.topicId)?.isNotEmpty ?? false,
         )) {
           notMods['${summary.topicId}'] = summary.title;
+          notModTopics.add('${summary.topicId}');
           continue;
         }
         final detail = await store.loadDetail(summary.topicId);
@@ -167,7 +174,12 @@ class CatalogInputs {
       saved = const DiscordPostsFile();
     }
     final knownThreads = saved.threads.keys.toSet();
-    for (final mod in discordMods) {
+    final unlinked = <String>[];
+    for (final scraped in discordMods) {
+      final mod = withoutForumLinkToNonMod(scraped, notModTopics);
+      if (!identical(mod, scraped)) {
+        unlinked.add('"${mod.name}" (${scraped.getUrls()[ModUrlType.Forum]})');
+      }
       final rules = discordRulesListing(mod, knownThreadIds: knownThreads);
       if (rules == null) {
         // No thread to name, so nothing to look up; it still goes in.
@@ -186,6 +198,10 @@ class CatalogInputs {
       listings.addAll(result.listings);
       if (result.collection != null) collections.add(result.collection!);
       discordThreads++;
+    }
+    if (unlinked.isNotEmpty) {
+      _log.info('Took the forum link off ${unlinked.length} Discord mod(s), because the '
+          'linked topic is not a mod: ${unlinked.join(', ')}');
     }
 
     // --- Nexus: one listing per page ---
