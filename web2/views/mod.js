@@ -10,7 +10,7 @@ import { el, api, breadcrumbs, rawJson, showDialog, noticeDialog } from '../lib.
 import { pageLayout, sidePanel, statusMark } from '../frame.js';
 import { icon } from '../icons.js';
 import { subscribe, status } from '../status.js';
-import { oldViewerAddress } from '../routes.js';
+import { buildHash } from '../routes.js';
 import { POST_JOBS, postJobCount, postJobRequest } from '../jobs.js';
 import { confirmAndStart } from '../actions.js';
 import { addPending, isPending, onPendingChange, pendingItems, removePending } from '../pending.js';
@@ -22,7 +22,7 @@ import {
 } from '../post_parts.js';
 import {
   diffTable, changedFieldsLine, changedFieldsTitle, expandAllButton, jobWord, isImported,
-} from './post_history.js';
+} from '../diff_parts.js';
 import {
   starmodderPage, starmodderFile, modHref, postHref, postKindWords, postFallbackName, postJobKeys,
   foundByWords, joinedByWords, factSource, fieldName, shortValue, saveAnswerWords, distinctNames,
@@ -640,7 +640,9 @@ async function loadHistory(ctx) {
   const entries = Array.isArray(history) ? history : ((history && (history.entries || history.items)) || []);
   const name = modName(ctx.answer);
   const log = el('div', { class: 'ph-log md-history' });
-  for (const entry of entries) log.append(historyEntry(entry, name));
+  const forumPost = (ctx.answer.sourcePosts || []).find((p) => p && p.kind === 'forum');
+  const forumTopic = forumPost ? forumPost.id : null;
+  for (const entry of entries) log.append(historyEntry(entry, name, forumTopic));
   if (!entries.length) {
     log.append(el('div', { class: 'ph-entry' }, [
       el('div', { class: 'ph-rail' }, el('span', { class: 'ph-dot dim' })),
@@ -680,7 +682,7 @@ const KIND_WORDS = { changed: ['changed', 'warn'], first: ['first seen', 'good']
 
 /// One saved run in which the mod changed. When collapsed, it lists the
 /// changed fields. When expanded, it shows their changes.
-function historyEntry(entry, name) {
+function historyEntry(entry, name, forumTopic) {
   const changes = entry.diff || entry.changes || [];
   const fieldNames = (entry.fields || []).length ? entry.fields : changes.map((c) => c.field).filter(Boolean);
   const named = fieldNames.map((field) => ({ field }));
@@ -703,11 +705,7 @@ function historyEntry(entry, name) {
     links.append(el('a', { href: `#/runs/${encodeURIComponent(entry.runId)}`, text: 'View run' }));
   }
   if (entry.kind !== 'first') {
-    const page = entry.source === 'merge' ? 'merge/changes' : 'bundle/changes';
-    links.append(el('a', {
-      class: 'out-link',
-      href: oldViewerAddress(location.pathname, `${page}?b=${encodeURIComponent(entry.runId)}&q=${encodeURIComponent(name)}`),
-    }, ['View changes', icon('external-link', 14)]));
+    links.append(el('a', { href: changesHref(entry, name, forumTopic), text: 'View changes' }));
   }
   body.append(links);
   if (entry.kind === 'first') body.append(el('p', { class: 'pp-source-line', text: 'First saved snapshot containing this mod.' }));
@@ -719,6 +717,22 @@ function historyEntry(entry, name) {
     el('div', { class: 'ph-rail' }, el('span', { class: 'ph-dot' })),
     el('div', { class: 'ph-body' }, [card]),
   ]);
+}
+
+/// What changed for this entry's run: the Mods tab for a catalog snapshot,
+/// the Facts tab for a mod details one, searched for the mod's name. The rows
+/// for its forum topics start open.
+function changesHref(entry, name, forumTopic) {
+  const merge = entry.source === 'merge';
+  const topics = merge
+    ? [forumTopic].filter(Boolean)
+    : (entry.diff || []).map((c) => c.post).filter((p) => p && p.kind === 'forum').map((p) => p.id);
+  return buildHash(['changes'], {
+    tab: merge ? 'mods' : 'facts',
+    b: entry.runId,
+    q: name,
+    open: [...new Set(topics)].map((id) => `topic:${id}`).join(';'),
+  });
 }
 
 /// Which kind of saved snapshot an entry came from.

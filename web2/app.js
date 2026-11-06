@@ -23,6 +23,10 @@ import * as post from './views/post.js';
 import * as postHistory from './views/post_history.js';
 import * as mods from './views/mods.js';
 import * as mod from './views/mod.js';
+import * as changes from './views/changes.js';
+import * as explorer from './views/explorer.js';
+import * as llmTest from './views/llm_test.js';
+import * as files from './views/files.js';
 
 const PAGES = {
   control,
@@ -33,11 +37,17 @@ const PAGES = {
   'dependency-names': dependencyNames,
   posts,
   mods,
+  changes,
+  explorer,
+  'llm-test': llmTest,
+  files,
 };
 
 /// Detail pages: a page id with something after it, such as `#/runs/<id>`.
 const DETAIL_PAGES = {
   runs: run,
+  explorer,
+  files,
   mods: mod,
   // #/posts/<kind>/<id>, and #/posts/topic/<id>/history.
   posts: { render: (ctx) => (ctx.parts[2] === 'history' ? postHistory : post).render(ctx) },

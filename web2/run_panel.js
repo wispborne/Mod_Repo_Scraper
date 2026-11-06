@@ -4,7 +4,7 @@
 
 import { el, api, shortTime } from './lib.js';
 import { icon } from './icons.js';
-import { kindLabel, percent, oldViewerAddress } from './routes.js';
+import { kindLabel, percent, buildHash } from './routes.js';
 import { progressBar, statusMark } from './frame.js';
 import { describeJob, duration } from './jobs.js';
 import { confirmAndStart, confirmAndStop } from './actions.js';
@@ -253,19 +253,19 @@ function drawChips(node, record, live) {
   node.replaceChildren(...items);
 }
 
-/// The What changed tab. A finished run links to the comparison of its saved
-/// snapshot with the one before it; a running job links to the changes so
-/// far. `stillWanted()` is false once another run is shown.
+/// The What changed tab. A finished run links to What changed, comparing its
+/// saved snapshot with the one before it: the Facts tab when the run saved
+/// mod details, and the Mods tab when it saved a catalog. A running job links
+/// to the changes so far. `stillWanted()` is false once another run is shown.
 async function drawChanged(node, record, live, stillWanted) {
-  const note = (paragraphs, link) => node.replaceChildren(el('div', { class: 'note' }, [
+  const note = (paragraphs, links) => node.replaceChildren(el('div', { class: 'note' }, [
     ...paragraphs.map((p) => el('p', p)),
-    el('p', { class: 'dim', text: 'The What changed page is coming soon. Until then, this opens the old viewer.' }),
-    link ? el('p', {}, [el('a', { class: 'out-link', href: link.href }, [link.text, icon('external-link', 14)])]) : null,
+    links.length ? el('p', { class: 'run-changed-links' }, links.map((l) => el('a', { href: l.href, text: l.text }))) : null,
   ]));
 
   if (live) {
     note([{ text: 'Compare current local data with the latest snapshot.' }],
-      { href: oldViewerAddress(location.pathname, 'bundle/changes?b=working'), text: 'Changes so far' });
+      [{ href: buildHash(['changes'], { tab: 'facts', b: 'working' }), text: 'Changes so far' }]);
     return;
   }
   if (record.state === 'queued') {
@@ -273,23 +273,37 @@ async function drawChanged(node, record, live, stillWanted) {
     return;
   }
   node.replaceChildren(el('div', { class: 'note' }, [el('p', { text: 'Loading…' })]));
-  let ids = [];
-  try {
-    const saved = await api('bundle/runs');
-    ids = ((saved && saved.items) || []).map((r) => r.id);
-  } catch {
-    ids = [];
-  }
+  const ids = async (path) => {
+    try {
+      const saved = await api(path);
+      return ((saved && saved.items) || []).map((r) => r.id);
+    } catch {
+      return [];
+    }
+  };
+  const [facts, mods] = await Promise.all([ids('bundle/runs'), ids('merge/runs')]);
   if (!stillWanted()) return;
   // Snapshots are newest first, so the previous snapshot is next in the list.
-  const at = ids.indexOf(record.id);
-  if (at < 0 || at + 1 >= ids.length) {
+  const pair = (list) => {
+    const at = list.indexOf(record.id);
+    return at < 0 || at + 1 >= list.length ? null : { a: list[at + 1], b: record.id };
+  };
+  const factsPair = pair(facts);
+  const modsPair = pair(mods);
+  if (!factsPair && !modsPair) {
     node.replaceChildren(el('div', { class: 'note' }, [el('p', { text: 'No earlier snapshot to compare with.' })]));
     return;
   }
-  const query = `a=${encodeURIComponent(ids[at + 1])}&b=${encodeURIComponent(record.id)}`;
-  note([{ text: 'Compare these mod details with the previous snapshot.' }],
-    { href: oldViewerAddress(location.pathname, `bundle/changes?${query}`), text: 'View changes' });
+  const href = (tab, sides) => buildHash(['changes'], { tab, ...sides });
+  if (factsPair) {
+    note([{ text: 'Compare these mod details with the previous snapshot.' }], [
+      { href: href('facts', factsPair), text: 'View changes' },
+      modsPair ? { href: href('mods', modsPair), text: 'View changes to mods' } : null,
+    ].filter(Boolean));
+  } else {
+    note([{ text: 'Compare this catalog with the previous snapshot.' }],
+      [{ href: href('mods', modsPair), text: 'View changes' }]);
+  }
 }
 
 function drawRecord(node, record) {
