@@ -15,7 +15,7 @@
 .pl-number.zero { border-left-color: var(--line); }
 .pl-number-count { font: 600 20px/24px var(--mono); color: var(--text); }
 .pl-number.zero .pl-number-count { color: var(--faint); }
-.pl-number-label { font-size: var(--small); line-height: 17px; }
+.pl-number-label { font-size: var(--small); line-height: var(--small-line-height); }
 
 /* --- Search, kind and filters ------------------------------------------ */
 
@@ -28,7 +28,7 @@
 }
 .pl-filter {
   padding: 1px 9px; border: 1px solid var(--line); background: var(--raised);
-  font: var(--small)/19px var(--sans); color: var(--dim); cursor: pointer;
+  font: var(--small)/var(--line-height) var(--sans); color: var(--dim); cursor: pointer;
 }
 .pl-filter:hover { color: var(--text); border-color: var(--action); }
 .pl-filter.on { color: var(--background); background: var(--action); border-color: var(--action); font-weight: 600; }
@@ -40,8 +40,8 @@
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
   padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
 }
-.pl-selection-count { font: 600 var(--small)/17px var(--mono); color: var(--heading); margin-right: 4px; }
-.pl-selection-hint { color: var(--faint); font-size: var(--small); line-height: 17px; }
+.pl-selection-count { font: 600 var(--small)/var(--small-line-height) var(--mono); color: var(--heading); margin-right: 4px; }
+.pl-selection-hint { color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); }
 
 /* --- The table --------------------------------------------------------- */
 
@@ -70,7 +70,7 @@ th[aria-sort] .pl-sort { color: var(--heading); }
 .pl-side-note { padding: 10px var(--pad); color: var(--dim); }
 .pl-legend { margin: 0; padding: 10px var(--pad) 12px; display: grid; gap: 8px; }
 .pl-legend dt { font-weight: 600; color: var(--text); }
-.pl-legend dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: 17px; }
+.pl-legend dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); }
 
 /* --- Narrow screens: each row becomes a block ------------------------- */
 

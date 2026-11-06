@@ -73,8 +73,8 @@ export function when(iso) {
 const FRAME_CSS = `
   * { scrollbar-width: thin; scrollbar-color: #4a4130 #11151a; }
   body { background: #11151a; color: #dce2e8;
-    font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; line-height: 1.5;
-    padding: 14px; margin: 0; font-size: 13px; }
+    font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.5;
+    padding: 14px; margin: 0; font-size: 14px; }
   a, a.bbc_link { color: #e3b45a; }
   img, img.bbc_img { max-width: 100%; height: auto; }
   table, table.bbc_table { border-collapse: collapse; margin: 8px 0; }

@@ -6,11 +6,11 @@
 
 .ml-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
 .ml-search { flex: 1 1 280px; max-width: 420px; font-family: var(--sans); font-size: var(--text-size); }
-.ml-count { color: var(--faint); font: var(--small)/17px var(--mono); }
+.ml-count { color: var(--faint); font: var(--small)/var(--small-line-height) var(--mono); }
 .ml-table td { vertical-align: top; }
 .ml-name { white-space: normal !important; min-width: 220px; }
 .ml-name a { display: block; overflow-wrap: anywhere; }
-.ml-id { display: block; font: var(--small)/17px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
+.ml-id { display: block; font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); overflow-wrap: anywhere; }
 .ml-authors, .ml-sources { white-space: normal !important; color: var(--dim); overflow-wrap: break-word; min-width: 110px; }
 .ml-game, .ml-version { color: var(--dim); }
 .ml-notes { white-space: normal !important; }
@@ -21,9 +21,10 @@
 
 .md-line { color: var(--text); overflow-wrap: anywhere; }
 .md-status { display: flex; align-items: flex-start; gap: 8px; }
-/* Level with the middle of the first line (19px). */
-.md-status .mark { flex: none; margin-top: 6px; }
-.md-old-id { font: var(--small)/19px var(--mono); color: var(--text); }
+/* The first line is 20px high. A 7px mark cannot be centred on whole pixels.
+   It sits half a pixel below the middle instead of half a pixel above. */
+.md-status .mark { flex: none; margin-top: 7px; }
+.md-old-id { font: var(--small)/var(--line-height) var(--mono); color: var(--text); }
 .md-note {
   display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px;
   border: 1px solid var(--frame); border-left: 3px solid var(--action); background: var(--panel);
@@ -42,9 +43,9 @@ a.chip.md-need:hover { color: var(--action); text-decoration: none; }
 .md-need-slot .dn-tag-pending { margin-top: 0; }
 .md-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .md-list a { overflow-wrap: anywhere; }
-.md-quote { color: var(--dim); font-size: var(--small); line-height: 17px; }
+.md-quote { color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); }
 .md-fold-text { color: var(--dim); }
-.md-from-list { margin-top: 2px; font-size: var(--small); line-height: 17px; }
+.md-from-list { margin-top: 2px; font-size: var(--small); line-height: var(--small-line-height); }
 
 .md-table td { vertical-align: top; white-space: normal; }
 .md-table tr:last-child td { border-bottom: 0; }
@@ -52,7 +53,7 @@ a.chip.md-need:hover { color: var(--action); text-decoration: none; }
 .md-value { overflow-wrap: anywhere; min-width: 160px; }
 .md-source { min-width: 180px; overflow-wrap: anywhere; }
 .md-post a { overflow-wrap: anywhere; }
-.md-post-kind { display: block; font: var(--small)/17px var(--mono); color: var(--faint); }
+.md-post-kind { display: block; font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); }
 .md-llm { overflow-wrap: anywhere; }
 
 .md-history { padding: 0; }
@@ -103,5 +104,5 @@ a.chip.md-need:hover { color: var(--action); text-decoration: none; }
 .md-pictures { display: grid; gap: 12px; padding: 10px var(--pad) 12px; }
 .md-picture { margin: 0; display: grid; gap: 4px; }
 .md-picture img { display: block; max-width: 100%; max-height: 180px; background: var(--panel); border: 1px solid var(--line); }
-.md-picture figcaption { color: var(--faint); font-size: var(--small); line-height: 17px; }
+.md-picture figcaption { color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); }
 .ml-filter-count { color: inherit; opacity: .75; font-family: var(--mono); }

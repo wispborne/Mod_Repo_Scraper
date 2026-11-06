@@ -5,7 +5,7 @@
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
   padding: 16px 20px 8px;
 }
-.dn-built { font: var(--small)/17px var(--mono); color: var(--faint); }
+.dn-built { font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); }
 .dn-intro { padding: 0 20px 12px; color: var(--dim); max-width: 80ch; }
 
 .dn-banner {
@@ -34,7 +34,7 @@
 .dn-mod { display: grid; }
 .dn-mod a { color: var(--text); overflow-wrap: anywhere; }
 .dn-mod a:hover { color: var(--action); }
-.dn-id { font: var(--small)/17px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
+.dn-id { font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); overflow-wrap: anywhere; }
 .dn-tag-pending {
   display: table; margin-top: 4px; color: var(--warning); overflow-wrap: anywhere;
   /* A mod name keeps its own capitals. */
@@ -51,20 +51,20 @@
 .dn-side-note { padding: 10px var(--pad); color: var(--dim); }
 .dn-how { margin: 0; padding: 10px var(--pad) 12px; display: grid; gap: 8px; }
 .dn-how dt { font-weight: 600; color: var(--text); }
-.dn-how dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: 17px; }
+.dn-how dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); }
 
 /* --- The mod picker ---------------------------------------------------- */
 
 .dn-dialog { width: min(520px, calc(100vw - 32px)); }
 .dn-dialog h2 { overflow-wrap: anywhere; }
 .dn-eyebrow {
-  font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  font: 600 var(--label)/16px var(--mono); letter-spacing: .08em; text-transform: uppercase;
   color: var(--action); margin-bottom: 4px;
 }
 .dn-dialog-facts { color: var(--dim); }
 .dn-field { display: grid; gap: 6px; }
 .dn-input { font-family: var(--sans); font-size: var(--text-size); }
-.dn-hint { font-size: var(--small); line-height: 17px; color: var(--faint); }
+.dn-hint { font-size: var(--small); line-height: var(--small-line-height); color: var(--faint); }
 .dialog p.dn-hint { margin: 8px 0 0; }
 .dialog p.dn-pending-note { margin-top: 12px; color: var(--dim); }
 .dn-picks {
@@ -79,7 +79,7 @@
 .dn-pick.on { background: var(--raised); }
 .dn-pick.disabled { cursor: default; color: var(--faint); }
 .dn-pick-name { overflow-wrap: anywhere; }
-.dn-pick-more { padding: 5px 10px; font-size: var(--small); line-height: 17px; color: var(--faint); }
+.dn-pick-more { padding: 5px 10px; font-size: var(--small); line-height: var(--small-line-height); color: var(--faint); }
 
 /* --- Narrow screens: each row becomes a block ------------------------- */
 

@@ -9,7 +9,7 @@
 .ex-picker .select { max-width: 100%; }
 .ex-tabs { flex-wrap: wrap; }
 .ex-tabs .tab:hover { text-decoration: none; }
-.ex-tab-count { font: var(--small)/17px var(--mono); color: var(--faint); }
+.ex-tab-count { font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); }
 .ex-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding-top: 10px; }
 .ex-toolbar .pl-search { flex: 1 1 260px; }
 .ex-message { display: grid; gap: 4px; padding: 14px 20px; }
@@ -34,7 +34,7 @@
 .ex-table td { vertical-align: top; }
 .ex-table td:not(.num) { white-space: normal; }
 .ex-wins { color: var(--heading); }
-.ex-wins-mark { color: var(--action); font: var(--small)/17px var(--mono); }
+.ex-wins-mark { color: var(--action); font: var(--small)/var(--small-line-height) var(--mono); }
 .ex-fields th:not(:first-child) { white-space: normal; min-width: 160px; text-transform: none; letter-spacing: 0; font-family: var(--sans); }
 .ex-value { white-space: pre-wrap !important; overflow-wrap: anywhere; min-width: 160px; max-width: 360px; }
 .ex-final { color: var(--heading); }
@@ -50,7 +50,7 @@
 .ex-counts dt { color: var(--dim); }
 .ex-counts dd { margin: 0; }
 .ex-side-head {
-  margin-top: 4px; font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  margin-top: 4px; font: 600 var(--label)/16px var(--mono); letter-spacing: .08em; text-transform: uppercase;
   color: var(--dim);
 }
 .ex-timings { display: grid; gap: 6px; }

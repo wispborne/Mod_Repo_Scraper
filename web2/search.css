@@ -17,7 +17,7 @@
 .search-group + .search-group { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
 .search-heading {
   padding: 6px var(--pad) 2px;
-  font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  font: 600 var(--label)/16px var(--mono); letter-spacing: .08em; text-transform: uppercase;
   color: var(--dim);
 }
 
@@ -34,11 +34,11 @@
 .search-time { flex: none; color: var(--faint); font-size: var(--small); }
 .search-sub, .search-detail {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: var(--small); line-height: 17px;
+  font-size: var(--small); line-height: var(--small-line-height);
 }
 .search-sub { color: var(--dim); }
 .search-detail { color: var(--faint); }
-.search-more { color: var(--action); font-size: var(--small); line-height: 17px; }
+.search-more { color: var(--action); font-size: var(--small); line-height: var(--small-line-height); }
 .search-more-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .search-empty { padding: 8px var(--pad); color: var(--dim); }

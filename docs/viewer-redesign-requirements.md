@@ -53,7 +53,7 @@ Use dark steel-blue greys, with sand colours for actions and borders. Each colou
 | Frame | `#4a4130` | the outer edges of the nav rail, toolbar, status bar and main panels |
 | Text | `#dce2e8` | normal text |
 | Dim text | `#8b96a2` | labels and secondary text |
-| Faint text | `#66717d` | hints, times, line numbers |
+| Faint text | `#7d8894` | hints, times, line numbers |
 | Heading | `#f2e6cc` | page and run names |
 | Action | `#e3b45a` | buttons, links, panel headings, corner brackets, the current page in the nav rail |
 | Running | `#79c7c0` | what is running now |
@@ -66,10 +66,15 @@ The Action colour and the Warning colour must stay clearly different. Action mea
 
 ### Type and shapes
 
-- **Fonts:** IBM Plex Sans for words, IBM Plex Mono for numbers, ids, times and logs. Both are
-  shipped with the viewer. Nothing may load from the internet.
+- **Fonts:** words use the computer's own font (Segoe UI on Windows).
+  Numbers, ids, times and logs use IBM Plex Mono. IBM Plex Sans was tried first.
+  It was dropped on 5 November 2026 because it looked thinner and was harder to read on Windows.
+  IBM Plex Mono is shipped with the viewer. Nothing may load from the internet.
+- **Sizes:** words use 14px, smaller text uses 13px and labels use 12px.
+  Their line heights are 20px, 18px and 16px. These are all whole pixels.
+  The first version used 13px, 12px and 11px. Those sizes were too small to read comfortably.
 - **Labels:** panel headings, toolbar titles and tab names use small IBM Plex Mono capitals
-  with wide letter spacing.
+  with a little extra space between letters.
 - **Shapes:** square corners everywhere. Buttons have two cut corners (top right and bottom
   left). The main panels have small corner brackets in the Action colour.
 - **Status marks:** a small diamond in the status colour. "Running" is an outlined tag.

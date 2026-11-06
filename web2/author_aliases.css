@@ -6,7 +6,7 @@
   padding: 16px 20px 8px;
 }
 .aa-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.aa-source { font: var(--small)/17px var(--mono); color: var(--faint); margin-left: 4px; }
+.aa-source { font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); margin-left: 4px; }
 .aa-intro { padding: 0 20px 12px; color: var(--dim); max-width: 80ch; }
 
 .aa-banner {
@@ -40,15 +40,15 @@
 .button.aa-small { height: 24px; padding: 0 9px; font-size: var(--small); }
 
 .aa-label {
-  font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  font: 600 var(--label)/16px var(--mono); letter-spacing: .08em; text-transform: uppercase;
   color: var(--faint);
 }
 .aa-pair { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .aa-who { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
 .aa-who strong { color: var(--heading); font-weight: 600; overflow-wrap: anywhere; }
-.aa-where { font: var(--small)/17px var(--mono); color: var(--faint); }
-.aa-count { font: var(--small)/17px var(--mono); color: var(--dim); }
-.aa-mods { font-size: var(--small); line-height: 17px; color: var(--dim); overflow-wrap: anywhere; }
+.aa-where { font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); }
+.aa-count { font: var(--small)/var(--small-line-height) var(--mono); color: var(--dim); }
+.aa-mods { font-size: var(--small); line-height: var(--small-line-height); color: var(--dim); overflow-wrap: anywhere; }
 
 /* A person: the shown name on the left, the other names beside it. */
 .aa-person-names {
@@ -83,7 +83,7 @@ button.aa-name-text:hover { color: var(--action); text-decoration: underline; }
 .aa-add-box { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .aa-add-open { font-size: var(--small); line-height: 22px; }
 .input.aa-add { width: 200px; height: 24px; font-family: var(--sans); }
-.aa-message { font-size: var(--small); line-height: 17px; }
+.aa-message { font-size: var(--small); line-height: var(--small-line-height); }
 .aa-message:empty { display: none; }
 
 .aa-pending { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
@@ -94,7 +94,7 @@ button.aa-name-text:hover { color: var(--action); text-decoration: underline; }
 
 .aa-side-note { padding: 10px var(--pad); color: var(--dim); }
 .aa-form { display: grid; gap: 8px; padding: 10px var(--pad) 12px; }
-.aa-hint { font-size: var(--small); line-height: 17px; color: var(--faint); }
+.aa-hint { font-size: var(--small); line-height: var(--small-line-height); color: var(--faint); }
 .aa-hint.warn-text { color: var(--warning); }
 .aa-input { font-family: var(--sans); font-size: var(--text-size); }
 

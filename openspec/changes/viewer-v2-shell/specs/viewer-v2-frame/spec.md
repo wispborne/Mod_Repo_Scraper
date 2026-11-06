@@ -70,7 +70,7 @@ While a job is running, the browser tab's title SHALL start with "▶", the job'
 - **THEN** the tab title starts with "✗ Failed"
 
 ### Requirement: Colours and appearance
-The new viewer SHALL use only the colours named in `docs/viewer-redesign-requirements.md` (Background, Panel, Raised, Line, Frame, Text, Dim text, Faint text, Heading, Action, Running, Done, Failed, Warning), each defined once as a named value and used for its stated purpose. It SHALL use IBM Plex Sans for words and IBM Plex Mono for numbers, ids, times and logs, both served from the `web2/` folder. Corners SHALL be square. Buttons SHALL have their top-right and bottom-left corners cut. The central panel SHALL have small corner brackets in the Action colour. Status marks SHALL be small diamonds. "Running" SHALL be an outlined tag. The viewer SHALL be dark only. Nothing SHALL load from the internet: fonts and icons are part of the folder.
+The new viewer SHALL use only the colours named in `docs/viewer-redesign-requirements.md` (Background, Panel, Raised, Line, Frame, Text, Dim text, Faint text, Heading, Action, Running, Done, Failed, Warning), each defined once as a named value and used for its stated purpose. Words SHALL use the computer's own font. Numbers, ids, times and logs SHALL use IBM Plex Mono. IBM Plex Mono SHALL be served from the `web2/` folder. Corners SHALL be square. Buttons SHALL have their top-right and bottom-left corners cut. The central panel SHALL have small corner brackets in the Action colour. Status marks SHALL be small diamonds. "Running" SHALL be an outlined tag. The viewer SHALL be dark only. Nothing SHALL load from the internet: fonts and icons are part of the folder.
 
 #### Scenario: No outside requests
 - **WHEN** any page of the new viewer is opened

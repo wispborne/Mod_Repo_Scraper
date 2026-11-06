@@ -11,8 +11,9 @@
 .pp-meta-text { color: var(--dim); }
 .pp-outcome { display: flex; align-items: flex-start; gap: 8px; }
 .pp-outcome:empty { display: none; }
-/* Level with the middle of the first line (19px). */
-.pp-outcome .mark { flex: none; margin-top: 6px; }
+/* The first line is 20px high. A 7px mark cannot be centred on whole pixels.
+   It sits half a pixel below the middle instead of half a pixel above. */
+.pp-outcome .mark { flex: none; margin-top: 7px; }
 .pp-head-links { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 
 .pp-banner {
@@ -34,14 +35,14 @@
 .pp-section-count { font: 600 var(--label)/16px var(--mono); color: var(--faint); }
 .pp-section-body { display: grid; gap: 10px; padding: 12px 20px 4px; min-width: 0; }
 .pp-subhead {
-  margin: 6px 0 0; font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  margin: 6px 0 0; font: 600 var(--label)/16px var(--mono); letter-spacing: .08em; text-transform: uppercase;
   color: var(--dim);
 }
 .pp-subhead a { text-transform: none; letter-spacing: 0; font-family: var(--sans); font-size: var(--text-size); }
 .pp-empty { color: var(--faint); }
 .pp-page > .pp-empty, .pp-sections > .pp-empty, .pp-missing { padding: 14px 20px; }
 .pp-missing { display: grid; gap: 4px; }
-.pp-source-line { color: var(--faint); font-size: var(--small); line-height: 17px; overflow-wrap: anywhere; }
+.pp-source-line { color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); overflow-wrap: anywhere; }
 .pp-side-note { padding: 6px var(--pad) 12px; color: var(--dim); }
 .pp-side-body { padding: 4px var(--pad) 12px; }
 .pp-side-body .pp-fields { gap: 3px 12px; }
@@ -55,13 +56,13 @@
 .pp-pre {
   margin: 0; padding: 8px 10px; max-height: 50vh; overflow: auto;
   background: var(--background); border: 1px solid var(--line);
-  font: var(--small)/19px var(--mono); color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere;
+  font: var(--small)/var(--line-height) var(--mono); color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .pp-message { font-family: var(--sans); font-size: var(--text-size); }
 
 .pp-badge {
   display: inline-block; padding: 0 6px; border: 1px solid var(--line);
-  font: var(--small)/17px var(--mono); color: var(--dim); white-space: nowrap;
+  font: var(--small)/var(--small-line-height) var(--mono); color: var(--dim); white-space: nowrap;
 }
 .pp-badge.strong { color: var(--heading); border-color: var(--frame); }
 .pp-badge.good { color: var(--done); border-color: var(--done); }
@@ -88,7 +89,7 @@
 .pp-picture-alt { color: var(--dim); overflow-wrap: anywhere; }
 .pp-seen { display: grid; gap: 2px; }
 .pp-seen-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
-.pp-seen-facts { color: var(--faint); font-size: var(--small); line-height: 17px; overflow-wrap: anywhere; }
+.pp-seen-facts { color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); overflow-wrap: anywhere; }
 
 /* --- Downloads and the LLM's mods --- */
 
@@ -154,13 +155,13 @@
 .ph-card > summary:hover { background: var(--panel); }
 .ph-chev { margin-left: auto; color: var(--dim); }
 .ph-card[open] > summary .ph-chev .icon { transform: rotate(90deg); }
-.ph-hint { flex-basis: 100%; color: var(--dim); font-size: var(--small); line-height: 17px; }
+.ph-hint { flex-basis: 100%; color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); }
 .ph-card-body { display: grid; gap: 8px; padding: 8px 10px 10px; border-top: 1px solid var(--line); min-width: 0; }
 
 .ph-diff { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 480px; }
 .ph-diff th {
   padding: 4px 8px; text-align: left; background: var(--panel);
-  font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim);
+  font: 600 var(--label)/16px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
 }
 .ph-diff td { padding: 4px 8px; vertical-align: top; border-top: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
 .ph-diff .ph-field { width: 140px; color: var(--dim); white-space: normal; }
@@ -174,7 +175,7 @@
 .ph-item-added > .ph-mark { color: var(--done); }
 .ph-item-removed > .ph-mark { color: var(--failed); }
 .ph-item-changed > .ph-mark { color: var(--warning); }
-.ph-part { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: var(--small); line-height: 17px; }
+.ph-part { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: var(--small); line-height: var(--small-line-height); }
 .ph-part-name { color: var(--dim); }
 .ph-arrow { color: var(--faint); }
 
