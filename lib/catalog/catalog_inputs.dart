@@ -13,6 +13,7 @@ import '../bot/scraper/qb/models/post_extraction.dart';
 import '../bot/scraper/scraped_mod.dart';
 import 'discord_posts.dart';
 import 'forum_listing.dart';
+import 'left_out_posts.dart';
 import 'listing.dart';
 import 'other_listings.dart';
 import 'source_post.dart';
@@ -38,6 +39,11 @@ class CatalogListings {
   /// each would have had to the key of the topic it links to.
   final Map<String, String> pointers;
 
+  /// Every saved forum topic that gave no listing, by topic id, with its reason.
+  /// Includes the topics in [notMods]. Saved for the viewer by the catalog
+  /// step (see [LeftOutPosts]).
+  final Map<String, LeftOutReason> leftOut;
+
   /// How many forum topics and Discord threads gave listings, for the log.
   final int forumTopics;
   final int discordThreads;
@@ -48,6 +54,7 @@ class CatalogListings {
     this.collections = const [],
     this.notMods = const {},
     this.pointers = const {},
+    this.leftOut = const {},
     this.forumTopics = 0,
     this.discordThreads = 0,
     this.nexusPages = 0,
@@ -76,6 +83,7 @@ class CatalogInputs {
     final listings = <Listing>[];
     final collections = <Listing>[];
     final notMods = <String, String>{};
+    final leftOut = <String, LeftOutReason>{};
 
     // Only the saved answers are read; the client is never used.
     final client = http.Client();
@@ -105,6 +113,7 @@ class CatalogInputs {
         final answer = llmStore.get(summary.topicId);
         if (!keepThreadInBundle(title: summary.title, llmSaidMod: answer?.isMod, inModIndex: summary.inModIndex)) {
           notModTopics.add('${summary.topicId}');
+          leftOut['${summary.topicId}'] = LeftOutReason.notModNoGameVersion;
           continue;
         }
         if (!keepThreadInCatalog(
@@ -115,6 +124,7 @@ class CatalogInputs {
         )) {
           notMods['${summary.topicId}'] = summary.title;
           notModTopics.add('${summary.topicId}');
+          leftOut['${summary.topicId}'] = LeftOutReason.notModNoDownload;
           continue;
         }
         final detail = await store.loadDetail(summary.topicId);
@@ -122,7 +132,10 @@ class CatalogInputs {
         // and the bundle leaves it out for the same reason. The mod index is
         // the exception: its line names the mod, its author and its version,
         // and some indexed topics sit on boards only members can read.
-        if (detail == null && !summary.inModIndex) continue;
+        if (detail == null && !summary.inModIndex) {
+          leftOut['${summary.topicId}'] = LeftOutReason.noSavedPost;
+          continue;
+        }
         final words = detail == null
             ? summary.title
             : SourcePostListings.openingRunWords(SourcePost.fromForumDetail(detail));
@@ -223,6 +236,7 @@ class CatalogInputs {
       collections: collections,
       notMods: notMods,
       pointers: pointers,
+      leftOut: leftOut,
       forumTopics: forumTopics,
       discordThreads: discordThreads,
       nexusPages: nexusPages,

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {
   defaultFetchOptions, fetchHasWork, fetchRequest, llmRequest, rebuildRequest, publishRequest,
   scanImagesRequest, matchNamesRequest, describeJob, listWords, duration,
+  POST_JOBS, tickedIds, postJobCount, postJobRequest,
 } from '../../web2/jobs.js';
 
 test('Fetch and update starts with today\'s defaults', () => {
@@ -57,6 +58,12 @@ test('every confirm dialog says one sentence', () => {
     scanImagesRequest(),
     matchNamesRequest(),
     { kind: 'takeDown' },
+    ...POST_JOBS.flatMap((job) => [
+      postJobRequest(job.kind, ['topic:1']),
+      postJobRequest(job.kind, ['topic:1', 'topic:2', 'discord:1203053249377079297']),
+    ]),
+    postJobRequest('extractLlm', ['discord:1203053249377079297']),
+    postJobRequest('extractLlm', ['discord:1', 'discord:2']),
   ];
   for (const r of requests) {
     const sentence = describeJob(r);
@@ -108,4 +115,57 @@ test('durations', () => {
   assert.equal(duration(start, '2026-11-05T12:07:00Z'), '2h 07m');
   assert.equal(duration(null, null), '');
   assert.equal(duration(start, null, Date.parse('2026-11-05T10:00:30Z')), '30s');
+});
+
+test('ticked posts split into topic ids and Discord thread ids', () => {
+  assert.deepEqual(tickedIds(['topic:12', 'discord:1203053249377079297', 'topic:7', 'nexus:3', 'junk']), {
+    topicIds: [12, 7],
+    discordThreadIds: ['1203053249377079297'],
+  });
+});
+
+test('a job on ticked posts sends the topics, and Re-run LLM the threads too', () => {
+  const ticked = ['topic:1', 'topic:2', 'discord:1203053249377079297'];
+  assert.deepEqual(postJobRequest('extractLlm', ticked), {
+    kind: 'extractLlm',
+    topicIds: [1, 2],
+    runLlm: true,
+    discordThreadIds: ['1203053249377079297'],
+  });
+  assert.deepEqual(postJobRequest('rescrapeTopics', ticked), { kind: 'rescrapeTopics', topicIds: [1, 2], runLlm: true });
+  assert.deepEqual(postJobRequest('extractLlm', ['topic:3']), { kind: 'extractLlm', topicIds: [3], runLlm: true });
+});
+
+test('a job that works only on topics counts only the ticked topics', () => {
+  const ticked = ['topic:1', 'topic:2', 'discord:9'];
+  assert.equal(postJobCount('extractLlm', ticked), 3);
+  for (const kind of ['rescrapeTopics', 'resolveDownloads', 'describePictures']) {
+    assert.equal(postJobCount(kind, ticked), 2, kind);
+    assert.equal(postJobCount(kind, ['discord:9']), 0, kind);
+  }
+});
+
+test('the per-post sentences', () => {
+  assert.equal(
+    describeJob(postJobRequest('rescrapeTopics', ['topic:1'])),
+    'Fetch 1 topic from the forum again, resolve downloads and re-run LLM extraction, which makes network requests (LLM calls may cost money).',
+  );
+  assert.equal(
+    describeJob(postJobRequest('resolveDownloads', ['topic:1', 'topic:2'])),
+    'Recheck downloads for 2 topics using saved posts, which makes network requests to check the links.',
+  );
+  assert.equal(
+    describeJob(postJobRequest('extractLlm', ['topic:1', 'discord:9'])),
+    'Re-run LLM extraction for 1 topic and 1 Discord thread from saved posts, reading other Discord threads joined to the same mods again only if their saved answers are out of date (LLM calls may cost money).',
+  );
+  assert.equal(
+    describeJob(postJobRequest('extractLlm', ['discord:9', 'discord:10'])),
+    'Re-run LLM extraction for 2 Discord threads from the saved messages, then rebuild the catalog, mod details and website (LLM calls may cost money).',
+  );
+  assert.equal(
+    describeJob(postJobRequest('describePictures', ['topic:1', 'topic:2'])),
+    'Rescan all images in 2 topics and in the Discord threads joined to the same mods without reading any post again, then rebuild the catalog, mod details and website (LLM calls may cost money).',
+  );
+  // With no topics, Scan images is still the Control page's job.
+  assert.match(describeJob(scanImagesRequest()), /^Describe saved pictures/);
 });

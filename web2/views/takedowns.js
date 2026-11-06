@@ -738,8 +738,9 @@ function authorForm(state) {
 // --- Preview, then add a pending change ---
 
 /// Shows what a takedown would leave out, then adds it to the pending changes
-/// if confirmed. Resolves true when it was added.
-async function previewAndAdd({ modId = null, authors = [] }) {
+/// if confirmed. Resolves true when it was added. The source post page uses
+/// it too.
+export async function previewAndAdd({ modId = null, authors = [] }) {
   const correction = modId
     ? { kind: 'takeDownMod', modId }
     : { kind: 'takeDownAuthor', names: authors };

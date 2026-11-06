@@ -80,22 +80,24 @@ export function oldViewerAddress(pathname, route) {
   return `${oldViewerBase(pathname)}#/${route}`;
 }
 
-/// Returns the search route in the old viewer, or null for an empty search.
-/// A forum address or topic id opens the topic. A Discord address or id
-/// (too long to be a topic id) opens the thread. Other text searches Topics.
+/// Where a search goes, or null for an empty search. A forum address or
+/// topic id opens the topic's source post page, and a Discord address or id
+/// (too long to be a topic id) opens the thread's. Those come back as a hash
+/// in this viewer (`#/posts/topic/18011`). Other text comes back as a route in
+/// the old viewer (`topics?q=…`), which searches the old Topics list.
 export function searchRoute(text) {
   const words = String(text || '').trim();
   if (!words) return null;
 
   const forum = words.match(/fractalsoftworks\.com\/forum\/index\.php\?topic=(\d+)/i);
-  if (forum) return `topics/${forum[1]}`;
+  if (forum) return `#/posts/topic/${forum[1]}`;
 
   const discord = words.match(/discord(?:app)?\.com\/channels\/\d+\/(\d+)/i);
-  if (discord) return `discord/${discord[1]}`;
+  if (discord) return `#/posts/discord/${discord[1]}`;
 
   if (/^\d+$/.test(words)) {
     // Forum topic ids are short; Discord ids are 17 digits or more.
-    return words.length >= 15 ? `discord/${words}` : `topics/${words}`;
+    return words.length >= 15 ? `#/posts/discord/${words}` : `#/posts/topic/${words}`;
   }
   return `topics?q=${encodeURIComponent(words)}`;
 }

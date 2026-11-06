@@ -14,6 +14,7 @@ import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 import 'package:mod_repo_scraper/catalog/catalog_inputs.dart';
 import 'package:mod_repo_scraper/catalog/download_key.dart';
 import 'package:mod_repo_scraper/catalog/forum_listing.dart';
+import 'package:mod_repo_scraper/catalog/left_out_posts.dart';
 import 'package:mod_repo_scraper/catalog/listing.dart';
 import 'package:mod_repo_scraper/catalog/mod_catalog.dart';
 import 'package:mod_repo_scraper/catalog/source_post.dart';
@@ -266,6 +267,7 @@ void main() {
 
     expect([for (final l in inputs.listings) l.ref.id]..sort(), ['22693', '5']);
     expect(inputs.listings.firstWhere((l) => l.ref.id == '22693').mod.name, 'Fast Engine Rendering');
+    expect(inputs.leftOut, {'34771': LeftOutReason.noSavedPost});
   });
 
   test('a "[0.98a]" title no longer keeps a thread the LLM says is not a mod', () {
@@ -317,6 +319,7 @@ void main() {
 
     expect([for (final l in inputs.listings) l.ref.id], ['6']);
     expect(inputs.notMods, {'33546': question});
+    expect(inputs.leftOut, {'33546': LeftOutReason.notModNoDownload});
   });
 
   test("a Discord mod's forum link to a topic that is not a mod is taken off", () async {

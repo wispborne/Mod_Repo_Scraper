@@ -43,17 +43,17 @@ test('the old viewer is found from the new one\'s own address', () => {
   assert.equal(oldViewerAddress('/', 'merge/changes'), '/v1/#/merge/changes');
 });
 
-test('search opens the right page in the old viewer', () => {
+test('search opens a source post page here, and other text in the old viewer', () => {
   assert.equal(searchRoute(''), null);
   assert.equal(searchRoute('   '), null);
-  assert.equal(searchRoute('https://fractalsoftworks.com/forum/index.php?topic=18011.0'), 'topics/18011');
-  assert.equal(searchRoute('fractalsoftworks.com/forum/index.php?topic=34161.msg1#msg1'), 'topics/34161');
-  assert.equal(searchRoute('18011'), 'topics/18011');
-  assert.equal(searchRoute(' 18011 '), 'topics/18011');
-  assert.equal(searchRoute('1355071745366822950'), 'discord/1355071745366822950');
+  assert.equal(searchRoute('https://fractalsoftworks.com/forum/index.php?topic=18011.0'), '#/posts/topic/18011');
+  assert.equal(searchRoute('fractalsoftworks.com/forum/index.php?topic=34161.msg1#msg1'), '#/posts/topic/34161');
+  assert.equal(searchRoute('18011'), '#/posts/topic/18011');
+  assert.equal(searchRoute(' 18011 '), '#/posts/topic/18011');
+  assert.equal(searchRoute('1355071745366822950'), '#/posts/discord/1355071745366822950');
   assert.equal(
     searchRoute('https://discord.com/channels/187635036525166592/1355071745366822950'),
-    'discord/1355071745366822950',
+    '#/posts/discord/1355071745366822950',
   );
   assert.equal(searchRoute('nexerelin'), 'topics?q=nexerelin');
   assert.equal(searchRoute('Lazy Lib & co'), 'topics?q=Lazy%20Lib%20%26%20co');

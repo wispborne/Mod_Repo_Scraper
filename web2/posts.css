@@ -1,0 +1,100 @@
+/* The Source posts list uses only the colour names defined on :root in style.css. */
+
+.pl-page { padding-bottom: 0; }
+
+/* --- The data quality numbers ------------------------------------------ */
+
+.pl-numbers { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 20px 14px; }
+.pl-number {
+  display: grid; gap: 2px; min-width: 150px; padding: 8px 14px; text-align: left;
+  border: 1px solid var(--line); border-left: 3px solid var(--warning);
+  background: var(--panel); color: var(--dim); font: inherit; cursor: pointer;
+}
+.pl-number:hover { border-color: var(--action); border-left-color: var(--action); }
+.pl-number.on { border-color: var(--action); border-left-color: var(--action); background: var(--raised); }
+.pl-number.zero { border-left-color: var(--line); }
+.pl-number-count { font: 600 20px/24px var(--mono); color: var(--text); }
+.pl-number.zero .pl-number-count { color: var(--faint); }
+.pl-number-label { font-size: var(--small); line-height: 17px; }
+
+/* --- Search, kind and filters ------------------------------------------ */
+
+.pl-toolbar { padding: 0 20px 10px; }
+.pl-search { max-width: 420px; font-family: var(--sans); font-size: var(--text-size); }
+.pl-kinds { flex-wrap: wrap; }
+.pl-filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 10px 20px; border-bottom: 1px solid var(--line);
+}
+.pl-filter {
+  padding: 1px 9px; border: 1px solid var(--line); background: var(--raised);
+  font: var(--small)/19px var(--sans); color: var(--dim); cursor: pointer;
+}
+.pl-filter:hover { color: var(--text); border-color: var(--action); }
+.pl-filter.on { color: var(--background); background: var(--action); border-color: var(--action); font-weight: 600; }
+.pl-clear { margin-left: 4px; font-size: var(--small); }
+
+/* --- Selected posts and their jobs ------------------------------------- */
+
+.pl-selection {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.pl-selection-count { font: 600 var(--small)/17px var(--mono); color: var(--heading); margin-right: 4px; }
+.pl-selection-hint { color: var(--faint); font-size: var(--small); line-height: 17px; }
+
+/* --- The table --------------------------------------------------------- */
+
+.pl-message { padding: 14px 20px; }
+.pl-table td:first-child, .pl-table th:first-child { padding-left: 20px; }
+.pl-table td { vertical-align: top; }
+.pl-pick { width: 1%; }
+.pl-pick input { margin: 2px 0 0; }
+.pl-sort {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+}
+.pl-sort:hover { color: var(--action); }
+th[aria-sort] .pl-sort { color: var(--heading); }
+.pl-kind { color: var(--dim); }
+.pl-title { white-space: normal !important; min-width: 220px; }
+.pl-title a { overflow-wrap: anywhere; }
+.pl-tag { margin-left: 8px; vertical-align: 1px; }
+.pl-author { white-space: normal !important; overflow-wrap: anywhere; color: var(--dim); }
+.pl-date { color: var(--dim); }
+.pl-dim { color: var(--faint); }
+.pl-outcome { white-space: normal !important; }
+
+/* --- Side panels ------------------------------------------------------- */
+
+.pl-side-note { padding: 10px var(--pad); color: var(--dim); }
+.pl-legend { margin: 0; padding: 10px var(--pad) 12px; display: grid; gap: 8px; }
+.pl-legend dt { font-weight: 600; color: var(--text); }
+.pl-legend dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: 17px; }
+
+/* --- Narrow screens: each row becomes a block ------------------------- */
+
+@media (max-width: 640px) {
+  .pl-numbers, .pl-toolbar, .pl-filters, .pl-selection { padding-left: 12px; padding-right: 12px; }
+  .pl-number { flex: 1 1 100px; min-width: 0; }
+  .pl-search { max-width: none; }
+  .pl-message { padding-left: 12px; padding-right: 12px; }
+  .pl-table thead { display: none; }
+  .pl-table, .pl-table tbody { display: block; }
+  .pl-table tbody tr {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 10px;
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+  }
+  .pl-table td { display: block; padding: 0; border: 0; white-space: normal; }
+  .pl-table td:first-child { padding-left: 0; }
+  .pl-table td.pl-pick { grid-column: 1; grid-row: 1 / span 3; width: auto; }
+  .pl-table td.pl-title { grid-column: 2 / -1; grid-row: 1; min-width: 0; }
+  .pl-table td.pl-kind { grid-column: 2; grid-row: 2; }
+  .pl-table td.pl-author { grid-column: 2; grid-row: 3; }
+  .pl-table td.pl-date { grid-column: 3; grid-row: 2; text-align: right; }
+  .pl-table td.pl-downloads { grid-column: 3; grid-row: 3; text-align: right; }
+  .pl-table td.pl-downloads::before { content: 'Downloads: '; color: var(--faint); }
+  .pl-table td.pl-llm { grid-column: 2; grid-row: 4; }
+  .pl-table td.pl-llm::before { content: 'LLM answer: '; color: var(--faint); }
+  .pl-table td.pl-outcome { grid-column: 2 / -1; grid-row: 5; }
+}

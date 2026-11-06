@@ -9,6 +9,8 @@ import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
 import '../catalog/discord_posts.dart';
+import '../catalog/left_out_posts.dart';
+import '../catalog/takedowns.dart';
 import '../manager/bundle_snapshot_store.dart';
 import '../manager/merge_snapshot_store.dart';
 import '../site/catalog_extras.dart';
@@ -196,6 +198,14 @@ class DataAccess {
     },
   );
 
+  /// What the takedowns left out of the last catalog build.
+  late final _MtimeCache<Map<String, dynamic>> _takedownMatchesCache = _MtimeCache(
+      File(p.join(dataDir, TakedownList.matchesFileName)), (s) => jsonDecode(s) as Map<String, dynamic>);
+
+  /// Which forum topics the last catalog build left out, and why.
+  late final _MtimeCache<LeftOutPosts> _leftOutCache = _MtimeCache(File(p.join(dataDir, LeftOutPosts.fileName)),
+      (s) => LeftOutPosts.fromMap(jsonDecode(s) as Map<String, dynamic>));
+
   late final _MtimeCache<Map<String, dynamic>> _modRepoCache =
       _MtimeCache(_modRepoFile, (s) => jsonDecode(s) as Map<String, dynamic>);
   late final _MtimeCache<Map<String, dynamic>> _bundleCache =
@@ -223,6 +233,7 @@ class DataAccess {
   DateTime? _placeholderModsMtime;
   DateTime? _placeholderIndexMtime;
   Set<int>? _placeholderIds;
+  Set<int>? _savedDetailIds;
 
   DataAccess({
     required this.dataDir,
@@ -275,6 +286,12 @@ class DataAccess {
       _assumedCache.get();
 
   Map<String, dynamic>? get modRepo => _modRepoCache.get();
+
+  /// `takedown-matches.json` as saved, or null when there is none.
+  Map<String, dynamic>? get takedownMatches => _takedownMatchesCache.get();
+
+  /// `catalog-left-out.json`, or null when no catalog build has saved one.
+  LeftOutPosts? get leftOutPosts => _leftOutCache.get();
 
   /// The mod count, schema version and build date from `mod-catalog-extras.json`.
   /// Returns null if the file is missing.
@@ -382,6 +399,17 @@ class DataAccess {
   /// Topic ids whose detail.json is a placeholder. Rebuilt only when
   /// the mods/ directory mtime or the index mtime changes.
   Set<int> placeholderDetailIds() {
+    _scanDetails();
+    return _placeholderIds!;
+  }
+
+  /// Topic ids with a `detail.json` saved. Shares the placeholder scan.
+  Set<int> savedDetailIds() {
+    _scanDetails();
+    return _savedDetailIds!;
+  }
+
+  void _scanDetails() {
     final modsMtime =
         _modsDir.existsSync() ? _modsDir.statSync().modified : null;
     final indexMtime =
@@ -389,10 +417,11 @@ class DataAccess {
     if (_placeholderIds != null &&
         _placeholderModsMtime == modsMtime &&
         _placeholderIndexMtime == indexMtime) {
-      return _placeholderIds!;
+      return;
     }
 
     final ids = <int>{};
+    final saved = <int>{};
     if (_modsDir.existsSync()) {
       for (final entry in _modsDir.listSync()) {
         if (entry is! Directory) continue;
@@ -400,6 +429,7 @@ class DataAccess {
         if (topicId == null) continue;
         final detail = File(p.join(entry.path, 'detail.json'));
         if (!detail.existsSync()) continue;
+        saved.add(topicId);
         try {
           final map = jsonDecode(detail.readAsStringSync());
           if (map is Map && map['isPlaceholderDetail'] == true) {
@@ -412,8 +442,8 @@ class DataAccess {
     }
 
     _placeholderIds = ids;
+    _savedDetailIds = saved;
     _placeholderModsMtime = modsMtime;
     _placeholderIndexMtime = indexMtime;
-    return ids;
   }
 }

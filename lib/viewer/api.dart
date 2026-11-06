@@ -20,6 +20,7 @@ import 'author_alias_views.dart';
 import 'bundle_views.dart';
 import 'data_access.dart';
 import 'merge_views.dart';
+import 'post_views.dart';
 import 'site_version.dart';
 
 /// Comparison side for current on-disk data; this is not a saved run id.
@@ -33,6 +34,8 @@ class ViewerApi {
 
   ViewerApi(this.data);
 
+  late final PostViews _postViews = PostViews(data);
+
   Handler get router {
     final r = Router();
 
@@ -40,6 +43,9 @@ class ViewerApi {
     r.get('/topics/<id>', _topicDetail);
     r.get('/topics/<id>/history', _topicHistory);
     r.get('/llm-test', _llmTest);
+
+    r.get('/posts', _posts);
+    r.get('/posts/outcome', _postOutcome);
 
     r.get('/merge/runs', _mergeRuns);
     r.get('/merge/summary', _mergeSummary);
@@ -260,6 +266,43 @@ class ViewerApi {
     }
 
     rows.sort((a, b) => desc ? cmp(b, a) : cmp(a, b));
+  }
+
+  // --- Source posts: forum topics and Discord threads together ---
+
+  /// The Source posts list. Takes `q`, `kind` (`all`, `topic`, `discord`),
+  /// `filters` (comma-separated list), `sort` (`lastPost`, `title`, `mods`), `dir` and
+  /// the usual paging. `counts` cover every saved post, regardless of the query.
+  Response _posts(Request req) {
+    final query = req.url.queryParameters;
+    final listed = _postViews.list(
+      q: query['q'] ?? '',
+      kind: query['kind'] ?? 'all',
+      filters: {
+        for (final f in (query['filters'] ?? '').split(','))
+          if (f.trim().isNotEmpty) f.trim(),
+      },
+      sort: query['sort'] ?? 'lastPost',
+      descending: query['dir'] != 'asc',
+    );
+    if (listed == null) return _missing('mods-index', 'Run the QB scraper.');
+    return _json({
+      ..._paged(listed.rows, _page(req), _pageSize(req)),
+      'counts': listed.counts,
+    });
+  }
+
+  /// What the last build made of one post: `kind` (`topic` or `discord`) and
+  /// `id`.
+  Response _postOutcome(Request req) {
+    final query = req.url.queryParameters;
+    final id = (query['id'] ?? '').trim();
+    if (id.isEmpty) return _json({'error': 'Say which post: id is missing.'}, status: 400);
+    final answer = _postViews.outcome(query['kind'] ?? '', id);
+    if (answer == null) {
+      return _json({'error': 'kind must be topic or discord.'}, status: 400);
+    }
+    return _json(answer);
   }
 
   // --- Topic detail ---

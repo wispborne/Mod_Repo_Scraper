@@ -66,7 +66,10 @@ export function mountToolbar(node) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const route = searchRoute(input.value);
-    if (route) location.href = oldViewerAddress(location.pathname, route);
+    if (!route) return;
+    // A route starting with #/ is a page of this viewer; the rest open the old one.
+    if (route.startsWith('#/')) location.hash = route;
+    else location.href = oldViewerAddress(location.pathname, route);
   });
 
   clear(node).append(title, actions, el('span', { class: 'gap' }), pending, form);

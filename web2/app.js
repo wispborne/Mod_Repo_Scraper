@@ -18,6 +18,9 @@ import * as settings from './views/settings.js';
 import * as takedowns from './views/takedowns.js';
 import * as authorAliases from './views/author_aliases.js';
 import * as dependencyNames from './views/dependency_names.js';
+import * as posts from './views/posts.js';
+import * as post from './views/post.js';
+import * as postHistory from './views/post_history.js';
 
 const PAGES = {
   control,
@@ -26,11 +29,14 @@ const PAGES = {
   takedowns,
   'author-aliases': authorAliases,
   'dependency-names': dependencyNames,
+  posts,
 };
 
 /// Detail pages: a page id with something after it, such as `#/runs/<id>`.
 const DETAIL_PAGES = {
   runs: run,
+  // #/posts/<kind>/<id>, and #/posts/topic/<id>/history.
+  posts: { render: (ctx) => (ctx.parts[2] === 'history' ? postHistory : post).render(ctx) },
 };
 
 let markCurrent;

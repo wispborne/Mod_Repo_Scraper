@@ -6,6 +6,7 @@ import '../bot/scraper/debug/merge_debug_collector.dart';
 import '../bot/scraper/scraped_mod.dart';
 import '../site/mod_id_store.dart';
 import 'catalog_inputs.dart';
+import 'left_out_posts.dart';
 import 'mod_catalog.dart';
 import 'takedowns.dart';
 
@@ -99,6 +100,12 @@ class CatalogStep {
       catalog.takedownReport.write(qbDataPath, catalog.generatedAt);
     } catch (e) {
       log?.call('Could not save what the takedowns left out, so the viewer shows the last build\'s: $e');
+    }
+    try {
+      LeftOutPosts(builtAt: catalog.generatedAt, topics: inputs.leftOut, pointers: inputs.pointers)
+          .write(qbDataPath);
+    } catch (e) {
+      log?.call('Could not save which posts the catalog left out, so the viewer cannot say why: $e');
     }
     log?.call('Catalog: ${catalog.mods.length} mods and '
         '${catalog.collections.length} Collection pages, saved to '

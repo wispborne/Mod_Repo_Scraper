@@ -13,6 +13,7 @@ import 'package:mod_repo_scraper/bot/scraper/qb/models/post_extraction.dart';
 import 'package:mod_repo_scraper/bot/scraper/scraped_mod.dart';
 import 'package:mod_repo_scraper/catalog/catalog_step.dart';
 import 'package:mod_repo_scraper/catalog/discord_posts.dart';
+import 'package:mod_repo_scraper/catalog/left_out_posts.dart';
 import 'package:mod_repo_scraper/catalog/takedowns.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -151,6 +152,26 @@ void main() {
       expect(bundle['index'], isEmpty, reason: name);
       expect(bundle['details'], isEmpty, reason: name);
     }
+  });
+
+  test('the catalog step saves which topics it left out, with why, for the viewer', () async {
+    final store = JsonDataStore(dir.path);
+    await store.saveIndex([
+      QbModSummary(topicId: 1, title: '[0.98a] Forum Mod 1.0', author: 'Someone'),
+      QbModSummary(topicId: 2, title: 'A question nobody saved the post of'),
+    ]);
+    final catalog = (await CatalogStep(
+      qbDataPath: dir.path,
+      sourceCachePath: dir.path,
+      outputPath: p.join(dir.path, 'outputs'),
+    ).run())!;
+
+    final saved = LeftOutPosts.fromMap(
+        jsonDecode(File(p.join(dir.path, LeftOutPosts.fileName)).readAsStringSync()) as Map<String, dynamic>);
+    expect(saved.builtAt, catalog.generatedAt);
+    expect(saved.topics, {'2': LeftOutReason.noSavedPost});
+    expect(File(p.join(dir.path, 'outputs', LeftOutPosts.fileName)).existsSync(), isFalse,
+        reason: 'it is never written beside the published files');
   });
 
   test('neither new file holds a local path, a run id, a token or message text', () async {

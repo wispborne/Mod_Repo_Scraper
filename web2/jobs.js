@@ -69,6 +69,51 @@ export function matchNamesRequest() {
   return { kind: 'matchRequirements', runLlm: true };
 }
 
+// --- Jobs on ticked source posts ---
+
+/// The jobs the Source posts list can run on its ticked posts. A job with
+/// `topicsOnly` acts on the ticked forum topics and leaves Discord threads out.
+export const POST_JOBS = [
+  { kind: 'rescrapeTopics', label: 'Re-scrape', topicsOnly: true },
+  { kind: 'extractLlm', label: 'Re-run LLM', topicsOnly: false },
+  { kind: 'resolveDownloads', label: 'Recheck downloads', topicsOnly: true },
+  { kind: 'describePictures', label: 'Scan images', topicsOnly: true },
+];
+
+/// Splits ticked post keys (`topic:<id>`, `discord:<id>`) into topic ids
+/// (numbers) and Discord thread ids (text: too large for an exact JavaScript number).
+export function tickedIds(keys) {
+  const topicIds = [];
+  const discordThreadIds = [];
+  for (const key of keys || []) {
+    const at = String(key).indexOf(':');
+    const kind = String(key).slice(0, at);
+    const id = String(key).slice(at + 1);
+    if (kind === 'topic' && /^\d+$/.test(id)) topicIds.push(Number(id));
+    else if (kind === 'discord' && /^\d+$/.test(id)) discordThreadIds.push(id);
+  }
+  return { topicIds, discordThreadIds };
+}
+
+/// How many of the ticked posts `kind` acts on.
+export function postJobCount(kind, keys) {
+  const { topicIds, discordThreadIds } = tickedIds(keys);
+  const job = POST_JOBS.find((j) => j.kind === kind);
+  return topicIds.length + (job && !job.topicsOnly ? discordThreadIds.length : 0);
+}
+
+/// The request for a job on the ticked posts.
+export function postJobRequest(kind, keys) {
+  const { topicIds, discordThreadIds } = tickedIds(keys);
+  const request = { kind, topicIds, runLlm: true };
+  if (kind === 'extractLlm' && discordThreadIds.length) request.discordThreadIds = discordThreadIds;
+  return request;
+}
+
+function countWords(n, one, many) {
+  return n === 1 ? `1 ${one}` : `${n} ${many}`;
+}
+
 const BOARD_NAMES = { main: 'main', lesser: 'lesser mods', libraries: 'libraries' };
 const SOURCE_NAMES = { forum: 'the forum', discord: 'Discord', nexus: 'Nexus' };
 const SCOPE_WORDS = {
@@ -124,7 +169,26 @@ export function describeJob(request) {
       return 'Rebuild every output from saved files, with no network or LLM calls.';
     case 'publishOutputs':
       return 'Publish the current outputs and website to the GitHub repo TriOS reads (nothing is pushed if nothing changed).';
+    case 'rescrapeTopics':
+      return `Fetch ${countWords((request.topicIds || []).length, 'topic', 'topics')} from the forum again, resolve downloads and re-run LLM extraction, which makes network requests (LLM calls may cost money).`;
+    case 'resolveDownloads':
+      return `Recheck downloads for ${countWords((request.topicIds || []).length, 'topic', 'topics')} using saved posts, which makes network requests to check the links.`;
+    case 'extractLlm': {
+      const topics = (request.topicIds || []).length;
+      const threads = (request.discordThreadIds || []).length;
+      const threadWords = countWords(threads, 'Discord thread', 'Discord threads');
+      if (!topics) {
+        return `Re-run LLM extraction for ${threadWords} from the saved messages, then rebuild the catalog, mod details and website (LLM calls may cost money).`;
+      }
+      const what = threads
+        ? `${countWords(topics, 'topic', 'topics')} and ${threadWords} from saved posts`
+        : `${countWords(topics, 'topic', 'topics')} from saved posts`;
+      return `Re-run LLM extraction for ${what}, reading other Discord threads joined to the same mods again only if their saved answers are out of date (LLM calls may cost money).`;
+    }
     case 'describePictures':
+      if ((request.topicIds || []).length) {
+        return `Rescan all images in ${countWords(request.topicIds.length, 'topic', 'topics')} and in the Discord threads joined to the same mods without reading any post again, then rebuild the catalog, mod details and website (LLM calls may cost money).`;
+      }
       return 'Describe saved pictures that have no description yet, up to the per-run call limit (LLM calls may cost money), then rebuild every output without reading any post again.';
     case 'matchRequirements':
       return 'Ask the LLM to match unmatched dependency names to mods (LLM calls may cost money), then rebuild every output without reading any post again.';
@@ -146,6 +210,7 @@ export function confirmLabel(request) {
     case 'publishOutputs': return 'Publish';
     case 'llmCoveragePass': return request.llmRereadAll ? 'Read every post' : 'Run LLM';
     case 'rebuildFromSaved': return 'Rebuild';
+    case 'extractLlm': return 'Re-run LLM';
     default: return `Start ${kindLabel(request.kind).toLowerCase()}`;
   }
 }
