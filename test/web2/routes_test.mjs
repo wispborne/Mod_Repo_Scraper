@@ -43,7 +43,7 @@ test('the old viewer is found from the new one\'s own address', () => {
   assert.equal(oldViewerAddress('/', 'merge/changes'), '/v1/#/merge/changes');
 });
 
-test('search opens a source post page here, and other text in the old viewer', () => {
+test('an address or id opens its page here, and other text names no page', () => {
   assert.equal(searchRoute(''), null);
   assert.equal(searchRoute('   '), null);
   assert.equal(searchRoute('https://fractalsoftworks.com/forum/index.php?topic=18011.0'), '#/posts/topic/18011');
@@ -55,8 +55,17 @@ test('search opens a source post page here, and other text in the old viewer', (
     searchRoute('https://discord.com/channels/187635036525166592/1355071745366822950'),
     '#/posts/discord/1355071745366822950',
   );
-  assert.equal(searchRoute('nexerelin'), 'topics?q=nexerelin');
-  assert.equal(searchRoute('Lazy Lib & co'), 'topics?q=Lazy%20Lib%20%26%20co');
+  assert.equal(
+    searchRoute('https://discordapp.com/channels/187635036525166592/1355071745366822950/1355071745366822950'),
+    '#/posts/discord/1355071745366822950',
+  );
+  assert.equal(searchRoute('20261105T230000Z-fetchAndUpdate'), '#/runs/20261105T230000Z-fetchAndUpdate');
+  assert.equal(searchRoute(' 20261105T230000Z-rebuildFromSaved '), '#/runs/20261105T230000Z-rebuildFromSaved');
+  // Nothing goes to the old viewer any more.
+  assert.equal(searchRoute('nexerelin'), null);
+  assert.equal(searchRoute('Lazy Lib & co'), null);
+  assert.equal(searchRoute('20261105T230000Z'), null);
+  assert.equal(searchRoute('18011 lazy'), null);
 });
 
 test('the tab title follows the run', () => {

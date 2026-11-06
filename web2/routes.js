@@ -80,11 +80,10 @@ export function oldViewerAddress(pathname, route) {
   return `${oldViewerBase(pathname)}#/${route}`;
 }
 
-/// Where a search goes, or null for an empty search. A forum address or
-/// topic id opens the topic's source post page, and a Discord address or id
-/// (too long to be a topic id) opens the thread's. Those come back as a hash
-/// in this viewer (`#/posts/topic/18011`). Other text comes back as a route in
-/// the old viewer (`topics?q=…`), which searches the old Topics list.
+/// The page identified by an address or id, or null. A forum address or
+/// topic id opens the topic's source post page. A Discord address or id
+/// (too long to be a topic id) opens the thread's page. A run id opens the run.
+/// Other text returns null, and the search box shows matching results.
 export function searchRoute(text) {
   const words = String(text || '').trim();
   if (!words) return null;
@@ -99,7 +98,10 @@ export function searchRoute(text) {
     // Forum topic ids are short; Discord ids are 17 digits or more.
     return words.length >= 15 ? `#/posts/discord/${words}` : `#/posts/topic/${words}`;
   }
-  return `topics?q=${encodeURIComponent(words)}`;
+
+  // Run ids are the start time and the job kind: 20261105T230000Z-fetchAndUpdate.
+  if (/^\d{8}T\d{6}Z-[A-Za-z]+$/.test(words)) return `#/runs/${words}`;
+  return null;
 }
 
 /// Job labels shown in the viewer.

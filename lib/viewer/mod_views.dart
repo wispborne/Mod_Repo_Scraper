@@ -9,6 +9,7 @@ import '../site/sitemap.dart';
 import 'bundle_views.dart';
 import 'compare_rows.dart';
 import 'data_access.dart';
+import 'search_match.dart';
 
 /// The viewer's Mods list, one mod's page and one mod's history, for
 /// `GET /api/mods`, `GET /api/mods/<id>` and `GET /api/mods/<id>/history`.
@@ -49,6 +50,63 @@ class ModViews {
     String sort = 'name',
     bool descending = false,
   }) {
+    final all = _allRows();
+    if (all == null) return null;
+
+    final counts = {
+      'total': all.length,
+      'noDownload': all.where((r) => r.passes('noDownload')).length,
+      'takenDown': all.where((r) => r.takenDown).length,
+      'conflicts': all.where((r) => r.conflicts > 0).length,
+      'aiStated': all.where((r) => r.usesAi != null).length,
+    };
+
+    final query = searchQuery(q);
+    final rows = all.where((row) {
+      if (!matchesSearch(query, row.searchFields)) return false;
+      return filters.every(row.passes);
+    }).toList();
+
+    int compare(_ListRow a, _ListRow b) => switch (sort) {
+          'id' => a.id.compareTo(b.id),
+          'authors' => a.authors.join(', ').toLowerCase().compareTo(b.authors.join(', ').toLowerCase()),
+          'gameVersion' => (a.gameVersion ?? '').compareTo(b.gameVersion ?? ''),
+          'conflicts' => a.conflicts.compareTo(b.conflicts),
+          _ => a.shownName.toLowerCase().compareTo(b.shownName.toLowerCase()),
+        };
+    rows.sort((a, b) {
+      final by = descending ? compare(b, a) : compare(a, b);
+      if (by != 0) return by;
+      final byName = a.shownName.toLowerCase().compareTo(b.shownName.toLowerCase());
+      return byName != 0 ? byName : a.id.compareTo(b.id);
+    });
+    return (rows: [for (final row in rows) row.toMap()], counts: counts);
+  }
+
+  /// All list rows for `GET /api/search`, using the same search fields
+  /// as the list. Null when no catalog has been built.
+  List<Searchable>? searchable() {
+    final all = _allRows();
+    if (all == null) return null;
+    return [
+      for (final row in all)
+        Searchable(
+          fields: row.searchFields,
+          sortName: row.shownName,
+          id: row.id,
+          item: {
+            'id': row.id,
+            'name': row.shownName,
+            'authors': row.authors,
+            if (row.takenDown) 'takenDown': true,
+          },
+        ),
+    ];
+  }
+
+  /// Every catalog mod and taken-down mod, unfiltered. Null when no catalog
+  /// has been built.
+  List<_ListRow>? _allRows() {
     final catalog = _catalog;
     if (catalog == null) return null;
     final site = data.siteMods ?? const {};
@@ -98,34 +156,7 @@ class ModViews {
       ));
     }
 
-    final counts = {
-      'total': all.length,
-      'noDownload': all.where((r) => r.passes('noDownload')).length,
-      'takenDown': all.where((r) => r.takenDown).length,
-      'conflicts': all.where((r) => r.conflicts > 0).length,
-      'aiStated': all.where((r) => r.usesAi != null).length,
-    };
-
-    final query = q.trim().toLowerCase();
-    final rows = all.where((row) {
-      if (query.isNotEmpty && !row.searchText.contains(query)) return false;
-      return filters.every(row.passes);
-    }).toList();
-
-    int compare(_ListRow a, _ListRow b) => switch (sort) {
-          'id' => a.id.compareTo(b.id),
-          'authors' => a.authors.join(', ').toLowerCase().compareTo(b.authors.join(', ').toLowerCase()),
-          'gameVersion' => (a.gameVersion ?? '').compareTo(b.gameVersion ?? ''),
-          'conflicts' => a.conflicts.compareTo(b.conflicts),
-          _ => a.shownName.toLowerCase().compareTo(b.shownName.toLowerCase()),
-        };
-    rows.sort((a, b) {
-      final by = descending ? compare(b, a) : compare(a, b);
-      if (by != 0) return by;
-      final byName = a.shownName.toLowerCase().compareTo(b.shownName.toLowerCase());
-      return byName != 0 ? byName : a.id.compareTo(b.id);
-    });
-    return (rows: [for (final row in rows) row.toMap()], counts: counts);
+    return all;
   }
 
   static List<String> _kindsOf(List<Object> posts) => [
@@ -856,7 +887,16 @@ class _ListRow {
 
   String get shownName => displayName ?? name;
 
-  late final String searchText = [name, displayName ?? '', id, ...authors, ...otherNames].join('\n').toLowerCase();
+  /// Search fields shared by the list and `GET /api/search`.
+  /// The id is last so an equally ranked author match supplies the note.
+  late final List<SearchField> searchFields = [
+    SearchField(SearchFieldKind.name, shownName),
+    if (displayName != null && displayName != name)
+      SearchField(SearchFieldKind.name, name, detail: 'also called $name'),
+    for (final author in authors) SearchField(SearchFieldKind.other, author, detail: 'author: $author'),
+    for (final other in otherNames) SearchField(SearchFieldKind.alias, other, detail: 'also called $other'),
+    SearchField.id(id),
+  ];
 
   bool passes(String filter) => switch (filter) {
         'noDownload' => !hasDownload && !takenDown,

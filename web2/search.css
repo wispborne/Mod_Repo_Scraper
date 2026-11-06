@@ -1,0 +1,60 @@
+/* The matches under the toolbar's search box (search_box.js). */
+
+.search { position: relative; }
+
+.search-panel {
+  position: absolute; top: calc(100% + 6px); right: -1px; z-index: 30;
+  width: 460px; max-width: calc(100vw - var(--rail-width) - 2 * var(--pad));
+  max-height: min(560px, calc(100vh - 80px));
+  max-height: min(560px, calc(100dvh - 80px));
+  overflow: auto; overscroll-behavior: contain;
+  padding: 4px 0;
+  background: var(--panel); border: 1px solid var(--frame);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .45);
+  color: var(--text);
+}
+
+.search-group + .search-group { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+.search-heading {
+  padding: 6px var(--pad) 2px;
+  font: 600 var(--label)/16px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--dim);
+}
+
+.search-option {
+  display: grid; gap: 0;
+  padding: 4px var(--pad);
+  color: var(--text); text-decoration: none;
+  border-left: 2px solid transparent;
+}
+.search-option:hover { text-decoration: none; }
+.search-option[aria-selected="true"] { background: var(--raised); border-left-color: var(--action); }
+.search-row-top { display: flex; gap: var(--gap); align-items: baseline; min-width: 0; }
+.search-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-time { flex: none; color: var(--faint); font-size: var(--small); }
+.search-sub, .search-detail {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--small); line-height: 17px;
+}
+.search-sub { color: var(--dim); }
+.search-detail { color: var(--faint); }
+.search-more { color: var(--action); font-size: var(--small); line-height: 17px; }
+.search-more-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.search-empty { padding: 8px var(--pad); color: var(--dim); }
+
+/* Visually hidden but available to screen readers. */
+.search-said {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  /* The box spans the toolbar here, so the matches span the screen. */
+  .search-panel {
+    left: calc(-1 * var(--pad) - 1px); right: calc(-1 * var(--pad) - 1px);
+    width: auto; max-width: none;
+    max-height: min(560px, calc(100dvh - 140px));
+    border-left: 0; border-right: 0;
+  }
+}

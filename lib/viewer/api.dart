@@ -22,6 +22,7 @@ import 'data_access.dart';
 import 'merge_views.dart';
 import 'mod_views.dart';
 import 'post_views.dart';
+import 'search_views.dart';
 import 'site_version.dart';
 
 /// Comparison side for current on-disk data; this is not a saved run id.
@@ -33,10 +34,15 @@ const String workingSideId = 'working';
 class ViewerApi {
   final DataAccess data;
 
-  ViewerApi(this.data);
+  /// Run history for the Runs search group. Null when the manager is off,
+  /// leaving the group empty.
+  final RunRecords? runs;
+
+  ViewerApi(this.data, {this.runs});
 
   late final PostViews _postViews = PostViews(data);
   late final ModViews _modViews = ModViews(data);
+  late final SearchViews _searchViews = SearchViews(mods: _modViews, posts: _postViews, runs: runs);
 
   Handler get router {
     final r = Router();
@@ -87,6 +93,8 @@ class ViewerApi {
     r.get('/author-aliases', _authorAliases);
 
     r.get('/attention', (Request req) => _json(attentionCounts(data)));
+
+    r.get('/search', _search);
 
     return r.call;
   }
@@ -309,6 +317,19 @@ class ViewerApi {
       return _json({'error': 'kind must be topic or discord.'}, status: 400);
     }
     return _json(answer);
+  }
+
+  // --- Search ---
+
+  /// Search results for `q`, with a `limit` per kind (default 5). Returns up
+  /// to `limit` mods, forum topics, Discord threads and runs, best first,
+  /// with a total for each kind.
+  Response _search(Request req) {
+    final query = req.url.queryParameters;
+    return _json(_searchViews.search(
+      query['q'] ?? '',
+      limit: SearchViews.limitOf(query['limit']),
+    ));
   }
 
   // --- Mods: one per permanent id in the last catalog ---

@@ -3,8 +3,9 @@
 
 import { el, clear, store } from './lib.js';
 import { icon } from './icons.js';
-import { NAV, searchRoute, oldViewerAddress, kindLabel, percent } from './routes.js';
+import { NAV, kindLabel, percent } from './routes.js';
 import { mountPendingButton } from './pending_view.js';
+import { searchBox } from './search_box.js';
 
 // --- Nav rail ---
 
@@ -49,28 +50,8 @@ export function mountToolbar(node) {
   // The Pending changes button, and the list it opens.
   const pending = el('div', { class: 'pending-host' });
   mountPendingButton(pending);
-  const input = el('input', {
-    type: 'search',
-    class: 'search-input',
-    placeholder: 'Search…',
-    title: 'A topic id, a forum or Discord address, or a name',
-    'aria-label': 'Search',
-    autocomplete: 'off',
-    spellcheck: 'false',
-  });
-  const form = el('form', { class: 'search', role: 'search' }, [
-    icon('search', 14),
-    input,
-    el('kbd', { class: 'search-key', text: '/', title: 'Press / to search' }),
-  ]);
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const route = searchRoute(input.value);
-    if (!route) return;
-    // A route starting with #/ is a page of this viewer; the rest open the old one.
-    if (route.startsWith('#/')) location.hash = route;
-    else location.href = oldViewerAddress(location.pathname, route);
-  });
+  // The search box and the matches under it (search_box.js).
+  const { form, input } = searchBox();
 
   clear(node).append(title, actions, el('span', { class: 'gap' }), pending, form);
 

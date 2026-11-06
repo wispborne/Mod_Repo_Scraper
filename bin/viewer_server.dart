@@ -20,6 +20,7 @@ import 'package:mod_repo_scraper/manager/takedown_service.dart';
 import 'package:mod_repo_scraper/viewer/api.dart';
 import 'package:mod_repo_scraper/viewer/data_access.dart';
 import 'package:mod_repo_scraper/viewer/live_reload.dart';
+import 'package:mod_repo_scraper/viewer/search_views.dart';
 import 'package:mod_repo_scraper/viewer/server_app.dart';
 import 'package:mod_repo_scraper/viewer/site_version.dart';
 import 'package:path/path.dart' as p;
@@ -139,7 +140,7 @@ Future<void> main(List<String> args) async {
 
   final handler = pipeline.addHandler(
     buildServerHandler(
-      viewer: ViewerApi(data),
+      viewer: ViewerApi(data, runs: manager.runs),
       managerHandler: manager.handler,
       staticHandler: staticHandler,
     ),
@@ -167,7 +168,11 @@ class _ManagerSetup {
   final Handler handler;
   final String description;
 
-  _ManagerSetup(this.handler, this.description);
+  /// The run history, newest first, for the viewer's search. Null when the
+  /// manager is off.
+  final RunRecords? runs;
+
+  _ManagerSetup(this.handler, this.description, {this.runs});
 }
 
 /// Builds the manager core from the config file, or reports why it can't.
@@ -288,5 +293,6 @@ Future<_ManagerSetup> _buildManager({
     ),
     settings: SettingsFile(configPath: configPath),
   );
-  return _ManagerSetup(api.router, 'on, working on $managerDataPath');
+  return _ManagerSetup(api.router, 'on, working on $managerDataPath',
+      runs: () => history.records);
 }

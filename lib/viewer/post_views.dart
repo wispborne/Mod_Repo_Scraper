@@ -4,6 +4,7 @@ import '../catalog/mod_catalog.dart';
 import '../catalog/source_post.dart';
 import '../site/mod_name_match.dart';
 import 'data_access.dart';
+import 'search_match.dart';
 
 /// The viewer's Source posts list and what became of each post, for
 /// `GET /api/posts` and `GET /api/posts/outcome`. Reads saved files only.
@@ -70,6 +71,61 @@ class PostViews {
     String sort = 'lastPost',
     bool descending = true,
   }) {
+    final all = _allRows();
+    if (all == null) return null;
+
+    final counts = {
+      'noDownload': all.where((r) => r.noDownload).length,
+      'noLlmAnswer': all.where((r) => r.noLlmAnswer).length,
+      'placeholder': all.where((r) => r.isPlaceholder).length,
+    };
+
+    final query = searchQuery(q);
+    final rows = all.where((row) {
+      if (kind == 'topic' && row.kind != 'topic') return false;
+      if (kind == 'discord' && row.kind != 'discord') return false;
+      if (!matchesSearch(query, row.searchFields)) return false;
+      return filters.every(row.passes);
+    }).toList();
+
+    int compare(_Row a, _Row b) => switch (sort) {
+          'title' => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+          'mods' => a.modCount.compareTo(b.modCount),
+          _ => _compareDates(a.lastPost, b.lastPost),
+        };
+
+    rows.sort((a, b) {
+      final by = descending ? compare(b, a) : compare(a, b);
+      if (by != 0) return by;
+      // The same order every time for rows the sort cannot tell apart.
+      final byTitle = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      return byTitle != 0 ? byTitle : a.id.compareTo(b.id);
+    });
+
+    return (rows: [for (final row in rows) row.toMap()], counts: counts);
+  }
+
+  /// Every saved forum topic ([kind] `topic`) or Discord thread (`discord`),
+  /// for `GET /api/search`, using the same search fields as the list.
+  /// Null when both the mods index and `discord-posts.json` are missing.
+  List<Searchable>? searchable(String kind) {
+    final all = _allRows();
+    if (all == null) return null;
+    return [
+      for (final row in all)
+        if (row.kind == kind)
+          Searchable(
+            fields: row.searchFields,
+            sortName: row.title,
+            id: row.id,
+            item: {'id': row.id, 'title': row.title, 'author': row.author},
+          ),
+    ];
+  }
+
+  /// Every saved forum topic and Discord thread as list rows, unfiltered.
+  /// Null when neither the mods index nor `discord-posts.json` is there.
+  List<_Row>? _allRows() {
     final index = data.index;
     final threads = data.discordPosts?.threads;
     if (index == null && threads == null) return null;
@@ -139,35 +195,7 @@ class PostViews {
       ));
     }
 
-    final counts = {
-      'noDownload': all.where((r) => r.noDownload).length,
-      'noLlmAnswer': all.where((r) => r.noLlmAnswer).length,
-      'placeholder': all.where((r) => r.isPlaceholder).length,
-    };
-
-    final query = q.trim().toLowerCase();
-    final rows = all.where((row) {
-      if (kind == 'topic' && row.kind != 'topic') return false;
-      if (kind == 'discord' && row.kind != 'discord') return false;
-      if (query.isNotEmpty && !row.searchText.contains(query)) return false;
-      return filters.every(row.passes);
-    }).toList();
-
-    int compare(_Row a, _Row b) => switch (sort) {
-          'title' => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-          'mods' => a.modCount.compareTo(b.modCount),
-          _ => _compareDates(a.lastPost, b.lastPost),
-        };
-
-    rows.sort((a, b) {
-      final by = descending ? compare(b, a) : compare(a, b);
-      if (by != 0) return by;
-      // The same order every time for rows the sort cannot tell apart.
-      final byTitle = a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      return byTitle != 0 ? byTitle : a.id.compareTo(b.id);
-    });
-
-    return (rows: [for (final row in rows) row.toMap()], counts: counts);
+    return all;
   }
 
   static int _compareDates(DateTime? a, DateTime? b) {
@@ -238,12 +266,15 @@ class _Row {
 
   int get modCount => (outcome['mods'] as List).length;
 
-  late final String searchText = [
-    title,
-    author,
-    id,
-    for (final mod in outcome['mods'] as List) (mod as Map)['name'],
-  ].join('\n').toLowerCase();
+  /// Search fields shared by the list and `GET /api/search`.
+  /// The id is last so an equally ranked match on another field supplies the note.
+  late final List<SearchField> searchFields = [
+    SearchField(SearchFieldKind.name, title),
+    SearchField(SearchFieldKind.other, author, detail: 'author: $author'),
+    for (final mod in outcome['mods'] as List)
+      SearchField(SearchFieldKind.alias, '${(mod as Map)['name']}', detail: 'mod: ${mod['name']}'),
+    SearchField.id(id),
+  ];
 
   bool passes(String filter) => switch (filter) {
         'noDownload' => noDownload,
