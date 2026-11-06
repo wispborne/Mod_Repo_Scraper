@@ -24,7 +24,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
 
-/// Serves `web/`, the read-only viewer API and optional job management API.
+/// Serves `web/` and `web2/`, the read-only viewer API and optional job management API.
 ///
 /// Binds to `127.0.0.1`. Config supplies manager settings; only the data path
 /// may be exposed over HTTP. Viewer endpoints never write; manager jobs may.
@@ -39,7 +39,14 @@ Future<void> main(List<String> args) async {
     ..addOption('root-dir',
         defaultsTo: '.', help: 'merge-debug.json and ModRepo.log.')
     ..addOption('web-dir',
-        defaultsTo: 'web', help: 'Static frontend directory.')
+        defaultsTo: 'web', help: "The old viewer's folder.")
+    ..addOption('web2-dir',
+        defaultsTo: 'web2', help: "The new viewer's folder.")
+    ..addOption('ui',
+        defaultsTo: 'v1',
+        allowed: ['v1', 'v2'],
+        help: 'Which viewer is served at /. The other one is served at /v1/ '
+            'or /v2/, against the same data.')
     ..addOption('config',
         defaultsTo: 'config.properties',
         help:
@@ -79,11 +86,32 @@ Future<void> main(List<String> args) async {
   );
 
   final webDir = opts['web-dir'] as String;
-  final staticHandler = createStaticHandler(
+  final web2Dir = opts['web2-dir'] as String;
+  final newAtRoot = opts['ui'] == 'v2';
+  final oldViewer = createStaticHandler(
     webDir,
     defaultDocument: 'index.html',
     listDirectories: false,
   );
+  final hasNewViewer = Directory(web2Dir).existsSync();
+  final Handler staticHandler;
+  final String viewers;
+  if (!hasNewViewer) {
+    staticHandler = oldViewer;
+    viewers = 'old viewer at /. The new viewer was not found in $web2Dir';
+  } else {
+    final newViewer = createStaticHandler(
+      web2Dir,
+      defaultDocument: 'index.html',
+      listDirectories: false,
+    );
+    staticHandler = newAtRoot
+        ? twoViewers(root: newViewer, otherPrefix: 'v1', other: oldViewer)
+        : twoViewers(root: oldViewer, otherPrefix: 'v2', other: newViewer);
+    viewers = newAtRoot
+        ? 'new viewer at /, old viewer at /v1/'
+        : 'old viewer at /, new viewer at /v2/';
+  }
 
   final manager = await _buildManager(
     configPath: opts['config'] as String,
@@ -93,8 +121,12 @@ Future<void> main(List<String> args) async {
     viewerOutputsDir: data.outputsDir,
   );
 
-  final liveReload =
-      opts['reload'] as bool ? LiveReload.watch(Directory(webDir)) : null;
+  final liveReload = opts['reload'] as bool
+      ? LiveReload.watch([
+          Directory(webDir),
+          if (hasNewViewer) Directory(web2Dir),
+        ])
+      : null;
 
   var pipeline = const Pipeline().addMiddleware(logRequests());
   if (liveReload != null) {
@@ -118,8 +150,10 @@ Future<void> main(List<String> args) async {
   stdout.writeln('  outputs-dir ${data.outputsDir}');
   stdout.writeln('  root-dir    ${data.rootDir}');
   stdout.writeln('  manager     ${manager.description}');
+  stdout.writeln('  viewers     $viewers');
   if (liveReload != null) {
-    stdout.writeln('Open pages reload when a file in $webDir changes.');
+    final watched = hasNewViewer ? '$webDir or $web2Dir' : webDir;
+    stdout.writeln('Open pages reload when a file in $watched changes.');
   }
   stdout.writeln('Press Ctrl+C to stop.');
 }

@@ -37,16 +37,18 @@ class LiveReload {
 
   String get _current => '$_started.$_changes';
 
-  /// Watches [dir] and everything under it.
-  static LiveReload watch(Directory dir) {
+  /// Watches each of [dirs] and everything under them.
+  static LiveReload watch(List<Directory> dirs) {
     final reload = LiveReload._();
-    dir.watch(recursive: true).listen((_) {
-      reload._pending?.cancel();
-      reload._pending = Timer(_settle, () {
-        reload._changes++;
-        reload._changed.add(null);
+    for (final dir in dirs) {
+      dir.watch(recursive: true).listen((_) {
+        reload._pending?.cancel();
+        reload._pending = Timer(_settle, () {
+          reload._changes++;
+          reload._changed.add(null);
+        });
       });
-    });
+    }
     return reload;
   }
 

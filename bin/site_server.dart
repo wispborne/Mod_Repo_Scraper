@@ -103,7 +103,7 @@ Future<void> main(List<String> args) async {
   });
 
   final liveReload =
-      opts['reload'] as bool ? LiveReload.watch(Directory(siteDir)) : null;
+      opts['reload'] as bool ? LiveReload.watch([Directory(siteDir)]) : null;
 
   var cascade = Cascade();
   for (final handler in handlers) {

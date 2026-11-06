@@ -52,6 +52,34 @@
         "--no-manager"
       ],
       "port": 8086
+    },
+    {
+      "name": "viewer-v2",
+      "runtimeExecutable": "dart",
+      "runtimeArgs": [
+        "run",
+        "bin/viewer_server.dart",
+        "--port",
+        "8088",
+        "--ui",
+        "v2",
+        "--reload"
+      ],
+      "port": 8088
+    },
+    {
+      "name": "viewer-v2-readonly",
+      "runtimeExecutable": "dart",
+      "runtimeArgs": [
+        "run",
+        "bin/viewer_server.dart",
+        "--port",
+        "8089",
+        "--ui",
+        "v2",
+        "--no-manager"
+      ],
+      "port": 8089
     }
   ]
 }
