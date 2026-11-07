@@ -24,7 +24,7 @@ import {
   diffTable, changedFieldsLine, changedFieldsTitle, expandAllButton, jobWord, isImported,
 } from '../diff_parts.js';
 import {
-  starmodderPage, starmodderFile, modHref, webAddress, postHref, postKindWords, postFallbackName, postJobKeys,
+  starmodderPage, starmodderFile, modHref, webAddress, shortAddress, postHref, postKindWords, postFallbackName, postJobKeys,
   foundByWords, joinedByWords, factSource, fieldName, shortValue, saveAnswerWords, distinctNames,
   sameAuthorLabel, matchLabel, matchCorrection,
 } from '../mod_words.js';
@@ -344,73 +344,112 @@ function siteFields(ctx, site) {
     return word ? `${word} — ${text}` : text;
   };
 
-  const rows = [
-    ['Name', listing.displayName || listing.name],
-    ['Thread title', listing.displayName && listing.name !== listing.displayName ? listing.name : null],
-    ['Authors', (listing.authors || []).join(', ')],
-    ['Other names', otherNamesText(listing.otherAuthorNames)],
-    ['Also called', (listing.nicknames || []).join(', ')],
-    ['Summary', listing.summary ? `${listing.summary}${listing.summaryIsGenerated ? ' (AI)' : ''}` : null],
-    ['AI summary', listing.aiSummary && listing.aiSummary !== listing.summary ? listing.aiSummary : null],
-    ['Categories', (listing.categories || []).join(', ')],
-    ['Original categories', (site.rawCategories || []).join(', ')],
-    ['Game version', listing.gameVersion],
-    ['Mod version', listing.modVersion],
-    ['Picture', listing.imageUrl, listing.imageUrl ? outLink(listing.imageUrl, listing.imageUrl) : null],
-    ['Discord picture', listing.announcementImageUrl, listing.announcementImageUrl
-      ? outLink(listing.announcementImageUrl, listing.announcementImageUrl) : null],
-    ['Main download', download && download.url, download ? el('span', {}, [
-      badge(download.kind || 'direct', download.kind === 'trios' ? 'strong' : ''), ' ',
-      outLink(download.url, download.url),
-      download.needsAnotherStep ? el('span', { class: 'dim', text: ' (opens the host’s page)' }) : null,
-    ]) : null],
-    ['Downloads', (site.downloads || []).length ? null : 'None', (site.downloads || []).length ? downloadList(site.downloads) : null],
-    ['Requires', null, (listing.needs || []).length ? needChips(listing.needs) : null],
-    ['Optional', null, (site.optionalNeeds || []).length ? needChips(site.optionalNeeds) : null],
-    ['Conflicts', null, (site.conflicts || []).length ? conflictList(site.conflicts) : null],
-    ['Adding to a save', save(site.canAdd, site.saveCompatibilityText)],
-    ['Updating', save(site.canUpdate, site.updateCompatibilityText)],
-    ['Removing from a save', save(site.canRemove, site.removalCompatibilityText)],
-    ['AI use', aiUseText(site.aiUse)],
-    ['Source code', site.sourceCodeUrl, site.sourceCodeUrl ? outLink(site.sourceCodeUrl, site.sourceCodeUrl) : null],
-    ['License', site.license],
-    ['Support the author', null, (site.supportLinks || []).length ? el('span', { class: 'md-chips' }, site.supportLinks.map(
-      (s) => outLink(s.url, s.label || s.type || s.url),
-    )) : null],
-    ['Forum thread', site.forumUrl, site.forumUrl ? outLink(site.forumUrl, site.forumUrl) : null],
-    ['Discord post', site.discordUrl, site.discordUrl ? outLink(site.discordUrl, site.discordUrl) : null],
-    ['Full changelog', site.changelogUrl, site.changelogUrl ? outLink(site.changelogUrl, site.changelogUrl) : null],
-    ['Added', listing.addedOn],
-    ['Last edited', listing.editedOn],
-    ['Last release', listing.lastReleaseDate ? String(listing.lastReleaseDate).slice(0, 10) : null],
-    ['Releases', (site.releases || []).length
-      ? site.releases.map((r) => `${r.newVersion}${r.seenOn ? ` (${r.seenOn})` : ''}`).join(', ') : null],
-    ['Same name', null, (site.sameNameMods || []).length
-      ? el('span', { class: 'md-chips' }, site.sameNameMods.map(sameNameChip)) : null],
-    ['Add-ons', null, (site.addons || []).length ? el('span', { class: 'md-chips' }, site.addons.map(
-      (a) => (a.id ? el('a', { class: 'chip', href: modHref(a.id), text: a.name || a.id }) : el('span', { class: 'chip', text: a.name || '' })),
-    )) : null],
-    ['Gallery', (site.gallery || []).length ? `${site.gallery.length} picture${site.gallery.length === 1 ? '' : 's'}` : null],
-  ];
-
-  // Requirements the build could not match that no list above shows.
-  const leftOver = unmatchedList.filter((need) => !shownNeeds.has(looseKey(need.name)));
-  const children = [fieldList(rows)];
-  if (leftOver.length) {
-    children.push(fieldList([['Not matched', null, el('span', { class: 'md-chips' },
-      leftOver.map((need) => unmatchedNeed(ctx, need.name, true, need.key)))]]));
-  }
-
+  const description = [];
   const descriptionText = site.description || '';
   if (descriptionText) {
     const heading = site.descriptionIsForumPost ? 'Forum post' : 'About this mod';
     const label = `${heading}${site.descriptionIsGenerated ? ' (AI)' : ''}: ${descriptionText.length} characters`;
-    children.push(fold(label, el('pre', { class: 'pp-pre pp-message', text: descriptionText })));
+    description.push(fold(label, el('pre', { class: 'pp-pre pp-message', text: descriptionText })));
   }
   if (site.aiDescription) {
-    children.push(fold('AI description', el('p', { class: 'md-fold-text', text: site.aiDescription })));
+    description.push(fold('AI description', el('p', { class: 'md-fold-text', text: site.aiDescription })));
   }
-  return children;
+
+  // The chips note each name they show, so the names left over are worked
+  // out after them.
+  const requires = (listing.needs || []).length ? needChips(listing.needs) : null;
+  const optional = (site.optionalNeeds || []).length ? needChips(site.optionalNeeds) : null;
+  // Requirements the build could not match that neither list shows.
+  const leftOver = unmatchedList.filter((need) => !shownNeeds.has(looseKey(need.name)));
+
+  return fieldGroups([
+    ['Names', [
+      ['Name', listing.displayName || listing.name],
+      ['Thread title', listing.displayName && listing.name !== listing.displayName ? listing.name : null],
+      ['Authors', (listing.authors || []).join(', ')],
+      ['Other names', otherNamesText(listing.otherAuthorNames)],
+      ['Also called', (listing.nicknames || []).join(', ')],
+    ]],
+    ['Description', [
+      ['Summary', listing.summary ? `${listing.summary}${listing.summaryIsGenerated ? ' (AI)' : ''}` : null],
+      ['AI summary', listing.aiSummary && listing.aiSummary !== listing.summary ? listing.aiSummary : null],
+    ], description],
+    ['Details', [
+      ['Categories', (listing.categories || []).join(', ')],
+      ['Original categories', (site.rawCategories || []).join(', ')],
+      ['Game version', listing.gameVersion],
+      ['Mod version', listing.modVersion],
+      ['AI use', aiUseText(site.aiUse)],
+    ]],
+    ['Downloads', [
+      ['Main download', download && download.url, download ? el('span', {}, [
+        badge(download.kind || 'direct', download.kind === 'trios' ? 'strong' : ''), ' ',
+        shortLink(download.url),
+        download.needsAnotherStep ? el('span', { class: 'dim', text: ' (opens the host’s page)' }) : null,
+      ]) : null],
+      ['Downloads', (site.downloads || []).length ? null : 'None', (site.downloads || []).length ? downloadList(site.downloads) : null],
+    ]],
+    ['Compatibility', [
+      ['Requires', null, requires],
+      ['Optional', null, optional],
+      ['Not matched', null, leftOver.length ? el('span', { class: 'md-chips' },
+        leftOver.map((need) => unmatchedNeed(ctx, need.name, true, need.key))) : null],
+      ['Conflicts', null, (site.conflicts || []).length ? conflictList(site.conflicts) : null],
+      ['Adding to a save', save(site.canAdd, site.saveCompatibilityText)],
+      ['Updating', save(site.canUpdate, site.updateCompatibilityText)],
+      ['Removing from a save', save(site.canRemove, site.removalCompatibilityText)],
+    ]],
+    ['Pictures', [
+      ['Picture', listing.imageUrl, listing.imageUrl ? shortLink(listing.imageUrl) : null],
+      ['Discord picture', listing.announcementImageUrl, listing.announcementImageUrl
+        ? shortLink(listing.announcementImageUrl) : null],
+      ['Gallery', (site.gallery || []).length ? `${site.gallery.length} picture${site.gallery.length === 1 ? '' : 's'}` : null],
+    ]],
+    ['Links', [
+      ['Forum thread', site.forumUrl, site.forumUrl ? shortLink(site.forumUrl) : null],
+      ['Discord post', site.discordUrl, site.discordUrl ? shortLink(site.discordUrl) : null],
+      ['Source code', site.sourceCodeUrl, site.sourceCodeUrl ? shortLink(site.sourceCodeUrl) : null],
+      ['License', site.license],
+      ['Support the author', null, (site.supportLinks || []).length ? el('span', { class: 'md-chips' }, site.supportLinks.map(
+        (s) => outLink(s.url, s.label || s.type || shortAddress(s.url) || s.url, { title: webAddress(s.url) }),
+      )) : null],
+      ['Full changelog', site.changelogUrl, site.changelogUrl ? shortLink(site.changelogUrl) : null],
+    ]],
+    ['Dates', [
+      ['Added', listing.addedOn],
+      ['Last edited', listing.editedOn],
+      ['Last release', listing.lastReleaseDate ? String(listing.lastReleaseDate).slice(0, 10) : null],
+      ['Releases', (site.releases || []).length
+        ? site.releases.map((r) => `${r.newVersion}${r.seenOn ? ` (${r.seenOn})` : ''}`).join(', ') : null],
+    ]],
+    ['Related mods', [
+      ['Same name', null, (site.sameNameMods || []).length
+        ? el('span', { class: 'md-chips' }, site.sameNameMods.map(sameNameChip)) : null],
+      ['Add-ons', null, (site.addons || []).length ? el('span', { class: 'md-chips' }, site.addons.map(
+        (a) => (a.id ? el('a', { class: 'chip', href: modHref(a.id), text: a.name || a.id }) : el('span', { class: 'chip', text: a.name || '' })),
+      )) : null],
+    ]],
+  ]);
+}
+
+/// Groups of label and value pairs, each under a small heading. A group with
+/// nothing to show is left out. `extra` is shown under the group's pairs.
+function fieldGroups(groups) {
+  return groups.map(([title, rows, extra = []]) => {
+    const list = fieldList(rows);
+    if (!list.children.length && !extra.length) return null;
+    return el('div', { class: 'md-group' }, [
+      el('h4', { class: 'pp-subhead', text: title }),
+      list.children.length ? list : null,
+      ...extra,
+    ]);
+  }).filter(Boolean);
+}
+
+/// A link to `url` written short (the site and the file or page), with the
+/// whole address on hover.
+function shortLink(url) {
+  return outLink(url, shortAddress(url) || url, { title: webAddress(url) });
 }
 
 /// Links to the mod's page here, or to its forum thread in a new tab.
@@ -431,7 +470,7 @@ function otherNamesText(map) {
 function downloadList(downloads) {
   return el('ul', { class: 'md-list' }, downloads.map((d) => el('li', {}, [
     badge(d.kind || 'direct', d.kind === 'trios' ? 'strong' : ''), ' ',
-    outLink(d.url, d.label ? `${d.label}${d.host ? ` · ${d.host}` : ''}` : d.url),
+    d.label ? outLink(d.url, `${d.label}${d.host ? ` · ${d.host}` : ''}`, { title: webAddress(d.url) }) : shortLink(d.url),
     d.needsAnotherStep ? el('span', { class: 'dim', text: ' (opens the host’s page)' }) : null,
   ])));
 }
@@ -627,7 +666,10 @@ function factsSection(facts, factsStatus) {
     }
     return el('tr', {}, [
       el('td', { class: 'md-field', text: fieldName(field) }),
-      el('td', { class: 'md-value', title: typeof value === 'string' && value.length > 160 ? value : null, text: shortValue(value) }),
+      // A value that is only a web address (a download's is an object) is a short link.
+      shortAddress(shortValue(value, Infinity))
+        ? el('td', { class: 'md-value' }, [shortLink(shortValue(value, Infinity))])
+        : el('td', { class: 'md-value', title: typeof value === 'string' && value.length > 160 ? value : null, text: shortValue(value) }),
       el('td', { class: 'md-source' }, [from]),
     ]);
   });

@@ -34,6 +34,46 @@ export function webAddress(url) {
   }
 }
 
+/// A web address written short enough to read in a list: the site, then what
+/// on it the address points at. A forum topic gives its number, a GitHub
+/// address its owner and project (and its last part, when there is more),
+/// anything else its last part (a file name,
+/// usually), with the query left off. Null when `url` is not a web address.
+/// The page shows the whole address on hover.
+export function shortAddress(url) {
+  const link = webAddress(url);
+  if (!link) return null;
+  const parsed = new URL(link);
+  const host = parsed.hostname.replace(/^www\./, '');
+  const topic = parsed.searchParams.get('topic');
+  if (topic) return `${host} · topic ${topic.replace(/\.\d+$/, '')}`;
+  const parts = parsed.pathname.split('/').filter(Boolean).map(decodePart);
+  if (!parts.length) return host;
+  if ((host === 'github.com' || host === 'raw.githubusercontent.com') && parts.length >= 2) {
+    // The project, then the last part, so a release and the project itself differ.
+    const project = `${host} · ${parts[0]}/${parts[1]}`;
+    return parts.length > 2 ? `${project} · ${cutMiddle(parts[parts.length - 1], 40)}` : project;
+  }
+  return `${host} · ${cutMiddle(parts[parts.length - 1], 40)}`;
+}
+
+function decodePart(part) {
+  try {
+    return decodeURIComponent(part);
+  } catch {
+    return part;
+  }
+}
+
+/// Text cut to `max` characters by taking out its middle, so a file name keeps
+/// its start and its ending.
+function cutMiddle(text, max) {
+  if (text.length <= max) return text;
+  const keep = max - 1;
+  const head = Math.ceil(keep / 2);
+  return `${text.slice(0, head)}…${text.slice(text.length - (keep - head))}`;
+}
+
 /// True when `webAddress` gives a link for `url`.
 export function isWebAddress(url) {
   return webAddress(url) != null;

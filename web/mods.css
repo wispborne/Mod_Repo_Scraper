@@ -19,6 +19,13 @@
 
 /* --- The mod page --- */
 
+/* The headings are the source post page's (post.css). Each group of facts
+   starts with a sub-heading, and the groups are spaced apart. */
+.md-page .pp-section-body { gap: 20px; }
+.md-group { display: grid; gap: 8px; min-width: 0; }
+/* One label width for every group, so the values line up down the page. */
+.md-group .pp-fields { grid-template-columns: 170px minmax(0, 1fr); }
+
 .md-line { color: var(--text); overflow-wrap: anywhere; }
 .md-status { display: flex; align-items: flex-start; gap: 8px; }
 /* The first line is 20px high. A 7px mark cannot be centred on whole pixels.
@@ -100,6 +107,8 @@ a.chip.md-need:hover { color: var(--action); text-decoration: none; }
   .md-table tr:last-child { border-bottom: 0; }
   .md-table td { display: block; padding: 0; border: 0; min-width: 0; }
   .md-field { white-space: normal !important; }
+  .md-group .pp-fields { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .md-group .pp-fields dd { margin-bottom: 6px; }
 }
 
 /* --- The card picture side panel --- */

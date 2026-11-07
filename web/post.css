@@ -7,6 +7,7 @@
 
 .pp-head { display: grid; gap: 8px; padding: 16px 20px 14px; border-bottom: 1px solid var(--line); }
 .pp-title { color: var(--heading); font-size: 16px; line-height: 23px; overflow-wrap: anywhere; }
+.pp-page .pp-title { font-size: 20px; line-height: 28px; }
 .pp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .pp-meta-text { color: var(--dim); }
 .pp-outcome { display: flex; align-items: flex-start; gap: 8px; }
@@ -37,6 +38,17 @@
 .pp-subhead {
   margin: 6px 0 0; font: 600 var(--label)/16px var(--mono); letter-spacing: .08em; text-transform: uppercase;
   color: var(--dim);
+}
+/* Three steps of heading on these pages: the page's name, then each section
+   on a bar of its own, then a sub-heading with a line running out from it.
+   A sub-heading inside a box (one of the LLM's mods) has no line. */
+.pp-page .pp-section { padding-top: 24px; }
+.pp-page .pp-section-head { background: var(--panel); border-top: 1px solid var(--line); }
+.pp-page .pp-section-body { padding-top: 16px; }
+.pp-section-body > .pp-subhead, .md-group > .pp-subhead { display: flex; align-items: center; gap: 8px; margin: 0; }
+.pp-section-body > .pp-subhead:not(:first-child) { margin-top: 10px; }
+.pp-section-body > .pp-subhead::after, .md-group > .pp-subhead::after {
+  content: ''; flex: 1 1 24px; border-top: 1px solid var(--line);
 }
 .pp-subhead a { text-transform: none; letter-spacing: 0; font-family: var(--sans); font-size: var(--text-size); }
 .pp-empty { color: var(--faint); }

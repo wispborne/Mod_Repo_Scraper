@@ -7,7 +7,7 @@ import { el, api, shortTime, infoButton } from './lib.js';
 import { icon } from './icons.js';
 import { confirmAndStart } from './actions.js';
 import { rebuildRequest } from './jobs.js';
-import { webAddress } from './mod_words.js';
+import { webAddress, shortAddress } from './mod_words.js';
 
 // --- Small shapes ---
 
@@ -126,8 +126,16 @@ export function linkList(links) {
     link.isDownloadable
       ? badge('Download', 'good')
       : badge(link.isExternal ? 'External' : 'Internal'),
-    outLink(link.url, link.text || link.url),
+    outLink(link.url, linkWords(link), { title: webAddress(link.url) }),
   ])));
+}
+
+/// A link's own words, or its address written short when it has none (or
+/// its words are only the address again).
+function linkWords(link) {
+  const text = (link.text || '').trim();
+  if (text && normUrl(text) !== normUrl(link.url)) return text;
+  return shortAddress(link.url) || link.url;
 }
 
 // --- Pictures ---
@@ -259,18 +267,6 @@ export function normUrl(u) {
     .replace(/^https?:\/\//, '').replace(/\/+$/, '');
 }
 
-/// Shortens a URL in the middle, keeping the host and file name visible.
-function shortUrl(u, max = 52) {
-  const s = String(u || '');
-  if (s.length <= max) return s;
-  return `${s.slice(0, max - 16)}…${s.slice(-14)}`;
-}
-
-/// A shortened URL; the link and its hover text keep the full address.
-function urlLink(display, href) {
-  return outLink(href, display, { class: 'pp-url', title: href });
-}
-
 /// Shortens cell text and keeps the full value on hover.
 function clampCell(text, max = 40) {
   const s = String(text || '');
@@ -295,8 +291,11 @@ function table(headings, rows) {
 }
 
 /// A link to a download: its words, or "Open", with the address on hover.
+/// Words that are only an address are written short.
 function downloadLink(words, href) {
-  return href ? outLink(href, words || 'Open', { class: 'pp-url', title: href }) : '—';
+  if (!href) return '—';
+  const text = (webAddress(words) && shortAddress(words)) || words || 'Open';
+  return outLink(href, text, { class: 'pp-url', title: href });
 }
 
 /// The button that shows a download's details: `rows` as label and value pairs.

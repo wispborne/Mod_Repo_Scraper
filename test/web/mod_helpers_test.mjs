@@ -169,3 +169,28 @@ test('an address starting with // is linked as https', () => {
     '/relative/path',
   ]) assert.equal(words.webAddress(url), null, JSON.stringify(url));
 });
+
+test('a short address names the site and what on it the address points at', () => {
+  assert.equal(words.shortAddress('https://fractalsoftworks.com/forum/index.php?topic=36154.0'), 'fractalsoftworks.com · topic 36154');
+  assert.equal(words.shortAddress('https://github.com/winters791/starsector-3d'), 'github.com · winters791/starsector-3d');
+  assert.equal(
+    words.shortAddress('https://github.com/winters791/starsector-3d/releases/latest'),
+    'github.com · winters791/starsector-3d · latest',
+  );
+  assert.equal(
+    words.shortAddress('https://raw.githubusercontent.com/winters791/starsector-3d/refs/heads/main/screenshots/aurora_doom.png'),
+    'raw.githubusercontent.com · winters791/starsector-3d · aurora_doom.png',
+  );
+  assert.equal(
+    words.shortAddress('https://cdn.discordapp.com/attachments/1/2/screenshot010.png?ex=6aed7e41&is=6aec2cc1&hm=d4c5'),
+    'cdn.discordapp.com · screenshot010.png',
+  );
+  assert.equal(words.shortAddress('https://www.patreon.com/'), 'patreon.com');
+  assert.equal(words.shortAddress('https://example.com/My%20Mod.zip'), 'example.com · My Mod.zip');
+  assert.equal(
+    words.shortAddress('https://example.com/a-very-long-file-name-that-keeps-going-and-going-v1.2.3.zip'),
+    'example.com · a-very-long-file-nam…nd-going-v1.2.3.zip',
+  );
+  assert.equal(words.shortAddress('javascript:alert(1)'), null);
+  assert.equal(words.shortAddress(''), null);
+});
