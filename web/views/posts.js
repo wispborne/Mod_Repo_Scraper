@@ -3,7 +3,7 @@
 // the address. While the manager is on, posts can be ticked across pages and
 // searches, and the per-post jobs run on the ticked posts.
 
-import { el, clear, api, pager, pageSizePreference } from '../lib.js';
+import { el, clear, api, pager, pageSizePreference, infoButton } from '../lib.js';
 import { pageLayout, sidePanel } from '../frame.js';
 import { subscribe, status } from '../status.js';
 import { hashQuery, buildHash } from '../routes.js';
@@ -104,7 +104,10 @@ export function render({ content, onLeave }) {
   const listSlot = el('div', { class: 'pl-list' }, [el('p', { class: 'empty', text: 'Loading…' })]);
   const main = el('div', { class: 'list-page pl-page' }, [
     numbers,
-    el('div', { class: 'pl-toolbar' }, [search]),
+    el('div', { class: 'pl-toolbar' }, [search, infoButton('About source posts', 'Source posts', () => [
+      el('p', { text: 'Select posts to run a job. Selected posts stay selected when you search or change pages.' }),
+      outcomeLegend(),
+    ])]),
     kindTabs,
     filterBar,
     selectionSlot,
@@ -242,10 +245,6 @@ export function render({ content, onLeave }) {
           drawList();
         },
       }),
-      keys.length ? null : el('span', {
-        class: 'pl-selection-hint',
-        text: 'Select posts to run a job. Selection is kept across searches and pages.',
-      }),
     ]));
   };
 
@@ -316,7 +315,6 @@ export function render({ content, onLeave }) {
         body: el('p', { class: 'pl-side-note', text: managerOffText(status()) }),
       }));
     }
-    parts.push(sidePanel({ name: 'What happened to each post', body: outcomeLegend() }));
     sideSlot.replaceChildren(...parts);
   };
 

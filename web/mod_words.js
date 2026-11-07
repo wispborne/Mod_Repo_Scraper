@@ -207,8 +207,18 @@ export function sameAuthorLabel(a, b) {
   return `"${a}" and "${b}" are the same person`;
 }
 
-/// The label of a "match this name to a mod" pending change. The Dependency
-/// names page uses the same words.
-export function matchLabel(written, modName) {
-  return `"${written}" means "${modName}"`;
+/// The label of a pending change that matches a name to one or more mods.
+/// `modNames` is one name or a list. Several are joined by "and", or by "or"
+/// when `anyOne` is set. The Dependency matching page uses the same words.
+export function matchLabel(written, modNames, anyOne = false) {
+  const names = [].concat(modNames).map((name) => `"${name}"`);
+  return `Match "${written}" to ${names.join(anyOne && names.length > 1 ? ' or ' : ' and ')}`;
+}
+
+/// The `matchRequirement` correction for matching `written` to the mods
+/// `ids`: `modId` for one, `modIds` and `anyOne` for several.
+export function matchCorrection(written, ids, anyOne = false) {
+  return ids.length > 1
+    ? { kind: 'matchRequirement', written, modIds: [...ids], anyOne: !!anyOne }
+    : { kind: 'matchRequirement', written, modId: ids[0] };
 }

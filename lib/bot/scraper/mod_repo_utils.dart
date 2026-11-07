@@ -240,6 +240,17 @@ class ModRepoUtils {
     return false;
   }
 
+  /// Keys for [credit] such that two credits are [samePerson] exactly when
+  /// their keys overlap. Working these out once per name lets a long list of
+  /// names be grouped without comparing every name with every other.
+  static Set<String> samePersonKeys(String credit) => {
+        for (final person in _peopleNamedIn(credit)) ...[
+          if (_plainName(person) case final plain?) 'plain:$plain',
+          if (_plainNameWithoutTag(person) case final withoutTag?) 'tag:$withoutTag',
+          if (_aliasRowFor(person) case [final first, ...]) 'row:$first',
+        ],
+      };
+
   static final _leadingByRe = RegExp(r'^by\s+', caseSensitive: false);
   static final _endsInDigitsRe = RegExp(r'\d+$');
   static final _capitalRe = RegExp(r'[A-Z]');

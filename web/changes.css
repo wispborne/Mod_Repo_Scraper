@@ -70,5 +70,10 @@ button.ch-count:hover { border-color: var(--action); border-left-color: var(--ac
   .ch-count { min-width: 0; flex: 1 1 40%; }
 }
 
-/* The run panel's What it changed links (web/run_panel.js). */
-.run-changed-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+/* The run panel's What changed tab (web/run_panel.js): the changes, drawn
+   with the What changed page's cards. */
+.run-changed { display: grid; gap: 16px; padding: 12px 0; justify-items: start; }
+.run-changed-section { display: grid; gap: 8px; width: 100%; }
+.run-changed-head { margin: 0; font-size: var(--text-size); font-weight: 600; color: var(--text); }
+.run-changed-counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.run-changed-all { justify-self: start; }

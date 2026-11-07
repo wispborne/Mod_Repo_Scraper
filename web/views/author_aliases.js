@@ -5,7 +5,7 @@
 // but the page does not try to work out what the list will look like after
 // the save: the save job is the one place the rules run.
 
-import { el, clear, api, askDialog } from '../lib.js';
+import { el, clear, api, askDialog, infoButton } from '../lib.js';
 import { pageLayout, sidePanel, statusMark } from '../frame.js';
 import { subscribe, status } from '../status.js';
 import { hashQuery, buildHash } from '../routes.js';
@@ -154,7 +154,7 @@ function undoButton(item) {
     type: 'button',
     class: 'button quiet aa-small',
     text: 'Undo',
-    title: 'Remove this change from the pending changes.',
+    title: 'Undo this unsaved change.',
     onclick: () => removePending(item.id),
   });
 }
@@ -185,6 +185,7 @@ function mainPanel(ctx) {
   const parts = [
     el('div', { class: 'aa-head' }, [
       el('h2', { class: 'panel-heading', text: 'Alias list' }),
+      infoButton('About author aliases', 'Author aliases', aboutAliases),
       el('div', { class: 'aa-counts' }, [
         countChip(rows.length, 'person', 'people'),
         body.saved != null
@@ -198,11 +199,6 @@ function mainPanel(ctx) {
           : null,
       ]),
     ]),
-    el('p', {
-      class: 'aa-intro',
-      text: 'Each row is one person and every name they use. Mods credited to any of the names '
-        + 'are credited to one author. The first name is the one shown on the site and in TriOS.',
-    }),
   ];
   if (body.error) {
     parts.push(el('div', { class: 'aa-banner bad' }, [
@@ -213,6 +209,26 @@ function mainPanel(ctx) {
   }
   parts.push(suggestionsSection(ctx), peopleSection(ctx), differentSection(ctx));
   return parts;
+}
+
+/// The info dialog: what a row means, and what each section is for.
+function aboutAliases() {
+  const item = (label, text) => el('div', {}, [el('dt', { text: label }), el('dd', { text })]);
+  return [
+    el('p', {
+      text: 'Each row lists all the names used by one person. Mods credited to any of these names are credited to '
+        + 'that person. The first name is shown on the site and in TriOS.',
+    }),
+    el('dl', {}, [
+      item('Possible aliases', 'The forum and Discord credit the same mod to different names. Often, both names belong to '
+        + 'one person with two accounts. Sometimes they belong to a team. Sometimes someone else has changed the mod and '
+        + 'posted their version.'),
+      item('Different people', 'After you save, pairs marked as Different people no longer appear under Possible aliases. '
+        + 'Nothing else changes.'),
+      item('Join two names', 'Select names from the list or enter names. If neither name is listed under People, a new row '
+        + 'is added. The name in the First name box appears under Shown as.'),
+    ]),
+  ];
 }
 
 function countChip(n, one, many) {
@@ -241,11 +257,6 @@ function suggestionsSection(ctx) {
     section.append(el('p', { class: 'aa-note dim', text: 'Nothing to check. Every mod\'s forum and Discord names match.' }));
     return section;
   }
-  section.append(el('p', {
-    class: 'aa-note',
-    text: 'The forum and Discord name a different author for the same mod. Often it is one person '
-      + 'with two accounts. Sometimes it is a team, or a fork posted by someone else.',
-  }));
   const shown = state.showAll ? all : all.slice(0, SUGGESTIONS_SHOWN);
   section.append(el('div', { class: 'aa-entries' }, shown.map((s) => suggestionRow(s, ctx))));
   if (all.length > shown.length) {
@@ -539,10 +550,6 @@ function differentSection(ctx) {
     section.append(el('p', { class: 'aa-note dim', text: 'No pairs are marked as different people.' }));
     return section;
   }
-  section.append(el('p', {
-    class: 'aa-note',
-    text: 'These pairs are not suggested as possible aliases. Marking a pair changes nothing else.',
-  }));
   section.append(el('div', { class: 'aa-entries' }, pairs.map(([a, b]) => differentRow(a, b, ctx))));
   return section;
 }
@@ -594,11 +601,6 @@ function joinForm(ctx) {
   const say = (text) => { message.textContent = text; message.hidden = !text; };
 
   const form = el('form', { class: 'aa-form' }, [
-    el('p', {
-      class: 'aa-hint',
-      text: 'Pick names from the list, or type any name. When neither name belongs to a person yet, '
-        + 'the new person is shown as the first name.',
-    }),
     first,
     second,
     message,

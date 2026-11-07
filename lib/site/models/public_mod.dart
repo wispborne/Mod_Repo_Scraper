@@ -280,7 +280,13 @@ class PublicNeededMod with PublicNeededModMappable {
   /// listed with `via: "MagicLib"`. Null for a mod the post names itself.
   final String? via;
 
-  PublicNeededMod({required this.name, this.id, this.via});
+  /// Set on mods where any one is enough. Mods on the same list with the same
+  /// number are one choice: a post that says it needs "Armaa or Strikecraft
+  /// Standalone" gives both `oneOf: 1`. Null for a mod that is needed on its
+  /// own.
+  final int? oneOf;
+
+  PublicNeededMod({required this.name, this.id, this.via, this.oneOf});
 }
 
 /// The download a card or a row offers, as `mods.json` carries it.

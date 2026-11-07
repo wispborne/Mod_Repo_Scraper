@@ -116,6 +116,21 @@ void main() {
       expect(ModRepoUtils.samePerson('After, Tartiflette and Tidal', 'tidal5590'), isTrue);
       expect(ModRepoUtils.samePerson('Tartiflette', 'After & Tartiflette'), isTrue);
     });
+
+    test('keys overlap exactly when two names are the same person', () {
+      const names = [
+        'tidal5590', 'Tidal', 'TIDAL', 'Tidalwave', 'Tartiflette', 'After, Tartiflette and Tidal',
+        'After & Tartiflette', 'Dreadnought70', 'Dreadnought', 'Nes', 'nescom', 'A-111164', 'a111164',
+        'Snrasha, the tinkerer', 'Snrasha', 'by Histidine', 'Histidine, Zaphide', 'histidine_my',
+        'Dark.Revenant', 'dark.revenant', 'DarkRevenant', 'sundog3161', 'Sundog', '', '42',
+      ];
+      for (final a in names) {
+        for (final b in names) {
+          final overlap = ModRepoUtils.samePersonKeys(a).intersection(ModRepoUtils.samePersonKeys(b)).isNotEmpty;
+          expect(overlap, ModRepoUtils.samePerson(a, b), reason: '"$a" and "$b"');
+        }
+      }
+    });
   });
 
   group("an entry's posts", () {

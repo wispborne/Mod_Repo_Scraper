@@ -189,8 +189,13 @@ class PublicSiteStep {
     final names = data.requirementNames.entries.toList()
       ..sort((a, b) => b.value.count.compareTo(a.value.count));
     final mods = [
-      for (final mod in data.list.mods) {'id': mod.id, 'name': mod.displayName ?? mod.name},
-    ]..sort((a, b) => a['name']!.toLowerCase().compareTo(b['name']!.toLowerCase()));
+      for (final mod in data.list.mods)
+        {
+          'id': mod.id,
+          'name': mod.displayName ?? mod.name,
+          if (mod.authors.isNotEmpty) 'author': mod.authors.first,
+        },
+    ]..sort((a, b) => (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase()));
     final file = File(p.join(dataPath, RequirementNameStore.reportFileName));
     try {
       await file.parent.create(recursive: true);

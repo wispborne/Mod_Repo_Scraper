@@ -282,6 +282,11 @@ p { margin: 0; }
   border-right: 1px solid var(--frame);
 }
 .page.one .main-panel { border-right: 0; }
+/* A side column with no panel showing (no pending changes, nothing else to
+   show) gives its room to the page. It comes back when a panel appears. */
+.page:not(:has(> .side-stack .side-panel)) { grid-template-columns: minmax(0, 1fr); }
+.page:not(:has(> .side-stack .side-panel)) > .side-stack { display: none; }
+.page:not(:has(> .side-stack .side-panel)) > .main-panel { border-right: 0; }
 /* Corner brackets in the Action colour. */
 .main-panel::before, .main-panel::after {
   content: ''; position: absolute; width: 10px; height: 10px; z-index: 2; pointer-events: none;
@@ -342,6 +347,19 @@ a.row:hover { background: var(--panel); text-decoration: none; }
 .dialog h2 { color: var(--heading); font-size: 15px; margin-bottom: 10px; }
 .dialog p { margin-bottom: 10px; }
 .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+/* The info button beside a page heading, and the help it opens. */
+.info-button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border: 0; background: none;
+  color: var(--dim); cursor: pointer;
+}
+.info-button:hover { color: var(--action); }
+.info-dialog { width: min(520px, calc(100vw - 32px)); }
+.info-dialog p { color: var(--dim); }
+.info-dialog dl { margin: 12px 0 0; display: grid; gap: 8px; }
+.info-dialog dt { font-weight: 600; color: var(--text); }
+.info-dialog dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); }
+.info-dialog .pl-legend { padding: 0; }
 .log {
   max-height: 40vh; overflow: auto; margin: 0; padding: 8px 10px;
   background: var(--background); border: 1px solid var(--line);

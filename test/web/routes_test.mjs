@@ -12,7 +12,7 @@ import {
 test('the nav rail has the three groups in order', () => {
   assert.deepEqual(NAV.map((g) => g.group), ['Operate', 'Correct', 'Investigate']);
   assert.deepEqual(NAV[0].items.map((i) => i.label), ['Control', 'Run history', 'Settings']);
-  assert.deepEqual(NAV[1].items.map((i) => i.label), ['Takedowns', 'Author aliases', 'Dependency names']);
+  assert.deepEqual(NAV[1].items.map((i) => i.label), ['Takedowns', 'Author aliases', 'Dependency matching']);
   assert.deepEqual(NAV[2].items.map((i) => i.label),
     ['Mods', 'Source posts', 'What changed', 'Catalog explorer', 'LLM test report', 'Files']);
   const ids = NAV.flatMap((g) => g.items.map((i) => i.id));
@@ -57,13 +57,14 @@ test('addresses from the old viewer open their new pages', () => {
   assert.equal(movedAddress('#/merge/groups/7?run=r1'), '#/explorer/groups/7?run=r1');
   assert.equal(movedAddress('#/merge/removals/sameSource'), '#/explorer/removals?kind=sameSource');
   assert.equal(movedAddress('#/log'), '#/files');
-  assert.equal(movedAddress('#/requirement-names'), '#/dependency-names');
-  assert.equal(movedAddress('#/requirement-names/anything?x=1'), '#/dependency-names');
+  assert.equal(movedAddress('#/requirement-names'), '#/dependency-matching');
+  assert.equal(movedAddress('#/requirement-names/anything?x=1'), '#/dependency-matching');
+  assert.equal(movedAddress('#/dependency-names?match=unmatched&q=nex'), '#/dependency-matching?match=unmatched&q=nex');
 });
 
 test('addresses this viewer uses are left alone', () => {
   for (const hash of ['', '#/', '#/control', '#/runs/abc', '#/takedowns', '#/author-aliases',
-    '#/dependency-names', '#/llm-test', '#/files', '#/posts/topic/1', '#/mods/nexerelin', '#/changes?tab=mods']) {
+    '#/dependency-matching', '#/llm-test', '#/files', '#/posts/topic/1', '#/mods/nexerelin', '#/changes?tab=mods']) {
     assert.equal(movedAddress(hash), null, hash);
   }
 });

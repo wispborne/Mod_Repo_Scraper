@@ -1,20 +1,23 @@
-// Dependency names: every way posts spell a required mod, and which of our
-// mods each spelling means. The page only reads. Matching a spelling, marking
-// it as none of our mods, or forgetting its saved answer adds a pending change;
-// nothing is written until the pending changes are saved.
+// Dependency matching: every way posts spell a mod they require, use or
+// conflict with, and which of our mods each spelling means. The page only
+// reads. Matching a spelling to one or more mods, marking it as not in the
+// catalog, or resetting its saved answer adds a pending change; nothing is
+// written until the pending changes are saved.
 //
 // The list is the server's answer as it is. A row with a pending change is
 // marked, but the page never guesses what the save will change.
 
-import { el, clear, api, shortTime, pager, pageSizePreference } from '../lib.js';
+import { el, clear, api, shortTime, pager, pageSizePreference, infoButton } from '../lib.js';
 import { pageLayout, sidePanel, statusMark } from '../frame.js';
+import { icon } from '../icons.js';
 import { subscribe, status } from '../status.js';
 import { hashQuery, buildHash } from '../routes.js';
 import { addPending, onPendingChange, pendingItems, removePending } from '../pending.js';
 import { pendingPanel } from '../pending_view.js';
-import { looseKey, openModPicker } from '../mod_picker.js';
+import { looseKey, modChooser, suggestMods } from '../mod_picker.js';
+import { matchLabel, matchCorrection } from '../mod_words.js';
 
-const PAGE_ID = 'dependency-names';
+const PAGE_ID = 'dependency-matching';
 
 /// How a spelling was matched, as the report names it.
 const SOURCE_LABELS = {
@@ -36,9 +39,16 @@ const FILTERS = [
 ];
 const FILTER_KEYS = new Set(FILTERS.map(([key]) => key));
 
+/// Dependency list headings used on the mod page.
+const USE_LABELS = [
+  ['needs', 'Requires'],
+  ['optional', 'Optional'],
+  ['conflict', 'Conflicts'],
+];
+
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
-  if (s && s.offline) return 'The server could not be reached. Dependency names cannot be changed.';
+  if (s && s.offline) return 'The server could not be reached. Editing is disabled.';
   return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
     + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
 }
@@ -53,7 +63,14 @@ export function render({ content, onLeave }) {
     pageSize: pageSizePreference(),
   };
   // `rows` is null until the first server response.
-  const state = { rows: null, report: null, error: null, loadError: null, mods: [], modNames: new Map(), on: null };
+  // `open` contains the keys of expanded rows.
+  // `editing` is the row being matched: its key and its mod chooser.
+  // `suggestions` holds each row's suggested mods by key, worked out once per
+  // load, since the mod list only changes when the page loads again.
+  const state = {
+    rows: null, report: null, error: null, loadError: null, mods: [], modNames: new Map(), on: null, open: new Set(),
+    editing: null, suggestions: new Map(),
+  };
 
   const main = el('div', { class: 'dn-page' }, [el('p', { class: 'empty', text: 'Loading…' })]);
   const sideSlot = el('div');
@@ -91,6 +108,7 @@ export function render({ content, onLeave }) {
     state.report = body.report || null;
     state.mods = (state.report && state.report.mods) || [];
     state.modNames = new Map(state.mods.map((m) => [m.id, m.name]));
+    state.suggestions = new Map();
     state.rows = rowsOf(state.report, body.saved || []);
   };
 
@@ -140,7 +158,7 @@ export function render({ content, onLeave }) {
       return;
     }
     listSlot.append(
-      rowTable(slice, state),
+      rowTable(slice, state, drawList),
       pager(view.page, pageSize, shown.length, (p) => {
         view.page = p;
         drawList();
@@ -175,7 +193,6 @@ export function render({ content, onLeave }) {
         body: el('p', { class: 'dn-side-note', text: managerOffText(status()) }),
       }));
     }
-    parts.push(sidePanel({ name: 'How names are matched', body: howMatched() }));
     sideSlot.replaceChildren(...parts);
   };
 
@@ -210,7 +227,7 @@ export function render({ content, onLeave }) {
 
 /// The report's spellings, each with its saved answer, then the saved answers
 /// no mod used in the last build. Those are labelled by who saved the answer,
-/// hand or LLM, even when the answer is "none of our mods": "Not matched" means
+/// hand or LLM, even when the answer is "not in catalog": "Not matched" means
 /// a name the last build showed as written, and no mod used these. Needs
 /// attention counts only the report's unmatched spellings, the same set.
 function rowsOf(report, saved) {
@@ -225,6 +242,8 @@ function rowsOf(report, saved) {
       written: entry.written,
       count: 0,
       id: entry.id,
+      ids: entry.ids,
+      anyOne: entry.anyOne,
       by: entry.by === 'hand' ? 'hand' : 'llm',
       saved: entry,
       used: false,
@@ -248,7 +267,8 @@ function filterRows(rows, view) {
   return rows.filter((row) => {
     if (view.match === 'unused' ? row.used : (view.match !== 'all' && row.by !== view.match)) return false;
     if (!q) return true;
-    return [row.written, row.name, row.id].some((v) => v && String(v).toLowerCase().includes(q));
+    return [row.written, row.name, row.id, ...(row.ids || []), ...(row.names || [])]
+      .some((v) => v && String(v).toLowerCase().includes(q));
   });
 }
 
@@ -257,16 +277,12 @@ function headParts(state) {
   const { report } = state;
   const parts = [
     el('div', { class: 'dn-head' }, [
-      el('h2', { class: 'panel-heading', text: 'Dependency names' }),
+      el('h2', { class: 'panel-heading', text: 'Dependency matching' }),
+      infoButton('About dependency matching', 'Dependency matching', aboutDependencyMatching),
       report && report.builtAt
         ? el('span', { class: 'dn-built', title: report.builtAt, text: `Last build ${shortTime(report.builtAt)}` })
         : null,
     ]),
-    el('p', {
-      class: 'dn-intro',
-      text: 'Match dependency names from posts to catalog mods. '
-        + 'Hand entries take priority over rules and LLM matches.',
-    }),
   ];
   if (state.loadError) {
     parts.push(el('p', { class: 'dn-banner bad', text: state.loadError }));
@@ -276,24 +292,39 @@ function headParts(state) {
   if (!report) {
     parts.push(el('div', { class: 'dn-banner' }, [
       el('strong', { text: 'No dependency report yet.' }),
-      el('p', { text: 'Run "Rebuild from saved" on the Control page to create it. Saved answers are listed below.' }),
+      el('p', { text: 'Run “Rebuild from saved” on the Control page.' }),
     ]));
   }
   return parts;
 }
 
-/// The legend for the match sources.
-function howMatched() {
-  const item = (label, text) => el('div', { class: 'dn-how-item' }, [
-    el('dt', { text: label }),
-    el('dd', { text }),
-  ]);
-  return el('dl', { class: 'dn-how' }, [
-    item(SOURCE_LABELS.hand, 'Chosen by hand. It is used before the rules and the LLM.'),
-    item(SOURCE_LABELS.rule, 'The name matches a mod\'s name, or a nickname only one mod uses.'),
-    item(SOURCE_LABELS.llm, 'The LLM picked the mod in an earlier build.'),
-    item(SOURCE_LABELS.unmatched, 'The site shows the name as written in the post.'),
-  ]);
+/// The info dialog: what the page is for, and the legend for the match sources.
+function aboutDependencyMatching() {
+  const item = (label, text) => el('div', {}, [el('dt', { text: label }), el('dd', { text })]);
+  return [
+    el('p', { text: 'Match names in Requires, Optional, and Conflicts to catalog mods.' }),
+    el('dl', {}, [
+      item(SOURCE_LABELS.hand, 'Your saved answer is used before rules and LLM answers.'),
+      item(SOURCE_LABELS.rule, 'Matches a mod name or a nickname used by only one mod.'),
+      item(SOURCE_LABELS.llm, 'A saved LLM answer.'),
+      item(SOURCE_LABELS.unmatched, 'Shown as written in the post.'),
+    ]),
+  ];
+}
+
+/// The mods a row is matched to, as { id, name }: one (`id`, `name`) or
+/// several (`ids`, `names`).
+function matchedMods(row, modNames) {
+  const ids = row.ids && row.ids.length ? row.ids : (row.id ? [row.id] : []);
+  return ids.map((id, i) => ({
+    id,
+    name: (row.names && row.names[i]) || (ids.length === 1 ? row.name : null) || modNames.get(id) || null,
+  }));
+}
+
+/// Several mod names joined by "and", or by "or" when any one is enough.
+function joinNames(names, anyOne) {
+  return names.join(anyOne ? ' or ' : ' and ');
 }
 
 // --- Pending changes for a row ---
@@ -307,34 +338,37 @@ function pendingFor(row) {
     && (i.key && row.key ? i.key === row.key : looseKey(i.correction.written) === loose));
 }
 
+/// The ids a pending match names: `modIds`, or `modId` alone.
+function pendingIds(c) {
+  return c.modIds && c.modIds.length ? c.modIds : (c.modId ? [c.modId] : []);
+}
+
 /// The mark on a row with a pending change, from the newest one.
 function pendingTag(item, modNames) {
   const c = item.correction;
+  const ids = pendingIds(c);
   let text;
-  if (c.forget) text = 'Forget pending';
-  else if (!c.modId) text = 'Match pending: none of our mods';
-  else text = `Match pending: ${modNames.get(c.modId) || c.modId}`;
+  if (c.forget) text = 'Unsaved: reset';
+  else if (!ids.length) text = 'Unsaved: not in catalog';
+  else text = `Unsaved: ${joinNames(ids.map((id) => modNames.get(id) || id), c.anyOne)}`;
   return el('span', { class: 'tag dn-tag-pending', title: item.label, text });
 }
 
-function matchLabel(written, modName) {
-  return `"${written}" means "${modName}"`;
-}
-
 function noneLabel(written) {
-  return `"${written}" means none of our mods`;
+  return `Mark "${written}" as not in catalog`;
 }
 
 function forgetLabel(written) {
-  return `Forget the saved answer for "${written}"`;
+  return `Reset the saved answer for "${written}"`;
 }
 
-function addMatch(row, mod) {
+/// Adds a pending match of the row's name to one or more mods.
+function addMatch(row, mods, anyOne = false) {
   addPending({
     kind: 'matchRequirement',
-    label: matchLabel(row.written, mod.name),
+    label: matchLabel(row.written, mods.map((mod) => mod.name), anyOne),
     key: row.key,
-    correction: { kind: 'matchRequirement', written: row.written, modId: mod.id },
+    correction: matchCorrection(row.written, mods.map((mod) => mod.id), anyOne),
   });
 }
 
@@ -358,7 +392,7 @@ function addForget(row) {
 
 // --- The table ---
 
-function rowTable(rows, state) {
+function rowTable(rows, state, redraw) {
   const withPending = rows.map((row) => ({ row, pending: pendingFor(row) }));
   // With jobs off there is nothing to change, but a pending change can still be undone.
   const actions = state.on || withPending.some((r) => r.pending.length);
@@ -366,44 +400,77 @@ function rowTable(rows, state) {
     el('table', { class: 'table dn-table' }, [
       el('thead', {}, [el('tr', {}, [
         el('th', { text: 'Name in post' }),
-        el('th', { class: 'num', text: 'Mod count' }),
+        el('th', { class: 'num', text: 'Used by' }),
         el('th', { text: 'Matched mod' }),
         el('th', { text: 'Match source' }),
-        actions ? el('th', { text: 'Change' }) : null,
+        actions ? el('th', { text: 'Actions' }) : null,
       ])]),
-      el('tbody', {}, withPending.map(({ row, pending }) => rowView(row, pending, state, actions))),
+      el('tbody', {}, withPending.flatMap(({ row, pending }) => {
+        const open = state.open.has(row.key) && row.uses && row.uses.length;
+        return [
+          rowView(row, pending, state, actions, redraw),
+          open ? el('tr', { class: 'dn-uses-row' }, [
+            el('td', { colspan: actions ? 5 : 4 }, [usesList(row.uses, state.modNames)]),
+          ]) : null,
+        ];
+      })),
     ]),
   ]);
 }
 
-function rowView(row, pending, state, actions) {
+function rowView(row, pending, state, actions, redraw) {
   const { modNames } = state;
-  const count = row.count
-    ? el('span', { text: String(row.count) })
-    : el('span', { class: 'dim', text: '0', title: 'No mod used this spelling in the last build.' });
+  let count;
+  if (!row.count) {
+    count = el('span', { class: 'dim', text: '0', title: 'No mod used this spelling in the last build.' });
+  } else if (row.uses && row.uses.length) {
+    const open = state.open.has(row.key);
+    count = el('button', {
+      type: 'button',
+      class: 'dn-count',
+      'aria-expanded': String(open),
+      title: open ? 'Hide mods' : 'Show mods',
+      onclick: () => {
+        if (open) state.open.delete(row.key);
+        else state.open.add(row.key);
+        redraw();
+      },
+    }, [String(row.count), icon(open ? 'chevron-down' : 'chevron-right', 14)]);
+  } else {
+    count = el('span', { text: String(row.count) });
+  }
 
+  const editing = state.editing && state.editing.key === row.key ? state.editing : null;
   return el('tr', { class: pending.length ? 'is-pending' : null }, [
     el('td', { class: 'dn-written', 'data-label': 'Name in post' }, [el('strong', { text: row.written })]),
-    el('td', { class: 'num mono', 'data-label': 'Mod count' }, [count]),
+    el('td', { class: 'num mono', 'data-label': 'Used by' }, [count]),
     el('td', { class: 'dn-match', 'data-label': 'Matched mod' }, [
       matchView(row, modNames),
       pending.length ? pendingTag(pending[pending.length - 1], modNames) : null,
+      // Matching happens here, in the row, not in a dialog.
+      editing ? editing.chooser.element : (pending.length ? null : suggestionView(row, state, redraw)),
     ]),
     el('td', { class: 'dn-source', 'data-label': 'Match source' }, [sourceView(row, modNames)]),
-    actions ? el('td', { class: 'dn-actions' }, [actionsView(row, pending, state)]) : null,
+    actions ? el('td', { class: 'dn-actions' }, [editing ? null : actionsView(row, pending, state, redraw)]) : null,
   ]);
 }
 
-/// The mod a spelling matched, with its id, or why there is none.
+/// The mods a spelling matched, each with its id, or why there are none.
+/// Several are joined by "and", or by "or" when any one is enough.
 function matchView(row, modNames) {
-  if (row.id) {
-    const name = row.name || modNames.get(row.id);
-    return el('span', { class: 'dn-mod' }, [
-      el('a', { href: `#/mods/${encodeURIComponent(row.id)}`, text: name || row.id }),
-      el('code', { class: 'dn-id', text: name ? row.id : 'unknown id' }),
-    ]);
+  const mods = matchedMods(row, modNames);
+  if (mods.length) {
+    return el('div', { class: 'dn-mods' }, mods.flatMap((mod, i) => [
+      i ? el('span', { class: 'dn-join', text: row.anyOne ? 'or' : 'and' }) : null,
+      el('span', { class: 'dn-mod' }, [
+        el('a', { href: `#/mods/${encodeURIComponent(mod.id)}`, text: mod.name || mod.id }),
+        el('code', { class: 'dn-id', text: mod.name ? mod.id : `${mod.id} · Not in catalog` }),
+      ]),
+    ]));
   }
-  if (row.saved && !row.saved.id) return el('span', { class: 'dim', text: 'None of our mods' });
+  if (row.saved && !(row.saved.id || (row.saved.ids && row.saved.ids.length))) {
+    return el('span', { class: 'dim', text: 'Not in catalog' });
+  }
   return el('span', { class: 'dim', text: '—' });
 }
 
@@ -412,7 +479,10 @@ function sourceView(row, modNames) {
   const saved = row.saved;
   let title = null;
   if (saved) {
-    const what = saved.id ? `"${modNames.get(saved.id) || saved.id}"` : 'none of our mods';
+    const ids = saved.ids && saved.ids.length ? saved.ids : (saved.id ? [saved.id] : []);
+    const what = ids.length
+      ? joinNames(ids.map((id) => `"${modNames.get(id) || id}"`), saved.anyOne)
+      : 'Not in catalog';
     const who = saved.by === 'hand' ? 'Hand entry' : 'LLM answer';
     title = `${who}${saved.on ? ` saved ${saved.on}` : ''}: ${what}.`;
   }
@@ -422,61 +492,115 @@ function sourceView(row, modNames) {
   ]);
 }
 
-function actionsView(row, pending, state) {
+function actionsView(row, pending, state, redraw) {
   if (pending.length) {
     return el('button', {
       type: 'button',
       class: 'button quiet dn-small',
       text: 'Undo',
-      title: 'Remove this change from the pending changes.',
+      title: 'Undo this unsaved change.',
       onclick: () => { for (const item of pending) removePending(item.id); },
     });
   }
   if (!state.on) return null;
-  const alreadyNone = row.by === 'hand' && !row.id;
+  const alreadyNone = row.by === 'hand' && !matchedMods(row, state.modNames).length;
   return el('div', { class: 'dn-buttons' }, [
     el('button', {
       type: 'button',
       class: 'button dn-small',
       text: 'Match…',
-      title: 'Pick the mod this name means.',
-      onclick: () => openPicker(row, state),
+      title: 'Select a matching mod.',
+      onclick: () => startMatching(row, state, redraw),
     }),
     alreadyNone ? null : el('button', {
       type: 'button',
       class: 'button dn-small',
-      text: 'None of our mods',
-      title: 'Mark this name as none of our mods.',
+      text: 'Not in catalog',
+      title: 'Mark this name as not referring to a catalog mod.',
       onclick: () => addNone(row),
     }),
     row.saved ? el('button', {
       type: 'button',
       class: 'button quiet dn-small',
-      text: 'Forget saved answer',
-      title: 'Remove the saved answer and use the rules. A future LLM run may match it again.',
+      text: 'Reset',
+      title: 'Delete the saved answer. Rules apply after saving. A future dependency matching job may ask the LLM again.',
       onclick: () => addForget(row),
     }) : null,
   ]);
 }
 
-// --- The mod picker ---
+/// Lists the mods whose posts include this dependency name. Groups them
+/// under Requires, Optional, or Conflicts. Each mod links to its page.
+function usesList(uses, modNames) {
+  const groups = USE_LABELS.map(([as, label]) => [label, uses.filter((u) => u.as === as)])
+    .filter(([, list]) => list.length);
+  return el('dl', { class: 'dn-uses' }, groups.flatMap(([label, list]) => [
+    el('dt', { text: label }),
+    el('dd', {}, list.flatMap((use, i) => [
+      i ? ' · ' : null,
+      el('a', {
+        href: `#/mods/${encodeURIComponent(use.id)}`,
+        text: modNames.get(use.id) || use.id,
+      }),
+    ])),
+  ]));
+}
 
-/// The shared mod picker, with what is known about this spelling. Picking a
-/// mod adds the pending change.
-function openPicker(row, state) {
-  const { mods, modNames } = state;
-  const name = row.id ? (row.name || modNames.get(row.id) || row.id) : null;
-  let now = 'Not matched.';
-  if (row.id) now = `Matched to "${name}" by ${row.by === 'hand' ? 'hand' : row.by === 'rule' ? 'the rules' : 'the LLM'}.`;
-  else if (row.saved && !row.saved.id) {
-    now = row.saved.by === 'hand' ? 'Marked by hand as none of our mods.' : 'The LLM said it is none of our mods.';
+/// Shows the best suggested match for an unmatched dependency name. The
+/// Match button adds a pending change. Hidden when jobs are disabled.
+function suggestionView(row, state, redraw) {
+  if (row.by !== 'unmatched' || !state.on) return null;
+  let found = state.suggestions.get(row.key);
+  if (!found) {
+    found = suggestMods(state.mods, row.written);
+    state.suggestions.set(row.key, found);
   }
-  const used = row.count === 1 ? 'Used by 1 mod in the last build.' : `Used by ${row.count || 0} mods in the last build.`;
-  openModPicker({
+  if (!found.length) return null;
+  const mod = found[0];
+  return el('div', { class: 'dn-suggest' }, [
+    el('span', {}, ['Did you mean ', el('a', { href: `#/mods/${encodeURIComponent(mod.id)}`, text: mod.name }), '?']),
+    el('span', { class: 'dn-buttons' }, [
+      el('button', {
+        type: 'button',
+        class: 'button dn-small',
+        text: 'Match',
+        title: `Match this name to ${mod.name}.`,
+        onclick: () => addMatch(row, [mod]),
+      }),
+      found.length > 1 ? el('button', {
+        type: 'button',
+        class: 'button quiet dn-small',
+        text: `${found.length - 1} more`,
+        title: 'Choose another mod.',
+        onclick: () => startMatching(row, state, redraw),
+      }) : null,
+    ]),
+  ]);
+}
+
+// --- Matching in the row ---
+
+/// Opens the mod chooser in the row's Matched mod cell. One row at a time:
+/// opening another closes this one. A hand entry's mods start out chosen.
+/// Match adds the pending change; Cancel or Escape closes it.
+function startMatching(row, state, redraw) {
+  const close = () => {
+    state.editing = null;
+    redraw();
+  };
+  const chooser = modChooser({
     written: row.written,
-    facts: `${used} ${now}`,
-    mods,
-    current: row.by === 'hand' ? row.id : null,
-    onPick: (mod) => addMatch(row, mod),
+    mods: state.mods,
+    selected: row.by === 'hand' ? matchedMods(row, state.modNames).map((mod) => mod.id) : [],
+    anyOne: !!row.anyOne,
+    onPick: (picked, { anyOne }) => {
+      state.editing = null;
+      // Adding the change redraws the list.
+      addMatch(row, picked, anyOne);
+    },
+    onCancel: close,
   });
+  state.editing = { key: row.key, chooser };
+  redraw();
+  chooser.focus();
 }

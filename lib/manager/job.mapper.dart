@@ -356,6 +356,20 @@ class CorrectionMapper extends ClassMapperBase<Correction> {
     opt: true,
     def: false,
   );
+  static List<String> _$modIds(Correction v) => v.modIds;
+  static const Field<Correction, List<String>> _f$modIds = Field(
+    'modIds',
+    _$modIds,
+    opt: true,
+    def: const [],
+  );
+  static bool _$anyOne(Correction v) => v.anyOne;
+  static const Field<Correction, bool> _f$anyOne = Field(
+    'anyOne',
+    _$anyOne,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<Correction> fields = const {
@@ -365,6 +379,8 @@ class CorrectionMapper extends ClassMapperBase<Correction> {
     #entry: _f$entry,
     #written: _f$written,
     #forget: _f$forget,
+    #modIds: _f$modIds,
+    #anyOne: _f$anyOne,
   };
 
   static Correction _instantiate(DecodingData data) {
@@ -375,6 +391,8 @@ class CorrectionMapper extends ClassMapperBase<Correction> {
       entry: data.dec(_f$entry),
       written: data.dec(_f$written),
       forget: data.dec(_f$forget),
+      modIds: data.dec(_f$modIds),
+      anyOne: data.dec(_f$anyOne),
     );
   }
 
@@ -439,6 +457,7 @@ extension CorrectionValueCopy<$R, $Out>
 abstract class CorrectionCopyWith<$R, $In extends Correction, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get names;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get modIds;
   $R call({
     CorrectionKind? kind,
     String? modId,
@@ -446,6 +465,8 @@ abstract class CorrectionCopyWith<$R, $In extends Correction, $Out>
     String? entry,
     String? written,
     bool? forget,
+    List<String>? modIds,
+    bool? anyOne,
   });
   CorrectionCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -466,6 +487,13 @@ class _CorrectionCopyWithImpl<$R, $Out>
         (v) => call(names: v),
       );
   @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get modIds =>
+      ListCopyWith(
+        $value.modIds,
+        (v, t) => ObjectCopyWith(v, $identity, t),
+        (v) => call(modIds: v),
+      );
+  @override
   $R call({
     CorrectionKind? kind,
     Object? modId = $none,
@@ -473,6 +501,8 @@ class _CorrectionCopyWithImpl<$R, $Out>
     Object? entry = $none,
     Object? written = $none,
     bool? forget,
+    List<String>? modIds,
+    bool? anyOne,
   }) => $apply(
     FieldCopyWithData({
       if (kind != null) #kind: kind,
@@ -481,6 +511,8 @@ class _CorrectionCopyWithImpl<$R, $Out>
       if (entry != $none) #entry: entry,
       if (written != $none) #written: written,
       if (forget != null) #forget: forget,
+      if (modIds != null) #modIds: modIds,
+      if (anyOne != null) #anyOne: anyOne,
     }),
   );
   @override
@@ -491,6 +523,8 @@ class _CorrectionCopyWithImpl<$R, $Out>
     entry: data.get(#entry, or: $value.entry),
     written: data.get(#written, or: $value.written),
     forget: data.get(#forget, or: $value.forget),
+    modIds: data.get(#modIds, or: $value.modIds),
+    anyOne: data.get(#anyOne, or: $value.anyOne),
   );
 
   @override
@@ -531,12 +565,28 @@ class RequirementChangeMapper extends ClassMapperBase<RequirementChange> {
     opt: true,
     def: false,
   );
+  static List<String> _$ids(RequirementChange v) => v.ids;
+  static const Field<RequirementChange, List<String>> _f$ids = Field(
+    'ids',
+    _$ids,
+    opt: true,
+    def: const [],
+  );
+  static bool _$anyOne(RequirementChange v) => v.anyOne;
+  static const Field<RequirementChange, bool> _f$anyOne = Field(
+    'anyOne',
+    _$anyOne,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<RequirementChange> fields = const {
     #written: _f$written,
     #id: _f$id,
     #forget: _f$forget,
+    #ids: _f$ids,
+    #anyOne: _f$anyOne,
   };
 
   static RequirementChange _instantiate(DecodingData data) {
@@ -544,6 +594,8 @@ class RequirementChangeMapper extends ClassMapperBase<RequirementChange> {
       written: data.dec(_f$written),
       id: data.dec(_f$id),
       forget: data.dec(_f$forget),
+      ids: data.dec(_f$ids),
+      anyOne: data.dec(_f$anyOne),
     );
   }
 
@@ -618,7 +670,14 @@ abstract class RequirementChangeCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? written, String? id, bool? forget});
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get ids;
+  $R call({
+    String? written,
+    String? id,
+    bool? forget,
+    List<String>? ids,
+    bool? anyOne,
+  });
   RequirementChangeCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -633,11 +692,26 @@ class _RequirementChangeCopyWithImpl<$R, $Out>
   late final ClassMapperBase<RequirementChange> $mapper =
       RequirementChangeMapper.ensureInitialized();
   @override
-  $R call({String? written, Object? id = $none, bool? forget}) => $apply(
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get ids =>
+      ListCopyWith(
+        $value.ids,
+        (v, t) => ObjectCopyWith(v, $identity, t),
+        (v) => call(ids: v),
+      );
+  @override
+  $R call({
+    String? written,
+    Object? id = $none,
+    bool? forget,
+    List<String>? ids,
+    bool? anyOne,
+  }) => $apply(
     FieldCopyWithData({
       if (written != null) #written: written,
       if (id != $none) #id: id,
       if (forget != null) #forget: forget,
+      if (ids != null) #ids: ids,
+      if (anyOne != null) #anyOne: anyOne,
     }),
   );
   @override
@@ -645,6 +719,8 @@ class _RequirementChangeCopyWithImpl<$R, $Out>
     written: data.get(#written, or: $value.written),
     id: data.get(#id, or: $value.id),
     forget: data.get(#forget, or: $value.forget),
+    ids: data.get(#ids, or: $value.ids),
+    anyOne: data.get(#anyOne, or: $value.anyOne),
   );
 
   @override

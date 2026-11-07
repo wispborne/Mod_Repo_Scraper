@@ -38,7 +38,7 @@ void main() {
       'mods': [],
     }));
     final store = RequirementNameStore(dataDir)..load();
-    store.putHandAnswer('Größe Lib 1.2', null);
+    store.putHandAnswer('Größe Lib 1.2', const []);
     await store.save();
 
     final res = await handler(Request('GET', Uri.parse('http://localhost/requirement-names')));

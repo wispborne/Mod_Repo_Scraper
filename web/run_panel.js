@@ -9,6 +9,8 @@ import { progressBar, statusMark } from './frame.js';
 import { describeJob, duration } from './jobs.js';
 import { confirmAndStart, confirmAndStop } from './actions.js';
 import { queuedAt, startedAt, runTime } from './run_record.js';
+import { WORKING } from './change_sides.js';
+import { modCard, topicCard } from './views/changes.js';
 
 export const MARK_FOR_STATE = {
   running: 'running',
@@ -84,7 +86,7 @@ export function runPanel(node) {
     });
     return b;
   };
-  const tabButtons = [tabButton('log', 'Log'), tabButton('changed', 'What it changed'), tabButton('record', 'Record')];
+  const tabButtons = [tabButton('log', 'Log'), tabButton('changed', 'What changed'), tabButton('record', 'Record')];
   tabs.append(...tabButtons);
   const drawTabs = () => {
     for (const b of tabButtons) {
@@ -295,26 +297,22 @@ function drawChips(node, record, live) {
   node.replaceChildren(...items);
 }
 
-/// The What changed tab. A finished run links to What changed, comparing its
-/// saved snapshot with the one before it: the Facts tab when the run saved
-/// mod details, and the Mods tab when it saved a catalog. A running job links
-/// to the changes so far. `stillWanted()` is false once another run is shown.
-async function drawChanged(node, record, live, stillWanted) {
-  const note = (paragraphs, links) => node.replaceChildren(el('div', { class: 'note' }, [
-    ...paragraphs.map((p) => el('p', p)),
-    links.length ? el('p', { class: 'run-changed-links' }, links.map((l) => el('a', { href: l.href, text: l.text }))) : null,
-  ]));
+/// How many changed mods or topics the What changed tab shows before
+/// "View all" sends the reader to the What changed page.
+const CHANGES_SHOWN = 25;
 
-  if (live) {
-    note([{ text: 'Compare current local data with the latest snapshot.' }],
-      [{ href: buildHash(['changes'], { tab: 'facts', b: 'working' }), text: 'Changes so far' }]);
-    return;
-  }
+/// The What changed tab: the changes themselves, in the tab. A finished run
+/// is compared with the snapshot before it: its catalog under Mods and its
+/// mod details under Facts, whichever it saved. A running job compares the
+/// newest snapshot with the data on disk, with Refresh to read it again.
+/// `stillWanted()` is false once another run is shown.
+async function drawChanged(node, record, live, stillWanted) {
+  const message = (text) => node.replaceChildren(el('div', { class: 'note' }, [el('p', { text })]));
   if (record.state === 'queued') {
-    node.replaceChildren(el('div', { class: 'note' }, [el('p', { text: 'Nothing has changed yet. The run is waiting in the queue.' })]));
+    message('Nothing has changed yet. The run is waiting in the queue.');
     return;
   }
-  node.replaceChildren(el('div', { class: 'note' }, [el('p', { text: 'Loading…' })]));
+  message('Loading…');
   const ids = async (path) => {
     try {
       const saved = await api(path);
@@ -325,27 +323,75 @@ async function drawChanged(node, record, live, stillWanted) {
   };
   const [facts, mods] = await Promise.all([ids('bundle/runs'), ids('merge/runs')]);
   if (!stillWanted()) return;
+
   // Snapshots are newest first, so the previous snapshot is next in the list.
   const pair = (list) => {
     const at = list.indexOf(record.id);
     return at < 0 || at + 1 >= list.length ? null : { a: list[at + 1], b: record.id };
   };
-  const factsPair = pair(facts);
-  const modsPair = pair(mods);
-  if (!factsPair && !modsPair) {
-    node.replaceChildren(el('div', { class: 'note' }, [el('p', { text: 'No earlier snapshot to compare with.' })]));
+  const sections = [];
+  if (live) {
+    if (facts.length) sections.push({ tab: 'facts', a: facts[0], b: WORKING });
+  } else {
+    const modsPair = pair(mods);
+    const factsPair = pair(facts);
+    if (modsPair) sections.push({ tab: 'mods', ...modsPair });
+    if (factsPair) sections.push({ tab: 'facts', ...factsPair });
+  }
+  if (!sections.length) {
+    message('No earlier snapshot to compare with.');
     return;
   }
-  const href = (tab, sides) => buildHash(['changes'], { tab, ...sides });
-  if (factsPair) {
-    note([{ text: 'Compare these mod details with the previous snapshot.' }], [
-      { href: href('facts', factsPair), text: 'View changes' },
-      modsPair ? { href: href('mods', modsPair), text: 'View changes to mods' } : null,
-    ].filter(Boolean));
-  } else {
-    note([{ text: 'Compare this catalog with the previous snapshot.' }],
-      [{ href: href('mods', modsPair), text: 'View changes' }]);
+
+  const parts = await Promise.all(sections.map((s) => changeSection(s, sections.length > 1)));
+  if (!stillWanted()) return;
+  const refresh = live ? el('button', {
+    type: 'button',
+    class: 'button',
+    text: 'Refresh',
+    onclick: () => drawChanged(node, record, live, stillWanted),
+  }) : null;
+  node.replaceChildren(el('div', { class: 'run-changed' }, [refresh, ...parts]));
+}
+
+/// One comparison drawn in the What changed tab: the counts, the first
+/// changed mods or topics as the What changed page draws them, and
+/// "View all" when there are more. `heading` names Mods or Facts when the run
+/// saved both.
+async function changeSection({ tab, a, b }, heading) {
+  const name = tab === 'mods' ? 'Mods' : 'Facts';
+  const all = buildHash(['changes'], { tab, a, b });
+  let answer;
+  try {
+    answer = await api(tab === 'mods' ? 'merge/compare' : 'bundle/compare', { a, b, page: 0, pageSize: CHANGES_SHOWN });
+  } catch (err) {
+    return el('section', { class: 'run-changed-section' }, [
+      heading ? el('h3', { class: 'run-changed-head', text: name }) : null,
+      el('p', { class: 'error-text', text: err.message }),
+    ]);
   }
+  if (answer.missing) {
+    return el('section', { class: 'run-changed-section' }, [
+      heading ? el('h3', { class: 'run-changed-head', text: name }) : null,
+      el('p', { class: 'dim', text: answer.hint || 'One of those snapshots is no longer kept.' }),
+    ]);
+  }
+  const items = answer.items || [];
+  const total = answer.total ?? items.length;
+  const count = (n, word) => el('span', { class: 'chip' }, [el('b', { text: String(n ?? 0) }), ` ${word}`]);
+  return el('section', { class: 'run-changed-section' }, [
+    heading ? el('h3', { class: 'run-changed-head', text: name }) : null,
+    el('div', { class: 'run-changed-counts' }, [
+      count(answer.addedCount, 'added'),
+      count(answer.goneCount, 'removed'),
+      count(answer.changedCount, 'changed'),
+      count(answer.sameCount, 'unchanged'),
+    ]),
+    items.length
+      ? el('div', { class: 'ch-list' }, items.map((row) => (tab === 'mods' ? modCard(row) : topicCard(row))))
+      : el('p', { class: 'dim', text: 'No differences found.' }),
+    total > items.length ? el('a', { class: 'run-changed-all', href: all, text: `View all ${total} in What changed` }) : null,
+  ]);
 }
 
 function drawRecord(node, record) {

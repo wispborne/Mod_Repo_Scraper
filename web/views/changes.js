@@ -9,8 +9,8 @@
 // The tab, both sides, the search, the filter, the page and the open rows are
 // kept in the address.
 
-import { el, clear, api, pager, pageSizePreference } from '../lib.js';
-import { pageLayout, sidePanel } from '../frame.js';
+import { el, clear, api, pager, pageSizePreference, infoButton } from '../lib.js';
+import { pageLayout } from '../frame.js';
 import { hashQuery, buildHash } from '../routes.js';
 import { icon } from '../icons.js';
 import { badge, when } from '../post_parts.js';
@@ -85,10 +85,12 @@ export async function render({ content, onLeave }) {
     foldAll.hidden = !results.querySelector('details.ch-card');
     foldAll.refresh();
   };
-  const searchRow = el('div', { class: 'ch-search-row' }, [search, el('span', { class: 'gap' }), foldAll]);
+  const searchRow = el('div', { class: 'ch-search-row' }, [
+    search, infoButton('About What changed', 'What changed', legend), el('span', { class: 'gap' }), foldAll,
+  ]);
   const body = el('div', { class: 'ch-body' }, [intro, pickerSlot, notes, searchRow, counts, results, pagerSlot]);
   const main = el('div', { class: 'list-page ch-page' }, [tabBar, body]);
-  content.append(pageLayout(main, [sidePanel({ name: 'What this page compares', body: legend() })]));
+  content.append(pageLayout(main));
 
   // Both lists of saved runs: the picker needs both to say which snapshots a
   // run has, and to find a stand-in when one tab has none for it.
@@ -489,7 +491,7 @@ function cardSummary(row, fallbackName) {
 
 /// One mod from the Mods tab. Opening it finds the mod's page through the
 /// post it came from, since a saved catalog does not keep permanent ids.
-function modCard(row) {
+export function modCard(row) {
   const mod = row.mod || {};
   const urls = mod.urls || {};
   const changes = row.changes || [];
@@ -557,7 +559,7 @@ async function fillModLinks(slot, post, name) {
 }
 
 /// One forum topic from the Facts tab.
-function topicCard(row) {
+export function topicCard(row) {
   const topic = row.topic || {};
   const changes = row.changes || [];
   const card = el('details', { class: 'ph-card ch-card', 'data-key': row.key || '' });

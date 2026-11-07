@@ -1,5 +1,7 @@
 // Shared helpers for DOM elements, API requests and in-page dialogs.
 
+import { icon } from './icons.js';
+
 /// Builds an element. `attrs` may hold `class`, `text`, an `on<event>`
 /// function, or any other attribute. `children` is a list of nodes or strings.
 /// There is no way to set HTML from text, so data can never become markup.
@@ -100,6 +102,30 @@ export function askDialog({ title, message, confirmLabel = 'Yes', cancelLabel = 
 
 export function noticeDialog(title, message) {
   return askDialog({ title, message, confirmLabel: 'OK', cancelLabel: null });
+}
+
+/// An info icon button for beside a page heading. `label` is its name and
+/// tooltip ("About takedowns"). Pressing it opens a dialog titled `title`
+/// holding `body` (nodes, or a function that builds them), with an OK button.
+/// A page keeps its explanations here rather than on the page.
+export function infoButton(label, title, body) {
+  return el('button', {
+    type: 'button',
+    class: 'info-button',
+    'aria-label': label,
+    title: label,
+    onclick: () => {
+      const ok = el('button', { type: 'button', class: 'button primary', text: 'OK' });
+      const box = el('dialog', { class: 'dialog info-dialog' }, [
+        el('h2', { text: title }),
+        ...[].concat(typeof body === 'function' ? body() : body),
+        el('div', { class: 'dialog-buttons' }, [ok]),
+      ]);
+      const shut = showDialog(box, () => {});
+      ok.addEventListener('click', () => shut(true));
+      ok.focus();
+    },
+  }, [icon('info-circle', 16)]);
 }
 
 /// A time as "5 Nov 23:07", in the reader's own time zone.

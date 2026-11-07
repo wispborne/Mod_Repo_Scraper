@@ -191,7 +191,7 @@ export function describeJob(request) {
       }
       return 'Describe saved pictures that have no description yet, up to the per-run call limit (LLM calls may cost money), then rebuild every output without reading any post again.';
     case 'matchRequirements':
-      return 'Ask the LLM to match unmatched dependency names to mods (LLM calls may cost money), then rebuild every output without reading any post again.';
+      return 'Ask the LLM to match unmatched dependencies (LLM calls may cost money), then rebuild every output without reading any post again.';
     case 'llmTest':
       return 'Test the LLM prompt on a few topics and save a report, leaving other data unchanged (LLM calls may cost money).';
     case 'saveCorrections': {

@@ -191,14 +191,24 @@ String _bodyText(PublicMod mod, PublicModDetail detail, String name) {
   ]) {
     if (mods.isEmpty) continue;
     out.write('<h2>$heading</h2><ul>');
-    for (final needed in mods) {
+    String nameOf(PublicNeededMod needed) {
       final words = _escape(needed.name);
+      return needed.id == null
+          ? words
+          : '<a href="mods/${Uri.encodeComponent(needed.id!)}/">$words</a>';
+    }
+    // Mods where any one is enough share a `oneOf` number and one line.
+    final written = <int>{};
+    for (final needed in mods) {
+      if (needed.oneOf case final group?) {
+        if (!written.add(group)) continue;
+        final choices = mods.where((other) => other.oneOf == group).map(nameOf);
+        out.write('<li>${choices.join(' or ')}</li>');
+        continue;
+      }
       final via =
           needed.via == null ? '' : ' (required by ${_escape(needed.via!)})';
-      out.write(needed.id == null
-          ? '<li>$words$via</li>'
-          : '<li><a href="mods/${Uri.encodeComponent(needed.id!)}/">'
-              '$words</a>$via</li>');
+      out.write('<li>${nameOf(needed)}$via</li>');
     }
     out.write('</ul>');
   }

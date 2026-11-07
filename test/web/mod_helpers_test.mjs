@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 const words = await import('../../web/mod_words.js');
-const { looseKey, findMods } = await import('../../web/mod_picker.js');
+const { looseKey, findMods, nameWords, suggestMods } = await import('../../web/mod_picker.js');
 
 test('a catalog forum post opens its topic page; a Nexus page has none', () => {
   assert.equal(words.postHref({ kind: 'forum', id: '9175' }), '#/posts/topic/9175');
@@ -63,7 +63,12 @@ test('credited names are listed once, ignoring capitals', () => {
 
 test('pending labels use the correction pages\' words', () => {
   assert.equal(words.sameAuthorLabel('A', 'B'), '"A" and "B" are the same person');
-  assert.equal(words.matchLabel('Lazy Lib', 'LazyLib'), '"Lazy Lib" means "LazyLib"');
+  assert.equal(words.matchLabel('Lazy Lib', 'LazyLib'), 'Match "Lazy Lib" to "LazyLib"');
+  assert.equal(words.matchLabel('Magiclib/lazylib', ['MagicLib', 'LazyLib']), 'Match "Magiclib/lazylib" to "MagicLib" and "LazyLib"');
+  assert.equal(words.matchLabel('A or B', ['A', 'B'], true), 'Match "A or B" to "A" or "B"');
+  assert.deepEqual(words.matchCorrection('Lazy Lib', ['lazylib']), { kind: 'matchRequirement', written: 'Lazy Lib', modId: 'lazylib' });
+  assert.deepEqual(words.matchCorrection('A or B', ['a', 'b'], true),
+    { kind: 'matchRequirement', written: 'A or B', modIds: ['a', 'b'], anyOne: true });
 });
 
 test('Starmodder addresses', () => {
@@ -82,6 +87,44 @@ test('the picker finds the same name first, then names starting with it', () => 
   // A spelling with a version on the end still finds the mod.
   assert.deepEqual(findMods(mods, 'GraphicsLib 1.9').map((m) => m.id), ['graphicslib']);
   assert.deepEqual(findMods(mods, ''), []);
+});
+
+test('name words drop filler words, versions, apostrophes and a plural "s"', () => {
+  assert.deepEqual(nameWords("Scy Nation's"), ['scy', 'nation']);
+  assert.deepEqual(nameWords('Halo Dynamics 1.8.0'), ['halo', 'dynamic']);
+  assert.deepEqual(nameWords('Terraforming & Station Construction'), ['terraforming', 'station', 'construction']);
+  assert.deepEqual(nameWords('other mods'), []);
+});
+
+// Real spellings from posts and real mod names from the catalog.
+const catalog = [
+  { id: 'terraforming-and-station-construction', name: 'Terraforming and Station Construction' },
+  { id: 'terraforming-made-easy', name: 'Terraforming Made Easy' },
+  { id: 'dassault-mikoyan-engineering', name: 'Dassault-Mikoyan Engineering' },
+  { id: 'halo-dynamics-ship-industry', name: 'Halo Dynamics Ship Industry' },
+  { id: 'scy-nation', name: 'SCY Nation' },
+  { id: 'furry-sector', name: 'Furry Sector - A complete portrait replacement pack w/ mod support' },
+  { id: 'background-mod-uomoz-s-corvus', name: "Background Mod - Uomoz's Corvus" },
+];
+
+test('the picker finds a mod when the post writes "&" for "and", or the words in another order', () => {
+  assert.equal(findMods(catalog, 'Terraforming & Station Construction')[0].id, 'terraforming-and-station-construction');
+  assert.equal(findMods(catalog, 'station terraforming')[0].id, 'terraforming-and-station-construction');
+  // The start of each word is enough while typing.
+  assert.equal(findMods(catalog, 'terra stat')[0].id, 'terraforming-and-station-construction');
+});
+
+test("a suggestion is the same name, a name starting with it, or most of a name's words", () => {
+  const first = (written) => suggestMods(catalog, written).map((m) => m.id)[0];
+  assert.equal(first('Dassault-Mikoyan'), 'dassault-mikoyan-engineering');
+  assert.equal(first('Halo Dynamics 1.8.0'), 'halo-dynamics-ship-industry');
+  assert.equal(first("Scy Nation's"), 'scy-nation');
+  assert.equal(first('Terraforming & Station Construction'), 'terraforming-and-station-construction');
+  assert.equal(first("Uomoz's Corvus!"), 'background-mod-uomoz-s-corvus');
+  // Two words out of a long name are not enough, and filler words never are.
+  assert.deepEqual(suggestMods(catalog, 'other portrait replacements'), []);
+  assert.deepEqual(suggestMods(catalog, 'Corvus'), []);
+  assert.deepEqual(suggestMods(catalog, 'other mods'), []);
 });
 
 test('only http(s) addresses with a host count as web addresses', () => {

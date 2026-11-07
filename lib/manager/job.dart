@@ -110,9 +110,9 @@ enum CorrectionKind {
   /// Publish the person under the one name in [Correction.names].
   publishAuthorAs,
 
-  /// The dependency name [Correction.written] means the mod [Correction.modId],
-  /// or none of our mods when that is null. With [Correction.forget], the
-  /// saved answer is removed instead.
+  /// The dependency name [Correction.written] means the mod [Correction.modId]
+  /// (or the mods [Correction.modIds]), or none of our mods when neither is
+  /// set. With [Correction.forget], the saved answer is removed instead.
   matchRequirement,
 }
 
@@ -138,6 +138,13 @@ class Correction with CorrectionMappable {
   /// True on a `matchRequirement` removes the saved answer for [written].
   final bool forget;
 
+  /// The mods a `matchRequirement` matches when it is more than one. Used in
+  /// place of [modId] when not empty.
+  final List<String> modIds;
+
+  /// With several [modIds]: true when any one of them is enough.
+  final bool anyOne;
+
   const Correction({
     required this.kind,
     this.modId,
@@ -145,6 +152,8 @@ class Correction with CorrectionMappable {
     this.entry,
     this.written,
     this.forget = false,
+    this.modIds = const [],
+    this.anyOne = false,
   });
 }
 
@@ -161,7 +170,23 @@ class RequirementChange with RequirementChangeMappable {
   /// The LLM may be asked again. [id] is ignored.
   final bool forget;
 
-  const RequirementChange({required this.written, this.id, this.forget = false});
+  /// The mods it means when it is more than one. Used in place of [id] when
+  /// not empty.
+  final List<String> ids;
+
+  /// With several [ids]: true when any one of them is enough.
+  final bool anyOne;
+
+  const RequirementChange({
+    required this.written,
+    this.id,
+    this.forget = false,
+    this.ids = const [],
+    this.anyOne = false,
+  });
+
+  /// Every mod it means: [ids], or [id] alone. Empty means none of our mods.
+  List<String> get allIds => ids.isNotEmpty ? ids : [?id];
 }
 
 /// The places ModRepo mods are scraped from. Which of these a job wants is job

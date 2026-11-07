@@ -143,7 +143,7 @@ String describeCorrection(Correction correction) {
     CorrectionKind.matchRequirement => correction.forget
         ? 'forget the saved answer for "${correction.written?.trim() ?? ''}"'
         : '"${correction.written?.trim() ?? ''}" means '
-            '${_modIdOf(correction) == null ? 'none of our mods' : '"${_modIdOf(correction)}"'}',
+            '${_meaningOf(_modIdsOf(correction), correction.anyOne)}',
   };
 }
 
@@ -151,15 +151,28 @@ String describeCorrection(Correction correction) {
 /// ids of the mods in `mod-catalog.json`. Shared by `setRequirementNames` and
 /// `saveCorrections`.
 String? requirementChangeProblem(RequirementChange change, Set<String> knownModIds) {
-  final id = change.id;
-  if (change.forget || id == null || knownModIds.contains(id)) return null;
-  return 'No mod in ${ModCatalog.fileName} has the id "$id". "${change.written}" cannot match it.';
+  if (change.forget) return null;
+  for (final id in change.allIds) {
+    if (!knownModIds.contains(id)) {
+      return 'No mod in ${ModCatalog.fileName} has the id "$id". "${change.written}" cannot match it.';
+    }
+  }
+  return null;
 }
 
-String? _modIdOf(Correction correction) {
-  final id = correction.modId?.trim();
-  return id == null || id.isEmpty ? null : id;
-}
+/// The mods a `matchRequirement` correction matches: [Correction.modIds], or
+/// [Correction.modId] alone. Empty means none of our mods.
+List<String> _modIdsOf(Correction correction) => {
+      for (final id in [...correction.modIds, if (correction.modIds.isEmpty) ?correction.modId])
+        if (id.trim().isNotEmpty) id.trim(),
+    }.toList();
+
+/// How a log line names what a dependency name now means.
+String _meaningOf(List<String> ids, bool anyOne) => switch (ids) {
+      [] => 'none of our mods',
+      [final id] => '"$id"',
+      _ => ids.map((id) => '"$id"').join(anyOne ? ' or ' : ' and '),
+    };
 
 /// A correction that cannot be applied, with the reason in a plain sentence.
 class _Refused implements Exception {
@@ -352,15 +365,21 @@ class _Edits {
     if (requirementKey(written).isEmpty) {
       throw const _Refused('A dependency name correction needs the name as the post writes it.');
     }
-    final change = RequirementChange(written: written, id: _modIdOf(correction), forget: correction.forget);
+    final ids = _modIdsOf(correction);
+    final change = RequirementChange(
+      written: written,
+      ids: ids,
+      anyOne: correction.anyOne && ids.length > 1,
+      forget: correction.forget,
+    );
     final problem = requirementChangeProblem(change, _knownModIds());
     if (problem != null) throw _Refused(problem);
     if (change.forget) {
       store.forget(written);
       log('Removed the saved answer for "$written".');
     } else {
-      store.putHandAnswer(written, change.id);
-      log('"$written" now means ${change.id == null ? 'none of our mods' : '"${change.id}"'}.');
+      store.putHandAnswer(written, change.allIds, anyOne: change.anyOne);
+      log('"$written" now means ${_meaningOf(change.allIds, change.anyOne)}.');
     }
   }
 

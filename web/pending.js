@@ -51,7 +51,10 @@ export function correctionKey(c) {
   if (c.kind === 'takeDownAuthor') {
     names = names.map((n) => String(n).trim().toLowerCase()).filter(Boolean).sort();
   }
-  return JSON.stringify([c.kind, c.modId ?? null, names, c.entry ?? null, c.written ?? null, !!c.forget]);
+  // The mods a name is matched to, in any order, are the same match.
+  const modIds = c.modIds ? [...c.modIds].sort() : [];
+  return JSON.stringify([c.kind, c.modId ?? null, names, c.entry ?? null, c.written ?? null, !!c.forget,
+    modIds, !!c.anyOne]);
 }
 
 /// Adds an item. Returns false when the same correction is already pending.

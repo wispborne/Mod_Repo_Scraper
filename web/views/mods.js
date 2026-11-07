@@ -1,8 +1,8 @@
 // Mods: every mod in the last build, from `GET /api/mods`. Search, filters,
 // sort and page are kept in the address. Each row opens the mod's page.
 
-import { el, clear, api, pager, pageSizePreference } from '../lib.js';
-import { pageLayout, sidePanel } from '../frame.js';
+import { el, clear, api, pager, pageSizePreference, infoButton } from '../lib.js';
+import { pageLayout } from '../frame.js';
 import { hashQuery, buildHash } from '../routes.js';
 import { modHref } from '../mod_words.js';
 
@@ -53,11 +53,11 @@ export function render({ content, onLeave }) {
   const countLine = el('p', { class: 'ml-count', 'aria-live': 'polite' });
   const listSlot = el('div', { class: 'ml-list' }, [el('p', { class: 'empty pl-message', text: 'Loading…' })]);
   const main = el('div', { class: 'list-page ml-page' }, [
-    el('div', { class: 'pl-toolbar ml-toolbar' }, [search, countLine]),
+    el('div', { class: 'pl-toolbar ml-toolbar' }, [search, infoButton('About mods', 'Mods', legend), countLine]),
     filterBar,
     listSlot,
   ]);
-  content.append(pageLayout(main, [sidePanel({ name: 'What the columns mean', body: legend() })]));
+  content.append(pageLayout(main));
 
   let debounce;
   search.addEventListener('input', () => {

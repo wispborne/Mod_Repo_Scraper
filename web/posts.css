@@ -41,7 +41,6 @@
   padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
 }
 .pl-selection-count { font: 600 var(--small)/var(--small-line-height) var(--mono); color: var(--heading); margin-right: 4px; }
-.pl-selection-hint { color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); }
 
 /* --- The table --------------------------------------------------------- */
 

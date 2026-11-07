@@ -1240,13 +1240,24 @@ class ViewerApi {
 
     final names = modsByName.keys.toList()
       ..sort((a, b) => modsByName[b]!.length.compareTo(modsByName[a]!.length));
+    // Each name joins the first person, in the order people were added, who
+    // has a name it is the same person as. Two names are the same person
+    // exactly when their keys overlap, so each name is looked at once.
     final people = <List<String>>[];
+    final personByKey = <String, int>{};
     for (final name in names) {
-      final person = people.where((p) => p.any((other) => ModRepoUtils.samePerson(name, other))).firstOrNull;
-      if (person != null) {
-        person.add(name);
-      } else {
+      final keys = ModRepoUtils.samePersonKeys(name);
+      final found = [for (final key in keys) ?personByKey[key]];
+      final index = found.isEmpty ? people.length : found.reduce((a, b) => a < b ? a : b);
+      if (index == people.length) {
         people.add([name]);
+      } else {
+        people[index].add(name);
+      }
+      // A key always points at the earliest person who has it.
+      for (final key in keys) {
+        final there = personByKey[key];
+        if (there == null || index < there) personByKey[key] = index;
       }
     }
 

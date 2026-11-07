@@ -4,7 +4,7 @@
 // draws the mod it leads to with a note; a taken-down or unknown id says so.
 // While the manager is on, the toolbar has the per-post jobs for all the
 // mod's posts and Take down, and the page offers "These are the same person"
-// and "Match this to a mod", which add pending changes.
+// and "Match…", which add pending changes.
 
 import { el, api, breadcrumbs, rawJson, showDialog, noticeDialog } from '../lib.js';
 import { pageLayout, sidePanel, statusMark } from '../frame.js';
@@ -15,7 +15,7 @@ import { POST_JOBS, postJobCount, postJobRequest } from '../jobs.js';
 import { confirmAndStart } from '../actions.js';
 import { addPending, isPending, onPendingChange, pendingItems, removePending } from '../pending.js';
 import { pendingPanel } from '../pending_view.js';
-import { looseKey, openModPicker } from '../mod_picker.js';
+import { looseKey, modChooser } from '../mod_picker.js';
 import { previewAndAdd } from './takedowns.js';
 import {
   badge, section, emptyLine, outLink, fold, fieldList, when,
@@ -26,7 +26,7 @@ import {
 import {
   starmodderPage, starmodderFile, modHref, webAddress, postHref, postKindWords, postFallbackName, postJobKeys,
   foundByWords, joinedByWords, factSource, fieldName, shortValue, saveAnswerWords, distinctNames,
-  sameAuthorLabel, matchLabel,
+  sameAuthorLabel, matchLabel, matchCorrection,
 } from '../mod_words.js';
 
 /// The sentence the other pages use when jobs are off.
@@ -494,7 +494,7 @@ function pickSamePerson(authors) {
     preview,
     el('p', {
       class: 'dn-hint dn-pending-note',
-      text: 'This is added to the pending changes. Nothing is written until you save them.',
+      text: 'Save changes with “Save all”.',
     }),
     el('div', { class: 'dialog-buttons' }, [cancel, add]),
   ]);
@@ -524,30 +524,59 @@ function unmatchedNeedsOf(answer) {
 /// spelling when either side has no key.
 function unmatchedNeed(ctx, written, unmatched, key = null) {
   const slot = el('span', { class: 'md-need-slot' });
+  // The mod chooser while this name is being matched, shown right here.
+  let chooser = null;
   const draw = () => {
+    slot.classList.toggle('is-editing', !!chooser);
+    if (chooser) {
+      slot.replaceChildren(el('span', { class: 'chip md-need warn', text: written }), chooser.element);
+      return;
+    }
     const pending = pendingItems().filter((i) => i.correction.kind === 'matchRequirement'
       && (i.key && key ? i.key === key : looseKey(i.correction.written) === looseKey(written)));
     const parts = [el('span', {
       class: `chip md-need${unmatched ? ' warn' : ''}`,
-      title: unmatched ? 'The last build could not match this name to one of our mods.' : null,
+      title: unmatched ? 'No catalog match found.' : null,
       text: written,
     })];
     if (pending.length) {
-      parts.push(el('span', { class: 'tag dn-tag-pending', title: pending[pending.length - 1].label, text: 'Match pending' }));
+      parts.push(el('span', { class: 'tag dn-tag-pending', title: pending[pending.length - 1].label, text: 'Unsaved' }));
       parts.push(el('button', {
         type: 'button',
         class: 'button quiet md-small',
         text: 'Undo',
-        title: 'Remove this change from the pending changes.',
+        title: 'Undo this unsaved change.',
         onclick: () => { for (const item of pending) removePending(item.id); },
       }));
     } else if (unmatched && ctx.on) {
       parts.push(el('button', {
         type: 'button',
         class: 'button md-small',
-        text: 'Match this to a mod',
-        title: 'Pick the mod this name means.',
-        onclick: () => matchNeed(ctx, written, key),
+        text: 'Match…',
+        title: 'Select a matching mod.',
+        onclick: async () => {
+          const mods = await pickerMods(ctx);
+          chooser = modChooser({
+            written,
+            mods,
+            onPick: (picked, { anyOne }) => {
+              chooser = null;
+              // Adding the change redraws this slot.
+              addPending({
+                kind: 'matchRequirement',
+                label: matchLabel(written, picked.map((mod) => mod.name), anyOne),
+                correction: matchCorrection(written, picked.map((mod) => mod.id), anyOne),
+                key: key || undefined,
+              });
+            },
+            onCancel: () => {
+              chooser = null;
+              draw();
+            },
+          });
+          draw();
+          chooser.focus();
+        },
       }));
     }
     slot.replaceChildren(...parts);
@@ -557,25 +586,12 @@ function unmatchedNeed(ctx, written, unmatched, key = null) {
   return slot;
 }
 
-/// Opens the mod picker over the mods of the last website build.
-async function matchNeed(ctx, written, key) {
-  if (!ctx.pickerMods) {
-    ctx.pickerMods = api('requirement-names')
-      .then((body) => ((body && body.report && body.report.mods) || []))
-      .catch(() => []);
-  }
-  const mods = await ctx.pickerMods;
-  openModPicker({
-    written,
-    facts: `Written in the post of ${modName(ctx.answer)}. The last build could not match it to one of our mods.`,
-    mods,
-    onPick: (mod) => addPending({
-      kind: 'matchRequirement',
-      label: matchLabel(written, mod.name),
-      correction: { kind: 'matchRequirement', written, modId: mod.id },
-      key: key || undefined,
-    }),
-  });
+/// The mods of the last website build, read once per page.
+function pickerMods(ctx) {
+  ctx.pickerMods ??= api('requirement-names')
+    .then((body) => ((body && body.report && body.report.mods) || []))
+    .catch(() => []);
+  return ctx.pickerMods;
 }
 
 // --- Where each fact came from ---

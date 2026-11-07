@@ -35,7 +35,7 @@ const PAGES = {
   settings,
   takedowns,
   'author-aliases': authorAliases,
-  'dependency-names': dependencyNames,
+  'dependency-matching': dependencyNames,
   posts,
   mods,
   changes,

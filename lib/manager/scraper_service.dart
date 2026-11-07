@@ -859,7 +859,7 @@ class ScraperService implements JobRunner {
   /// the catalog, all changes are refused.
   Future<JobOutcome> _setRequirementNames(
       JobRequest request, RunReporter reporter) async {
-    reporter.phase('Dependency names');
+    reporter.phase('Dependency matching');
     final changes = [
       for (final change in request.requirementChanges)
         if (requirementKey(change.written).isNotEmpty) change,
@@ -884,9 +884,9 @@ class ScraperService implements JobRunner {
         store.forget(change.written);
         reporter.log('Removed the saved answer for "${change.written}".');
       } else {
-        store.putHandAnswer(change.written, change.id);
+        store.putHandAnswer(change.written, change.allIds, anyOne: change.anyOne);
         reporter.log('"${change.written}" now means '
-            '${change.id == null ? 'none of our mods' : '"${change.id}"'}.');
+            '${change.allIds.isEmpty ? 'none of our mods' : change.allIds.map((id) => '"$id"').join(change.anyOne ? ' or ' : ' and ')}.');
       }
     }
     await store.save();

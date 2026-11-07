@@ -286,6 +286,34 @@ void main() {
       expect(savedAnswer('Lazy Lib')?.id, 'lazylib');
     });
 
+    test('a name can be matched to several mods, with any one of them enough', () async {
+      await run(const [
+        Correction(
+          kind: CorrectionKind.matchRequirement,
+          written: 'Tithes OR officials',
+          modIds: ['useful-tithes', 'corrupt-officials'],
+          anyOne: true,
+        ),
+      ]);
+      final saved = savedAnswer('Tithes OR officials')!;
+      expect(saved.ids, ['useful-tithes', 'corrupt-officials']);
+      expect(saved.anyOne, isTrue);
+    });
+
+    test('a list with an id no mod has is refused', () async {
+      await expectLater(
+          run(const [
+            Correction(
+                kind: CorrectionKind.matchRequirement,
+                written: 'Lazy Lib',
+                modIds: ['lazylib', 'no-such-mod'])
+          ]),
+          throwsA(isA<StateError>().having((e) => e.message, 'message',
+              'Nothing was saved. Correction 1 ("Lazy Lib" means "lazylib" and "no-such-mod"): '
+                  'No mod in mod-catalog.json has the id "no-such-mod". "Lazy Lib" cannot match it.')));
+      expect(requirementsFile().existsSync(), isFalse);
+    });
+
     test('an id no mod has is refused', () async {
       await expectLater(
           run(const [Correction(kind: CorrectionKind.matchRequirement, written: 'Lazy Lib', modId: 'no-such-mod')]),

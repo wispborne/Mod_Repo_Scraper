@@ -29,6 +29,7 @@ import 'package:mod_repo_scraper/site/conflict_list.dart';
 import 'package:mod_repo_scraper/site/public_data_builder.dart';
 import 'package:mod_repo_scraper/site/public_site_step.dart';
 import 'package:mod_repo_scraper/site/release_state_store.dart';
+import 'package:mod_repo_scraper/site/requirement_names.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -1304,6 +1305,57 @@ void main() {
     expect(jsonEncode(data.list.mods.firstWhere((m) => m.id == 'nexerelin').toMap()),
         isNot(contains('optional')),
         reason: 'mods.json lists only what a mod cannot run without');
+  });
+
+  test('a name matched by hand to several mods lists each, grouped when any one is enough', () {
+    final store = RequirementNameStore(p.join(dir.path, 'data'))
+      ..putHandAnswer('Magiclib/lazylib', ['magiclib', 'lazylib'])
+      ..putHandAnswer('Armaa OR strikecraft standalone', ['arma-armatura', 'strikecraft-standalone'],
+          anyOne: true)
+      ..putHandAnswer('ORIGINAL OR EXPANDED UNSC MOD', ['unsc', 'unsc-expanded'], anyOne: true);
+    builder = PublicDataBuilder(
+      outputPath: p.join(dir.path, 'outputs'),
+      idStore: idStore,
+      requirementNames: store,
+    );
+    final data = buildFrom(
+      mods: [
+        forumMod(name: 'Nexerelin', topicId: 9175),
+        forumMod(name: 'MagicLib', topicId: 25868),
+        forumMod(name: 'LazyLib', topicId: 5444),
+        forumMod(name: 'Arma Armatura', topicId: 19570),
+        forumMod(name: 'Strikecraft Standalone', topicId: 20000),
+        forumMod(name: 'UNSC', topicId: 20001),
+        forumMod(name: 'UNSC Expanded', topicId: 20002),
+      ],
+      bundle: bundleOf(index: [
+        thread(llmMods: [
+          LlmMod(
+            name: 'Nexerelin',
+            extras: LlmExtras(
+              needs: const ['Magiclib/lazylib', 'Armaa OR strikecraft standalone'],
+              conflicts: [
+                LlmConflict(
+                    name: 'ORIGINAL OR EXPANDED UNSC MOD', quote: 'Not compatible with the UNSC mods.'),
+              ],
+            ),
+          ),
+        ]),
+      ]),
+    );
+
+    final nexerelin = data.details['nexerelin']!;
+    expect(nexerelin.listing.needs.map((n) => (n.id, n.oneOf)), [
+      ('magiclib', null),
+      ('lazylib', null),
+      ('arma-armatura', 1),
+      ('strikecraft-standalone', 1),
+    ]);
+    expect(nexerelin.conflicts!.map((c) => c.id), ['unsc', 'unsc-expanded'],
+        reason: 'every mod a conflict name means is a conflict');
+    expect(jsonEncode(nexerelin.listing.toMap()), contains('"oneOf":1'));
+    expect(jsonEncode(data.details['magiclib']!.listing.toMap()), isNot(contains('oneOf')),
+        reason: 'the field is only written where it is set');
   });
 
   test("conflicts have author quotes and links to known mods on the mod page",

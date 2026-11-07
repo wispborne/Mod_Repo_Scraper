@@ -29,8 +29,13 @@ class RequirementAnswer {
   /// The name as a post first wrote it.
   final String written;
 
-  /// The mod it means, by permanent id. Null means it is none of our mods.
-  final String? id;
+  /// The mods it means, by permanent id. Empty means it is none of our mods.
+  /// Only a hand entry can name more than one.
+  final List<String> ids;
+
+  /// With several [ids]: true when any one of them is enough ("A or B"),
+  /// false when the name means all of them ("A/B").
+  final bool anyOne;
 
   final RequirementAnswerBy by;
 
@@ -44,15 +49,21 @@ class RequirementAnswer {
 
   const RequirementAnswer({
     required this.written,
-    required this.id,
+    this.ids = const [],
+    this.anyOne = false,
     required this.by,
     this.on,
     this.offered,
   });
 
+  /// The first mod it means, or null for none of our mods.
+  String? get id => ids.firstOrNull;
+
+  /// One mod is written as `id`, as it always was; several as `ids`.
   Map<String, dynamic> toJson() => {
         'written': written,
-        'id': id,
+        if (ids.length > 1) 'ids': ids else 'id': id,
+        if (ids.length > 1 && anyOne) 'anyOne': true,
         'by': by.name,
         if (on != null) 'on': on,
         if (offered != null) 'offered': offered,
@@ -62,15 +73,21 @@ class RequirementAnswer {
     if (json is! Map) return null;
     final written = json['written'];
     final rawId = json['id'];
+    final rawIds = json['ids'];
     if (written is! String || written.trim().isEmpty) return null;
     if (rawId != null && rawId is! String) return null;
-    final id = (rawId as String?)?.trim();
+    if (rawIds != null && (rawIds is! List || rawIds.any((id) => id is! String))) return null;
+    final ids = <String>[
+      for (final id in [...?(rawIds as List?), if (rawIds == null) rawId])
+        if ((id as String?)?.trim() case final clean? when clean.isNotEmpty) clean,
+    ];
     final by = RequirementAnswerBy.values
         .where((b) => b.name == json['by'])
         .firstOrNull;
     return RequirementAnswer(
       written: written,
-      id: id == null || id.isEmpty ? null : id,
+      ids: {...ids}.toList(),
+      anyOne: json['anyOne'] == true,
       // An entry with no "by" was written by a person.
       by: by ?? RequirementAnswerBy.hand,
       on: json['on'] is String ? json['on'] as String : null,
@@ -162,7 +179,7 @@ class RequirementNameStore {
     if (_answers[key]?.by == RequirementAnswerBy.hand) return;
     _answers[key] = RequirementAnswer(
       written: written,
-      id: id,
+      ids: [?id],
       by: RequirementAnswerBy.llm,
       on: (now ?? DateTime.now()).toUtc().toIso8601String().substring(0, 10),
       offered: id == null ? offered : null,
@@ -170,13 +187,19 @@ class RequirementNameStore {
     _changed = true;
   }
 
-  /// Saves a person's answer for [written]. The value is a mod id or null for
-  /// none of our mods. Replaces the saved answer.
-  void putHandAnswer(String written, String? id) {
+  /// Saves a person's answer for [written]: the mods it means, or none for
+  /// none of our mods. With several, [anyOne] says whether any one of them is
+  /// enough. Replaces the saved answer.
+  void putHandAnswer(String written, List<String> ids, {bool anyOne = false}) {
     final key = requirementKey(written);
     if (key.isEmpty) return;
-    _answers[key] =
-        RequirementAnswer(written: written.trim(), id: id, by: RequirementAnswerBy.hand);
+    final unique = {...ids}.toList();
+    _answers[key] = RequirementAnswer(
+      written: written.trim(),
+      ids: unique,
+      anyOne: anyOne && unique.length > 1,
+      by: RequirementAnswerBy.hand,
+    );
     _changed = true;
   }
 
@@ -247,25 +270,64 @@ class RequirementNameSeen {
   /// How many times mods named it.
   final int count;
 
-  /// The mod it was matched to, or null.
-  final RequiredModMatch? match;
+  /// The mods it was matched to. Empty when it matched none.
+  final List<RequiredModMatch> matches;
+
+  /// With several [matches]: true when any one of them is enough.
+  final bool anyOne;
 
   final RequirementDecidedBy by;
+
+  /// Mods whose posts include this dependency name, with the list it appears
+  /// in. Entries are kept in the order first seen.
+  final List<RequirementUse> uses;
 
   const RequirementNameSeen({
     required this.written,
     required this.count,
-    required this.match,
+    this.matches = const [],
+    this.anyOne = false,
     required this.by,
+    this.uses = const [],
   });
 
+  /// One match is written as `id` and `name`, as it always was; several as
+  /// `ids` and `names`.
   Map<String, dynamic> toJson() => {
         'written': written,
         'count': count,
-        if (match != null) 'id': match!.id,
-        if (match != null) 'name': match!.name,
+        if (matches.length == 1) 'id': matches.single.id,
+        if (matches.length == 1) 'name': matches.single.name,
+        if (matches.length > 1) 'ids': [for (final m in matches) m.id],
+        if (matches.length > 1) 'names': [for (final m in matches) m.name],
+        if (matches.length > 1 && anyOne) 'anyOne': true,
         'by': by.name,
+        if (uses.isNotEmpty) 'uses': [for (final use in uses) use.toJson()],
       };
+}
+
+/// What a requirement name means: the mods it was matched to, and whether
+/// any one of them is enough.
+class RequirementResolution {
+  final List<RequiredModMatch> matches;
+  final bool anyOne;
+
+  const RequirementResolution(this.matches, {this.anyOne = false});
+}
+
+/// The list containing the dependency name: Requires, Optional, or Conflicts.
+enum RequirementUseKind { needs, optional, conflict }
+
+/// One mod whose post wrote a requirement name.
+class RequirementUse {
+  /// The permanent id of the mod whose post includes the dependency name.
+  final String id;
+
+  final RequirementUseKind as;
+
+  const RequirementUse(this.id, this.as);
+
+  Map<String, dynamic> toJson() => {'id': id, 'as': as.name};
 }
 
 /// A mod a requirement name was matched to.
@@ -322,44 +384,77 @@ class RequirementResolver {
     }
   }
 
-  /// The mod named by [written]. Returns null if it names none of our mods
+  /// The first mod named by [written], or null when it names none of our
+  /// mods or has no match yet. See [resolveAll].
+  RequiredModMatch? resolve(String written,
+          {String? usedBy, RequirementUseKind as = RequirementUseKind.needs}) =>
+      resolveAll(written, usedBy: usedBy, as: as).matches.firstOrNull;
+
+  /// The mods named by [written]. No matches means it names none of our mods
   /// or has no match yet. Names with no match are counted in [unmatched].
-  RequiredModMatch? resolve(String written) {
+  /// Only a hand entry can give more than one mod.
+  /// [usedBy] is the id of the mod whose post includes the dependency name.
+  /// [as] identifies the dependency list. Both are recorded in [seen] for the
+  /// viewer.
+  RequirementResolution resolveAll(String written,
+      {String? usedBy, RequirementUseKind as = RequirementUseKind.needs}) {
     final key = requirementKey(written);
-    if (key.isEmpty) return null;
+    if (key.isEmpty) return const RequirementResolution([]);
+    final use = usedBy == null ? null : RequirementUse(usedBy, as);
 
     final saved = _store?.answerFor(written);
     if (saved != null && saved.by == RequirementAnswerBy.hand) {
-      return _note(key, written, _matchFor(saved.id), RequirementDecidedBy.hand);
+      final matches = [for (final id in saved.ids) ?_matchFor(id)];
+      return _note(key, written,
+          RequirementResolution(matches, anyOne: saved.anyOne && matches.length > 1),
+          RequirementDecidedBy.hand, use);
     }
 
     final byRule = _byName[key] ?? _byNickname[key];
     if (byRule != null) {
-      return _note(key, written, _matchFor(byRule), RequirementDecidedBy.rule);
+      return _note(key, written, RequirementResolution([?_matchFor(byRule)]),
+          RequirementDecidedBy.rule, use);
     }
 
     // Ignore an LLM answer for a mod that is no longer in the catalog.
     final match = _matchFor(saved?.id);
-    if (match != null) return _note(key, written, match, RequirementDecidedBy.llm);
-    _note(key, written, null, RequirementDecidedBy.unmatched);
+    if (match != null) {
+      return _note(key, written, RequirementResolution([match]), RequirementDecidedBy.llm, use);
+    }
+    _note(key, written, const RequirementResolution([]), RequirementDecidedBy.unmatched, use);
 
     // Count this even when the LLM said "none of these". The LLM step asks
     // again when the list of mods shown to it changes.
     final seen = unmatched[key];
     unmatched[key] = (written: seen?.written ?? written, count: (seen?.count ?? 0) + 1);
-    return null;
+    return const RequirementResolution([]);
   }
 
-  RequiredModMatch? _note(
-      String key, String written, RequiredModMatch? match, RequirementDecidedBy by) {
+  RequirementResolution _note(String key, String written, RequirementResolution found,
+      RequirementDecidedBy by, RequirementUse? use) {
     final before = seen[key];
+    final uses = [...?before?.uses];
+    // Record each mod once per dependency list. Exclude the matched mod
+    // itself. The build removes required mods from the optional list, so a
+    // mod already recorded as required is not recorded as optional.
+    if (use != null &&
+        !found.matches.any((m) => m.id == use.id) &&
+        !uses.any((u) =>
+            u.id == use.id &&
+            (u.as == use.as ||
+                (use.as == RequirementUseKind.optional &&
+                    u.as == RequirementUseKind.needs)))) {
+      uses.add(use);
+    }
     seen[key] = RequirementNameSeen(
       written: before?.written ?? written,
       count: (before?.count ?? 0) + 1,
-      match: match,
+      matches: found.matches,
+      anyOne: found.anyOne,
       by: by,
+      uses: uses,
     );
-    return match;
+    return found;
   }
 
   RequiredModMatch? _matchFor(String? id) {

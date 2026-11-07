@@ -3,7 +3,7 @@
 // pending change; nothing is written until the pending changes are saved,
 // which runs one job for all of them.
 
-import { el, clear, api, noticeDialog, showDialog, shortTime } from '../lib.js';
+import { el, clear, api, noticeDialog, showDialog, shortTime, infoButton } from '../lib.js';
 import { pageLayout, sidePanel, statusMark } from '../frame.js';
 import { subscribe, status } from '../status.js';
 import {
@@ -87,6 +87,26 @@ export function render({ content, onLeave }) {
 
 // --- The list ---
 
+/// The info dialog: what a takedown does, and what each form takes down.
+function aboutTakedowns() {
+  const item = (label, text) => el('div', {}, [el('dt', { text: label }), el('dd', { text })]);
+  return [
+    el('p', {
+      text: 'Mods on this list and all mods credited to authors on this list are excluded from the catalog, mod details and '
+        + 'Starmodder. The list is public. It is published with the outputs. It does not include reasons for removal.',
+    }),
+    el('dl', {}, [
+      item('Take down a mod', 'Excludes one mod. Blocks only that mod’s listings on its source posts. Other mods on a shared post '
+        + 'stay published. You can also take down a Collection page. The mods it lists stay published.'),
+      item('Take down an author', 'Excludes all mods credited to this author. This includes mods added later and mods made with '
+        + 'other authors. Names are matched the same way as author names when mods are merged. Add every name the author uses. '
+        + 'Press Enter to add a name.'),
+      item('Restore', 'Removes this entry from the takedown list when you use Save all. Use Undo to cancel the unsaved change. '
+        + 'Mods and pages that can be published again return at their old addresses.'),
+    ]),
+  ];
+}
+
 function mainPanel(state) {
   const { list, builtAt, on } = state;
   const mods = (list.mods || []).map((entry) => describeEntry(entry.id, entry, state));
@@ -97,17 +117,13 @@ function mainPanel(state) {
   const parts = [
     el('div', { class: 'td-head' }, [
       el('h2', { class: 'panel-heading', text: 'Takedown list' }),
+      infoButton('About takedowns', 'Takedowns', aboutTakedowns),
       el('div', { class: 'td-counts' }, [
         countChip(mods.length, 'mod', 'mods'),
         countChip(authors.length, 'author', 'authors'),
         builtAt ? el('span', { class: 'td-built', title: builtAt, text: `Last build ${shortTime(builtAt)}` }) : null,
       ]),
     ]),
-    el('p', {
-      class: 'td-intro',
-      text: 'These mods and all mods credited to these authors are excluded from the catalog, the mod details and Starmodder. '
-        + 'The list is published with the outputs for anyone to read. It does not include reasons for removal.',
-    }),
   ];
 
   if (state.error) parts.push(el('p', { class: 'td-banner bad', text: state.error }));
@@ -249,14 +265,14 @@ function entryRow(item, state) {
       type: 'button',
       class: 'button quiet',
       text: 'Undo',
-      title: 'Remove this restore from the pending changes.',
+      title: 'Undo this unsaved change.',
       onclick: () => {
         const pending = pendingRestore(key);
         if (pending) removePending(pending.id);
       },
     });
   } else if (state.on) {
-    action = el('button', { type: 'button', class: 'button', text: 'Restore', onclick: () => confirmRestore(item) });
+    action = el('button', { type: 'button', class: 'button', text: 'Restore', onclick: () => restore(item) });
   }
 
   const mark = warn ? 'warning' : match ? 'done' : 'idle';
@@ -364,23 +380,10 @@ function restoreLabel({ entry, isAuthor }) {
 
 // --- Restore ---
 
-async function confirmRestore(item) {
-  const { key, entry, match, isAuthor } = item;
-  const rows = [
-    ...((match && match.mods) || []).map((mod) => dialogRow(mod.name, el('code', { class: 'td-id', text: mod.id }))),
-    ...((match && match.collections) || []).map((c) => dialogRow(c.name, el('span', { class: 'dim', text: 'Collection page' }))),
-  ];
-  const restoreText = 'The entry is removed from the takedown list. Everything it hid comes back at its old address.';
-  const count = backCount(match);
-  const body = [count ? summary(count, restoreText) : el('p', { text: restoreText })];
-  if (rows.length) body.push(section('Coming back (from the last build)', el('div', { class: 'td-rows scroll' }, rows)));
-  const yes = await confirmDialog({
-    eyebrow: isAuthor ? 'Restore an author\'s mods' : 'Restore a mod',
-    title: entryTitle(item),
-    body,
-    confirmLabel: 'Restore',
-  });
-  if (!yes) return;
+/// Adds the pending change that restores an entry. What it brings back is
+/// already listed under the entry, and the change can be undone in the row.
+function restore(item) {
+  const { key } = item;
   addPending({
     kind: 'restore',
     label: restoreLabel(item),
@@ -388,16 +391,6 @@ async function confirmRestore(item) {
   });
 }
 
-/// "4 mods", "1 page" or "4 mods, 1 page": what a restore brings back. Empty
-/// when the last build has no record of the entry.
-function backCount(match) {
-  const mods = ((match && match.mods) || []).length;
-  const pages = ((match && match.collections) || []).length;
-  return [
-    mods ? `${mods} mod${mods === 1 ? '' : 's'}` : '',
-    pages ? `${pages} page${pages === 1 ? '' : 's'}` : '',
-  ].filter(Boolean).join(', ');
-}
 
 // --- The Take down forms ---
 
@@ -604,17 +597,8 @@ function modForm(state) {
   });
 
   return el('div', { class: 'td-form' }, [
-    el('p', {
-      class: 'td-hint',
-      text: 'Excludes one mod, and blocks only the posts it comes from. Other mods on a shared post stay published. '
-        + 'A Collection page can be taken down too; the mods it lists stay published.',
-    }),
     box.root,
     box.note,
-    el('p', {
-      class: 'td-hint',
-      text: 'Pick a mod to see exactly what would be removed. Nothing changes until you confirm.',
-    }),
   ]);
 }
 
@@ -624,9 +608,12 @@ function authorForm(state) {
   const names = [];
   const takenDown = () => new Set((state.list.authors || []).flatMap((a) => a.names || []).map((n) => n.toLowerCase()));
   let known = [];
-  api('takedowns/authors').then((body) => {
+  // Asked for once per visit: the form is drawn again whenever the job status
+  // changes, and the list does not change in between.
+  state.authorList ??= api('takedowns/authors').catch(() => null);
+  state.authorList.then((body) => {
     if (body && Array.isArray(body.authors)) known = body.authors;
-  }).catch(() => {});
+  });
 
   const chips = el('div', { class: 'td-chips' });
   const preview = el('button', { type: 'submit', class: 'button primary', text: 'Preview', disabled: true });
@@ -643,7 +630,7 @@ function authorForm(state) {
   const box = comboBox({
     id: 'td-author-suggestions',
     label: 'Author names',
-    placeholder: 'Type an author name',
+    placeholder: 'Author name',
     find(text) {
       const q = text.toLowerCase();
       const picked = new Set(names.map((n) => n.toLowerCase()));
@@ -690,6 +677,7 @@ function authorForm(state) {
       }
     },
   });
+  box.input.title = 'Press Enter to add a name.';
 
   const drawChips = () => {
     clear(chips);
@@ -704,7 +692,7 @@ function authorForm(state) {
     }
     chips.hidden = names.length === 0;
     preview.disabled = names.length === 0;
-    box.input.placeholder = names.length ? 'Add another name' : 'Type an author name';
+    box.input.placeholder = names.length ? 'Add another name' : 'Author name';
   };
 
   box.input.addEventListener('input', () => {
@@ -726,15 +714,9 @@ function authorForm(state) {
   drawChips();
 
   const form = el('form', { class: 'td-form' }, [
-    el('p', {
-      class: 'td-hint',
-      text: 'Excludes every mod that credits this person, including mods added later and mods made with others. '
-        + 'Names are matched using the same rules as author names in the merge.',
-    }),
     chips,
     el('div', { class: 'td-form-row' }, [box.root, preview]),
     box.note,
-    el('p', { class: 'td-hint', text: 'Press Enter to add a name. Add every name the person goes by.' }),
   ]);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -759,7 +741,7 @@ export async function previewAndAdd({ modId = null, authors = [] }) {
     ? { kind: 'takeDownMod', modId }
     : { kind: 'takeDownAuthor', names: authors };
   if (isPending(correction)) {
-    await noticeDialog('Already pending', 'This takedown is already in the pending changes.');
+    await noticeDialog('Already pending', 'This change is already pending.');
     return false;
   }
   const alreadyPending = authors.filter((name) => pendingAuthorNames().has(name.trim().toLowerCase()));
@@ -959,11 +941,12 @@ function confirmDialog({ eyebrow, title, body, confirmLabel, danger = false, pub
       el('div', { class: 'td-dialog-body' }, body),
       publicNote ? el('p', {
         class: 'td-dialog-note dim',
-        text: 'This entry will appear in the public takedown list, which is published with the outputs. It has no reason in it.',
+        text: 'This entry will appear in the public takedown list. The list is published with the outputs. '
+          + 'It does not include reasons for removal.',
       }) : null,
       el('p', {
         class: 'td-dialog-note td-pending-note',
-        text: 'This is added to the pending changes. Nothing is written until you save them.',
+        text: 'Save changes with “Save all”.',
       }),
       el('div', { class: 'dialog-buttons' }, [no, yes]),
     ]);

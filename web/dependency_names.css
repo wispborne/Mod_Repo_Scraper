@@ -6,7 +6,7 @@
   padding: 16px 20px 8px;
 }
 .dn-built { font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); }
-.dn-intro { padding: 0 20px 12px; color: var(--dim); max-width: 80ch; }
+.dn-head .panel-heading { margin: 0; }
 
 .dn-banner {
   display: grid; gap: 4px;
@@ -31,6 +31,8 @@
 .dn-table tr.is-pending td:first-child { box-shadow: inset 2px 0 0 var(--warning); }
 .dn-written strong { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 .dn-match { min-width: 160px; }
+.dn-mods { display: grid; gap: 2px; }
+.dn-join { color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); }
 .dn-mod { display: grid; }
 .dn-mod a { color: var(--text); overflow-wrap: anywhere; }
 .dn-mod a:hover { color: var(--action); }
@@ -46,15 +48,39 @@
 .dn-buttons { display: flex; gap: 6px; }
 .button.dn-small { height: 24px; padding: 0 9px; font-size: var(--small); }
 
+/* The mod count button shows or hides the mods whose posts include this dependency name. */
+.dn-count {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 0; border: 0; background: none; color: var(--action);
+  font: inherit; cursor: pointer;
+}
+.dn-count:hover { color: var(--text); }
+.dn-count svg { flex: none; }
+.dn-table tr.dn-uses-row td { padding-top: 0; background: var(--panel); }
+.dn-table tr:has(+ tr.dn-uses-row) td { background: var(--panel); }
+.dn-uses {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px;
+  margin: 0; padding: 4px 0 6px;
+}
+.dn-uses dt { color: var(--dim); }
+.dn-uses dd { margin: 0; overflow-wrap: anywhere; }
+.dn-dialog .dn-uses { margin-top: 8px; }
+
+/* Suggested match for an unmatched dependency name. */
+.dn-suggest { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: 4px; }
+.dn-suggest a { color: var(--text); overflow-wrap: anywhere; }
+.dn-suggest a:hover { color: var(--action); }
+
 /* --- Side panels ------------------------------------------------------- */
 
 .dn-side-note { padding: 10px var(--pad); color: var(--dim); }
-.dn-how { margin: 0; padding: 10px var(--pad) 12px; display: grid; gap: 8px; }
-.dn-how dt { font-weight: 600; color: var(--text); }
-.dn-how dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); }
 
 /* --- The mod picker ---------------------------------------------------- */
 
+/* The mod chooser: inline in a row's Matched mod cell, or in the mod page's dialog. */
+.dn-chooser { display: grid; margin-top: 6px; }
+.dn-match .dn-chooser { min-width: min(360px, 70vw); }
+.dn-chooser-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .dn-dialog { width: min(520px, calc(100vw - 32px)); }
 .dn-dialog h2 { overflow-wrap: anywhere; }
 .dn-eyebrow {
@@ -72,19 +98,36 @@
   border: 1px solid var(--line); background: var(--background);
   max-height: 300px; overflow: auto;
 }
+/* Place the id below the name so each can use the full width. */
 .dn-pick {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; align-items: baseline;
   padding: 5px 10px; cursor: pointer;
 }
+.dn-pick input { margin: 0; pointer-events: none; }
+.dn-pick .dn-id { grid-column: 2; }
 .dn-pick.on { background: var(--raised); }
 .dn-pick.disabled { cursor: default; color: var(--faint); }
 .dn-pick-name { overflow-wrap: anywhere; }
+.dn-label { font-size: var(--small); line-height: var(--small-line-height); color: var(--dim); }
+
+/* The chosen mods, and whether all of them or any one is meant. */
+.dn-chosen { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dn-chosen:empty { display: none; }
+.dn-chip { display: inline-flex; align-items: center; gap: 4px; text-transform: none; letter-spacing: 0; }
+.dn-chip-x {
+  display: inline-flex; padding: 0; border: 0; background: none; color: var(--dim); cursor: pointer;
+}
+.dn-chip-x:hover { color: var(--action); }
+.dn-any { display: flex; gap: 16px; margin: 8px 0 0; padding: 0; border: 0; }
+.dn-any[hidden] { display: none; }
+.dn-radio { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.dn-pick-author { color: var(--dim); }
 .dn-pick-more { padding: 5px 10px; font-size: var(--small); line-height: var(--small-line-height); color: var(--faint); }
 
 /* --- Narrow screens: each row becomes a block ------------------------- */
 
 @media (max-width: 640px) {
-  .dn-head, .dn-intro, .dn-toolbar { padding-left: 12px; padding-right: 12px; }
+  .dn-head, .dn-toolbar { padding-left: 12px; padding-right: 12px; }
   .dn-banner { margin-left: 12px; margin-right: 12px; }
   .dn-search { max-width: none; }
   .dn-table thead { display: none; }
@@ -102,4 +145,5 @@
   .dn-table td.num::after { content: ' mods'; color: var(--faint); }
   .dn-table .dn-match, .dn-table .dn-source, .dn-table .dn-actions { grid-column: 1 / -1; min-width: 0; width: auto; }
   .dn-buttons { flex-wrap: wrap; }
+  .dn-table tr.dn-uses-row { display: block; padding-top: 0; }
 }

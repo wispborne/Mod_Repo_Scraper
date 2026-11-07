@@ -7,7 +7,6 @@
 }
 .aa-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .aa-source { font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); margin-left: 4px; }
-.aa-intro { padding: 0 20px 12px; color: var(--dim); max-width: 80ch; }
 
 .aa-banner {
   display: grid; gap: 4px;
@@ -101,7 +100,7 @@ button.aa-name-text:hover { color: var(--action); text-decoration: underline; }
 /* --- Narrow screens ---------------------------------------------------- */
 
 @media (max-width: 640px) {
-  .aa-head, .aa-intro, .aa-section-head, .aa-note, .aa-more, .aa-toolbar { padding-left: 12px; padding-right: 12px; }
+  .aa-head, .aa-section-head, .aa-note, .aa-more, .aa-toolbar { padding-left: 12px; padding-right: 12px; }
   .aa-banner { margin-left: 12px; margin-right: 12px; }
   .aa-entry { grid-template-columns: 12px minmax(0, 1fr); padding-left: 10px; padding-right: 12px; }
   .aa-entry-actions { grid-column: 2; justify-content: flex-start; }

@@ -41,6 +41,9 @@ a.chip.md-need { color: var(--text); }
 a.chip.md-need:hover { color: var(--action); text-decoration: none; }
 .chip.md-need.warn { text-transform: none; letter-spacing: 0; }
 .md-need-slot .dn-tag-pending { margin-top: 0; }
+/* While a name is being matched, its slot takes the whole line. */
+.md-need-slot.is-editing { display: grid; flex-basis: 100%; justify-items: start; }
+.md-need-slot.is-editing .dn-chooser { width: min(420px, 100%); }
 .md-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .md-list a { overflow-wrap: anywhere; }
 .md-quote { color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); }

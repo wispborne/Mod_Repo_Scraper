@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:mod_repo_scraper/bot/scraper/qb/llm/llm_client.dart';
@@ -90,6 +91,49 @@ void main() {
       expect(resolver.resolve('Graphic Lib'), isNull);
       expect(resolver.unmatched, hasLength(1));
     });
+
+    test('a hand entry can match a name to several mods, all or any one of them', () {
+      final store = RequirementNameStore(dir.path)
+        ..putHandAnswer('Magiclib/lazylib', ['magiclib', 'lazylib'])
+        ..putHandAnswer('Armaa OR strikecraft standalone', ['armaa', 'strikecraft'], anyOne: true);
+      const magicLib = RequiredModNames(id: 'magiclib', shownName: 'MagicLib');
+      const armaa = RequiredModNames(id: 'armaa', shownName: 'Arma Armatura');
+      const strikecraft = RequiredModNames(id: 'strikecraft', shownName: 'Strikecraft Standalone');
+      final resolver =
+          RequirementResolver([lazyLib, magicLib, armaa, strikecraft], store: store);
+
+      final both = resolver.resolveAll('Magiclib/lazylib');
+      expect(both.matches.map((m) => m.id), ['magiclib', 'lazylib']);
+      expect(both.anyOne, isFalse);
+      final either = resolver.resolveAll('Armaa OR strikecraft standalone');
+      expect(either.matches.map((m) => m.id), ['armaa', 'strikecraft']);
+      expect(either.anyOne, isTrue);
+      expect(resolver.seen[requirementKey('Armaa OR strikecraft standalone')]!.toJson(),
+          containsPair('names', ['Arma Armatura', 'Strikecraft Standalone']));
+      expect(resolver.unmatched, isEmpty);
+    });
+
+    test('each spelling lists the mods whose posts wrote it, once per list', () {
+      final resolver = RequirementResolver([lazyLib]);
+      resolver.resolve('WrapUI', usedBy: 'item-markers');
+      resolver.resolve('Wrap UI', usedBy: 'loadout-sharing', as: RequirementUseKind.optional);
+      resolver.resolve('WrapUI', usedBy: 'item-markers');
+      resolver.resolve('WrapUI', usedBy: 'item-markers', as: RequirementUseKind.conflict);
+      // A mod naming itself is not listed as using itself.
+      resolver.resolve('LazyLib', usedBy: 'lazylib');
+      resolver.resolve('LazyLib', usedBy: 'magiclib');
+      // Required and optional both: the build keeps it as required only.
+      resolver.resolve('LazyLib', usedBy: 'magiclib', as: RequirementUseKind.optional);
+
+      expect(resolver.seen[requirementKey('WrapUI')]!.toJson()['uses'], [
+        {'id': 'item-markers', 'as': 'needs'},
+        {'id': 'loadout-sharing', 'as': 'optional'},
+        {'id': 'item-markers', 'as': 'conflict'},
+      ]);
+      expect(resolver.seen['lazylib']!.toJson()['uses'], [
+        {'id': 'magiclib', 'as': 'needs'},
+      ]);
+    });
   });
 
   group('RequirementNameStore', () {
@@ -103,6 +147,24 @@ void main() {
       expect(again.answerFor('graphiclib')?.id, 'graphicslib');
       expect(again.answerFor('Kadur')?.offered, 'abc');
       expect(again.answerFor('Kadur')?.by, RequirementAnswerBy.llm);
+    });
+
+    test('one mod is saved as "id" as before, several as "ids"', () async {
+      final store = RequirementNameStore(dir.path)
+        ..putHandAnswer('Lazy Lib', ['lazylib'])
+        ..putHandAnswer('Armaa OR strikecraft standalone', ['armaa', 'strikecraft'], anyOne: true);
+      await store.save();
+      final names = (jsonDecode(store.file.readAsStringSync()) as Map)['names'] as Map;
+      expect(names[requirementKey('Lazy Lib')], containsPair('id', 'lazylib'));
+      expect(names[requirementKey('Lazy Lib')], isNot(contains('ids')));
+      expect(names[requirementKey('Armaa OR strikecraft standalone')],
+          allOf(containsPair('ids', ['armaa', 'strikecraft']), containsPair('anyOne', true)));
+
+      final again = RequirementNameStore(dir.path)..load();
+      final either = again.answerFor('Armaa OR strikecraft standalone')!;
+      expect(either.ids, ['armaa', 'strikecraft']);
+      expect(either.anyOne, isTrue);
+      expect(again.answerFor('Lazy Lib')!.ids, ['lazylib']);
     });
 
     test('a file that cannot be read is never saved over', () async {

@@ -185,7 +185,7 @@ function drawJobButtons(node) {
     quiet: true,
     body: (close) => el('div', { class: 'menu-list', role: 'menu' }, [
       menuItem('Scan images', describeJob(scanImagesRequest()), () => { close(); confirmAndStart(scanImagesRequest()); }),
-      menuItem('Match dependency names', describeJob(matchNamesRequest()), () => { close(); confirmAndStart(matchNamesRequest()); }),
+      menuItem('Match dependencies', describeJob(matchNamesRequest()), () => { close(); confirmAndStart(matchNamesRequest()); }),
     ]),
     onOpen: (m) => closeAll(m),
   });
@@ -331,7 +331,7 @@ function llmOptionsPanel(changed) {
 /// The Needs attention items, in display order. `where` links to the page
 /// where the user can address each item.
 const ATTENTION = [
-  { key: 'unmatchedDependencyNames', label: 'Dependency names not matched', where: '#/dependency-names?match=unmatched' },
+  { key: 'unmatchedDependencyNames', label: 'Dependencies not matched', where: '#/dependency-matching?match=unmatched' },
   { key: 'authorPairsToDecide', label: 'Author pairs to decide', where: '#/author-aliases' },
   { key: 'takedownsExcludedNothing', label: 'Takedowns that excluded nothing', where: '#/takedowns', warn: true },
   { key: 'takedownsReturned', label: 'Taken-down mods back under a new id', where: '#/takedowns', warn: true },

@@ -1226,7 +1226,7 @@ class PublicDataBuilder {
           threadNeverRead: topicId != null && !threadWasRead),
       threadLastPostOn: lastPost == null ? null : writeDay(lastPost),
       editedOn: _editedOn(forumEdits, discordPosts.threadFor(discordUrl)),
-      needs: _neededMods(extras?.needs, id, requirements),
+      needs: _neededMods(extras?.needs, id, requirements, RequirementUseKind.needs),
       partOfThreadTitle: partOfThreadTitle,
     );
   }
@@ -1316,26 +1316,40 @@ class PublicDataBuilder {
   /// site's filter would otherwise offer both. A name we have no page for is
   /// still listed as the post wrote it: knowing a mod needs "Kadur Remnant" is
   /// useful whether or not this site can link it. A mod that names itself is
-  /// left out.
+  /// left out. A name matched by hand to several mods gives each of them;
+  /// when any one of them is enough, they share a [PublicNeededMod.oneOf]
+  /// number. A conflict never has one: every mod named is a conflict.
   static List<PublicNeededMod> _neededMods(
     List<String>? names,
     String ownId,
     RequirementResolver requirements,
+    RequirementUseKind as,
   ) {
     if (names == null || names.isEmpty) return const [];
 
     final needed = <PublicNeededMod>[];
     final seen = <String>{};
+    var groups = 0;
     for (final raw in names) {
       final written = raw.trim();
       if (written.isEmpty) continue;
 
-      final known = requirements.resolve(written);
-      if (known != null && known.id == ownId) continue;
-
-      final name = known == null ? written : known.name;
-      if (!seen.add((known?.id ?? name).toLowerCase())) continue;
-      needed.add(PublicNeededMod(name: name, id: known?.id));
+      final found = requirements.resolveAll(written, usedBy: ownId, as: as);
+      if (found.matches.isEmpty) {
+        if (seen.add(written.toLowerCase())) needed.add(PublicNeededMod(name: written));
+        continue;
+      }
+      final others = [
+        for (final match in found.matches)
+          if (match.id != ownId && !seen.contains(match.id.toLowerCase())) match,
+      ];
+      final group = found.anyOne && others.length > 1 && as != RequirementUseKind.conflict
+          ? ++groups
+          : null;
+      for (final match in others) {
+        seen.add(match.id.toLowerCase());
+        needed.add(PublicNeededMod(name: match.name, id: match.id, oneOf: group));
+      }
     }
     return needed;
   }
@@ -1453,7 +1467,8 @@ class PublicDataBuilder {
     RequirementResolver requirements,
   ) =>
       _withoutRequired(
-          _neededMods(names, listing.id, requirements), listing.needs);
+          _neededMods(names, listing.id, requirements, RequirementUseKind.optional),
+          listing.needs);
 
   /// Matches conflict names to our mods using the same rules as requirements.
   /// Sorts by kind in [ConflictKind]'s order, with unknown kinds last. Ties
@@ -1467,17 +1482,19 @@ class PublicDataBuilder {
     final kept = <PublicConflict>[];
     final seen = <String>{};
     for (final conflict in conflicts ?? const <LlmConflict>[]) {
-      // A match to this mod returns an empty list.
-      final matched = _neededMods([conflict.name], ownId, requirements);
-      if (matched.isEmpty) continue;
-      final mod = matched.single;
-      if (!seen.add(_needKey(mod))) continue;
-      kept.add(PublicConflict(
-        name: mod.name,
-        id: mod.id,
-        quote: conflict.quote,
-        kind: conflict.kind,
-      ));
+      // A match to this mod gives nothing. A name matched by hand to several
+      // mods gives a conflict with each.
+      final matched =
+          _neededMods([conflict.name], ownId, requirements, RequirementUseKind.conflict);
+      for (final mod in matched) {
+        if (!seen.add(_needKey(mod))) continue;
+        kept.add(PublicConflict(
+          name: mod.name,
+          id: mod.id,
+          quote: conflict.quote,
+          kind: conflict.kind,
+        ));
+      }
     }
     _sortByKind(kept);
     return kept.isEmpty ? null : kept;
@@ -1595,7 +1612,9 @@ class PublicDataBuilder {
     final listed = {ownId.toLowerCase(), for (final need in needs) _needKey(need)};
     for (var i = 0; i < all.length; i++) {
       final parent = all[i];
-      if (parent.id == null) continue;
+      // A mod that is one choice of several may not be installed, so what it
+      // needs is not needed.
+      if (parent.id == null || parent.oneOf != null) continue;
       for (final need in ownNeeds[parent.id] ?? const <PublicNeededMod>[]) {
         if (!listed.add(_needKey(need))) continue;
         all.add(PublicNeededMod(name: need.name, id: need.id, via: parent.name));

@@ -16,7 +16,7 @@ export const NAV = [
     items: [
       { id: 'takedowns', label: 'Takedowns', icon: 'eye-off' },
       { id: 'author-aliases', label: 'Author aliases', icon: 'users' },
-      { id: 'dependency-names', label: 'Dependency names', icon: 'link' },
+      { id: 'dependency-matching', label: 'Dependency matching', icon: 'link' },
     ],
   },
   {
@@ -109,7 +109,9 @@ export function movedAddress(hash) {
     case 'log':
       return buildHash(['files']);
     case 'requirement-names':
-      return buildHash(['dependency-names']);
+      return buildHash(['dependency-matching']);
+    case 'dependency-names':
+      return buildHash(['dependency-matching'], keep('match', 'q', 'page'));
     default:
       return null;
   }
@@ -146,7 +148,7 @@ export const KIND_LABELS = {
   publishOutputs: 'Publish',
   llmCoveragePass: 'Run LLM',
   describePictures: 'Scan images',
-  matchRequirements: 'Match dependency names',
+  matchRequirements: 'Match dependencies',
   rescrapeTopics: 'Re-scrape topics',
   extractLlm: 'Re-run LLM',
   resolveDownloads: 'Recheck downloads',
@@ -157,7 +159,7 @@ export const KIND_LABELS = {
   takeDown: 'Take down',
   restoreTakedown: 'Restore',
   setAuthorAliases: 'Change author aliases',
-  setRequirementNames: 'Change dependency names',
+  setRequirementNames: 'Change dependency matches',
   saveCorrections: 'Save corrections',
   llmTest: 'LLM test',
 };

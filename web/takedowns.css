@@ -7,7 +7,6 @@
 }
 .td-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .td-built { font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); margin-left: 4px; }
-.td-intro { padding: 0 20px 12px; color: var(--dim); max-width: 80ch; }
 
 .td-banner {
   display: grid; gap: 4px;
@@ -145,7 +144,7 @@
 /* --- Narrow screens ---------------------------------------------------- */
 
 @media (max-width: 640px) {
-  .td-head, .td-intro, .td-section-head { padding-left: 12px; padding-right: 12px; }
+  .td-head, .td-section-head { padding-left: 12px; padding-right: 12px; }
   .td-banner { margin-left: 12px; margin-right: 12px; }
   .td-entry { grid-template-columns: 12px minmax(0, 1fr); padding-left: 10px; padding-right: 12px; }
   .td-entry-actions { grid-column: 2; }
