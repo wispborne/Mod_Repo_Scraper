@@ -131,24 +131,40 @@ export function statusMark(kind) {
 }
 
 /// A thin bar split into parts, filled to `pct` (0 to 100), or moving back and
-/// forth when the amount is not known.
+/// forth when the amount is not known. Change it with `setProgress`: a new bar
+/// starts its back-and-forth movement over.
 export function progressBar(pct) {
-  const fill = el('span', { class: 'progress-fill' });
-  if (pct == null) fill.classList.add('unknown');
-  else fill.style.width = `${pct}%`;
-  return el('span', {
+  const bar = el('span', {
     class: 'progress',
     role: 'progressbar',
     'aria-valuemin': '0',
     'aria-valuemax': '100',
-    'aria-valuenow': pct == null ? null : String(pct),
-  }, [fill]);
+  }, [el('span', { class: 'progress-fill' })]);
+  setProgress(bar, pct);
+  return bar;
+}
+
+/// Fills a bar from `progressBar` to `pct`, in place.
+export function setProgress(bar, pct) {
+  const fill = bar.firstChild;
+  fill.classList.toggle('unknown', pct == null);
+  fill.style.width = pct == null ? '' : `${pct}%`;
+  if (pct == null) bar.removeAttribute('aria-valuenow');
+  else bar.setAttribute('aria-valuenow', String(pct));
 }
 
 /// Draws the status bar's parts. `drawStatus(s)` redraws the left side from
 /// the manager's status; the version and update link are slots on the right.
+/// The left side's parts are made once and changed in place, so the progress
+/// bar keeps moving while a run reports.
 export function mountStatusBar(node) {
-  const left = el('div', { class: 'status-left' });
+  const mark = statusMark('idle');
+  const state = el('span');
+  const job = el('a', { class: 'status-job' });
+  const bar = progressBar(null);
+  const pctText = el('span', { class: 'status-pct' });
+  const waitingText = el('span', { class: 'status-waiting' });
+  const left = el('div', { class: 'status-left' }, [mark, state, job, bar, pctText, waitingText]);
   const version = el('span', { class: 'status-version' });
   const update = el('span', { class: 'status-update' });
   clear(node).append(left, el('span', { class: 'gap' }), version, update);
@@ -157,34 +173,27 @@ export function mountStatusBar(node) {
     version,
     update,
     drawStatus(s) {
-      clear(left);
-      if (!s) {
-        left.append(statusMark('idle'), el('span', { text: 'Connecting…' }));
-        return;
-      }
-      if (!s.on) {
-        left.append(
-          statusMark('idle'),
-          el('span', { class: 'status-state', text: s.offline ? 'Offline' : 'Viewing only', title: s.reason || '' }),
-        );
-        return;
-      }
-      const c = s.current;
+      const c = s && s.on ? s.current : null;
+      mark.className = `mark mark-${!s || !s.on ? 'idle' : c ? 'running' : 'done'}`;
+      state.className = s ? 'status-state' : '';
+      state.textContent = !s ? 'Connecting…' : !s.on ? (s.offline ? 'Offline' : 'Viewing only') : c ? 'Running' : 'Ready';
+      state.title = s && !s.on ? (s.reason || '') : '';
+
+      job.hidden = !c;
+      bar.hidden = !c;
+      pctText.hidden = !c;
       if (c) {
         const pct = percent(c.itemsDone, c.itemsTotal);
-        const kind = kindLabel(c.record && c.record.request && c.record.request.kind);
-        left.append(
-          statusMark('running'),
-          el('span', { class: 'status-state', text: 'Running' }),
-          el('a', { class: 'status-job', href: `#/runs/${encodeURIComponent(c.record.id)}`, text: kind, title: c.phase || '' }),
-          progressBar(pct),
-          el('span', { class: 'status-pct', text: pct == null ? '…' : `${pct}%` }),
-        );
-      } else {
-        left.append(statusMark('done'), el('span', { class: 'status-state', text: 'Ready' }));
+        job.href = `#/runs/${encodeURIComponent(c.record.id)}`;
+        job.textContent = kindLabel(c.record && c.record.request && c.record.request.kind);
+        job.title = c.phase || '';
+        setProgress(bar, pct);
+        pctText.textContent = pct == null ? '…' : `${pct}%`;
       }
-      const waiting = (s.queued || []).length;
-      if (waiting) left.append(el('span', { class: 'status-waiting', text: `${waiting} waiting` }));
+
+      const waiting = s && s.on ? (s.queued || []).length : 0;
+      waitingText.hidden = !waiting;
+      waitingText.textContent = waiting ? `${waiting} waiting` : '';
     },
   };
 }

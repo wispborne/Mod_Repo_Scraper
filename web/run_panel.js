@@ -5,7 +5,7 @@
 import { el, api, shortTime } from './lib.js';
 import { icon } from './icons.js';
 import { kindLabel, percent, buildHash } from './routes.js';
-import { progressBar, statusMark } from './frame.js';
+import { progressBar, setProgress, statusMark } from './frame.js';
 import { describeJob, duration } from './jobs.js';
 import { confirmAndStart, confirmAndStop } from './actions.js';
 import { queuedAt, startedAt, runTime } from './run_record.js';
@@ -262,18 +262,19 @@ function drawHead(node, record, live) {
   );
 }
 
+/// The progress bar, count and percentage of a running job. They are made
+/// once and changed in place, so the bar keeps moving while the run reports.
 function drawMeter(node, live) {
   node.hidden = !live;
-  if (!live) {
-    node.replaceChildren();
-    return;
+  if (!live) return;
+  if (!node.firstChild) {
+    node.append(progressBar(null), el('span', { class: 'run-count' }), el('span', { class: 'run-pct' }));
   }
+  const [bar, count, pctText] = node.children;
   const pct = percent(live.itemsDone, live.itemsTotal);
-  node.replaceChildren(
-    progressBar(pct),
-    el('span', { class: 'run-count', text: live.itemsTotal ? `${live.itemsDone} / ${live.itemsTotal}` : `${live.itemsDone || 0} done` }),
-    el('span', { class: 'run-pct', text: pct == null ? '' : `${pct}%` }),
-  );
+  setProgress(bar, pct);
+  count.textContent = live.itemsTotal ? `${live.itemsDone} / ${live.itemsTotal}` : `${live.itemsDone || 0} done`;
+  pctText.textContent = pct == null ? '' : `${pct}%`;
 }
 
 function chip(label, value, kind = '') {
