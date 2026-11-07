@@ -189,6 +189,28 @@ void main() {
       expect(result.by, GuideAnsweredBy.rules);
     });
 
+    GuideItemResult exeResult() =>
+        postGuideResults(store.get(36100)!).firstWhere((r) => r.item.id == 'exeSourceCode');
+
+    test('a mod with no .exe does not need its source code, even with a source link', () async {
+      await checker(_FakeLlm(answers: {'exeSourceCode': 'notApplicable'})).check(_post(), sourceCodeFound: true);
+      expect(exeResult().answer, GuideAnswer.notApplicable);
+      expect(exeResult().fails, isFalse);
+    });
+
+    test('an .exe with a source link the post\'s own read found passes', () async {
+      await checker(_FakeLlm(answers: {'exeSourceCode': 'no'})).check(_post(), sourceCodeFound: true);
+      expect(exeResult().answer, GuideAnswer.yes);
+      expect(exeResult().by, GuideAnsweredBy.rules);
+    });
+
+    test('an .exe with no source link is a required item missing', () async {
+      await checker(_FakeLlm(answers: {'exeSourceCode': 'no'})).check(_post());
+      expect(exeResult().fails, isTrue);
+      expect(exeResult().item.required, isTrue);
+      expect(exeResult().toMap()['reason'], 'No source code for the .exe');
+    });
+
     test('"notApplicable" is only offered where a question allows it', () {
       final properties = PostGuideChecker.responseSchema['properties'] as Map<String, dynamic>;
       expect((properties['sourceCode'] as Map)['enum'], ['yes', 'no']);

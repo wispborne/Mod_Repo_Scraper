@@ -78,7 +78,7 @@ void main() {
       {'id': 'sourceCode', 'reason': 'No source code', 'required': false},
     ]);
     expect(rows[1]['missing'], [
-      {'id': 'aiDisclaimer', 'reason': 'AI use not explained', 'required': true},
+      {'id': 'aiDisclaimer', 'reason': 'Incomplete AI use disclaimer', 'required': true},
       {'id': 'saveCompatibility', 'reason': 'Save compatibility not stated', 'required': false},
     ]);
     expect(rows[1]['missingRequired'], 1);

@@ -52,7 +52,9 @@ Future<void> main(List<String> args) async {
     running++;
     final started = watch.elapsedMilliseconds;
     todo.add(checker.check(detail,
-        createdDate: summary.createdDate, sourceCodeFound: sourceCodeFoundIn(extraction)).then((spent) {
+        createdDate: summary.createdDate,
+        sourceCodeFound: sourceCodeFoundIn(extraction),
+        aiDisclaimer: aiDisclaimerFromFacts(extraction)).then((spent) {
       running--;
       final entry = store.get(detail.topicId);
       final missing = entry == null

@@ -1205,7 +1205,8 @@ class ScraperService implements JobRunner {
       inScope.add(summary.topicId);
       await checker.check(detail,
           createdDate: summary.createdDate,
-          sourceCodeFound: sourceCodeFoundIn(extraction));
+          sourceCodeFound: sourceCodeFoundIn(extraction),
+          aiDisclaimer: aiDisclaimerFromFacts(extraction));
       reporter.progress(seen, index.length,
           item: detail.title, llmCalls: extractor.liveCallCount);
     });

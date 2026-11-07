@@ -180,6 +180,8 @@ function aboutText() {
     el('p', {}, [
       'Checks compare each thread’s first post with the forum’s ',
       el('a', { href: 'https://fractalsoftworks.com/forum/index.php?topic=36046.0', target: '_blank', rel: 'noopener', text: 'mod post guide' }),
+      ' and its ',
+      el('a', { href: 'https://fractalsoftworks.com/forum/index.php?topic=36265.0', target: '_blank', rel: 'noopener', text: 'rules for posting a new mod' }),
       '. Only threads posted or edited since the guide was published are included.',
     ]),
     el('p', { text: 'Checks run when the LLM is enabled. Code checks the game version in the title and the pictures. The LLM checks the remaining items. Posts are checked again only after an edit.' }),

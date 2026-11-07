@@ -7,12 +7,16 @@ import '../../../../site/gallery_filter.dart';
 import '../../../../site/post_html.dart';
 import '../models/forum_date.dart';
 import '../models/mod_detail.dart';
+import '../models/post_extraction.dart';
 import 'extraction_store.dart';
 import 'llm_client.dart';
 import 'post_guide_store.dart';
 
 /// Checks a mod thread's first post against the forum's mod post guide
-/// (SirHartley, topic 36046, posted September 21, 2026).
+/// (SirHartley, topic 36046, posted September 21, 2026) and its rules for
+/// posting a new mod (topic 36265, posted November 5, 2026). The second adds
+/// two requirements: an .exe must have its source code linked, and an AI
+/// disclaimer must name the model and the kinds of assets made with it.
 ///
 /// Each guide item is one question. A failed item shows the item's fixed
 /// reason, so a reason is never longer than eight words and reads the same on
@@ -28,13 +32,16 @@ import 'post_guide_store.dart';
 /// The guide's thread.
 const postGuideUrl = 'https://fractalsoftworks.com/forum/index.php?topic=36046.0';
 
+/// The rules for posting a new mod, which add to the guide.
+const postRulesUrl = 'https://fractalsoftworks.com/forum/index.php?topic=36265.0';
+
 /// The day the guide was posted. A post neither made nor edited since then is
 /// not checked.
 final postGuideDate = DateTime(2026, 9, 21);
 
 /// Raise when the questions or the prompt change, so every checked post is
 /// checked again.
-const postGuideVersion = 1;
+const postGuideVersion = 2;
 
 /// Who answers a guide item.
 enum GuideAnsweredBy {
@@ -46,6 +53,10 @@ enum GuideAnsweredBy {
 
   /// Code first. When code finds nothing, the LLM's answer is used.
   rulesThenLlm,
+
+  /// Code's answer whenever it has one, "no" included. The LLM's answer only
+  /// when code has none.
+  rulesFirst,
 }
 
 /// One item of the mod post guide.
@@ -58,8 +69,8 @@ class GuideItem {
   /// What a failing post is missing, in eight words or fewer.
   final String reason;
 
-  /// One of the guide's hard requirements. Source code is not one: the guide
-  /// lists it beside them as "heavily suggested".
+  /// One of the guide's hard requirements. Source code in general is not one:
+  /// both posts call it strongly suggested. Source code for an .exe is one.
   final bool required;
 
   final GuideAnsweredBy answeredBy;
@@ -108,18 +119,39 @@ const postGuideItems = <GuideItem>[
   GuideItem(
     id: 'aiDisclaimer',
     label: 'AI use disclaimer, if AI was used',
-    reason: 'AI use not explained',
+    reason: 'Incomplete AI use disclaimer',
     required: true,
-    answeredBy: GuideAnsweredBy.llm,
+    // The post's own LLM read already records the AI tools named and the
+    // kinds of assets, each checked against the post. On 146 real threads
+    // this question alone failed clear disclaimers such as "Code by Claude
+    // (Anthropic)", so those facts decide where they can ([aiDisclaimerFromFacts]).
+    answeredBy: GuideAnsweredBy.rulesFirst,
     allowsNotApplicable: true,
-    question: 'If the post says AI tools were used to make the mod, does it say '
-        'what they were used for? Short statements count: "vibe coded", '
-        '"code by Claude", "portraits are AI-generated" and "most of the code '
-        'was written by AI" all say what AI was used for. A statement that no '
-        'AI was used also counts. Answer "no" only if the post admits AI use '
-        'but gives no hint of what it was used for. Answer "notApplicable" if '
-        'the post does not mention AI tools at all. In Starsector posts "AI" '
-        'usually means ship AI, fleet AI or AI cores; that is not AI use.',
+    question: 'If the post says generative AI tools were used to make the mod, '
+        'does it name the AI model or models used AND say which kinds of '
+        'assets were made with them (for example code, portraits, sprites, '
+        'music, text)? Short statements count when they give both: "code '
+        'vibe coded with Kimi K3.1" and "portraits made with Midjourney" each '
+        'name a model and a kind of asset. Answer "no" if the post admits AI '
+        'use but does not name the model, or does not say what was made with '
+        'it ("AI was used extensively", "vibe coded"). Answer "yes" if the post '
+        'says no AI was used. Answer "notApplicable" if the post does not '
+        'mention AI tools at all. In Starsector posts "AI" usually means ship '
+        'AI, fleet AI or AI cores; that is not AI use.',
+  ),
+  GuideItem(
+    id: 'exeSourceCode',
+    label: 'Source code for an .exe',
+    reason: 'No source code for the .exe',
+    required: true,
+    answeredBy: GuideAnsweredBy.rulesThenLlm,
+    allowsNotApplicable: true,
+    question: 'Does the mod include a program that runs outside the game, such '
+        'as an .exe file (a mod manager, launcher, installer or other tool)? '
+        'If so, does the post link to its source code, for example on GitHub? '
+        'Answer "notApplicable" if the mod includes no such program. Ordinary '
+        'Starsector mods contain .jar files that the game loads; those do not '
+        'count.',
   ),
   GuideItem(
     id: 'sourceCode',
@@ -276,6 +308,15 @@ List<GuideItemResult> postGuideResults(PostGuideEntry entry) => [
               item, entry.rules[item.id], entry.rules[item.id] == null ? null : GuideAnsweredBy.rules),
           GuideAnsweredBy.llm => GuideItemResult(
               item, entry.llm[item.id], entry.llm[item.id] == null ? null : GuideAnsweredBy.llm),
+          // A "does not apply" from the LLM wins over code's yes: code says
+          // yes to the .exe item whenever a source link exists, though most
+          // mods have no .exe at all.
+          GuideAnsweredBy.rulesThenLlm when entry.llm[item.id] == GuideAnswer.notApplicable =>
+            GuideItemResult(item, GuideAnswer.notApplicable, GuideAnsweredBy.llm),
+          GuideAnsweredBy.rulesFirst => entry.rules[item.id] != null
+              ? GuideItemResult(item, entry.rules[item.id], GuideAnsweredBy.rules)
+              : GuideItemResult(
+                  item, entry.llm[item.id], entry.llm[item.id] == null ? null : GuideAnsweredBy.llm),
           GuideAnsweredBy.rulesThenLlm => entry.rules[item.id] == GuideAnswer.yes
               ? GuideItemResult(item, GuideAnswer.yes, GuideAnsweredBy.rules)
               : GuideItemResult(item, entry.llm[item.id] ?? entry.rules[item.id],
@@ -313,8 +354,10 @@ bool isAfterPostGuide(String? first, String? second) {
 
 /// The answers code can give for [detail], by item id. [sourceCodeFound] is
 /// true when the post's own LLM read found a link to the mod's source code.
+/// [aiDisclaimer] is the AI item's answer from that read's facts
+/// ([aiDisclaimerFromFacts]), or null when they do not settle it.
 Map<String, GuideAnswer> postGuideRules(QbModDetail detail,
-    {bool sourceCodeFound = false}) {
+    {bool sourceCodeFound = false, GuideAnswer? aiDisclaimer}) {
   final externalDownload = detail.links.any((link) =>
       link.isDownloadable && !link.url.contains('dlattach'));
   final pictures = detail.images.any((image) =>
@@ -327,9 +370,41 @@ Map<String, GuideAnswer> postGuideRules(QbModDetail detail,
     // LLM.
     if (externalDownload) 'externalDownload': GuideAnswer.yes,
     // The post's own LLM read already looks for a source code link, with its
-    // own checks against the post. Where it found one, that settles it.
+    // own checks against the post. Where it found one, that settles it, for
+    // an .exe too (unless the LLM says there is no .exe).
     if (sourceCodeFound) 'sourceCode': GuideAnswer.yes,
+    if (sourceCodeFound) 'exeSourceCode': GuideAnswer.yes,
+    if (aiDisclaimer != null) 'aiDisclaimer': aiDisclaimer,
   };
+}
+
+/// The AI disclaimer item answered from the post's own LLM read, which
+/// records what the author says about AI use: whether AI was used, the tools
+/// named (each one a whole word in the post) and the kinds of assets made.
+/// The rules for posting a new mod ask for the model and the kinds of assets.
+///
+/// - The author says no AI was used: yes.
+/// - AI was used and no tool is named: no.
+/// - AI was used, a tool is named and at least one kind of asset: yes.
+/// - Anything else (nothing stated, no answer saved, a tool named but no kind
+///   of asset): null, and the guide check's own LLM answer is used.
+///
+/// A thread holding several mods counts as using AI when any of its mods does.
+GuideAnswer? aiDisclaimerFromFacts(LlmStoreEntry? extraction) {
+  final stated = [
+    for (final mod in extraction?.mods ?? const <LlmMod>[])
+      if (mod.extras?.aiUse case final aiUse?) aiUse,
+  ];
+  final used = stated.where((a) => a.usesAi == true).toList();
+  if (used.isEmpty) {
+    return stated.any((a) => a.usesAi == false) ? GuideAnswer.yes : null;
+  }
+  final toolNamed = used.any(
+      (a) => (a.tools ?? const <String>[]).any((t) => t.trim().isNotEmpty));
+  if (!toolNamed) return GuideAnswer.no;
+  final assetsNamed = used.any((a) =>
+      (a.uses ?? const <LlmAiUseEntry>[]).any((u) => u.area != AiUseArea.other));
+  return assetsNamed ? GuideAnswer.yes : null;
 }
 
 /// Whether the post's own LLM read found a link to any of its mods' source
@@ -386,13 +461,17 @@ class PostGuideChecker {
   /// call was spent, and false when the saved answer was still good, the post is
   /// too old, or the run's call budget is used up.
   ///
-  /// [sourceCodeFound] says the post's own LLM read found a source code link.
+  /// [sourceCodeFound] says the post's own LLM read found a source code link,
+  /// and [aiDisclaimer] is the AI item's answer from that read's facts.
   Future<bool> check(QbModDetail detail,
-      {String? createdDate, bool sourceCodeFound = false}) async {
+      {String? createdDate,
+      bool sourceCodeFound = false,
+      GuideAnswer? aiDisclaimer}) async {
     if (detail.isPlaceholderDetail) return false;
     if (!postGuideApplies(detail, createdDate: createdDate)) return false;
 
-    final rules = postGuideRules(detail, sourceCodeFound: sourceCodeFound);
+    final rules = postGuideRules(detail,
+        sourceCodeFound: sourceCodeFound, aiDisclaimer: aiDisclaimer);
     final prompt = userPrompt(detail, maxInputChars: maxInputChars);
     final fingerprint = promptFingerprint(prompt);
     final saved = store.get(detail.topicId);
