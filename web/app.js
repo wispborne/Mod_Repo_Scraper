@@ -20,6 +20,7 @@ import * as takedowns from './views/takedowns.js';
 import * as authorAliases from './views/author_aliases.js';
 import * as dependencyNames from './views/dependency_names.js';
 import * as posts from './views/posts.js';
+import * as postGuide from './views/post_guide.js';
 import * as post from './views/post.js';
 import * as postHistory from './views/post_history.js';
 import * as mods from './views/mods.js';
@@ -37,6 +38,7 @@ const PAGES = {
   'author-aliases': authorAliases,
   'dependency-matching': dependencyNames,
   posts,
+  'post-guide': postGuide,
   mods,
   changes,
   explorer,

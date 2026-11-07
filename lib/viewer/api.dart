@@ -8,6 +8,7 @@ import 'package:shelf_router/shelf_router.dart';
 import '../bot/scraper/author_aliases.dart';
 import '../bot/scraper/mod_repo_utils.dart';
 import '../bot/scraper/qb/llm/picture_caption_store.dart';
+import '../bot/scraper/qb/llm/post_guide_check.dart';
 import '../bot/scraper/qb/models/forum_date.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
@@ -21,6 +22,7 @@ import 'bundle_views.dart';
 import 'data_access.dart';
 import 'merge_views.dart';
 import 'mod_views.dart';
+import 'post_guide_views.dart';
 import 'post_views.dart';
 import 'search_views.dart';
 import 'site_version.dart';
@@ -54,6 +56,14 @@ class ViewerApi {
 
     r.get('/posts', _posts);
     r.get('/posts/outcome', _postOutcome);
+    r.get('/post-guide', (Request req) {
+      final report = postGuideReportFor(data);
+      return report == null
+          ? _missing('post-guide-checks',
+              'Run the scraper with the LLM on. It checks mod threads posted or '
+              'edited since the guide.')
+          : _json(report);
+    });
 
     r.get('/mods', _mods);
     r.get('/mods/<id>/history', _modHistory);
@@ -442,6 +452,18 @@ class ViewerApi {
           if (data.pictureCaption(url) case final seen?) url: _pictureSeen(seen),
       },
       'assumedDownloads': assumed?.map((c) => c.toJson()).toList(),
+      // The first post checked against the forum's mod post guide. Null for a
+      // thread started before the guide, or one not checked yet.
+      'postGuide': switch (data.postGuides?[topicId]) {
+        final entry? => {
+            'checkedAt': entry.checkedAt.toIso8601String(),
+            if (entry.model != null) 'model': entry.model,
+            if (entry.endpoint != null) 'endpoint': entry.endpoint,
+            'guide': postGuideUrl,
+            'items': [for (final r in postGuideResults(entry)) r.toMap()],
+          },
+        null => null,
+      },
       // Use the bundle's LLM shape, with viewer-only classification and model
       // metadata from the cache. These extra fields are not published.
       'llm': llm == null

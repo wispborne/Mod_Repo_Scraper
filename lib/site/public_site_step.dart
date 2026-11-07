@@ -10,6 +10,7 @@ import '../catalog/discord_posts.dart';
 import '../catalog/mod_catalog.dart';
 import '../catalog/takedowns.dart';
 import '../bot/scraper/qb/llm/picture_caption_store.dart';
+import '../bot/scraper/qb/llm/post_guide_report.dart';
 import 'fact_sources_file.dart';
 import 'mod_id_store.dart';
 import 'public_data_builder.dart';
@@ -124,6 +125,16 @@ class PublicSiteStep {
     RequirementAsker? requirementAsker,
     void Function(String message)? log,
   }) async {
+    // The post guide report needs only the saved checks and the mods index,
+    // so it is written whether or not there is a catalog. The scheduled job
+    // copies `outputs/*.json` into the published repo, so this is also what
+    // publishes it.
+    final guideThreads =
+        writePostGuideReport(dataPath: dataPath, outputPath: outputPath);
+    if (guideThreads != null) {
+      _say(log, 'Wrote $postGuideReportFileName ($guideThreads threads).');
+    }
+
     if (catalog == null || catalog.mods.isEmpty) {
       _say(
           log,

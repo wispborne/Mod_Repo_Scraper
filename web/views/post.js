@@ -325,6 +325,7 @@ function topicSections(data) {
   const downloads = (data.assumedDownloads || []).map(downloadRowFromCandidate);
   return [
     extractedSection(llm, downloads),
+    postGuideSection(data.postGuide),
     picturesSection(detail, data.discordThreads || [], data.pictureCaptions || {}),
     forumPostSection(detail),
   ];
@@ -355,6 +356,45 @@ function extractedSection(llm, downloads, { promptVersion = null } = {}) {
     assumedTable(downloads),
   );
   return section('Results', null, children);
+}
+
+/// The first post checked against the forum's mod post guide. Left out for a
+/// thread started before the guide, or one not checked yet.
+function postGuideSection(guide) {
+  if (!guide) return null;
+  const items = guide.items || [];
+  const missing = items.filter((item) => item.answer === 'no');
+  const row = (item) => {
+    const words = { yes: 'Yes', no: 'No', notApplicable: 'Does not apply' }[item.answer] || 'Not answered';
+    const cls = { yes: 'good', no: item.required ? 'bad' : 'warn' }[item.answer] || '';
+    return el('tr', {}, [
+      el('td', {}, [
+        item.label,
+        item.required ? ' ' : null,
+        item.required ? el('span', { class: 'pp-badge strong', title: 'A hard requirement of the guide.', text: 'Required' }) : null,
+      ]),
+      el('td', {}, [el('span', { class: `pp-badge ${cls}`, text: words })]),
+      el('td', { class: 'pl-dim', text: item.by === 'rules' ? 'Rules' : item.by === 'llm' ? 'LLM' : '' }),
+    ]);
+  };
+  const details = [
+    guide.model ? `Model: ${guide.model}` : null,
+    guide.endpoint ? `Endpoint: ${guide.endpoint}` : null,
+    guide.checkedAt ? `Checked: ${guide.checkedAt}` : null,
+  ].filter(Boolean).join('\n');
+  return section('Post guide', missing.length ? `${missing.length} missing` : null, [
+    el('p', {}, [
+      missing.length ? missing.map((item) => item.reason).join('. ') + '.' : 'Follows every item checked.',
+      ' ',
+      el('a', { href: guide.guide, target: '_blank', rel: 'noopener', title: details || null, text: 'Guide' }),
+    ]),
+    el('div', { class: 'table-wrap' }, [
+      el('table', { class: 'table' }, [
+        el('thead', {}, [el('tr', {}, [el('th', { text: 'Item' }), el('th', { text: 'Follows' }), el('th', { text: 'By' })])]),
+        el('tbody', {}, items.map(row)),
+      ]),
+    ]),
+  ], 'The first post checked against the forum’s mod post guide.');
 }
 
 /// The thread's and the first post's facts, as side panels.

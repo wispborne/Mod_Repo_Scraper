@@ -24,6 +24,7 @@ export const NAV = [
     items: [
       { id: 'mods', label: 'Mods', icon: 'box' },
       { id: 'posts', label: 'Source posts', icon: 'list' },
+      { id: 'post-guide', label: 'Post guide checks', icon: 'list-check' },
       { id: 'changes', label: 'What changed', icon: 'compare' },
       { id: 'explorer', label: 'Catalog explorer', icon: 'merge' },
       { id: 'llm-test', label: 'LLM test report', icon: 'flask' },

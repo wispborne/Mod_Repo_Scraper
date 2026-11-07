@@ -14,7 +14,7 @@ test('the nav rail has the three groups in order', () => {
   assert.deepEqual(NAV[0].items.map((i) => i.label), ['Control', 'Run history', 'Settings']);
   assert.deepEqual(NAV[1].items.map((i) => i.label), ['Takedowns', 'Author aliases', 'Dependency matching']);
   assert.deepEqual(NAV[2].items.map((i) => i.label),
-    ['Mods', 'Source posts', 'What changed', 'Catalog explorer', 'LLM test report', 'Files']);
+    ['Mods', 'Source posts', 'Post guide checks', 'What changed', 'Catalog explorer', 'LLM test report', 'Files']);
   const ids = NAV.flatMap((g) => g.items.map((i) => i.id));
   assert.equal(new Set(ids).size, ids.length, 'every page id is different');
 });

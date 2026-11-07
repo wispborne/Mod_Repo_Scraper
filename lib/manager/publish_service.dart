@@ -55,6 +55,8 @@ class PublishService implements JobRunner {
   /// Missing files are logged, and publishing continues.
   static const List<String> optionalOutputFiles = [
     'mod-catalog-extras.json',
+    // The post guide report, for a viewer with no data of its own.
+    'post-guide-report.json',
   ];
 
   /// The public website's data files, copied from `<outputs>/site/` when a run

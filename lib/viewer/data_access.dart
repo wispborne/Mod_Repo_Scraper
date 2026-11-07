@@ -7,6 +7,7 @@ import '../bot/common.dart';
 import '../bot/scraper/qb/download_resolver.dart';
 import '../bot/scraper/qb/llm/extraction_store.dart';
 import '../bot/scraper/qb/llm/picture_caption_store.dart';
+import '../bot/scraper/qb/llm/post_guide_store.dart';
 import '../bot/scraper/qb/models/mod_detail.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
 import '../catalog/discord_posts.dart';
@@ -86,6 +87,18 @@ class DataAccess {
   late final File _pictureCaptionsFile =
       File(p.join(dataDir, PictureCaptionStore.fileName));
   late final File _siteModsFile = File(p.join(outputsDir, 'site', 'mods.json'));
+  late final File _postGuidesFile =
+      File(p.join(dataDir, PostGuideStore.fileName));
+
+  late final _MtimeCache<PostGuideFile> _postGuidesCache =
+      _MtimeCache(_postGuidesFile, PostGuideFile.read);
+
+  /// Each mod thread's saved check against the forum's mod post guide, by
+  /// topic id, or null when no post has been checked.
+  Map<int, PostGuideEntry>? get postGuides => _postGuidesCache.get()?.entries;
+
+  /// The whole saved guide checks file, with the last pass's time and list.
+  PostGuideFile? get postGuideFile => _postGuidesCache.get();
 
   /// How many of the website's mods have no download, from
   /// `outputs/site/mods.json`. Only the count is kept: the file is large.
@@ -307,6 +320,9 @@ class DataAccess {
         'Run the scraper with LLM extraction enabled.'),
     AllowlistEntry('picture-captions', _pictureCaptionsFile,
         'Run the scraper with llm_caption_pictures on.'),
+    AllowlistEntry('post-guide-checks', _postGuidesFile,
+        'Run the scraper with the LLM on; it checks mod threads started since '
+        'the post guide was posted.'),
     AllowlistEntry('llm-test-output', _llmTestFile,
         'Run the scraper with LLM test mode enabled.'),
     AllowlistEntry(

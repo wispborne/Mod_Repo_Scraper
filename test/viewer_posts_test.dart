@@ -213,7 +213,39 @@ void main() {
         // Placeholder 6 is never sent to the LLM, so it is not counted.
         'noLlmAnswer': 5,
         'placeholder': 1,
+        'postGuide': 0,
       });
+    });
+
+    test('a first post that misses post guide items is marked and filtered', () async {
+      writeJson(p.join(dataDir, 'post-guide-checks.json'), {
+        'guideVersion': 1,
+        'topics': {
+          '1': {
+            'fingerprint': 'f',
+            'checkedAt': '2026-10-02T00:00:00.000Z',
+            'llm': {'sourceCode': 'no', 'aiDisclaimer': 'notApplicable'},
+            'rules': {'gameVersionInTitle': 'yes', 'pictures': 'no'},
+          },
+          '3': {
+            'fingerprint': 'f',
+            'checkedAt': '2026-10-02T00:00:00.000Z',
+            'llm': {'sourceCode': 'yes'},
+            'rules': {'gameVersionInTitle': 'yes', 'pictures': 'yes'},
+          },
+        },
+      });
+      final all = await posts();
+      expect(all['counts']['postGuide'], 1);
+      expect(keys(await posts('filters=postGuide')), ['topic:1']);
+      final row = (all['items'] as List).cast<Map<String, dynamic>>()
+          .firstWhere((r) => r['id'] == '1');
+      expect(row['postGuide'], {
+        'missing': ['No source code', 'No pictures'],
+        'missingRequired': 0,
+      });
+      expect((all['items'] as List).cast<Map<String, dynamic>>()
+          .firstWhere((r) => r['id'] == '3')['postGuide'], {'missing': [], 'missingRequired': 0});
     });
 
     test('each filter narrows the list', () async {

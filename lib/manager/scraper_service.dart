@@ -18,6 +18,8 @@ import '../bot/scraper/qb/llm/openai_client.dart';
 import '../bot/scraper/qb/llm/picture_caption_store.dart';
 import '../bot/scraper/qb/llm/picture_captioner.dart';
 import '../bot/scraper/qb/llm/post_extractor.dart';
+import '../bot/scraper/qb/llm/post_guide_check.dart';
+import '../bot/scraper/qb/llm/post_guide_store.dart';
 import '../bot/scraper/qb/models/forum_data_bundle.dart';
 import '../bot/scraper/qb/models/mod_summary.dart';
 import '../bot/scraper/qb/models/scrape_job.dart';
@@ -116,6 +118,10 @@ class ScraperService implements JobRunner {
   /// there is no LLM service.
   final PictureCaptionStore? pictureCaptions;
 
+  /// Each new mod thread's first post, checked against the forum's mod post
+  /// guide. Null, like [llmStore], when there is no LLM service.
+  final PostGuideStore? postGuides;
+
   /// Keeps a copy of each bundle this service publishes, so two runs can be
   /// compared afterwards.
   final BundleSnapshotStore bundleSnapshots;
@@ -177,6 +183,9 @@ class ScraperService implements JobRunner {
       pictureCaptions: environment.llm == null
           ? null
           : PictureCaptionStore(environment.dataPath),
+      postGuides: environment.llm == null
+          ? null
+          : PostGuideStore(environment.dataPath),
       bundleSnapshots: BundleSnapshotStore(environment.dataPath,
           bundlesToKeep: guardrails.bundlesToKeep),
       siteStep: PublicSiteStep(
@@ -208,6 +217,7 @@ class ScraperService implements JobRunner {
     required this.resolver,
     required this.llmStore,
     required this.pictureCaptions,
+    required this.postGuides,
     required this.bundleSnapshots,
     required this.siteStep,
     required this.catalogStep,
@@ -228,6 +238,7 @@ class ScraperService implements JobRunner {
     await probeCache.loadCache();
     await llmStore?.load();
     await pictureCaptions?.load();
+    await postGuides?.load();
   }
 
   /// Runs one job and says how it went. Never throws for a job that merely did
@@ -959,6 +970,8 @@ class ScraperService implements JobRunner {
           }
         },
         shouldStop: () => cancel?.isCancelled ?? false,
+        // Only worth the forum's time when something will check the posts.
+        recheckGuidePosts: extractor != null && postGuides != null,
       );
     } catch (e) {
       // The scrape is failing; don't leave reads writing in the background
@@ -1126,6 +1139,10 @@ class ScraperService implements JobRunner {
       _logDiscordCoverage(threads.length, discord, reporter);
     }
 
+    if (!(cancel?.isCancelled ?? false)) {
+      await _postGuidePass(index, extractor, reporter, cancel);
+    }
+
     final captioner = extractor.captioner;
     if (captioner != null) {
       reporter.log('Pictures: ${captioner.callCount} calls this run to look at '
@@ -1146,6 +1163,74 @@ class ScraperService implements JobRunner {
       total: index.length + threads.length,
       withoutResults: forum.withoutResults + discord.withoutResults,
     );
+  }
+
+  /// Checks the first post of every mod thread posted or edited on or after the
+  /// day the forum's mod post guide was posted ([postGuideDate]) against that
+  /// guide.
+  /// A post whose saved check is still good costs nothing, so this only calls
+  /// the LLM for new or edited posts. The calls count against the same
+  /// per-run limit as the posts' own reads.
+  Future<void> _postGuidePass(
+    List<QbModSummary> index,
+    PostExtractor extractor,
+    RunReporter reporter,
+    CancelToken? cancel,
+  ) async {
+    final guides = postGuides;
+    if (guides == null) return;
+    final checker = PostGuideChecker(
+      client: extractor.client,
+      takeCall: extractor.takeCall,
+      store: guides,
+      maxInputChars: extractor.maxInputChars,
+    );
+    reporter.phase('Post guide check');
+    var newThreads = 0;
+    var seen = 0;
+    final inScope = <int>[];
+    await _fewAtATime(index, guardrails.llmMaxConcurrentCalls,
+        () => cancel?.isCancelled ?? false, (summary) async {
+      seen++;
+      // Every thread's post is looked at, not only new threads: an old post
+      // its author has edited since the guide is checked too.
+      final detail = await store.loadDetail(summary.topicId);
+      if (detail == null ||
+          !postGuideApplies(detail, createdDate: summary.createdDate)) {
+        return;
+      }
+      final extraction = llmStore?.get(summary.topicId);
+      if (notAModIn(extraction)) return;
+      newThreads++;
+      inScope.add(summary.topicId);
+      await checker.check(detail,
+          createdDate: summary.createdDate,
+          sourceCodeFound: sourceCodeFoundIn(extraction));
+      reporter.progress(seen, index.length,
+          item: detail.title, llmCalls: extractor.liveCallCount);
+    });
+
+    // A stopped run did not look at every thread, so it leaves the last full
+    // pass's list alone.
+    if (!(cancel?.isCancelled ?? false)) {
+      guides.finishPass(inScope);
+      await guides.save();
+    }
+
+    var missing = 0;
+    for (final summary in index) {
+      if (notAModIn(llmStore?.get(summary.topicId))) continue;
+      final entry = guides.get(summary.topicId);
+      if (entry != null && postGuideResults(entry).any((r) => r.fails)) {
+        missing++;
+      }
+    }
+    reporter.log('Post guide: $newThreads mod threads posted or edited since '
+        '${postGuideDate.toIso8601String().substring(0, 10)}, '
+        '${checker.callCount} sent to the LLM this run'
+        '${checker.failureCount > 0 ? ' (${checker.failureCount} failed and '
+            'will be tried again next run)' : ''}. $missing of the checked '
+        'posts miss at least one item of the guide.');
   }
 
   /// Makes sure one forum topic has LLM results. Returns its title, or null

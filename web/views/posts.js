@@ -27,6 +27,7 @@ const FILTERS = [
   ['leftOut', 'Not in catalog', 'The last build included no mods from this post.'],
   ['takenDown', 'Taken down', 'All mods from this post were taken down.'],
   ['collection', 'Collection', 'This post has a Collection page.'],
+  ['postGuide', 'Misses post guide', 'The first post misses an item of the forum’s mod post guide. Only threads started since September 21, 2026 are checked.'],
 ];
 const FILTER_KEYS = new Set(FILTERS.map(([key]) => key));
 
@@ -403,6 +404,18 @@ function outcomeWords(row) {
   }
 }
 
+/// A tag for a first post that misses items of the mod post guide. The
+/// missing items are the hover text.
+function guideTag(guide) {
+  if (!guide || !(guide.missing || []).length) return null;
+  const required = guide.missingRequired || 0;
+  return el('span', {
+    class: `tag ${required ? 'tag-warning' : 'tag-idle'} pl-tag`,
+    title: guide.missing.join('\n'),
+    text: `Guide: ${guide.missing.length} missing`,
+  });
+}
+
 function postHref(row) {
   return `#/posts/${row.kind}/${encodeURIComponent(row.id)}`;
 }
@@ -471,6 +484,7 @@ function postTable(items, { view, canTick, ticked, toggle, onSort }) {
       el('td', { class: 'pl-title' }, [
         el('a', { href, text: row.title || (row.kind === 'discord' ? `Discord thread ${row.id}` : `Topic ${row.id}`) }),
         row.isPlaceholder ? el('span', { class: 'tag tag-idle pl-tag', text: 'Placeholder' }) : null,
+        guideTag(row.postGuide),
       ]),
       el('td', { class: 'pl-author', text: row.author || '' }),
       el('td', { class: 'pl-date mono', text: lastPostDay(row.lastPostDate) }),

@@ -1,3 +1,4 @@
+import '../bot/scraper/qb/llm/post_guide_check.dart';
 import '../bot/scraper/qb/models/forum_date.dart';
 import '../catalog/left_out_posts.dart';
 import '../catalog/mod_catalog.dart';
@@ -78,6 +79,7 @@ class PostViews {
       'noDownload': all.where((r) => r.noDownload).length,
       'noLlmAnswer': all.where((r) => r.noLlmAnswer).length,
       'placeholder': all.where((r) => r.isPlaceholder).length,
+      'postGuide': all.where((r) => r.missesPostGuide).length,
     };
 
     final query = searchQuery(q);
@@ -138,6 +140,7 @@ class PostViews {
     final assumed = data.assumedDownloads ?? const {};
     final placeholders = index == null ? const <int>{} : data.placeholderDetailIds();
     final saved = index == null ? const <int>{} : data.savedDetailIds();
+    final guides = data.postGuides ?? const {};
     for (final topic in index ?? const []) {
       final id = topic.topicId;
       final answer = llm[id];
@@ -159,6 +162,13 @@ class PostViews {
         // LLM, so it is not counted as missing an answer (as on Control).
         couldHaveAnswer: !placeholder && saved.contains(id),
         outcome: outcomes.of(SourceKind.forum, '$id', scrapedAt: topic.scrapedAt),
+        postGuideMisses: switch (guides[id]) {
+          final entry? => [
+              for (final r in postGuideResults(entry))
+                if (r.fails) r.item,
+            ],
+          null => null,
+        },
       ));
     }
 
@@ -252,6 +262,10 @@ class _Row {
   final bool couldHaveAnswer;
   final Map<String, dynamic> outcome;
 
+  /// The post guide items the first post misses. Null when the post has not
+  /// been checked (a Discord thread, or a thread older than the guide).
+  final List<GuideItem>? postGuideMisses;
+
   _Row({
     required this.kind,
     required this.id,
@@ -264,7 +278,10 @@ class _Row {
     required this.isPlaceholder,
     required this.couldHaveAnswer,
     required this.outcome,
+    this.postGuideMisses,
   });
+
+  bool get missesPostGuide => postGuideMisses?.isNotEmpty ?? false;
 
   /// Downloads found by the rules or the LLM, each address once.
   late final int downloads = {for (final url in [...ruleUrls, ...llmUrls]) _normUrl(url)}.length;
@@ -292,6 +309,7 @@ class _Row {
         'leftOut' => outcome['outcome'] == 'leftOut',
         'takenDown' => outcome['outcome'] == 'takenDown',
         'collection' => outcome['outcome'] == 'collection',
+        'postGuide' => missesPostGuide,
         // Unknown filters leave all rows included.
         _ => true,
       };
@@ -312,6 +330,11 @@ class _Row {
         'outcome': outcome['outcome'],
         'line': [outcome['line'], outcome['reason']].whereType<String>().join(' '),
         'modCount': modCount,
+        if (postGuideMisses case final misses?)
+          'postGuide': {
+            'missing': [for (final item in misses) item.reason],
+            'missingRequired': misses.where((item) => item.required).length,
+          },
       };
 
   /// Matches rule and LLM addresses ignoring case, scheme and trailing slashes.

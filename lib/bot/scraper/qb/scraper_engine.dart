@@ -10,6 +10,7 @@ import 'downloadable_probe_cache.dart';
 import 'forum_constants.dart';
 import 'html_processor.dart';
 import 'json_data_store.dart';
+import 'llm/post_guide_check.dart';
 import 'mod_index_scraper.dart';
 import 'models/mod_detail.dart';
 import 'models/mod_summary.dart';
@@ -84,6 +85,7 @@ class QbScraperEngine {
     Future<void> Function(QbModDetail detail)? onTopicSaved,
     void Function(int processed, int total, String? item)? onProgress,
     bool Function()? shouldStop,
+    bool recheckGuidePosts = false,
   }) async {
     _onProgress = onProgress;
     final startTime = DateTime.now().toUtc();
@@ -263,8 +265,30 @@ class QbScraperEngine {
         modSummaries = _mergeDedupeBoards(mainList, lesserList, libraryList);
 
         if (isNewData) {
+          final fromBoards = {for (final m in modSummaries) m.topicId: m};
           modSummaries =
               _applyIncrementalFilter(modSummaries, indexMap);
+
+          // An edit to a first post does not change the thread's last post
+          // date, so the filter above never sees it. Threads the post guide
+          // check covers are fetched again about once a day for that reason.
+          if (recheckGuidePosts) {
+            final rechecks = await guidePostsToRecheck(
+              stored: indexMap.values,
+              scraping: {for (final m in modSummaries) m.topicId},
+              loadDetail: _store.loadDetail,
+              now: DateTime.now().toUtc(),
+            );
+            if (rechecks.isNotEmpty) {
+              _log.info('Fetching ${rechecks.length} thread(s) again that the '
+                  'post guide check covers, in case their first post was '
+                  'edited without a new reply');
+              modSummaries = [
+                ...modSummaries,
+                for (final id in rechecks) fromBoards[id] ?? indexMap[id]!,
+              ];
+            }
+          }
         }
 
         // Topics the mod index lists that no board page gave us and the store
@@ -524,6 +548,45 @@ class QbScraperEngine {
       duration: end.difference(startTime),
       errorMessage: errorMessage,
     );
+  }
+
+  /// A thread the post guide check covers is fetched again once its stored
+  /// copy is this old. The scheduled runs are twelve hours apart, so each one
+  /// is fetched about once a day.
+  static const recheckAfter = Duration(hours: 20);
+
+  /// At most this many such threads are fetched again per run, so the extra
+  /// forum traffic stays bounded however many threads the guide covers.
+  static const recheckLimit = 100;
+
+  /// Stored threads to fetch again because the post guide check covers them
+  /// ([postGuideApplies]: posted or edited since the guide) and their stored
+  /// copy is at least [olderThan] old. The oldest copies come first, at most
+  /// [limit] of them. Threads in [scraping] are already being fetched.
+  static Future<List<int>> guidePostsToRecheck({
+    required Iterable<QbModSummary> stored,
+    required Set<int> scraping,
+    required Future<QbModDetail?> Function(int topicId) loadDetail,
+    required DateTime now,
+    Duration olderThan = recheckAfter,
+    int limit = recheckLimit,
+  }) async {
+    final oldestFirst = [
+      for (final summary in stored)
+        if (!scraping.contains(summary.topicId) &&
+            now.difference(summary.scrapedAt) >= olderThan)
+          summary,
+    ]..sort((a, b) => a.scrapedAt.compareTo(b.scrapedAt));
+    final picked = <int>[];
+    for (final summary in oldestFirst) {
+      if (picked.length >= limit) break;
+      final detail = await loadDetail(summary.topicId);
+      if (detail == null || detail.isPlaceholderDetail) continue;
+      if (postGuideApplies(detail, createdDate: summary.createdDate)) {
+        picked.add(summary.topicId);
+      }
+    }
+    return picked;
   }
 
   /// The topics the mod index lists that neither this run's board pages nor
