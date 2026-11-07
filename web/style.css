@@ -358,7 +358,7 @@ a.row:hover { background: var(--panel); text-decoration: none; }
 .info-dialog p { color: var(--dim); }
 .info-dialog dl { margin: 12px 0 0; display: grid; gap: 8px; }
 .info-dialog dt { font-weight: 600; color: var(--text); }
-.info-dialog dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); }
+.info-dialog dd { margin: 0; color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); overflow-wrap: anywhere; }
 .info-dialog .pl-legend { padding: 0; }
 .log {
   max-height: 40vh; overflow: auto; margin: 0; padding: 8px 10px;

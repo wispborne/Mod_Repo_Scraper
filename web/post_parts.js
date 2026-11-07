@@ -3,7 +3,8 @@
 // mods with their downloads and extras, the per-post job buttons, and the
 // check for whether the published mod details are behind the saved data.
 
-import { el, api } from './lib.js';
+import { el, api, shortTime, infoButton } from './lib.js';
+import { icon } from './icons.js';
 import { confirmAndStart } from './actions.js';
 import { rebuildRequest } from './jobs.js';
 import { webAddress } from './mod_words.js';
@@ -15,10 +16,11 @@ export function badge(text, tone = '') {
   return el('span', { class: `pp-badge${tone ? ` ${tone}` : ''}`, text });
 }
 
-/// A section of the page: a heading bar, then its contents.
-export function section(title, count, children) {
+/// A section of the page: a heading bar, then its contents. `hint` is shown
+/// when the pointer rests on the heading.
+export function section(title, count, children, hint = null) {
   return el('section', { class: 'pp-section' }, [
-    el('h3', { class: 'pp-section-head' }, [
+    el('h3', { class: 'pp-section-head', title: hint }, [
       el('span', { class: 'panel-heading', text: title }),
       count == null ? null : el('span', { class: 'pp-section-count', text: String(count) }),
     ]),
@@ -62,11 +64,29 @@ export function fieldList(rows) {
   return list;
 }
 
-/// An ISO time for reading, in the reader's own time zone.
+/// An ISO time for reading, in the reader's own time zone, written the way
+/// the rest of the viewer writes times ("5 Nov 23:07").
 export function when(iso) {
   if (!iso) return null;
-  const at = new Date(iso);
-  return Number.isNaN(at.getTime()) ? String(iso) : at.toLocaleString();
+  return shortTime(iso) || String(iso);
+}
+
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september',
+  'october', 'november', 'december'];
+
+/// A date as the forum writes it ("August 05, 2025, 05:32:14 PM"), written
+/// like the viewer's other times, with the forum's own words on hover. The
+/// forum gives no time zone, so the time is read as the reader's own. An edit
+/// date may end in "by <name>", which is kept. Text that is not in that form
+/// ("Today at 03:12:22 PM") is shown as it is.
+export function forumTime(text) {
+  if (!text) return null;
+  const m = String(text).match(/^([A-Za-z]+) (\d{1,2}), (\d{4}), (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)( by .+)?$/);
+  const month = m ? MONTHS.indexOf(m[1].toLowerCase()) : -1;
+  if (!m || month < 0) return el('span', { text: String(text) });
+  const hour = (Number(m[4]) % 12) + (m[7] === 'PM' ? 12 : 0);
+  const at = new Date(Number(m[3]), month, Number(m[2]), hour, Number(m[5]), Number(m[6]));
+  return el('span', { title: String(text), text: `${shortTime(at.toISOString())}${m[8] || ''}` });
 }
 
 // --- The post itself ---
@@ -104,18 +124,25 @@ export function postFrame(html) {
 export function linkList(links) {
   return el('ul', { class: 'pp-links' }, links.map((link) => el('li', {}, [
     link.isDownloadable
-      ? badge('download', 'good')
-      : badge(link.isExternal ? 'external' : 'internal'),
+      ? badge('Download', 'good')
+      : badge(link.isExternal ? 'External' : 'Internal'),
     outLink(link.url, link.text || link.url),
   ])));
 }
 
 // --- Pictures ---
 
+/// How well a picture would do as a mod's card picture.
 const FIT_BADGES = {
-  good: ['good', 'Good for a mod card'],
-  okay: ['warn', 'Okay for a mod card'],
-  poor: ['bad', 'Poor for a mod card'],
+  good: ['good', 'Good'],
+  okay: ['warn', 'Fair'],
+  poor: ['bad', 'Poor'],
+};
+
+/// The picture kinds the model answers with, as words.
+const PICTURE_KINDS = {
+  screenshot: 'Screenshot', logo: 'Logo', banner: 'Banner', art: 'Artwork', button: 'Button',
+  badge: 'Badge', divider: 'Divider', missing: 'Missing', other: 'Other',
 };
 
 /// True when [url] is a Discord attachment whose signed address has run out.
@@ -132,61 +159,78 @@ function discordLinkExpired(url) {
   return Number.isFinite(ends) && ends * 1000 < Date.now();
 }
 
-/// What was saved about one picture: its kind, card fit and description, or
-/// why it could not be read, then which model looked, where, when and with
-/// which version of the caption prompt.
+/// What was saved about one picture: its kind, card rating and description,
+/// or that it could not be described. Which model looked, where, when and
+/// with which prompt version is shown on hover.
 function pictureSeen(seen) {
-  const box = el('div', { class: 'pp-seen' });
-  if (seen.caption) {
-    const [tone, fitText] = FIT_BADGES[seen.fit]
-      || ['', seen.fit ? `For a mod card: ${seen.fit}` : 'Card picture rating not saved'];
-    box.append(el('div', { class: 'pp-seen-line' }, [
-      badge(seen.kind || 'other', 'strong'), badge(fitText, tone), seen.caption,
-    ]));
-  } else if (seen.unreadable) {
-    box.append(el('div', { class: 'pp-seen-line' }, [
-      badge('Could not read', 'bad'),
-      `The model's server could not read this picture: ${seen.unreadable}`,
-    ]));
-  }
   const facts = [];
-  if (seen.model) facts.push(seen.model);
-  if (seen.endpoint) facts.push(seen.endpoint);
-  if (seen.at) facts.push(new Date(seen.at).toLocaleString());
-  if (seen.v != null) {
-    facts.push(seen.current === false ? `caption prompt v${seen.v} (outdated)` : `caption prompt v${seen.v}`);
+  if (seen.model) facts.push(`Model: ${seen.model}`);
+  if (seen.endpoint) facts.push(`Endpoint: ${seen.endpoint}`);
+  if (seen.at) facts.push(`Run: ${shortTime(seen.at)}`);
+  if (seen.v != null) facts.push(`Prompt version: ${seen.v}${seen.current === false ? ' (outdated)' : ''}`);
+  const line = el('div', { class: 'pp-seen-line', title: facts.join('\n') || null });
+  if (seen.caption) {
+    const [tone, fitText] = FIT_BADGES[seen.fit] || ['', 'Not rated'];
+    line.append(...[
+      badge(PICTURE_KINDS[seen.kind] || 'Other', 'strong'),
+      el('span', { class: `pp-badge${tone ? ` ${tone}` : ''}`, title: 'Thumbnail rating', text: fitText }),
+      seen.current === false
+        ? el('span', { class: 'pp-badge warn', title: 'Description created with an older prompt version.', text: 'Out of date' })
+        : null,
+      seen.caption,
+    ].filter((part) => part != null));
+  } else if (seen.unreadable) {
+    line.append(el('span', {
+      class: 'pp-badge bad', title: `Error: ${seen.unreadable}`, text: 'Could not describe image.',
+    }));
   }
-  if (facts.length) box.append(el('div', { class: 'pp-seen-facts', text: facts.join(' · ') }));
-  return box;
+  return el('div', { class: 'pp-seen' }, [line]);
 }
 
-/// The pictures in one post, each with everything saved about what the model
-/// saw in it. `captions` is keyed by the picture's address. Each picture is
+/// One picture: its thumbnail, linked to the picture, and what was saved
+/// about it.
+function pictureItem(img, seen) {
+  const web = webAddress(img.originalUrl);
+  const thumb = el('img', {
+    class: 'pp-thumb', src: web, alt: img.alt || '',
+    loading: 'lazy', referrerpolicy: 'no-referrer',
+  });
+  const text = el('div', { class: 'pp-picture-text' }, [
+    img.alt ? el('div', { class: 'pp-picture-alt', text: img.alt }) : null,
+  ]);
+  if (discordLinkExpired(img.originalUrl)) {
+    text.append(el('div', {
+      class: 'pp-seen warn-text',
+      title: 'Run “Fetch and update” with Discord selected to refresh this link.',
+      text: 'Link expired.',
+    }));
+  }
+  if (seen) text.append(pictureSeen(seen));
+  return el('li', { class: 'pp-picture' }, [
+    web
+      ? el('a', { class: 'pp-thumb-link', href: web, target: '_blank', rel: 'noopener', title: `Open image\n${web}` }, [thumb])
+      : thumb,
+    text,
+  ]);
+}
+
+/// The pictures in one post. Pictures the model has described come first,
+/// each with its description; the rest are folded away as thumbnails.
+/// `captions` is keyed by the picture's address. Each picture is
 /// `{ originalUrl, alt }`.
 export function imageList(images, captions = {}) {
-  return el('ul', { class: 'pp-pictures' }, images.map((img) => {
-    const text = el('div', { class: 'pp-picture-text' }, [
-      img.alt ? el('div', { class: 'pp-picture-alt', text: img.alt }) : null,
-      outLink(img.originalUrl, img.originalUrl, { class: 'pp-url' }),
-    ]);
-    if (discordLinkExpired(img.originalUrl)) {
-      text.append(el('div', {
-        class: 'pp-seen warn-text',
-        text: 'This Discord address has expired. Fetch Discord again to get a working one.',
-      }));
-    }
-    const seen = captions[img.originalUrl];
-    if (seen) text.append(pictureSeen(seen));
-    const web = webAddress(img.originalUrl);
-    const thumb = el('img', {
-      class: 'pp-thumb', src: web, alt: img.alt || '',
-      loading: 'lazy', referrerpolicy: 'no-referrer',
-    });
-    return el('li', { class: 'pp-picture' }, [
-      web ? el('a', { class: 'pp-thumb-link', href: web, target: '_blank', rel: 'noopener' }, [thumb]) : thumb,
-      text,
-    ]);
-  }));
+  const described = images.filter((img) => captions[img.originalUrl]);
+  const rest = images.filter((img) => !captions[img.originalUrl]);
+  const parts = [];
+  if (described.length) {
+    parts.push(el('ul', { class: 'pp-pictures' }, described.map((img) => pictureItem(img, captions[img.originalUrl]))));
+  }
+  if (rest.length) {
+    const list = el('ul', { class: 'pp-pictures' }, rest.map((img) => pictureItem(img, null)));
+    // With nothing described, the pictures are shown as they are.
+    parts.push(described.length ? fold(`Without descriptions (${rest.length})`, list) : list);
+  }
+  return el('div', { class: 'pp-picture-groups' }, parts);
 }
 
 /// A Discord picture in the shape `imageList` takes.
@@ -250,42 +294,63 @@ function table(headings, rows) {
   ]);
 }
 
-/// The rule-based downloads, in the plain shape above.
+/// A link to a download: its words, or "Open", with the address on hover.
+function downloadLink(words, href) {
+  return href ? outLink(href, words || 'Open', { class: 'pp-url', title: href }) : '—';
+}
+
+/// The button that shows a download's details: `rows` as label and value pairs.
+function downloadDetails(rows) {
+  return infoButton('Download details', 'Download details', () => [fieldList(rows)]);
+}
+
+const YES_NO = (v) => (v ? 'Yes' : 'No');
+const CONFIDENCE_WORDS = { high: 'High', medium: 'Medium', low: 'Low' };
+
+/// The downloads the rules found, in the plain shape above.
 export function assumedTable(rows) {
-  if (!rows.length) return emptyLine('No downloads found by rules.');
+  if (!rows.length) return emptyLine('No downloads found.');
   return table(
-    ['Confidence', 'Host', 'File name', 'Extra step required', 'Link text', 'Source URL'],
-    rows.map((r) => {
-      const url = r.url || r.directUrl || '';
-      return el('tr', {}, [
-        confidenceCell(r.confidence),
-        el('td', { text: r.host || '—' }),
-        el('td', {}, [clampCell(r.fileName)]),
-        el('td', { text: r.requiresManualStep ? 'yes' : '' }),
-        el('td', {}, [clampCell(r.linkText)]),
-        el('td', {}, [url ? urlLink(shortUrl(url), r.directUrl || r.url) : '—']),
-      ]);
-    }),
+    ['File', 'Host', 'Link', ''],
+    rows.map((r) => el('tr', {}, [
+      el('td', {}, [clampCell(r.fileName)]),
+      el('td', { text: r.host || '—' }),
+      el('td', {}, [downloadLink(r.linkText, r.directUrl || r.url)]),
+      el('td', { class: 'pp-row-info' }, [downloadDetails([
+        ['Confidence', CONFIDENCE_WORDS[r.confidence] || r.confidence || '—'],
+        ['Extra step', YES_NO(r.requiresManualStep)],
+        ['Link text', r.linkText],
+        ['Original link', r.url],
+        ['Download link', r.directUrl && r.directUrl !== r.url ? r.directUrl : null],
+      ])]),
+    ])),
   );
 }
 
+/// The download kinds the LLM answers with, as words.
+const DOWNLOAD_KINDS = { direct: 'Download', mirror: 'Mirror', trios: 'Install with TriOS' };
+
 /// One mod's downloads as the LLM listed them. A download whose address is
-/// not in `ruleUrls` is one the rules missed, and is marked as found by the LLM.
+/// not in `ruleUrls` is one the rules missed: its row is marked, and its
+/// details say the LLM found it.
 export function llmDownloadsTable(downloads, ruleUrls) {
-  if (!downloads.length) return emptyLine('No downloads listed for this mod.');
+  if (!downloads.length) return emptyLine('No downloads listed.');
   return table(
-    ['Kind', 'Found by', 'Confidence', 'Host', 'File name', 'Extra step required', 'URL'],
+    ['File', 'Host', 'Link', ''],
     downloads.map((d) => {
       const rulesMissed = !ruleUrls.has(normUrl(d.url));
-      const display = d.label ? `${d.label} — ${shortUrl(d.url)}` : shortUrl(d.url);
       return el('tr', { class: rulesMissed ? 'pp-llm-only' : '' }, [
-        el('td', {}, [badge(d.kind || 'direct', d.kind === 'trios' ? 'strong' : '')]),
-        el('td', {}, [rulesMissed ? badge('LLM', 'strong') : badge('Rules')]),
-        confidenceCell(d.confidence),
-        el('td', { text: d.sourceHost || '—' }),
         el('td', {}, [clampCell(d.fileName)]),
-        el('td', { text: d.requiresManualStep ? 'yes' : '' }),
-        el('td', {}, [d.url ? urlLink(display, d.resolvedDirectUrl || d.url) : '—']),
+        el('td', { text: d.sourceHost || '—' }),
+        el('td', {}, [downloadLink(d.label, d.resolvedDirectUrl || d.url)]),
+        el('td', { class: 'pp-row-info' }, [downloadDetails([
+          ['Type', DOWNLOAD_KINDS[d.kind || 'direct'] || d.kind],
+          ['Source', rulesMissed ? 'LLM' : 'Rules'],
+          ['Confidence', CONFIDENCE_WORDS[d.confidence] || d.confidence || '—'],
+          ['Extra step', YES_NO(d.requiresManualStep)],
+          ['Original link', d.url],
+          ['Download link', d.resolvedDirectUrl && d.resolvedDirectUrl !== d.url ? d.resolvedDirectUrl : null],
+        ])]),
       ]);
     }),
   );
@@ -293,8 +358,12 @@ export function llmDownloadsTable(downloads, ruleUrls) {
 
 // --- The LLM's mods ---
 
+/// The roles the LLM gives a mod, as words.
+const ROLES = { main: 'Main', addon: 'Add-on', separate: 'Other mod', variant: 'Alternate version' };
+
 function roleBadge(role) {
-  return badge(role || 'main', (role || 'main') === 'main' ? 'strong' : '');
+  const r = role || 'main';
+  return badge(ROLES[r] || r, r === 'main' ? 'strong' : '');
 }
 
 /// Every mod the LLM found, each with its downloads and extras.
@@ -304,11 +373,20 @@ export function llmModsBlock(mods, ruleUrls) {
 
 function modCard(mod, ruleUrls) {
   const card = el('article', { class: 'pp-mod' });
+  // The site builder uses the description's first and last words to cut the
+  // author's text out of a shared thread. They are shown on request.
+  const anchors = mod.descriptionAnchors;
   card.append(el('div', { class: 'pp-mod-head' }, [
-    el('span', { class: 'pp-mod-name', text: mod.name || '(unnamed mod)' }),
+    el('span', { class: 'pp-mod-name', text: mod.name || 'Unnamed mod' }),
     roleBadge(mod.role),
-    mod.isTool ? badge('tool') : null,
-    mod.requires ? el('span', { class: 'dim', text: `requires ${mod.requires}` }) : null,
+    mod.isTool ? badge('Tool') : null,
+    mod.requires ? el('span', { class: 'dim', text: `Requires ${mod.requires}` }) : null,
+    anchors && anchors.startsWith && anchors.endsWith
+      ? infoButton('Mod details', 'Description details', () => [fieldList([
+        ['Start', `"${anchors.startsWith}"`],
+        ['End', `"${anchors.endsWith}"`],
+      ])])
+      : null,
   ]));
   // Other names the post uses for the mod; the public site's search matches on them.
   if ((mod.nicknames || []).length) {
@@ -318,19 +396,11 @@ function modCard(mod, ruleUrls) {
     // Stored as `ext:<url>`, like the thread thumbnail.
     const src = webAddress(String(mod.image).replace(/^ext:/, ''));
     if (src) card.append(el('img', {
-      class: 'pp-mod-image', src, alt: mod.name || 'mod image', loading: 'lazy', referrerpolicy: 'no-referrer',
+      class: 'pp-mod-image', src, alt: mod.name || 'Mod image', loading: 'lazy', referrerpolicy: 'no-referrer',
     }));
   }
   card.append(llmDownloadsTable(mod.downloads || [], ruleUrls));
   if (mod.extras) card.append(extrasBlock(mod.extras));
-  // The site builder uses these to cut the author's text out of a shared thread.
-  const anchors = mod.descriptionAnchors;
-  if (anchors && anchors.startsWith && anchors.endsWith) {
-    card.append(fieldList([
-      ['Description starts with', `"${anchors.startsWith}"`],
-      ['Description ends with', `"${anchors.endsWith}"`],
-    ]));
-  }
   return card;
 }
 
@@ -341,7 +411,7 @@ function extrasBlock(extras) {
   const summary = extras.summary;
   const hasSummary = !!(summary && (summary.sentence || summary.paragraph));
   if (hasSummary) {
-    box.append(subhead('LLM summary'));
+    box.append(subhead('Summary'));
     if (summary.sentence) box.append(el('p', { class: 'pp-summary-sentence', text: summary.sentence }));
     if (summary.paragraph) box.append(el('p', { class: 'pp-summary-paragraph', text: summary.paragraph }));
   }
@@ -350,78 +420,78 @@ function extrasBlock(extras) {
   const rows = [];
   if (extras.version) rows.push(['Mod version', extras.version]);
   if (extras.license) rows.push(['License', extras.license]);
-  if (extras.sourceCode) rows.push(['Source code', null, outLink(extras.sourceCode, extras.sourceCode)]);
-  // Each save question: the short answer, then the post's own words.
+  if (extras.sourceCode) rows.push(['Source code', null, outLink(extras.sourceCode, 'View source', { title: extras.sourceCode })]);
+  // Each save question: the short answer, with the post's own words on hover.
   const saveRow = (label, answer, words) => {
     if (!words) return;
     const short = { yes: 'Yes', no: 'No', depends: 'Depends' }[answer];
-    rows.push([label, short ? `${short} — ${words}` : words]);
+    rows.push([label, null, short ? el('span', { title: words, text: short }) : el('span', { text: words })]);
   };
-  saveRow('Adding to a save', extras.canAdd, extras.saveCompatibility);
+  saveRow('Add to existing save', extras.canAdd, extras.saveCompatibility);
   // One row per update note, each naming the release it was written for.
   for (const note of extras.updateNotes || []) {
-    saveRow(note.version ? `Updating to ${note.version}` : 'Updating', note.answer, note.quote);
+    saveRow(note.version ? `Update to ${note.version}` : 'Update', note.answer, note.quote);
   }
-  saveRow('Removing from a save', extras.canRemove, extras.removalCompatibility);
-  if ((extras.needs || []).length) rows.push(['Needs', extras.needs.join(', ')]);
+  saveRow('Remove from existing save', extras.canRemove, extras.removalCompatibility);
+  if ((extras.needs || []).length) rows.push(['Requires', extras.needs.join(', ')]);
   if ((extras.optionalNeeds || []).length) rows.push(['Optional', extras.optionalNeeds.join(', ')]);
   if ((extras.conflicts || []).length) {
-    rows.push(['Conflicts', extras.conflicts
-      .map((c) => `${c.name}${c.kind ? ` (${c.kind})` : ''}: “${c.quote}”`)
-      .join(' · ')]);
+    // Each name, with the kind of conflict and the author's words on hover.
+    rows.push(['Conflicts', null, el('span', {}, extras.conflicts.flatMap((c, i) => [
+      i ? ', ' : null,
+      el('span', { class: 'pp-hover', title: [c.kind, c.quote].filter(Boolean).join(': '), text: c.name }),
+    ]))]);
   }
   // No aiUse at all means the post was read before the prompt asked, so the
   // row is left out; an aiUse with no answer means it was read and says nothing.
   const aiUse = extras.aiUse;
   if (aiUse && aiUse.usesAi == null) {
-    rows.push(['AI use', 'Not stated in the post']);
+    rows.push(['AI use', 'Not stated']);
   } else if (aiUse) {
-    rows.push(['AI use', `${aiUse.usesAi ? 'Yes' : 'No'} — ${aiUse.quote}`]);
+    rows.push(['AI use', null, el('span', { title: aiUse.quote || null, text: aiUse.usesAi ? 'Yes' : 'No' })]);
+    // Each part, with how much AI did on hover.
     const uses = (aiUse.uses || []).map((use) => {
-      const notes = [use.how, use.extent, use.optional ? 'optional' : null].filter(Boolean);
-      return notes.length ? `${use.area} (${notes.join(', ')})` : use.area;
+      const notes = [use.how, use.extent, use.optional ? 'Optional' : null].filter(Boolean);
+      return el('span', { class: notes.length ? 'pp-hover' : null, title: notes.join(', ') || null, text: use.area });
     });
-    if (uses.length) rows.push(['AI used for', uses.join(' · ')]);
-    if ((aiUse.tools || []).length) rows.push(['AI tools named', aiUse.tools.join(', ')]);
+    if (uses.length) rows.push(['AI used for', null, el('span', {}, uses.flatMap((u, i) => [i ? ', ' : null, u]))]);
+    if ((aiUse.tools || []).length) rows.push(['AI tools', aiUse.tools.join(', ')]);
   }
   if ((extras.supportLinks || []).length) {
-    rows.push(['Support links', null, el('div', { class: 'pp-support' }, extras.supportLinks.map((s) => (
-      el('div', { class: 'pp-support-link' }, [
-        badge(s.type || 'other'),
-        s.label ? el('span', { text: s.label }) : null,
-        outLink(s.url, s.url, { class: 'pp-url' }),
-      ])
-    )))]);
+    rows.push(['Donate', null, el('span', { class: 'pp-support' }, extras.supportLinks.flatMap((s, i) => [
+      i ? ', ' : null,
+      outLink(s.url, s.label || s.type || 'Donate', { title: s.url }),
+    ]))]);
   }
   if (rows.length) {
-    box.append(subhead('Extracted details'), fieldList(rows));
+    box.append(subhead('Details'), fieldList(rows));
   }
 
   const changelog = extras.changelog;
   const entries = (changelog && changelog.entries) || {};
   const hasChangelog = !!(changelog && (changelog.link || Object.keys(entries).length));
   if (hasChangelog) {
-    box.append(subhead('Changelog'));
-    if (changelog.link) box.append(el('p', {}, [outLink(changelog.link, changelog.link)]));
+    box.append(subhead('Version history'));
+    if (changelog.link) box.append(el('p', {}, [outLink(changelog.link, 'View version history', { title: changelog.link })]));
     for (const [version, text] of Object.entries(entries)) {
       box.append(fold(version, el('pre', { class: 'pp-pre', text })));
     }
   }
 
   if (!hasSummary && !rows.length && !hasChangelog) {
-    box.append(subhead('Extracted details'), emptyLine('No additional details found.'));
+    box.append(subhead('Details'), emptyLine('No details found.'));
   }
   return box;
 }
 
-/// Which model and endpoint wrote an LLM answer. Older answers may not say.
-export function llmSourceLine(llm) {
-  let text;
-  if (llm.model && llm.endpoint) text = `Model: ${llm.model} · Endpoint: ${llm.endpoint}`;
-  else if (llm.model) text = `Model: ${llm.model}`;
-  else if (llm.endpoint) text = `Endpoint: ${llm.endpoint}`;
-  else text = 'Model and endpoint not recorded.';
-  return el('p', { class: 'pp-source-line', text });
+/// The info button beside "LLM results": which model and endpoint wrote the
+/// answer, and the prompt version when it is known. Older answers may not say.
+export function llmDetails(llm, promptVersion = null) {
+  return infoButton('LLM details', 'LLM details', () => [fieldList([
+    ['Model', llm.model || 'Not recorded'],
+    ['Endpoint', llm.endpoint || 'Not recorded'],
+    ['Prompt version', promptVersion],
+  ])]);
 }
 
 // --- Jobs ---
@@ -465,6 +535,7 @@ export function rebuildButton() {
     type: 'button',
     class: 'button primary',
     text: 'Rebuild from saved',
+    title: 'Include the saved changes in the build.',
     onclick: () => start(rebuildRequest()),
   });
 }
@@ -504,27 +575,30 @@ export async function topicStaleness(topicId, index, detail) {
 }
 
 /// The warning shown when the published mod details are behind this topic's
-/// saved data, or null when they are up to date.
+/// saved data, or null when they are up to date. The times and what to do
+/// are behind its info button.
 export function stalenessBanner(staleness, managerOn) {
   if (!staleness || staleness.state === 'current') return null;
   let heading;
-  let detail;
+  let details;
   switch (staleness.state) {
     case 'stale':
       heading = 'Mod details are out of date.';
-      detail = `Thread scraped ${when(staleness.scrapedAt)}; details built ${when(staleness.builtAt)}. `
-        + 'Rebuild from saved to include these changes.';
+      details = [fieldList([
+        ['Last scraped', when(staleness.scrapedAt)],
+        ['Last build', when(staleness.builtAt)],
+      ])];
       break;
     case 'absent':
-      heading = 'This thread is not in the built mod details.';
-      detail = 'This page shows locally saved data. Rebuild from saved to update the output files.';
+      heading = 'Not included in built details.';
+      details = [el('p', { text: 'This page shows saved data. “Rebuild from saved” updates the output files.' })];
       break;
     default: // noBundle
-      heading = 'Mod details have not been built yet.';
-      detail = 'This page shows locally saved data. Rebuild from saved to create the output files.';
+      heading = 'No build yet.';
+      details = [el('p', { text: 'This page shows saved data. “Rebuild from saved” creates the output files.' })];
   }
   return el('div', { class: 'pp-banner' }, [
-    el('div', { class: 'pp-banner-text' }, [el('strong', { text: heading }), el('span', { text: detail })]),
+    el('div', { class: 'pp-banner-text' }, [el('strong', { text: heading }), infoButton('Build details', 'Build details', details)]),
     managerOn ? rebuildButton() : null,
   ]);
 }

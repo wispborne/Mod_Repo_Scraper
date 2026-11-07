@@ -19,9 +19,9 @@ enum LeftOutReason {
 
   /// The reason in one sentence for the viewer.
   String get sentence => switch (this) {
-        notModNoDownload => 'The LLM says it is not a mod and nothing can be downloaded.',
-        notModNoGameVersion => 'The LLM says it is not a mod and its title has no game version.',
-        noSavedPost => 'Only its title was saved, not the post.',
+        notModNoDownload => 'Marked as not a mod. No download found.',
+        notModNoGameVersion => 'Marked as not a mod. No game version in the title.',
+        noSavedPost => 'Only the title was saved.',
       };
 }
 

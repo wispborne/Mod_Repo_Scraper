@@ -310,7 +310,7 @@ class _Row {
         'hasLlmAnswer': hasLlmAnswer,
         'isPlaceholder': isPlaceholder,
         'outcome': outcome['outcome'],
-        'line': outcome['line'],
+        'line': [outcome['line'], outcome['reason']].whereType<String>().join(' '),
         'modCount': modCount,
       };
 
@@ -381,21 +381,21 @@ class _Outcomes {
           ...?extra,
         };
 
-    if (!hasCatalog) return answer('notInBuild', 'No catalog has been built yet.');
+    if (!hasCatalog) return answer('notInBuild', 'No catalog built yet.');
 
     final collection = collectionByPost[key];
     if (collection != null) {
       final mods = [
         for (final modId in collection.modIds) {'id': modId, 'name': modNames[modId] ?? modId},
       ];
-      return answer('collection', 'A Collection page listing ${_count(mods.length, 'mod')}.',
+      return answer('collection', 'Collection: ${_count(mods.length, 'mod')}.',
           mods: mods, extra: {'collection': {'id': collection.id, 'name': collection.name}});
     }
 
     final mods = modsByPost[key] ?? const [];
     if (mods.isNotEmpty) {
       final names = [for (final mod in mods) mod.mod.name];
-      return answer('mods', 'Became ${_count(mods.length, 'mod')}: ${_nameList(names)}.',
+      return answer('mods', '${_count(mods.length, 'mod')}: ${_nameList(names)}.',
           mods: [for (final mod in mods) {'id': mod.id, 'name': mod.mod.name}]);
     }
 
@@ -422,10 +422,10 @@ class _Outcomes {
       final first = all.first;
       final topicId = first['id'];
       final line = targets.length > 1
-          ? 'Points to ${targets.length} other topics, where its mods are published.'
+          ? 'See ${targets.length} other topics.'
           : first['modName'] == null
-              ? 'Points to topic $topicId.'
-              : 'Points to topic $topicId, where ${first['modName']} is published.';
+              ? 'See topic $topicId.'
+              : 'See topic $topicId for ${first['modName']}.';
       return answer('pointsTo', line, extra: {'pointsTo': first, 'pointsToAll': all});
     }
 
@@ -433,14 +433,15 @@ class _Outcomes {
       final saved = leftOut;
       final reason = saved?.topics[id];
       if (reason != null) {
-        return answer('leftOut', 'Left out: ${_lowerFirst(reason.sentence)}', extra: {'reason': reason.sentence});
+        // The reason is shown on hover.
+        return answer('leftOut', 'Not in catalog.', extra: {'reason': reason.sentence});
       }
       // With no reasons saved, a topic scraped before the build was seen by it.
       if (saved == null && scrapedAt != null && builtAt != null && !scrapedAt.isAfter(builtAt!)) {
-        return answer('leftOut', 'Left out.');
+        return answer('leftOut', 'Not in catalog.');
       }
     }
-    return answer('notInBuild', 'Not in the last build.');
+    return answer('notInBuild', 'Not in last build.');
   }
 
   /// The mod on [targetKey] that a pointer named [llmName] means: the only
@@ -456,7 +457,6 @@ class _Outcomes {
 
   static String _count(int n, String word) => n == 1 ? '1 $word' : '$n ${word}s';
 
-  static String _lowerFirst(String s) => s.isEmpty ? s : s[0].toLowerCase() + s.substring(1);
 
   /// "A", "A and B", "A, B and C", and past five names "A, B, C, D, E and 3 more".
   static String _nameList(List<String> names) {

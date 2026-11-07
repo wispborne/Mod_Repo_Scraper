@@ -24,9 +24,9 @@ const FILTERS = [
   ['noDownload', 'No download found', 'No downloads found by rules or LLM.'],
   ['noLlmAnswer', 'No LLM answer', 'No LLM answer is saved. Placeholders and topics with no saved post are not counted: they are never sent to the LLM.'],
   ['placeholder', 'Placeholder posts', 'Only a placeholder is saved; the full post is missing.'],
-  ['leftOut', 'Left out', 'The last build made no mod from it.'],
-  ['takenDown', 'Taken down', 'Every mod from it was taken down in the last build.'],
-  ['collection', 'Collection', 'The last build made a Collection page from it.'],
+  ['leftOut', 'Not in catalog', 'The last build included no mods from this post.'],
+  ['takenDown', 'Taken down', 'All mods from this post were taken down.'],
+  ['collection', 'Collection', 'This post has a Collection page.'],
 ];
 const FILTER_KEYS = new Set(FILTERS.map(([key]) => key));
 
@@ -394,11 +394,11 @@ function outcomeWords(row) {
   const mods = row.modCount === 1 ? '1 mod' : `${row.modCount} mods`;
   switch (row.outcome) {
     case 'mods': return mods;
-    case 'collection': return `Collection of ${mods}`;
-    case 'leftOut': return 'Left out';
-    case 'pointsTo': return 'Points to another topic';
+    case 'collection': return 'Collection';
+    case 'leftOut': return 'Not in catalog';
+    case 'pointsTo': return 'See other topics';
     case 'takenDown': return 'Taken down';
-    case 'notInBuild': return 'Not in the last build';
+    case 'notInBuild': return 'Not in last build';
     default: return row.outcome || '';
   }
 }
@@ -447,7 +447,7 @@ function postTable(items, { view, canTick, ticked, toggle, onSort }) {
     sortHead('lastPost', 'Last post'),
     el('th', { class: 'num', text: 'Downloads' }),
     el('th', { text: 'LLM answer' }),
-    sortHead('mods', 'What it became'),
+    sortHead('mods', 'Status'),
   ]);
 
   const rows = items.map((row) => {
@@ -504,11 +504,11 @@ function postTable(items, { view, canTick, ticked, toggle, onSort }) {
 function outcomeLegend() {
   const item = (label, text) => el('div', {}, [el('dt', { text: label }), el('dd', { text })]);
   return el('dl', { class: 'pl-legend' }, [
-    item('Mods', 'The mods the last build made from the post. A post can give several.'),
-    item('Collection', 'The post lists mods that each have their own page, and it keeps a page that lists them.'),
-    item('Left out', 'The last build made no mod from it. Its page says why, when the build saved a reason.'),
-    item('Points to another topic', 'Each mod on it has a forum topic of its own, where the mod is published.'),
-    item('Taken down', 'Every mod from it is on the takedown list.'),
-    item('Not in the last build', 'It was saved after the last build, or the build did not read it.'),
+    item('Mods', 'The last build included one or more mods from this post.'),
+    item('Collection', 'The post has a Collection page. Each listed mod has its own page.'),
+    item('Not in catalog', 'The last build included no mods from this post.'),
+    item('See other topics', 'This post’s mods are published in other forum topics.'),
+    item('Taken down', 'All mods from this post were taken down.'),
+    item('Not in last build', 'The last build has no record of this post. It was saved later or the build did not read it.'),
   ]);
 }

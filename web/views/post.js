@@ -4,18 +4,23 @@
 // in a sandboxed frame, and the raw data. The job buttons and Take down sit
 // in the toolbar while the manager is on.
 
-import { el, api, breadcrumbs, rawJson, showDialog } from '../lib.js';
+import { el, api, breadcrumbs, rawJson, showDialog, shortTime, infoButton } from '../lib.js';
+import { icon } from '../icons.js';
 import { pageLayout, sidePanel, statusMark } from '../frame.js';
 import { subscribe, status } from '../status.js';
 import { pendingPanel } from '../pending_view.js';
 import { previewAndAdd } from './takedowns.js';
 import {
-  badge, section, subhead, emptyLine, outLink, fold, fieldList, when, postFrame, linkList,
+  badge, section, subhead, emptyLine, outLink, fold, fieldList, when, forumTime, postFrame, linkList,
   imageList, discordImage, downloadRowFromCandidate, normUrl, assumedTable, llmModsBlock,
-  llmSourceLine, topicJobButtons, discordJobButtons, topicStaleness, stalenessBanner,
+  llmDetails, topicJobButtons, discordJobButtons, topicStaleness, stalenessBanner,
 } from '../post_parts.js';
 
 const KINDS = { topic: 'Forum topic', discord: 'Discord thread' };
+
+/// The forum boards the scraper reads, by the forum's board number, named as
+/// the Control page names them.
+const BOARDS = { 8: 'Main mods board', 3: 'Lesser mods board', 9: 'Libraries board' };
 
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
@@ -42,7 +47,7 @@ export async function render({ content, parts, toolbar, onLeave }) {
 
   if (!KINDS[kind] || !id) {
     drawCrumbs('Not found');
-    main.replaceChildren(crumbs, el('p', { class: 'error-text', text: `There is no source post at #/posts/${parts.join('/')}.` }));
+    main.replaceChildren(crumbs, el('p', { class: 'error-text', title: `#/posts/${parts.join('/')}`, text: 'Post not found.' }));
     return;
   }
 
@@ -82,10 +87,14 @@ export async function render({ content, parts, toolbar, onLeave }) {
   if (!body) {
     page.push(el('div', { class: 'pp-sections' }, [
       kind === 'topic'
-        ? emptyLine('No data saved for this thread.')
+        ? emptyLine('Could not load this topic.')
         : el('div', { class: 'pp-missing' }, [
-          el('p', { text: 'Could not load this Discord thread.' }),
-          el('p', { class: 'dim', text: 'If it has not been saved yet, run Fetch and update with Discord selected.' }),
+          el('p', {}, [
+            'Could not load this Discord thread. ',
+            infoButton('Error details', 'Error details', [
+              el('p', { text: 'To save this thread, run “Fetch and update” with Discord selected.' }),
+            ]),
+          ]),
         ]),
     ]));
   }
@@ -94,7 +103,7 @@ export async function render({ content, parts, toolbar, onLeave }) {
     page.push(bannerSlot);
     page.push(el('div', { class: 'pp-sections' }, kind === 'topic' ? topicSections(body) : discordSections(body)));
     factsSlot.replaceChildren(...(kind === 'topic' ? topicFacts(body) : discordFacts(body)));
-    page.push(el('div', { class: 'raw-slot' }, [rawJson(body, 'Raw thread data (JSON)')]));
+    page.push(el('div', { class: 'raw-slot', title: 'View saved data as JSON.' }, [rawJson(body, 'Saved data')]));
   }
   main.replaceChildren(...page);
 
@@ -146,7 +155,7 @@ function metaChips(kind, id, body) {
     const idx = body.index || {};
     if (idx.author) chips.push(el('span', { class: 'pp-meta-text', text: `by ${idx.author}` }));
     if (idx.gameVersion) chips.push(el('span', { class: 'chip', text: idx.gameVersion }));
-    if (body.detail && body.detail.isPlaceholderDetail) chips.push(badge('placeholder', 'warn'));
+    if (body.detail && body.detail.isPlaceholderDetail) chips.push(badge('Post unavailable', 'warn'));
   } else if (body && body.thread && body.thread.author) {
     chips.push(el('span', { class: 'pp-meta-text', text: `by ${body.thread.author}` }));
   }
@@ -157,16 +166,23 @@ function headLinks(kind, id, body) {
   const links = [];
   if (kind === 'topic') {
     const url = body && body.index && body.index.topicUrl;
-    if (url) links.push(outLink(url, 'Open on the forum ↗'));
+    if (url) links.push(openLink(url, 'Open on forum'));
     links.push(el('a', {
       href: `#/posts/topic/${encodeURIComponent(id)}/history`,
       text: 'History',
-      title: 'Every run that changed this thread.',
+      title: 'View changes to this topic.',
     }));
   } else if (body && body.thread && body.thread.url) {
-    links.push(outLink(body.thread.url, 'Open on Discord ↗'));
+    links.push(openLink(body.thread.url, 'Open on Discord'));
   }
   return links;
+}
+
+/// A link that opens in a new tab, marked with the external-link icon.
+function openLink(url, words) {
+  const link = outLink(url, words, { title: url });
+  if (link.tagName === 'A') link.append(icon('external-link', 14));
+  return link;
 }
 
 const OUTCOME_MARKS = {
@@ -217,7 +233,7 @@ function drawOutcome(node, answer) {
   }
   if (collectionTarget && unused.includes(collectionTarget)) {
     if (more.length) more.push(el('span', { class: 'dim', text: ' · ' }));
-    more.push(el('span', { class: 'dim', text: 'Collection page: ' }), el('a', { href: collectionTarget.href, text: collectionTarget.text }));
+    more.push(el('span', { class: 'dim', text: 'Collection: ' }), el('a', { href: collectionTarget.href, text: collectionTarget.text }));
   }
   if (modTargets.some((t) => unused.includes(t))) {
     if (more.length) more.push(el('span', { class: 'dim', text: ' · ' }));
@@ -228,10 +244,11 @@ function drawOutcome(node, answer) {
     });
   }
   // The line sits beside its mark, so the links go under it in the same box.
+  // Why a post is not in the catalog is shown on hover.
   node.replaceChildren(
     statusMark(OUTCOME_MARKS[answer.outcome] || 'idle'),
     el('span', {}, [
-      el('span', {}, parts),
+      el('span', { class: answer.reason ? 'pp-hover' : null, title: answer.reason || null }, parts),
       more.length ? el('span', { class: 'pp-outcome-links', style: 'display: block' }, more) : null,
     ]),
   );
@@ -268,7 +285,7 @@ function takeDownButton(mods) {
     type: 'button',
     class: 'button danger',
     text: 'Take down',
-    title: 'Leave a mod from this post out of everything we publish, at its owner\'s request.',
+    title: 'Exclude this mod from all published files at its owner’s request.',
     onclick: async () => {
       const modId = mods.length === 1 ? mods[0].id : await pickMod(mods);
       if (modId) await previewAndAdd({ modId });
@@ -285,12 +302,11 @@ function pickMod(mods) {
         el('span', { class: 'td-row-name', text: mod.name }),
         el('code', { class: 'td-id', text: mod.id }),
       ]),
-      el('span', { class: 'pp-pick-arrow', 'aria-hidden': 'true', text: '›' }),
+      el('span', { class: 'pp-pick-arrow', 'aria-hidden': 'true' }, [icon('chevron-right', 14)]),
     ]));
     const box = el('dialog', { class: 'dialog td-dialog' }, [
-      el('div', { class: 'td-eyebrow', text: 'Take down a mod' }),
-      el('h2', { text: 'Which mod?' }),
-      el('p', { text: `The catalog lists ${mods.length} mods from this post. Choose the one to take down.` }),
+      el('h2', { text: 'Take down' }),
+      el('p', { text: 'Select a mod to take down.' }),
       el('div', { class: 'td-rows pp-pick' }, rows),
       el('div', { class: 'dialog-buttons' }, [cancel]),
     ]);
@@ -314,25 +330,31 @@ function topicSections(data) {
   ];
 }
 
-/// What the LLM and the download rules pulled out of the post.
-function extractedSection(llm, downloads, { emptyLlm } = {}) {
+/// What the LLM and the download rules read from the post. The model,
+/// endpoint and prompt version are behind the info button beside
+/// "LLM results".
+function extractedSection(llm, downloads, { promptVersion = null } = {}) {
   const mods = (llm && llm.mods) || [];
   // A download the LLM lists whose address the rules did not find is marked
   // as one the rules missed.
   const ruleUrls = new Set(downloads.map((d) => normUrl(d.url)));
-  const children = [subhead(`Mods found by LLM${mods.length ? ` (${mods.length})` : ''}`)];
+  const children = [subhead(`LLM results (${mods.length})`, llm ? [' ', llmDetails(llm, promptVersion)] : [])];
   if (mods.length) {
     children.push(llmModsBlock(mods, ruleUrls));
   } else if (!llm) {
-    children.push(emptyLine(emptyLlm || 'No LLM results saved for this thread.'));
+    children.push(emptyLine('No saved LLM results.'));
   } else if (llm.isMod === false) {
-    children.push(emptyLine('The LLM classified this thread as not a downloadable mod.'));
+    children.push(emptyLine('Not a mod release.'));
   } else {
-    children.push(emptyLine('The LLM returned no mods for this thread.'));
+    children.push(emptyLine('No mods found.'));
   }
-  if (llm) children.push(llmSourceLine(llm));
-  children.push(subhead(`Rule-based downloads (${downloads.length})`), assumedTable(downloads));
-  return section('Extracted data', null, children);
+  children.push(
+    subhead(`Downloads (${downloads.length})`, [' ', el('span', {
+      class: 'pp-badge', title: 'Downloads found without the LLM.', text: 'Rules',
+    })]),
+    assumedTable(downloads),
+  );
+  return section('Results', null, children);
 }
 
 /// The thread's and the first post's facts, as side panels.
@@ -340,51 +362,62 @@ function topicFacts(data) {
   const idx = data.index || {};
   const detail = data.detail || null;
   const thumb = thumbUrl(idx.thumbnailPath);
+  const category = (c) => (c === 'uncategorized' ? 'Not set' : c);
   const thread = fieldList([
     ['Topic ID', idx.topicId],
     ['Author', idx.author],
     ['Game version', idx.gameVersion],
-    ['Category', idx.category],
+    ['Category', category(idx.category)],
     ['Replies', idx.replies],
     ['Views', idx.views],
-    ['Created', idx.createdDate],
-    ['Last post', idx.lastPostDate],
+    ['Created', idx.createdDate, forumTime(idx.createdDate)],
+    ['Last post', idx.lastPostDate, forumTime(idx.lastPostDate)],
     ['Last post by', idx.lastPostBy],
-    ['In mod index', idx.inModIndex == null ? null : (idx.inModIndex ? 'yes' : 'no')],
-    ['Archived mod index', idx.isArchivedModIndex ? 'yes' : null],
-    ['Mod index lines', (idx.indexLines || []).length
-      ? idx.indexLines.map((l) => [l.name, l.author ? `by ${l.author}` : null,
-        l.gameVersion ? `[${l.gameVersion}]` : null, `in ${l.category}`]
-        .filter(Boolean).join(' ')).join('; ')
-      : null],
-    ['Work in progress', idx.isWip ? 'yes' : null],
-    ['Source board', idx.sourceBoard],
-    ['Scraped at', when(idx.scrapedAt)],
-    ['Thumbnail', thumb, thumb ? outLink(thumb, thumb) : null],
+    ['Mod index', idx.inModIndex == null ? null : (idx.inModIndex ? 'Listed' : 'Not listed')],
+    ['Work in progress', idx.isWip ? 'Yes' : null],
+    ['Board', idx.sourceBoard == null ? null : (BOARDS[idx.sourceBoard] || 'Unknown')],
+    ['Thumbnail', thumb, thumb ? el('a', {
+      href: thumb, target: '_blank', rel: 'noopener', title: `Open image\n${thumb}`,
+    }, [el('img', { class: 'pp-side-thumb', src: thumb, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' })]) : null],
+  ]);
+  // Fields needed now and then, behind a fold.
+  const indexLines = (idx.indexLines || []).map((l) => el('div', {}, [
+    [l.name, l.author ? `by ${l.author}` : null, l.gameVersion ? `[${l.gameVersion}]` : null,
+      l.category ? `Category: ${category(l.category)}` : null].filter(Boolean).join(' '),
+  ]));
+  const threadMore = fieldList([
+    ['Archived mod index', idx.isArchivedModIndex ? 'Yes' : null],
+    ['Index entries', null, indexLines.length ? el('div', {}, indexLines) : null],
+    ['Board ID', idx.sourceBoard],
+    ['Last scraped', when(idx.scrapedAt)],
   ]);
 
   let post;
   if (detail) {
     // Fields shared with the thread are shown only when the post differs.
     const differs = (v, threadValue) => (v && v !== threadValue ? v : null);
-    post = fieldList([
-      ['Title', differs(detail.title, idx.title)],
-      ['Author', differs(detail.author, idx.author)],
-      ['Game version', differs(detail.gameVersion, idx.gameVersion)],
-      ['Category', differs(detail.category, idx.category)],
-      ['Author title', detail.authorTitle],
-      ['Author post count', detail.authorPostCount],
-      ['Author avatar', detail.authorAvatarPath],
-      ['Posted', detail.postDate],
-      ['Last edited', detail.lastEditDate],
-      ['Placeholder', detail.isPlaceholderDetail ? 'yes' : null],
-      ['Scraped at', when(detail.scrapedAt)],
+    post = el('div', {}, [
+      detail.isPlaceholderDetail ? el('p', { class: 'warn-text', text: 'Post unavailable' }) : null,
+      fieldList([
+        ['Title', differs(detail.title, idx.title)],
+        ['Author', differs(detail.author, idx.author)],
+        ['Game version', differs(detail.gameVersion, idx.gameVersion)],
+        ['Category', differs(detail.category, idx.category)],
+        ['Author title', detail.authorTitle],
+        ['Author posts', detail.authorPostCount],
+        ['Posted', detail.postDate, forumTime(detail.postDate)],
+        ['Last edited', detail.lastEditDate, forumTime(detail.lastEditDate)],
+      ]),
+      fold('Details', fieldList([
+        ['Avatar', detail.authorAvatarPath],
+        ['Last scraped', when(detail.scrapedAt)],
+      ])),
     ]);
   } else {
-    post = emptyLine('No post saved for this thread.');
+    post = emptyLine('No saved post.');
   }
   return [
-    sidePanel({ name: 'Thread', body: el('div', { class: 'pp-side-body' }, [thread]) }),
+    sidePanel({ name: 'Topic', body: el('div', { class: 'pp-side-body' }, [thread, fold('Details', threadMore)]) }),
     sidePanel({ name: 'First post', body: el('div', { class: 'pp-side-body' }, [post]) }),
   ];
 }
@@ -398,45 +431,49 @@ function picturesSection(detail, discordThreads, captions) {
   }
   for (const [i, extra] of ((detail && detail.extraPosts) || []).entries()) {
     if ((extra.images || []).length) {
-      groups.push([subhead(`Author’s post ${i + 2} (${extra.images.length})`), extra.images]);
+      groups.push([subhead(`Post ${i + 2} (${extra.images.length})`), extra.images]);
     }
   }
   for (const thread of discordThreads) {
     const images = (thread.images || []).map(discordImage);
-    groups.push([subhead('Discord thread: ', [
+    groups.push([subhead('Discord: ', [
       el('a', { href: `#/posts/discord/${encodeURIComponent(thread.threadId)}`, text: thread.name || thread.threadId }),
       ` (${images.length})`,
     ]), images]);
   }
   const count = groups.reduce((n, [, images]) => n + images.length, 0);
   const children = [];
-  if (!groups.length) children.push(emptyLine('No pictures saved for this thread.'));
+  if (!groups.length) children.push(emptyLine('No saved images.'));
   for (const [heading, images] of groups) {
-    children.push(heading, images.length ? imageList(images, captions) : emptyLine('No pictures in this thread.'));
+    // A group's heading is only needed when there is more than one group.
+    if (groups.length > 1) children.push(heading);
+    children.push(images.length ? imageList(images, captions) : emptyLine('No images.'));
   }
-  return section('Images', count, children);
+  return section('Images', count, children, 'Images from the author’s posts and linked Discord threads.');
 }
 
 /// The author's opening run as the forum showed it, with each post's links.
 function forumPostSection(detail) {
   const children = [];
   if (detail && detail.contentHtml) children.push(postFrame(detail.contentHtml));
-  else children.push(emptyLine('No post text saved for this thread.'));
+  else children.push(emptyLine('No saved post text.'));
   if (detail && (detail.links || []).length) {
     children.push(fold(`Links (${detail.links.length})`, linkList(detail.links)));
   }
   // Later posts by the author add downloads and facts, but not the description.
   for (const [i, extra] of ((detail && detail.extraPosts) || []).entries()) {
-    children.push(subhead(`Author’s post ${i + 2}`));
-    const dates = [extra.postDate, extra.lastEditDate && `last edited ${extra.lastEditDate}`]
-      .filter(Boolean).join(' · ');
-    if (dates) children.push(el('p', { class: 'pp-source-line', text: dates }));
+    children.push(subhead(`Post ${i + 2}`));
+    const dates = [
+      forumTime(extra.postDate),
+      extra.lastEditDate ? el('span', {}, ['Edited ', forumTime(extra.lastEditDate)]) : null,
+    ].filter(Boolean).flatMap((d, n) => (n ? [' · ', d] : [d]));
+    if (dates.length) children.push(el('p', { class: 'pp-source-line' }, dates));
     if (extra.contentHtml) children.push(postFrame(extra.contentHtml));
     if ((extra.links || []).length) {
       children.push(fold(`Links (${extra.links.length})`, linkList(extra.links)));
     }
   }
-  return section('Forum post', null, children);
+  return section('Posts', null, children, 'The first post and the author’s messages immediately after it.');
 }
 
 /// Turns a stored thumbnail into an address an <img> can load: drops the
@@ -457,10 +494,10 @@ function discordFacts(body) {
   if (!thread) return [];
   const topic = String(thread.forumUrl || '').match(/[?&]topic=(\d+)/);
   return [sidePanel({ name: 'Thread', body: el('div', { class: 'pp-side-body' }, [fieldList([
-    ['Thread id', body.threadId || thread.threadId],
+    ['Thread ID', body.threadId || thread.threadId],
     ['Author', thread.author],
-    ['Link', thread.url, thread.url ? outLink(thread.url, thread.url) : null],
-    ['Forum link', thread.forumUrl, thread.forumUrl ? outLink(thread.forumUrl, thread.forumUrl) : null],
+    ['Link', thread.url, thread.url ? openLink(thread.url, 'Open on Discord') : null],
+    ['Forum link', thread.forumUrl, thread.forumUrl ? openLink(thread.forumUrl, 'Open on forum') : null],
     ['Forum topic', null, topic ? el('a', { href: `#/posts/topic/${topic[1]}`, text: `Topic ${topic[1]}` }) : null],
   ])]) })];
 }
@@ -471,14 +508,11 @@ function discordSections(body) {
   const downloads = (body.ruleDownloads || []).map(downloadRowFromCandidate);
   const sections = [];
 
-  const extracted = extractedSection(llm, downloads, {
-    emptyLlm: 'No LLM results saved. Run LLM catch-up to extract mod details from this thread.',
-  });
+  const extracted = extractedSection(llm, downloads, { promptVersion: llm && llm.promptVersion });
   if (llm) {
     // What only a Discord answer records, ahead of the mods.
     extracted.querySelector('.pp-section-body').prepend(fieldList([
-      ['Is a mod release', llm.isMod ? 'yes' : 'no'],
-      ['Prompt version', llm.promptVersion],
+      ['Mod release', llm.isMod ? 'Yes' : 'No'],
     ]));
   }
   sections.push(extracted);
@@ -487,7 +521,12 @@ function discordSections(body) {
     sections.push(messagesSection(thread, body.pictureCaptions || {}));
   } else {
     sections.push(section('Messages', null, [
-      emptyLine('Only LLM results are available. The saved thread is missing from discord-posts.json.'),
+      el('p', { class: 'pp-empty' }, [
+        'No saved messages. ',
+        infoButton('Message details', 'Message details', [
+          el('p', { text: 'LLM results are saved. The thread is missing from discord-posts.json.' }),
+        ]),
+      ]),
     ]));
   }
   return sections;
@@ -499,9 +538,12 @@ function messagesSection(thread, captions) {
   const messages = thread.messages || [];
   const children = [];
   for (const message of messages) {
-    const edited = message.editedTimestamp ? ` · edited ${String(message.editedTimestamp).slice(0, 10)}` : '';
-    children.push(subhead(`${(message.timestamp || '').slice(0, 10) || 'Message'}${edited}`));
-    children.push(el('pre', { class: 'pp-pre pp-message', text: message.content || '(no text)' }));
+    const sent = message.timestamp ? el('span', { title: message.timestamp, text: shortTime(message.timestamp) }) : 'Message';
+    const edited = message.editedTimestamp
+      ? [' · ', el('span', { title: message.editedTimestamp, text: `Edited ${shortTime(message.editedTimestamp)}` })]
+      : [];
+    children.push(el('h4', { class: 'pp-subhead' }, [sent, ...edited]));
+    children.push(el('pre', { class: 'pp-pre pp-message', text: message.content || 'No text' }));
     const images = (message.images || []).map(discordImage);
     if (images.length) children.push(imageList(images, captions));
     // Files attached to the message. Their addresses stop working about a
@@ -509,12 +551,12 @@ function messagesSection(thread, captions) {
     const files = message.files || [];
     if (files.length) {
       children.push(el('ul', { class: 'pp-files' }, files.map((file) => el('li', {}, [
-        'Attached file: ',
-        outLink(file.url, file.filename || file.url),
+        el('span', { class: 'pp-file-icon', role: 'img', 'aria-label': 'Attachment' }, [icon('paperclip', 14)]),
+        outLink(file.url, file.filename || 'Open attachment', { title: file.url }),
         file.size ? ` (${Math.round(file.size / 1024)} KB)` : '',
       ]))));
     }
   }
-  if (!messages.length) children.push(emptyLine('No messages saved for this thread.'));
-  return section('The author’s opening messages', messages.length, children);
+  if (!messages.length) children.push(emptyLine('No saved messages.'));
+  return section('Messages', messages.length, children, 'The author’s first message and their messages immediately after it.');
 }

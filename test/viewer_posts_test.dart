@@ -194,7 +194,7 @@ void main() {
         'hasLlmAnswer': true,
         'isPlaceholder': false,
         'outcome': 'mods',
-        'line': 'Became 2 mods: Alpha and Beta.',
+        'line': '2 mods: Alpha and Beta.',
         'modCount': 2,
       });
       expect(rows['discord:900']!['title'], 'Echo Mod 1.0');
@@ -320,20 +320,20 @@ void main() {
         'kind': 'topic',
         'id': '1',
         'outcome': 'mods',
-        'line': 'Became 2 mods: Alpha and Beta.',
+        'line': '2 mods: Alpha and Beta.',
         'mods': [
           {'id': 'alpha', 'name': 'Alpha'},
           {'id': 'beta', 'name': 'Beta'},
         ],
         'builtAt': builtAt,
       });
-      expect((await outcome('discord', '900'))['line'], 'Became 1 mod: Echo.');
+      expect((await outcome('discord', '900'))['line'], '1 mod: Echo.');
     });
 
     test('a Collection', () async {
       final body = await outcome('topic', '2');
       expect(body['outcome'], 'collection');
-      expect(body['line'], 'A Collection page listing 2 mods.');
+      expect(body['line'], 'Collection: 2 mods.');
       expect(body['collection'], {'id': 'a-collection', 'name': 'A Collection'});
       expect(body['mods'], hasLength(2));
     });
@@ -341,8 +341,8 @@ void main() {
     test('left out, with the reason the build saved', () async {
       final body = await outcome('topic', '3');
       expect(body['outcome'], 'leftOut');
-      expect(body['line'], 'Left out: the LLM says it is not a mod and nothing can be downloaded.');
-      expect(body['reason'], 'The LLM says it is not a mod and nothing can be downloaded.');
+      expect(body['line'], 'Not in catalog.');
+      expect(body['reason'], 'Marked as not a mod. No download found.');
     });
 
     test('taken down', () async {
@@ -354,7 +354,7 @@ void main() {
     test('a post whose mod only points to a topic of its own', () async {
       final body = await outcome('topic', '5');
       expect(body['outcome'], 'pointsTo');
-      expect(body['line'], 'Points to topic 1, where Alpha is published.');
+      expect(body['line'], 'See topic 1 for Alpha.');
       expect(body['pointsTo'], {'kind': 'topic', 'id': '1', 'modId': 'alpha', 'modName': 'Alpha'});
       expect(body['pointsToAll'], [
         {'kind': 'topic', 'id': '1', 'modId': 'alpha', 'modName': 'Alpha'},
@@ -369,7 +369,7 @@ void main() {
       });
       final body = await outcome('topic', '5');
       expect(body['outcome'], 'pointsTo');
-      expect(body['line'], 'Points to 2 other topics, where its mods are published.');
+      expect(body['line'], 'See 2 other topics.');
       expect(body['pointsToAll'], [
         {'kind': 'topic', 'id': '1', 'modId': 'alpha', 'modName': 'Alpha'},
         {'kind': 'topic', 'id': '7'},
@@ -381,7 +381,7 @@ void main() {
       for (final (kind, id) in [('topic', '6'), ('topic', '99999'), ('discord', '901')]) {
         final body = await outcome(kind, id);
         expect(body['outcome'], 'notInBuild', reason: '$kind $id');
-        expect(body['line'], 'Not in the last build.');
+        expect(body['line'], 'Not in last build.');
         expect(body['mods'], isEmpty);
       }
     });
@@ -390,7 +390,7 @@ void main() {
       writeLeftOut(at: '2026-10-01T00:00:00.000Z');
       final body = await outcome('topic', '3');
       expect(body['outcome'], 'leftOut');
-      expect(body['line'], 'Left out.');
+      expect(body['line'], 'Not in catalog.');
       expect(body.containsKey('reason'), isFalse);
       // Scraped after the build, so the build cannot have seen it.
       expect((await outcome('topic', '6'))['outcome'], 'notInBuild');
@@ -400,7 +400,7 @@ void main() {
       File(p.join(outputsDir, 'mod-catalog.json')).deleteSync();
       final body = await outcome('topic', '1');
       expect(body['outcome'], 'notInBuild');
-      expect(body['line'], 'No catalog has been built yet.');
+      expect(body['line'], 'No catalog built yet.');
     });
 
     test('a kind it does not know, or no id, is refused', () async {
@@ -417,7 +417,7 @@ void main() {
       ]));
       catalog.writeAsStringSync(jsonEncode(map));
       catalog.setLastModifiedSync(DateTime.now().add(const Duration(seconds: 5)));
-      expect((await outcome('topic', '3'))['line'], 'Became 1 mod: Question Mod.');
+      expect((await outcome('topic', '3'))['line'], '1 mod: Question Mod.');
     });
   });
 

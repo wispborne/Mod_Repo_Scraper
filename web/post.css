@@ -188,3 +188,14 @@
   .pp-fields dd { margin-bottom: 4px; }
   .pp-frame { height: 60vh; }
 }
+
+/* Wording pass: details behind hovers, folds and info buttons. */
+.pp-hover { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.pp-row-info { width: 1%; text-align: right; }
+.pp-picture-groups { display: grid; gap: 8px; }
+.pp-side-thumb { display: block; max-width: 100%; max-height: 120px; }
+.pp-file-icon { display: inline-flex; vertical-align: middle; margin-right: 4px; color: var(--dim); }
+.pp-subhead .info-button, .pp-banner-text .info-button, .pp-mod-head .info-button { vertical-align: middle; }
+/* Whole pixels only: centred on the small capitals of a sub-heading. */
+.pp-subhead .info-button { transform: translateY(-1px); }
+.pp-head-links a { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }

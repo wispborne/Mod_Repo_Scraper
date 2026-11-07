@@ -542,7 +542,7 @@ async function fillModLinks(slot, post, name) {
   }
   const mods = (outcome && outcome.mods) || [];
   if (!mods.length && post.own) {
-    // The server's own words, such as "Not in the last build."
+    // The server's own words, such as "Not in last build."
     slot.replaceChildren(el('span', { class: 'dim', text: (outcome && outcome.line) || '' }));
     return;
   }
