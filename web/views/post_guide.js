@@ -9,6 +9,7 @@ import { hashQuery, buildHash } from '../routes.js';
 import {
   readChange, lastRead, markAllRead, allMarks, setMark, markOf, needsAction, FOLLOW_UP_DAYS,
 } from '../post_guide_marks.js';
+import { postFrame } from '../post_parts.js';
 
 const PAGE_ID = 'post-guide';
 
@@ -16,6 +17,13 @@ const PAGE_ID = 'post-guide';
 /// (a fresh clone of the repo) shows this one instead.
 const PUBLISHED_REPORT =
   'https://raw.githubusercontent.com/wispborne/StarsectorModRepo/main/post-guide-report.json';
+
+/// Holds every saved forum post (`details.<topic id>.contentHtml`). The
+/// published copy reads a thread's first post from it, since that viewer has
+/// no topic data and the forum does not allow being shown inside another
+/// page. About 5 MB to download, so it is fetched once, on the first open.
+const PUBLISHED_DETAILS =
+  'https://raw.githubusercontent.com/wispborne/StarsectorModRepo/main/mod-catalog-details.json';
 
 /// The numbers at the top, one per group. Each one shows only those threads.
 const SHOWS = [
@@ -89,6 +97,29 @@ export async function render({ content, onLeave }) {
   // True while showing the published copy rather than this viewer's own data.
   let published = false;
 
+  // Threads whose first post is open under their row, kept while the page is.
+  const open = new Set();
+  // Each thread's first post HTML (null when there is none), by topic id.
+  const posts = new Map();
+  let publishedDetails = null;
+  const loadPost = (topicId) => {
+    if (!posts.has(topicId)) {
+      const loading = published
+        ? (publishedDetails ??= fetch(PUBLISHED_DETAILS)
+          .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+          .then((json) => json.details || {}))
+          .then((details) => details[String(topicId)]?.contentHtml || null)
+        : api(`topics/${encodeURIComponent(topicId)}`).then((body) => body?.detail?.contentHtml || null);
+      // A failed download is tried again on the next open.
+      posts.set(topicId, loading.catch((err) => {
+        posts.delete(topicId);
+        if (published) publishedDetails = null;
+        throw err;
+      }));
+    }
+    return posts.get(topicId);
+  };
+
   const saveAddress = () => {
     if (!/^#\/post-guide(\?|$)/.test(location.hash)) return;
     history.replaceState(null, '', buildHash([PAGE_ID], {
@@ -158,7 +189,7 @@ export async function render({ content, onLeave }) {
       listSlot.replaceChildren(el('p', { class: 'empty', text: 'No results' }));
       return;
     }
-    listSlot.replaceChildren(table(rows, { published, read, onMark: drawNumbers }));
+    listSlot.replaceChildren(table(rows, { published, read, onMark: drawNumbers, open, loadPost }));
   };
 
   // One toggle per guide item, worded like the rows' missing items.
@@ -244,14 +275,20 @@ function aboutText() {
     ]),
     el('p', { text: 'Checks run when the LLM is enabled. Code checks the game version in the title and the pictures. The LLM checks the remaining items. Posts are checked again only after an edit.' }),
     el('p', { text: 'Unread shows threads that are new or changed since you last pressed Mark all as read.' }),
-    el('p', { text: `To do shows failed threads with no action set. A thread marked Contacted author comes back after ${FOLLOW_UP_DAYS} days if it still fails. Any marked thread comes back if another required item goes missing.` }),
+    el('p', { text: `To do shows failed threads with no action set. A thread marked Contacted author comes back after ${FOLLOW_UP_DAYS} days if it still has missing items. Any marked thread comes back if another required item goes missing.` }),
     el('p', { text: 'Unread, To do and Action are saved in this browser only.' }),
   ];
 }
 
 /// In the published copy the thread's own page here has no data, so the title
 /// opens the forum thread instead.
-function table(rows, { published = false, read = null, onMark = () => {} } = {}) {
+///
+/// A click anywhere on a row that is not a link or button opens the thread's
+/// first post under it, and a second click shuts it. The arrow in front of
+/// the title does the same from the keyboard.
+function table(rows, {
+  published = false, read = null, onMark = () => {}, open = new Set(), loadPost,
+} = {}) {
   const head = el('tr', {}, [
     el('th', { text: 'Thread' }),
     el('th', { text: 'Author' }),
@@ -259,7 +296,62 @@ function table(rows, { published = false, read = null, onMark = () => {} } = {})
     el('th', { text: 'Action' }),
     el('th', { text: 'Last checked' }),
   ]);
-  const body = rows.map((row) => el('tr', {}, [
+  const body = el('tbody');
+  for (const row of rows) {
+    const tr = threadRow(row, { published, read, onMark });
+    let preview = null;
+    const toggle = el('button', { type: 'button', class: 'pg-toggle' });
+    const show = (isOpen) => {
+      toggle.replaceChildren(icon(isOpen ? 'chevron-down' : 'chevron-right', 16));
+      toggle.setAttribute('aria-expanded', String(isOpen));
+      toggle.title = isOpen ? 'Hide post' : 'Show post';
+      toggle.setAttribute('aria-label', toggle.title);
+      tr.classList.toggle('open', isOpen);
+      if (isOpen && !preview) {
+        preview = postRow(row, loadPost);
+        tr.after(preview);
+      } else if (!isOpen && preview) {
+        preview.remove();
+        preview = null;
+      }
+    };
+    const flip = () => {
+      const isOpen = !open.has(row.topicId);
+      if (isOpen) open.add(row.topicId);
+      else open.delete(row.topicId);
+      show(isOpen);
+    };
+    toggle.addEventListener('click', flip);
+    tr.addEventListener('click', (event) => {
+      if (event.target.closest('a, button, input, select, textarea')) return;
+      // Selecting a title to copy it is not a click on the row.
+      if (String(globalThis.getSelection?.() || '')) return;
+      flip();
+    });
+    tr.firstChild.prepend(toggle);
+    body.append(tr);
+    show(open.has(row.topicId));
+  }
+  return el('div', { class: 'table-wrap' }, [
+    el('table', { class: 'table pl-table' }, [el('thead', {}, [head]), body]),
+  ]);
+}
+
+/// The row under a thread holding its first post, as the scraper saved it.
+function postRow(row, loadPost) {
+  const cell = el('td', { colspan: '5' }, [el('p', { class: 'pl-dim', text: 'Loading…' })]);
+  loadPost(row.topicId).then((html) => {
+    cell.replaceChildren(html
+      ? postFrame(html)
+      : el('p', { class: 'pl-dim', text: 'Post not found' }));
+  }, (err) => {
+    cell.replaceChildren(el('p', { class: 'error-text', text: err.message }));
+  });
+  return el('tr', { class: 'pg-preview' }, [cell]);
+}
+
+function threadRow(row, { published, read, onMark }) {
+  return el('tr', { class: 'pg-row' }, [
     el('td', { class: 'pl-title' }, [...(published
       ? [el('a', { href: row.url, target: '_blank', rel: 'noopener', text: row.title }),
         ' ',
@@ -274,9 +366,6 @@ function table(rows, { published = false, read = null, onMark = () => {} } = {})
     el('td', { class: 'pg-missing-cell' }, missingCell(row)),
     actionCell(row, onMark),
     el('td', { class: 'pl-date mono', title: row.checkedAt || null, text: row.checkedAt ? shortTime(row.checkedAt) : '' }),
-  ]));
-  return el('div', { class: 'table-wrap' }, [
-    el('table', { class: 'table pl-table' }, [el('thead', {}, [head]), el('tbody', {}, body)]),
   ]);
 }
 
@@ -292,16 +381,15 @@ function readTag(row, read) {
   });
 }
 
-/// What the reader did about a failing thread. Saved in this browser as soon
-/// as it is picked; the cell redraws itself and the numbers, not the list.
+/// What the reader did about a thread. Saved in this browser as soon as it is
+/// picked; the cell redraws itself and the numbers, not the list. The buttons
+/// always show on a failed or marked thread, and on the others only while the
+/// pointer is on the row, so the failed ones stand out.
 function actionCell(row, onMark) {
   const cell = el('td', { class: 'pg-action' });
   const fill = () => {
-    if (row.status !== 'failed') {
-      cell.replaceChildren();
-      return;
-    }
     const mark = markOf(row);
+    cell.classList.toggle('pg-on-hover', row.status !== 'failed' && !mark);
     const buttons = el('div', { class: 'pg-mark-buttons' }, MARK_CHOICES.map(([kind, label, iconName]) => {
       const on = mark?.kind === kind;
       return el('button', {

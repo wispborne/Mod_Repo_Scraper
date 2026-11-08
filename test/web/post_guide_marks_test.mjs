@@ -64,7 +64,7 @@ test('a failing thread with no mark needs action; other statuses never do', () =
 test('an ignored thread stays dealt with until something else required goes missing', () => {
   const r = row(1, 'failed', [req('a'), rec('x')]);
   setMark(r, 'ignored', day(0));
-  assert.deepEqual(allMarks()['1'], { kind: 'ignored', on: day(0).toISOString(), missing: ['a'] });
+  assert.deepEqual(allMarks()['1'], { kind: 'ignored', on: day(0).toISOString(), status: 'failed', missing: ['a'] });
   assert.equal(needsAction(r, allMarks(), day(100)), false);
   // A recommendation going missing does not matter.
   assert.equal(needsAction(row(1, 'failed', [req('a'), rec('y')]), allMarks(), day(1)), false);
@@ -93,16 +93,37 @@ test('clearing a mark puts the thread back', () => {
   assert.equal(needsAction(r), true);
 });
 
-test('marks on a thread that no longer fails go when everything is marked as read', () => {
+test('marks on a thread that now follows the guide go when everything is marked as read', () => {
   setMark(row(1, 'failed', [req('a')]), 'contacted', day(0));
   setMark(row(2, 'failed', [req('a')]), 'ignored', day(0));
-  markAllRead([row(1, 'follows'), row(2, 'failed', [req('a')])], day(1));
-  assert.deepEqual(Object.keys(allMarks()), ['2']);
+  setMark(row(3, 'imperfect', [rec('x')]), 'contacted', day(0));
+  // Marked while it already followed the guide: kept.
+  setMark(row(4, 'follows'), 'ignored', day(0));
+  markAllRead([row(1, 'follows'), row(2, 'failed', [req('a')]), row(3, 'follows'), row(4, 'follows')], day(1));
+  assert.deepEqual(Object.keys(allMarks()).sort(), ['2', '4']);
 });
 
-test('a mark on a thread that is not failing is not shown', () => {
-  setMark(row(1, 'failed', [req('a')]), 'ignored', day(0));
-  assert.equal(markOf(row(1, 'follows'), allMarks(), day(1)), null);
+test('a mark saved before any thread could be marked counts as made on a failed thread', () => {
+  stored.set(MARKS_KEY, JSON.stringify({ 1: { kind: 'ignored', on: day(0).toISOString(), missing: ['a'] } }));
+  markAllRead([row(1, 'follows')], day(1));
+  assert.deepEqual(allMarks(), {});
+});
+
+test('a thread that did not fail can be marked, and comes back when it fails', () => {
+  const r = row(1, 'imperfect', [rec('x')]);
+  assert.equal(needsAction(r), false);
+  setMark(r, 'ignored', day(0));
+  assert.deepEqual(markOf(r, allMarks(), day(1)), { kind: 'ignored', on: day(0).toISOString(), due: null });
+  assert.equal(needsAction(r, allMarks(), day(100)), false);
+  assert.equal(needsAction(row(1, 'failed', [req('a')]), allMarks(), day(1)), true);
+});
+
+test('a contacted author with recommendations still missing after FOLLOW_UP_DAYS needs a follow-up', () => {
+  setMark(row(1, 'imperfect', [rec('x')]), 'contacted', day(0));
+  assert.equal(needsAction(row(1, 'imperfect', [rec('x')]), allMarks(), day(FOLLOW_UP_DAYS)), true);
+  // Fixed: nothing to follow up.
+  assert.equal(markOf(row(1, 'follows'), allMarks(), day(FOLLOW_UP_DAYS)).due, null);
+  assert.equal(needsAction(row(1, 'follows'), allMarks(), day(FOLLOW_UP_DAYS)), false);
 });
 
 test('unreadable storage reads as nothing saved', () => {

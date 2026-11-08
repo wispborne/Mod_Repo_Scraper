@@ -7,11 +7,11 @@
 // - what every thread looked like when the reader last pressed "Mark all as
 //   read" (READ_KEY). A thread missing from it is new; one whose status or
 //   missing items differ has changed.
-// - a mark per failing thread the reader dealt with by hand (MARKS_KEY):
-//   `contacted` (the author was told) or `ignored`. A mark covers only the
-//   required items missing when it was made. If anything else required goes
-//   missing, or a contacted author still has not fixed the post after
-//   FOLLOW_UP_DAYS, the thread needs action again.
+// - a mark per thread the reader dealt with by hand (MARKS_KEY): `contacted`
+//   (the author was told) or `ignored`. Any thread can be marked. A mark
+//   covers only the required items missing when it was made. If anything
+//   else required goes missing, or a contacted author still has items
+//   missing after FOLLOW_UP_DAYS, the thread needs action again.
 
 export const READ_KEY = 'viewerPostGuideRead';
 export const MARKS_KEY = 'viewerPostGuideMarks';
@@ -69,18 +69,24 @@ export function readChange(row, read = lastRead()) {
   return { change: 'changed', was: String(before).split(',')[0] };
 }
 
-/// Remembers every thread as it is now. Marks on threads that no longer fail
-/// are dropped: if one fails again later, it needs a fresh look.
+/// Remembers every thread as it is now. A mark made while a thread had items
+/// missing is dropped once it has none: if it misses one again later, it
+/// needs a fresh look. A mark on a thread that had nothing missing stays.
 export function markAllRead(rows, now = new Date()) {
   writeJson(READ_KEY, {
     at: now.toISOString(),
     threads: Object.fromEntries(rows.map((row) => [String(row.topicId), threadState(row)])),
   });
   const marks = allMarks();
-  const failing = new Set(rows.filter((row) => row.status === 'failed').map((row) => String(row.topicId)));
-  const kept = Object.fromEntries(Object.entries(marks).filter(([id]) => failing.has(id)));
-  if (Object.keys(kept).length !== Object.keys(marks).length) writeJson(MARKS_KEY, kept);
+  const fixed = new Set(rows
+    .filter((row) => row.status === 'follows' && hadMissing(marks[String(row.topicId)]))
+    .map((row) => String(row.topicId)));
+  if (!fixed.size) return;
+  writeJson(MARKS_KEY, Object.fromEntries(Object.entries(marks).filter(([id]) => !fixed.has(id))));
 }
+
+// Marks saved before any thread could be marked were all on failed threads.
+const hadMissing = (mark) => mark != null && ['failed', 'imperfect', undefined].includes(mark.status);
 
 /// Every mark, by topic id.
 export function allMarks() {
@@ -93,7 +99,7 @@ export function setMark(row, kind, now = new Date()) {
   const marks = allMarks();
   const id = String(row.topicId);
   if (kind === 'contacted' || kind === 'ignored') {
-    marks[id] = { kind, on: now.toISOString(), missing: requiredMissing(row) };
+    marks[id] = { kind, on: now.toISOString(), status: row.status, missing: requiredMissing(row) };
   } else {
     delete marks[id];
   }
@@ -101,25 +107,25 @@ export function setMark(row, kind, now = new Date()) {
 }
 
 /// The mark on [row] and whether it still holds. Null when the thread has no
-/// mark or does not fail. `due` is set when it needs action again: `changed`
-/// when a required item went missing since the mark, `time` when a contacted
-/// author has had FOLLOW_UP_DAYS.
+/// mark. `due` is set when it needs action again: `changed` when a required
+/// item went missing since the mark, `time` when a contacted author has had
+/// FOLLOW_UP_DAYS and the thread still has items missing.
 export function markOf(row, marks = allMarks(), now = new Date()) {
-  if (row.status !== 'failed') return null;
   const mark = marks[String(row.topicId)];
   if (!mark || (mark.kind !== 'contacted' && mark.kind !== 'ignored')) return null;
   const covered = new Set(Array.isArray(mark.missing) ? mark.missing : []);
   const on = new Date(mark.on);
   let due = null;
   if (requiredMissing(row).some((id) => !covered.has(id))) due = 'changed';
-  else if (mark.kind === 'contacted' && !(now - on < FOLLOW_UP_DAYS * DAY_MS)) due = 'time';
+  else if (mark.kind === 'contacted' && (row.missing || []).length
+    && !(now - on < FOLLOW_UP_DAYS * DAY_MS)) due = 'time';
   return { kind: mark.kind, on: mark.on, due };
 }
 
-/// True for a failing thread nobody has dealt with, or whose mark no longer
-/// holds.
+/// True for a failed thread nobody has dealt with, and for any marked thread
+/// whose mark no longer holds.
 export function needsAction(row, marks = allMarks(), now = new Date()) {
-  if (row.status !== 'failed') return false;
   const mark = markOf(row, marks, now);
-  return !mark || mark.due != null;
+  if (mark) return mark.due != null;
+  return row.status === 'failed';
 }

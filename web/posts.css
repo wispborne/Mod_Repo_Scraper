@@ -136,11 +136,31 @@ th[aria-sort] .pl-sort { color: var(--heading); }
 }
 .pg-mark-button:hover { color: var(--text); border-color: var(--action); }
 .pg-mark-button.on { color: var(--background); background: var(--action); border-color: var(--action); }
+/* On a thread that did not fail and has no mark, the buttons only show while
+   the pointer or the keyboard is on the row. Hidden, not removed, so the
+   column keeps its width and a press lands on the same spot. Screens with no
+   hover always show them. */
+@media (hover: hover) {
+  .pl-table tr:not(:hover):not(:focus-within) .pg-on-hover .pg-mark-buttons { opacity: 0; }
+}
+/* A click on a row opens the thread's first post under it. */
+.pg-row { cursor: pointer; }
+.pg-row.open > td { border-bottom-color: transparent; }
+/* As tall as the line, like .pg-out, so the arrow sits on whole pixels. */
+.pg-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; margin-right: 4px; padding: 0; vertical-align: top;
+  border: 0; background: none; color: var(--dim); cursor: pointer;
+}
+.pg-toggle:hover { color: var(--action); }
+.pl-table .pg-preview > td { padding: 0 20px 14px; }
+.pg-preview .pp-frame { height: 60vh; }
 .pg-mark-note { margin-top: 4px; }
 .pl-dim.pg-mark-note { font-size: var(--small); line-height: var(--small-line-height); }
 @media (max-width: 640px) {
   .pg-divider { display: none; }
   .pl-table td.pg-missing-cell { grid-column: 2 / -1; grid-row: 4; }
   .pl-table td.pg-action { grid-column: 2 / -1; grid-row: 5; }
-  .pl-table td.pg-action:empty { display: none; }
+  .pl-table tbody tr.pg-preview { display: block; padding: 0 12px 12px; }
+  .pl-table .pg-preview > td { padding: 0; }
 }
