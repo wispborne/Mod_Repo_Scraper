@@ -6,6 +6,9 @@ import { el, api, infoButton, shortTime } from '../lib.js';
 import { icon } from '../icons.js';
 import { pageLayout } from '../frame.js';
 import { hashQuery, buildHash } from '../routes.js';
+import {
+  readChange, lastRead, markAllRead, allMarks, setMark, markOf, needsAction, FOLLOW_UP_DAYS,
+} from '../post_guide_marks.js';
 
 const PAGE_ID = 'post-guide';
 
@@ -21,7 +24,21 @@ const SHOWS = [
   ['follows', 'Following guide', 'circle-check'],
   ['unknown', 'Unknown', 'help-circle'],
 ];
-const SHOW_KEYS = new Set(SHOWS.map(([key]) => key));
+/// The reader's own numbers, kept in this browser (post_guide_marks.js):
+/// threads new or changed since they last marked everything as read, and
+/// failing threads nobody has dealt with.
+const OWN_SHOWS = [
+  ['unread', 'Unread', 'inbox'],
+  ['todo', 'To do', 'list-check'],
+];
+const SHOW_KEYS = new Set([...SHOWS, ...OWN_SHOWS].map(([key]) => key));
+const STATUS_LABELS = Object.fromEntries(SHOWS.map(([key, label]) => [key, label]));
+
+/// One toggle button each: a press sets the mark, a second press clears it.
+const MARK_CHOICES = [
+  ['contacted', 'Contacted author', 'mail'],
+  ['ignored', 'Ignore', 'eye-off'],
+];
 
 export async function render({ content, onLeave }) {
   const query = hashQuery(location.hash);
@@ -44,10 +61,24 @@ export async function render({ content, onLeave }) {
     spellcheck: 'false',
     value: view.q,
   });
+  const readAll = el('button', {
+    type: 'button',
+    class: 'button quiet',
+    text: 'Mark all as read',
+    onclick: () => {
+      if (!data) return;
+      markAllRead(data.rows || []);
+      draw();
+    },
+  });
   const listSlot = el('div', { class: 'pl-list' }, [el('p', { class: 'empty', text: 'Loading…' })]);
   const main = el('div', { class: 'list-page pl-page' }, [
     numbers,
-    el('div', { class: 'pl-toolbar' }, [search, infoButton('About these checks', 'Post guide checks', aboutText)]),
+    el('div', { class: 'pl-toolbar' }, [
+      search,
+      readAll,
+      infoButton('About these checks', 'Post guide checks', aboutText),
+    ]),
     filterBar,
     note,
     listSlot,
@@ -67,11 +98,18 @@ export async function render({ content, onLeave }) {
     }));
   };
 
-  const draw = () => {
-    saveAddress();
-    if (!data) return;
-    const counts = data.counts || {};
-    numbers.replaceChildren(...SHOWS.map(([key, label, iconName]) => el('button', {
+  // The numbers at the top. Also redrawn alone when a mark changes, so the
+  // row the reader just marked stays in the list until the next filter.
+  const drawNumbers = () => {
+    const rows = data.rows || [];
+    const read = lastRead();
+    const marks = allMarks();
+    const counts = {
+      ...(data.counts || {}),
+      unread: rows.filter((row) => readChange(row, read).change).length,
+      todo: rows.filter((row) => needsAction(row, marks)).length,
+    };
+    const button = ([key, label, iconName]) => el('button', {
       type: 'button',
       class: `pl-number${view.show === key ? ' on' : ''}${counts[key] ? '' : ' zero'}`,
       'aria-pressed': String(view.show === key),
@@ -82,7 +120,20 @@ export async function render({ content, onLeave }) {
     }, [
       el('span', { class: 'pl-number-count', text: String(counts[key] ?? 0) }),
       el('span', { class: `pl-number-label pg-label pg-${key}` }, [icon(iconName, 14), label]),
-    ])));
+    ]);
+    numbers.replaceChildren(
+      ...OWN_SHOWS.map(button),
+      el('span', { class: 'pg-divider', 'aria-hidden': 'true' }),
+      ...SHOWS.map(button),
+    );
+    readAll.title = read ? `Last marked ${shortTime(read.at)}` : '';
+  };
+
+  const draw = () => {
+    saveAddress();
+    if (!data) return;
+    const counts = data.counts || {};
+    drawNumbers();
     note.replaceChildren([
       published ? 'Published copy' : null,
       `${counts.threads ?? 0} threads`,
@@ -92,15 +143,22 @@ export async function render({ content, onLeave }) {
     drawFilters();
 
     const words = view.q.toLowerCase();
+    const read = lastRead();
+    const marks = allMarks();
+    const shown = (row) => {
+      if (view.show === 'unread') return readChange(row, read).change != null;
+      if (view.show === 'todo') return needsAction(row, marks);
+      return !view.show || row.status === view.show;
+    };
     const rows = (data.rows || []).filter((row) =>
-      (!view.show || row.status === view.show)
+      shown(row)
       && [...view.missing].every((id) => row.missing.some((m) => m.id === id))
       && (!words || `${row.title} ${row.author} ${row.topicId}`.toLowerCase().includes(words)));
     if (!rows.length) {
       listSlot.replaceChildren(el('p', { class: 'empty', text: 'No results' }));
       return;
     }
-    listSlot.replaceChildren(table(rows, { published }));
+    listSlot.replaceChildren(table(rows, { published, read, onMark: drawNumbers }));
   };
 
   // One toggle per guide item, worded like the rows' missing items.
@@ -185,20 +243,24 @@ function aboutText() {
       '. Only threads posted or edited since the guide was published are included.',
     ]),
     el('p', { text: 'Checks run when the LLM is enabled. Code checks the game version in the title and the pictures. The LLM checks the remaining items. Posts are checked again only after an edit.' }),
+    el('p', { text: 'Unread shows threads that are new or changed since you last pressed Mark all as read.' }),
+    el('p', { text: `To do shows failed threads with no action set. A thread marked Contacted author comes back after ${FOLLOW_UP_DAYS} days if it still fails. Any marked thread comes back if another required item goes missing.` }),
+    el('p', { text: 'Unread, To do and Action are saved in this browser only.' }),
   ];
 }
 
 /// In the published copy the thread's own page here has no data, so the title
 /// opens the forum thread instead.
-function table(rows, { published = false } = {}) {
+function table(rows, { published = false, read = null, onMark = () => {} } = {}) {
   const head = el('tr', {}, [
     el('th', { text: 'Thread' }),
     el('th', { text: 'Author' }),
     el('th', { text: 'Missing items' }),
+    el('th', { text: 'Action' }),
     el('th', { text: 'Last checked' }),
   ]);
   const body = rows.map((row) => el('tr', {}, [
-    el('td', { class: 'pl-title' }, published
+    el('td', { class: 'pl-title' }, [...(published
       ? [el('a', { href: row.url, target: '_blank', rel: 'noopener', text: row.title }),
         ' ',
         el('span', { class: 'pg-out', 'aria-hidden': 'true' }, [icon('external-link', 14)])]
@@ -207,14 +269,68 @@ function table(rows, { published = false } = {}) {
         el('a', {
           href: row.url, target: '_blank', rel: 'noopener', class: 'pg-out',
           title: 'Open thread', 'aria-label': 'Open thread',
-        }, [icon('external-link', 14)])]),
+        }, [icon('external-link', 14)])]), readTag(row, read)]),
     el('td', { class: 'pl-author', text: row.author || '' }),
-    el('td', {}, missingCell(row)),
+    el('td', { class: 'pg-missing-cell' }, missingCell(row)),
+    actionCell(row, onMark),
     el('td', { class: 'pl-date mono', title: row.checkedAt || null, text: row.checkedAt ? shortTime(row.checkedAt) : '' }),
   ]));
   return el('div', { class: 'table-wrap' }, [
     el('table', { class: 'table pl-table' }, [el('thead', {}, [head]), el('tbody', {}, body)]),
   ]);
+}
+
+/// "New" for a thread the reader has not seen, "Changed" for one whose
+/// status or missing items moved since they last marked everything as read.
+function readTag(row, read) {
+  const { change, was } = readChange(row, read);
+  if (!change) return null;
+  return el('span', {
+    class: 'tag tag-running pl-tag',
+    text: change === 'new' ? 'New' : 'Changed',
+    title: was ? `Was: ${STATUS_LABELS[was] || was}` : null,
+  });
+}
+
+/// What the reader did about a failing thread. Saved in this browser as soon
+/// as it is picked; the cell redraws itself and the numbers, not the list.
+function actionCell(row, onMark) {
+  const cell = el('td', { class: 'pg-action' });
+  const fill = () => {
+    if (row.status !== 'failed') {
+      cell.replaceChildren();
+      return;
+    }
+    const mark = markOf(row);
+    const buttons = el('div', { class: 'pg-mark-buttons' }, MARK_CHOICES.map(([kind, label, iconName]) => {
+      const on = mark?.kind === kind;
+      return el('button', {
+        type: 'button',
+        class: `pg-mark-button${on ? ' on' : ''}`,
+        title: label,
+        'aria-label': label,
+        'aria-pressed': String(on),
+        onclick: () => {
+          setMark(row, on ? null : kind);
+          fill();
+          onMark();
+        },
+      }, [icon(iconName, 16)]);
+    }));
+    cell.replaceChildren(...[buttons, mark ? markNote(mark) : null].filter(Boolean));
+  };
+  fill();
+  return cell;
+}
+
+function markNote(mark) {
+  if (!mark.due) return el('div', { class: 'pl-dim pg-mark-note', text: shortTime(mark.on) });
+  return el('div', {
+    class: 'pg-label pg-imperfect pg-mark-note',
+    title: mark.due === 'time'
+      ? `Not fixed ${FOLLOW_UP_DAYS} days after ${shortTime(mark.on)}`
+      : `More is missing since ${shortTime(mark.on)}`,
+  }, [icon('clock', 14), 'Follow up']);
 }
 
 /// A missing required item has the Failed group's icon, a missing

@@ -8,7 +8,7 @@ void main() {
   test('viewer JavaScript tests', () async {
     final result = await Process.run(
       'node',
-      const ['--test', 'test/web/routes_test.mjs', 'test/web/jobs_test.mjs', 'test/web/pending_test.mjs', 'test/web/mod_helpers_test.mjs', 'test/web/change_sides_test.mjs', 'test/web/search_results_test.mjs', 'test/web/run_record_test.mjs', 'test/web/history_steps_test.mjs'],
+      const ['--test', 'test/web/routes_test.mjs', 'test/web/jobs_test.mjs', 'test/web/pending_test.mjs', 'test/web/mod_helpers_test.mjs', 'test/web/change_sides_test.mjs', 'test/web/search_results_test.mjs', 'test/web/run_record_test.mjs', 'test/web/history_steps_test.mjs', 'test/web/post_guide_marks_test.mjs'],
       runInShell: Platform.isWindows,
     );
 

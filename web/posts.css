@@ -124,3 +124,23 @@ th[aria-sort] .pl-sort { color: var(--heading); }
    middle of the capitals. Whole pixels only. */
 .pl-number-label.pg-label .icon,
 .pg-filter .icon { transform: translateY(1px); }
+/* The reader's own numbers (Unread, To do) come before the groups. */
+.pg-unread .icon, .pg-todo .icon { color: var(--running); }
+.pg-divider { width: 1px; align-self: stretch; margin: 0 4px; background: var(--line); }
+/* Mark buttons on a failed row: a pressed one is filled like a pressed filter. */
+.pg-mark-buttons { display: flex; gap: 4px; }
+.pg-mark-button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0;
+  border: 1px solid var(--line); background: none; color: var(--dim); cursor: pointer;
+}
+.pg-mark-button:hover { color: var(--text); border-color: var(--action); }
+.pg-mark-button.on { color: var(--background); background: var(--action); border-color: var(--action); }
+.pg-mark-note { margin-top: 4px; }
+.pl-dim.pg-mark-note { font-size: var(--small); line-height: var(--small-line-height); }
+@media (max-width: 640px) {
+  .pg-divider { display: none; }
+  .pl-table td.pg-missing-cell { grid-column: 2 / -1; grid-row: 4; }
+  .pl-table td.pg-action { grid-column: 2 / -1; grid-row: 5; }
+  .pl-table td.pg-action:empty { display: none; }
+}
