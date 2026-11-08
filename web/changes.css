@@ -5,25 +5,27 @@
 .ch-page { padding-top: 0; }
 .ch-tabs { border-top: 0; }
 .ch-body { display: grid; gap: 10px; padding: 14px 20px 0; min-width: 0; }
-.ch-intro { color: var(--dim); }
-.ch-intro:empty, .ch-notes:empty, .ch-live:empty { display: none; }
+.ch-notes:empty { display: none; }
 
 /* --- The picker -------------------------------------------------------- */
 
 .ch-picker { display: grid; gap: 6px; min-width: 0; }
 .ch-sides { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; }
-.ch-side { display: grid; gap: 4px; min-width: 0; flex: 0 1 380px; }
+.ch-side { display: grid; gap: 4px; min-width: 0; flex: 1 1 320px; max-width: 520px; }
+.ch-side-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.ch-run-link { font-size: var(--small); line-height: var(--small-line-height); }
 .ch-select { width: 100%; }
-.ch-runs { display: flex; flex-wrap: wrap; gap: 2px 18px; color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); }
-.ch-run { overflow-wrap: anywhere; }
-.ch-run code { font-family: var(--mono); }
-.ch-notes { display: grid; gap: 6px; }
-.ch-note, .ch-live {
-  padding: 6px 12px; font-size: var(--small); line-height: var(--small-line-height);
-  border: 1px solid var(--frame); background: var(--panel);
+/* Level with the text of the buttons beside it. */
+.ch-updated {
+  align-self: flex-end; padding-bottom: 5px;
+  color: var(--faint); font-size: var(--small); line-height: var(--small-line-height);
 }
-.ch-note { border-left: 3px solid var(--warning); }
-.ch-live { border-left: 3px solid var(--running); }
+.ch-updated:empty { display: none; }
+.ch-notes { display: grid; gap: 6px; }
+.ch-note {
+  padding: 6px 12px; font-size: var(--small); line-height: var(--small-line-height);
+  border: 1px solid var(--frame); border-left: 3px solid var(--warning); background: var(--panel);
+}
 .ch-nothing { padding: 4px 0 18px; }
 
 /* --- Search and counts ------------------------------------------------- */
@@ -44,7 +46,8 @@
 .ch-count.warn { border-left-color: var(--warning); }
 button.ch-count:hover { border-color: var(--action); border-left-color: var(--action); }
 .ch-count.on { border-color: var(--action); border-left-color: var(--action); background: var(--raised); }
-.ch-count.still { cursor: default; }
+/* Unchanged is a count, not a filter. */
+.ch-count.still { cursor: default; background: none; border-color: transparent; }
 .ch-count-value { font: 600 18px/22px var(--mono); color: var(--text); }
 .ch-count.zero .ch-count-value { color: var(--faint); }
 .ch-count-label { font-size: var(--small); line-height: var(--small-line-height); }
@@ -53,26 +56,46 @@ button.ch-count:hover { border-color: var(--action); border-left-color: var(--ac
 
 .ch-list { display: grid; gap: 6px; min-width: 0; padding-bottom: 4px; }
 .ch-filter-note { color: var(--faint); font-size: var(--small); line-height: var(--small-line-height); }
+.ch-filter-note .link-button { font-size: var(--small); }
 .ch-message { padding: 8px 0; }
+/* The same width for every kind, so the names line up. */
+.ch-card .pp-badge { min-width: calc(7ch + 14px); text-align: center; }
 .ch-name { overflow-wrap: anywhere; min-width: 0; }
 .ch-author { color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); overflow-wrap: anywhere; }
+/* The changed fields sit at the right end of the row, cut short with the
+   whole list on hover. */
+.ch-fields {
+  margin-left: auto; max-width: 45%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--faint); font-size: var(--small); line-height: var(--small-line-height);
+}
+.ch-fields + .ph-chev { margin-left: 0; }
 .ch-mod-links { display: inline-flex; flex-wrap: wrap; gap: 6px 16px; }
 .ch-mod-links:empty { display: none; }
-.ch-urls { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: var(--small); line-height: var(--small-line-height); }
-.ch-urls a { overflow-wrap: anywhere; }
+.ch-facts {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 14px; margin: 0;
+  font-size: var(--small); line-height: var(--small-line-height);
+}
+.ch-facts dt { color: var(--dim); }
+.ch-facts dd { margin: 0; overflow-wrap: anywhere; }
 
 /* --- Narrow screens ---------------------------------------------------- */
 
 @media (max-width: 640px) {
   .ch-body { padding-left: 12px; padding-right: 12px; }
-  .ch-side { flex: 1 1 100%; }
+  .ch-side { flex: 1 1 100%; max-width: none; }
   .ch-search { max-width: none; }
   .ch-count { min-width: 0; flex: 1 1 40%; }
+  /* The fields wrap to a line of their own under the name, after the arrow. */
+  .ch-fields { order: 1; max-width: none; flex-basis: 100%; white-space: normal; }
+  .ch-fields + .ph-chev { margin-left: auto; }
+  .run-changed { padding-left: 12px; padding-right: 12px; }
 }
 
 /* The run panel's What changed tab (web/run_panel.js): the changes, drawn
    with the What changed page's cards. */
-.run-changed { display: grid; gap: 16px; padding: 12px 0; justify-items: start; }
+/* The same side margins as the Record tab. */
+.run-changed { display: grid; gap: 16px; padding: 14px 20px; justify-items: start; }
 .run-changed-section { display: grid; gap: 8px; width: 100%; }
 .run-changed-head { margin: 0; font-size: var(--text-size); font-weight: 600; color: var(--text); }
 .run-changed-counts { display: flex; flex-wrap: wrap; gap: 6px; }

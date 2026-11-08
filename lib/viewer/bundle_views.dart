@@ -430,7 +430,8 @@ List<Map<String, dynamic>> _llmItems(Object? was, Object? now) {
         'nicknames': 'other names',
         'requires': 'requires',
         'image': 'image',
-        'descriptionAnchors': 'where it is described',
+        'descriptionAnchors': 'description start and end',
+        'isTool': 'tool',
       }, skip: const {
         'name',
         'extras',
@@ -465,6 +466,10 @@ const Map<String, String> _extraNames = {
   'changelog.link': 'changelog link',
   'changelog.entries': 'changelog entries',
   'supportLinks': 'support links',
+  'aiUse.usesAi': 'AI used',
+  'aiUse.uses': 'AI use',
+  'aiUse.tools': 'AI tools',
+  'aiUse.quote': 'AI use statement',
 };
 
 /// The extras map with its one level of nesting flattened to `parent.child`

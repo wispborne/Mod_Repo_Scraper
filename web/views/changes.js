@@ -28,7 +28,6 @@ const TAB = {
     thing: 'mods',
     one: 'mod',
     search: 'Search mod name or author…',
-    intro: 'Choose two saved merges to compare their output.',
   },
   facts: {
     label: 'Facts',
@@ -36,7 +35,6 @@ const TAB = {
     thing: 'topics',
     one: 'topic',
     search: 'Search topic title or author…',
-    intro: 'Compare two snapshots, or compare a snapshot with current local data.',
   },
 };
 
@@ -66,7 +64,6 @@ export async function render({ content, onLeave }) {
   };
 
   const tabBar = el('div', { class: 'tabs ch-tabs', role: 'tablist', 'aria-label': 'What to compare' });
-  const intro = el('p', { class: 'ch-intro' });
   const pickerSlot = el('div', { class: 'ch-picker' });
   const notes = el('div', { class: 'ch-notes', 'aria-live': 'polite' });
   const search = el('input', {
@@ -85,12 +82,14 @@ export async function render({ content, onLeave }) {
     foldAll.hidden = !results.querySelector('details.ch-card');
     foldAll.refresh();
   };
-  const searchRow = el('div', { class: 'ch-search-row' }, [
+  // Hidden until the saved runs have loaded, so no empty box shows meanwhile.
+  const searchRow = el('div', { class: 'ch-search-row', hidden: true }, [
     search, infoButton('About What changed', 'What changed', legend), el('span', { class: 'gap' }), foldAll,
   ]);
-  const body = el('div', { class: 'ch-body' }, [intro, pickerSlot, notes, searchRow, counts, results, pagerSlot]);
+  const body = el('div', { class: 'ch-body' }, [pickerSlot, notes, searchRow, counts, results, pagerSlot]);
   const main = el('div', { class: 'list-page ch-page' }, [tabBar, body]);
   content.append(pageLayout(main));
+  syncFoldAll();
 
   // Both lists of saved runs: the picker needs both to say which snapshots a
   // run has, and to find a stand-in when one tab has none for it.
@@ -168,6 +167,8 @@ export async function render({ content, onLeave }) {
     title: 'Reload current data and update the comparison.',
     onclick: () => load({ keepPlace: true }),
   });
+  // When the data on disk was last written, beside Refresh.
+  const updated = el('span', { class: 'ch-updated' });
 
   /// "5 Nov 2026, 07:40:02 — full run — 1094 topics (Mods and Facts)".
   const runLabel = (run) => {
@@ -211,7 +212,7 @@ export async function render({ content, onLeave }) {
     settle();
     const runs = lists[view.tab];
     const select = (which) => {
-      const box = el('select', { class: 'select ch-select', 'aria-label': which === 'a' ? 'Older' : 'Newer' });
+      const box = el('select', { class: 'select ch-select', id: `ch-side-${which}` });
       // The data on disk is only ever the newer side.
       if (which === 'b' && view.tab === 'facts' && working) {
         box.append(el('option', { value: WORKING, text: workingLabel(working) }));
@@ -243,22 +244,23 @@ export async function render({ content, onLeave }) {
       onclick: () => pick({ a: view.b, b: view.a }),
     });
     refresh.hidden = !live;
+    updated.hidden = !live;
 
-    const runLink = (label, id) => {
-      if (id === WORKING) return el('span', { class: 'ch-run' }, [`${label}: `, el('span', { text: 'current local data' })]);
-      if (isImported(id)) return el('span', { class: 'ch-run' }, [`${label}: `, el('code', { text: id })]);
-      return el('span', { class: 'ch-run' }, [`${label}: `, el('a', { href: `#/runs/${encodeURIComponent(id)}` }, [el('code', { text: id })])]);
-    };
-
-    pickerSlot.replaceChildren(
-      el('div', { class: 'ch-sides' }, [
-        el('label', { class: 'ch-side' }, [el('span', { class: 'field-label', text: 'Older' }), select('a')]),
-        swap,
-        el('label', { class: 'ch-side' }, [el('span', { class: 'field-label', text: 'Newer' }), select('b')]),
-        refresh,
+    // The data on disk and an imported snapshot have no run to open.
+    const runLink = (id) => (id === WORKING || isImported(id)
+      ? null
+      : el('a', { class: 'ch-run-link', href: `#/runs/${encodeURIComponent(id)}`, text: 'Open run' }));
+    const side = (label, which) => el('div', { class: 'ch-side' }, [
+      el('div', { class: 'ch-side-head' }, [
+        el('label', { class: 'field-label', for: `ch-side-${which}`, text: label }),
+        runLink(view[which]),
       ]),
-      el('p', { class: 'ch-runs' }, [runLink('Older', view.a), runLink('Newer', view.b)]),
-    );
+      select(which),
+    ]);
+
+    pickerSlot.replaceChildren(el('div', { class: 'ch-sides' }, [
+      side('Older', 'a'), swap, side('Newer', 'b'), refresh, updated,
+    ]));
     drawMoved();
   };
 
@@ -269,18 +271,17 @@ export async function render({ content, onLeave }) {
     for (const m of view.moved) {
       let text;
       if (m.why === 'working') {
-        text = `Current local data can only be compared on the Facts tab, so ${runName(m.to)} is shown instead.`;
+        text = `Current local data is only on the Facts tab. Showing ${runName(m.to)}.`;
       } else if (m.why === 'otherTab' && m.nearest && m.nearest !== m.to) {
         const otherSide = m.side === 'a' ? 'newer' : 'older';
-        text = `${runName(m.from)} has no snapshot for the ${tab} tab. `
-          + `The closest snapshot, ${runName(m.nearest)}, is already on the ${otherSide} side. Showing ${runName(m.to)} instead.`;
+        text = `${runName(m.from)} has no ${tab} snapshot, and the nearest one is already the ${otherSide} side. `
+          + `Showing ${runName(m.to)}.`;
       } else if (m.why === 'otherTab') {
-        text = `${runName(m.from)} saved nothing for the ${tab} tab, so the run saved nearest to it is shown: ${runName(m.to)}.`;
+        text = `${runName(m.from)} has no ${tab} snapshot. Showing the nearest: ${runName(m.to)}.`;
       } else if (m.why === 'oldest') {
-        text = `No earlier snapshot to compare with ${runName(m.from)}. Showing it on the older side. `
-          + `The newer side shows ${m.to === WORKING ? 'current local data' : runName(m.to)}.`;
+        text = `Nothing is older than ${runName(m.from)}, so it is shown as the older side.`;
       } else {
-        text = `${m.from} is no longer kept, so ${runName(m.to)} is shown instead.`;
+        text = `${m.from} is no longer kept. Showing ${runName(m.to)}.`;
       }
       notes.append(el('p', { class: 'ch-note', text }));
     }
@@ -301,8 +302,6 @@ export async function render({ content, onLeave }) {
   onLeave(() => clearTimeout(typing));
 
   // --- The comparison ---
-
-  const liveNote = el('p', { class: 'ch-live' });
 
   const drawCounts = (answer) => {
     const t = TAB[view.tab];
@@ -332,13 +331,9 @@ export async function render({ content, onLeave }) {
     ]));
   };
 
-  const drawLiveNote = (answer) => {
-    clear(liveNote);
-    if (answer.b !== WORKING) return;
-    const asOf = when(answer.workingUpdatedAt);
-    liveNote.append('Comparing current local data with the selected snapshot. '
-      + (asOf ? `Last written ${asOf}. ` : '')
-      + 'Select Refresh to check for updates.');
+  const drawUpdated = (answer) => {
+    const asOf = answer.b === WORKING ? when(answer.workingUpdatedAt) : '';
+    updated.textContent = asOf ? `Last updated ${asOf}` : '';
   };
 
   // Answers to older requests are dropped once a newer one starts.
@@ -377,7 +372,6 @@ export async function render({ content, onLeave }) {
       refresh.textContent = 'Refresh';
       clear(counts);
       clear(pagerSlot);
-      clear(liveNote);
       results.replaceChildren(el('p', { class: 'error-text ch-message', text: err.message }));
       syncFoldAll();
       return;
@@ -390,7 +384,6 @@ export async function render({ content, onLeave }) {
     if (answer.missing) {
       clear(counts);
       clear(pagerSlot);
-      clear(liveNote);
       results.replaceChildren(el('div', { class: 'pp-missing ch-message' }, [
         el('p', { text: answer.hint || 'One of those snapshots is no longer kept. Pick another.' }),
       ]));
@@ -403,14 +396,24 @@ export async function render({ content, onLeave }) {
     // server sent, so the address names it too.
     if (Number.isInteger(answer.page)) view.page = answer.page;
 
-    drawLiveNote(answer);
+    drawUpdated(answer);
     drawCounts(answer);
     const rows = [];
     if (view.kind) {
-      rows.push(el('p', {
-        class: 'ch-filter-note',
-        text: `Showing ${kindWord(view.kind)} ${t.thing}. Click the selected count to clear the filter.`,
-      }));
+      rows.push(el('p', { class: 'ch-filter-note' }, [
+        `Showing only ${kindWord(view.kind)} ${t.thing}. `,
+        el('button', {
+          type: 'button',
+          class: 'link-button',
+          text: 'Clear filter',
+          onclick: () => {
+            view.kind = '';
+            view.page = 0;
+            view.open = new Set();
+            load();
+          },
+        }),
+      ]));
     }
     for (const row of items) {
       const card = view.tab === 'mods' ? modCard(row) : topicCard(row);
@@ -448,10 +451,8 @@ export async function render({ content, onLeave }) {
     drawTabs();
     search.placeholder = t.search;
     search.setAttribute('aria-label', t.search.replace('…', ''));
-    clear(liveNote);
     const runs = lists[view.tab];
     if (settle().nothing) {
-      intro.textContent = '';
       clear(notes);
       pickerSlot.replaceChildren(nothingYet(view.tab, runs.length));
       searchRow.hidden = true;
@@ -462,19 +463,17 @@ export async function render({ content, onLeave }) {
       return;
     }
     searchRow.hidden = false;
-    intro.textContent = t.intro;
     drawPicker();
     load();
   };
 
-  body.insertBefore(liveNote, searchRow);
   drawTab();
 }
 
 // --- Rows ---
 
 /// The closed row: what happened, the name, who made it, and which fields
-/// changed on a line of its own under the name.
+/// changed, at the right end of the same line.
 function cardSummary(row, fallbackName) {
   const changes = row.changes || [];
   const [, , tone] = KINDS.find(([k]) => k === row.kind) || [];
@@ -482,12 +481,45 @@ function cardSummary(row, fallbackName) {
     badge(kindWord(row.kind), tone || ''),
     el('span', { class: 'ph-name ch-name', text: row.name || fallbackName }),
     el('span', { class: 'ch-author', text: row.authors || '' }),
+    // Added and removed rows name no fields.
+    changes.length ? el('span', { class: 'ch-fields', text: changedFieldsLine(changes), title: changedFieldsTitle(changes) }) : null,
     el('span', { class: 'ph-chev', 'aria-hidden': 'true' }, [icon('chevron-right', 14)]),
-    // After the chevron, so it wraps to its own line under the name. Added
-    // and removed rows name no fields.
-    changes.length ? el('span', { class: 'ph-hint', text: changedFieldsLine(changes), title: changedFieldsTitle(changes) }) : null,
   ]);
 }
+
+/// A few facts about an added or removed row, so it can be told apart
+/// without opening its page. Empty values are left out.
+function factList(pairs) {
+  const shown = pairs.filter(([, value]) => value != null && value !== '' && !(Array.isArray(value) && !value.length));
+  if (!shown.length) return null;
+  return el('dl', { class: 'ch-facts' }, shown.flatMap(([name, value]) => [
+    el('dt', { text: name }),
+    el('dd', {}, [value]),
+  ]));
+}
+
+/// A link that opens outside the viewer, or the plain text when it is not
+/// a web address.
+function outsideLink(url) {
+  const text = String(url);
+  return /^https?:\/\//i.test(text)
+    ? el('a', { href: text, target: '_blank', rel: 'noopener', text })
+    : text;
+}
+
+/// The plain names for a catalog mod's kinds of link.
+const LINK_NAMES = {
+  Forum: 'Forum',
+  Discord: 'Discord',
+  NexusMods: 'Nexus Mods',
+  DirectDownload: 'Download',
+  DownloadPage: 'Download page',
+};
+
+const cut = (text, max = 200) => {
+  const s = String(text || '').trim();
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+};
 
 /// One mod from the Mods tab. Opening it finds the mod's page through the
 /// post it came from, since a saved catalog does not keep permanent ids.
@@ -512,8 +544,17 @@ export function modCard(row) {
   const inner = el('div', { class: 'ph-card-body' }, [links]);
   if (row.note) inner.append(el('p', { class: 'pp-source-line', text: row.note }));
   if (changes.length) inner.append(diffTable(changes));
-  // An added or removed mod has no field changes; its links say which mod it is.
-  if (!changes.length && Object.keys(urls).length) inner.append(urlList(urls));
+  // An added or removed mod has no field changes; a few facts say which mod it is.
+  if (!changes.length) {
+    const facts = factList([
+      ['Summary', cut(mod.summary)],
+      ['Mod version', mod.modVersion],
+      ['Game version', mod.gameVersionReq],
+      ['Categories', (mod.categories || []).join(', ')],
+      ...Object.entries(urls).map(([kind, url]) => [LINK_NAMES[kind] || kind, outsideLink(url)]),
+    ]);
+    if (facts) inner.append(facts);
+  }
   card.append(inner);
 
   let asked = false;
@@ -574,18 +615,21 @@ export function topicCard(row) {
   }
   if (row.note) inner.append(el('p', { class: 'pp-source-line', text: row.note }));
   if (changes.length) inner.append(diffTable(changes));
+  // An added or removed topic: what the LLM found on it, and where it sits.
+  if (!changes.length) {
+    const mods = ((topic.llm && topic.llm.mods) || []).map((m) => {
+      const version = m.extras && m.extras.version;
+      return version ? `${m.name} ${version}` : m.name;
+    }).filter(Boolean);
+    const facts = factList([
+      ['Mods found', mods.join(', ')],
+      ['Category', topic.category],
+      ['In mod index', topic.inModIndex == null ? null : (topic.inModIndex ? 'Yes' : 'No')],
+    ]);
+    if (facts) inner.append(facts);
+  }
   card.append(inner);
   return card;
-}
-
-/// A mod's links, for a mod that was added or removed.
-function urlList(urls) {
-  return el('ul', { class: 'ch-urls' }, Object.entries(urls).map(([kind, url]) => el('li', {}, [
-    el('span', { class: 'dim', text: `${kind}: ` }),
-    /^https?:\/\//i.test(String(url))
-      ? el('a', { href: String(url), target: '_blank', rel: 'noopener', text: String(url) })
-      : el('span', { text: String(url) }),
-  ])));
 }
 
 // --- Words ---
@@ -594,10 +638,11 @@ function kindWord(kind) {
   return { added: 'added', gone: 'removed', changed: 'changed' }[kind] || kind;
 }
 
-/// How the data on disk reads in the picker.
+/// How the data on disk reads in the picker. Its time is beside Refresh,
+/// where it is kept up to date.
 function workingLabel(working) {
   const size = working.indexCount != null ? `${working.indexCount} topics` : '';
-  return ['Current local data', when(working.updatedAt), size].filter(Boolean).join(' — ');
+  return ['Current local data', size].filter(Boolean).join(' — ');
 }
 
 /// What a tab says when there are not two things to compare.

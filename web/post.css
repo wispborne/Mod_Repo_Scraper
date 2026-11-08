@@ -176,9 +176,15 @@
   font: 600 var(--label)/16px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
 }
 .ph-diff td { padding: 4px 8px; vertical-align: top; border-top: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
-.ph-diff .ph-field { width: 140px; color: var(--dim); white-space: normal; }
+.ph-diff .ph-col-field { width: 150px; }
+.ph-diff .ph-field { color: var(--dim); white-space: normal; }
 .ph-before { color: var(--failed); }
 .ph-after { color: var(--done); }
+/* A text with its changed words marked: the rest of the words are dim. */
+.ph-marked { color: var(--dim); }
+.ph-before .ph-word { color: var(--failed); text-decoration: line-through; }
+.ph-after .ph-word { color: var(--done); font-weight: 600; }
+.ph-gap { color: var(--faint); }
 .ph-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .ph-items .ph-items { margin: 2px 0 0 20px; }
 .ph-items > li { display: grid; grid-template-columns: 14px minmax(0, 1fr); column-gap: 6px; }
@@ -189,6 +195,15 @@
 .ph-item-changed > .ph-mark { color: var(--warning); }
 .ph-part { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: var(--small); line-height: var(--small-line-height); }
 .ph-part-name { color: var(--dim); }
+/* A long value: the name, then the old and new values on a line each. */
+.ph-part.ph-stacked { display: grid; gap: 2px; }
+.ph-part.ph-stacked > * { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* A minus and a plus say which line is old and which is new, since a line
+   with no marked words is all dim. */
+.ph-part.ph-stacked > .ph-before::before { content: '− '; color: var(--failed); font-family: var(--mono); }
+.ph-part.ph-stacked > .ph-after::before { content: '+ '; color: var(--done); font-family: var(--mono); }
+/* The keys that changed inside one part, under the part's name. */
+.ph-inside { display: grid; gap: 2px; padding-left: 12px; border-left: 1px solid var(--line); }
 .ph-arrow { color: var(--faint); }
 
 @media (max-width: 640px) {

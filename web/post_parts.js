@@ -381,7 +381,7 @@ function modCard(mod, ruleUrls) {
     mod.isTool ? badge('Tool') : null,
     mod.requires ? el('span', { class: 'dim', text: `Requires ${mod.requires}` }) : null,
     anchors && anchors.startsWith && anchors.endsWith
-      ? infoButton('Mod details', 'Description details', () => [fieldList([
+      ? infoButton('Description start and end', 'Description start and end', () => [fieldList([
         ['Start', `"${anchors.startsWith}"`],
         ['End', `"${anchors.endsWith}"`],
       ])])

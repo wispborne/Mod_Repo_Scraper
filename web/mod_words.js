@@ -190,7 +190,7 @@ const FIELD_NAMES = {
   canRemove: 'Removing from a save (short answer)',
   nicknames: 'Also called',
   isTool: 'Tool',
-  descriptionAnchors: 'Description cut from the post',
+  descriptionAnchors: 'Description start and end',
 };
 
 export function fieldName(field) {

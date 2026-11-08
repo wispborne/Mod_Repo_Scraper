@@ -5,6 +5,9 @@
 // all three.
 
 import { el } from './lib.js';
+import { fieldLabel, changedInside, wordChanges } from './diff_words.js';
+
+export { fieldLabel };
 
 // --- Folds ---
 
@@ -32,13 +35,13 @@ export function expandAllButton(container, selector) {
 
 /// "name, downloads and 3 more".
 export function changedFieldsLine(changes, limit = 3) {
-  const names = changes.map((c) => c.field).filter(Boolean);
+  const names = changes.map((c) => c.field).filter(Boolean).map(fieldLabel);
   if (names.length <= limit) return names.join(', ');
   return `${names.slice(0, limit).join(', ')} and ${names.length - limit} more`;
 }
 
 export function changedFieldsTitle(changes) {
-  const names = changes.map((c) => c.field).filter(Boolean);
+  const names = changes.map((c) => c.field).filter(Boolean).map(fieldLabel);
   return names.length ? names.join(', ') : null;
 }
 
@@ -85,24 +88,47 @@ export function diffTable(changes) {
   const sided = changes.some((c) => !c.items && !c.note);
   const headings = sided ? ['Field', 'Older', 'Newer'] : ['Field', 'What changed'];
   const rows = changes.map((change) => {
-    const tr = el('tr', {}, [el('td', { class: 'ph-field', text: change.field })]);
+    const tr = el('tr', {}, [el('td', { class: 'ph-field', text: fieldLabel(change.field) })]);
     if (change.items) {
       tr.append(el('td', { colspan: sided ? '2' : null }, [itemList(change.items)]));
     } else if (change.note) {
       // Snapshots keep only a hash of the post text, so the old text is unavailable.
       tr.append(el('td', { class: 'dim', colspan: sided ? '2' : null, text: change.note }));
     } else {
+      const marked = wordChanges(change.before, change.after);
       tr.append(
-        el('td', { class: 'ph-before', text: diffText(change.before) }),
-        el('td', { class: 'ph-after', text: diffText(change.after) }),
+        valueCell('ph-before', change.before, marked && marked.before),
+        valueCell('ph-after', change.after, marked && marked.after),
       );
     }
     return tr;
   });
+  // The column widths are set on the columns: a fixed table takes them from
+  // its first row, and the headings carry no class.
+  const columns = el('colgroup', {}, [
+    el('col', { class: 'ph-col-field' }),
+    el('col'),
+    sided ? el('col') : null,
+  ]);
   return el('div', { class: 'table-wrap' }, [el('table', { class: 'ph-diff' }, [
+    columns,
     el('thead', {}, el('tr', {}, headings.map((h) => el('th', { text: h })))),
     el('tbody', {}, rows),
   ])]);
+}
+
+function valueCell(side, value, pieces) {
+  if (!pieces) return el('td', { class: side, text: diffText(value) });
+  return el('td', { class: `${side} ph-marked` }, markedText(pieces));
+}
+
+/// A text with its changed words marked, and cut stretches shown as "…".
+function markedText(pieces) {
+  return pieces.map((p) => {
+    if (p.gap) return el('span', { class: 'ph-gap', text: p.text });
+    if (p.changed) return el('span', { class: 'ph-word', text: p.text });
+    return p.text;
+  });
 }
 
 /// Changed entries, nested where an entry has its own (downloads under a mod).
@@ -113,31 +139,53 @@ function itemList(items) {
       el('span', { class: 'ph-label', text: item.label || '' }),
     ]);
     if ('before' in item || 'after' in item) row.append(valueLine(item));
-    for (const part of item.parts || []) {
-      const line = el('div', { class: 'ph-part' }, [el('span', { class: 'ph-part-name', text: part.name })]);
-      if (part.note) {
-        line.append(el('span', { class: 'dim', text: part.note }));
-      } else {
-        line.append(
-          el('span', { class: 'ph-before', text: diffText(part.before) }),
-          el('span', { class: 'ph-arrow', text: '→' }),
-          el('span', { class: 'ph-after', text: diffText(part.after) }),
-        );
-      }
-      row.append(line);
-    }
+    for (const part of item.parts || []) row.append(...partLines(part));
     if ((item.items || []).length) row.append(itemList(item.items));
     return row;
   }));
 }
 
+/// One changed part of an entry. A map or a list of maps shows only the keys
+/// that changed inside it, under the part's name.
+function partLines(part) {
+  if (part.note) {
+    return [el('div', { class: 'ph-part' }, [
+      el('span', { class: 'ph-part-name', text: part.name }),
+      el('span', { class: 'dim', text: part.note }),
+    ])];
+  }
+  const inside = changedInside(part.before, part.after);
+  if (!inside) return [valueChange(part.name, part.before, part.after)];
+  return [
+    el('div', { class: 'ph-part' }, [el('span', { class: 'ph-part-name', text: part.name })]),
+    el('div', { class: 'ph-inside' }, inside.map((line) => valueChange(line.name, line.before, line.after))),
+  ];
+}
+
 /// The new value for an addition, the old for a removal, both for a change.
 function valueLine(item) {
-  const line = el('div', { class: 'ph-part' });
-  if (item.change !== 'added') line.append(el('span', { class: 'ph-before', text: diffText(item.before) }));
-  if (item.change === 'changed') line.append(el('span', { class: 'ph-arrow', text: '→' }));
-  if (item.change !== 'removed') line.append(el('span', { class: 'ph-after', text: diffText(item.after) }));
-  return line;
+  if (item.change === 'added') return valueChange(null, undefined, item.after, { only: 'after' });
+  if (item.change === 'removed') return valueChange(null, item.before, undefined, { only: 'before' });
+  return valueChange(null, item.before, item.after);
+}
+
+/// A value that changed, with an optional name before it. Short values sit
+/// on one line ("old → new"); long ones get a line each, with the changed
+/// words marked where there are few enough of them.
+function valueChange(name, before, after, { only = null } = {}) {
+  const label = name ? el('span', { class: 'ph-part-name', text: name }) : null;
+  const marked = only ? null : wordChanges(before, after);
+  const beforeText = only === 'after' ? '' : diffText(before);
+  const afterText = only === 'before' ? '' : diffText(after);
+  const stacked = marked || beforeText.length + afterText.length > 80;
+  const side = (cls, value, pieces) => (pieces
+    ? el('span', { class: `${cls} ph-marked` }, markedText(pieces))
+    : el('span', { class: cls, text: diffText(value) }));
+  const parts = [];
+  if (only !== 'after') parts.push(side('ph-before', before, marked && marked.before));
+  if (!only && !stacked) parts.push(el('span', { class: 'ph-arrow', text: '→' }));
+  if (only !== 'before') parts.push(side('ph-after', after, marked && marked.after));
+  return el('div', { class: `ph-part${stacked ? ' ph-stacked' : ''}` }, [label, ...parts]);
 }
 
 /// Shows yes and no for true and false, and tells an absent value from an
