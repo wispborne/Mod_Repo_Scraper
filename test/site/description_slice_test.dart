@@ -31,6 +31,19 @@ void main() {
     expect(plainWordsOf(slice), 'Well, I am glad you asked. It adds new music.');
   });
 
+  // Topic 36266: the heading and the description are two rows of one table,
+  // and the mod's summary read "Short summary".
+  test('a description in a table cell leaves the heading cell behind', () {
+    final post = cleanPostHtml('<table class="bbc_table ct_table"><tbody>'
+        '<tr><td><b>Short summary</b></td></tr>'
+        '<tr><td>Flip a colony to Auto and it runs itself. It builds on its '
+        'own.<br>More words here.</td></tr></tbody></table>');
+    final slice = sliceDescriptionHtml(
+        post, 'Flip a colony to Auto', 'It builds on its own.');
+    expect(plainWordsOf(slice),
+        'Flip a colony to Auto and it runs itself. It builds on its own.');
+  });
+
   test('cleaning a post twice keeps its blocks, text sizes and folds', () {
     final once = cleanPostHtml('<div align="center">One</div>'
         '<div style="text-align: right">Two</div>'

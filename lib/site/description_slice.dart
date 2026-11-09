@@ -73,7 +73,7 @@ int _pieceHolding(List<int> startOfPiece, int position) {
 }
 
 /// The post cut at the places a reader sees as the end of a line: the end of a
-/// paragraph, block, fold title, list item, heading, quote or code block, and
+/// paragraph, block, fold title, list item, table cell, heading, quote or code block, and
 /// every line break. The break itself stays with the piece before it.
 List<String> _splitIntoLines(String html) {
   final pieces = <String>[];
@@ -91,6 +91,6 @@ List<String> _splitIntoLines(String html) {
 }
 
 final RegExp _lineBreak = RegExp(
-  r'</p>|</div>|</summary>|</li>|</h[3-6]>|</blockquote>|</pre>|<br\s*/?>',
+  r'</p>|</div>|</summary>|</li>|</td>|</th>|</h[3-6]>|</blockquote>|</pre>|<br\s*/?>',
   caseSensitive: false,
 );
