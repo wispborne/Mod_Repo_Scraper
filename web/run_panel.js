@@ -11,6 +11,7 @@ import { confirmAndStart, confirmAndStop } from './actions.js';
 import { queuedAt, startedAt, runTime } from './run_record.js';
 import { WORKING } from './change_sides.js';
 import { modCard, topicCard } from './views/changes.js';
+import { logLevel, errorLines } from './log_lines.js';
 
 export const MARK_FOR_STATE = {
   running: 'running',
@@ -68,6 +69,10 @@ export function runPanel(node) {
   // A read asked for while another was loading. It runs when that one ends.
   let readAgain = null;
   let laidOut = false;
+  // Pressing the error count shows only the log's error lines. They can be
+  // anywhere in the log, so the whole log is read while this is on.
+  let errorsOnly = false;
+  const errorChip = el('button', { type: 'button', class: 'chip bad', onclick: () => showErrorsOnly(!errorsOnly) });
 
   // How far from the bottom the reader was when the log was last on screen.
   // A hidden log box cannot be scrolled, so this is where it goes back to.
@@ -122,6 +127,25 @@ export function runPanel(node) {
     if (shownRecord) readLog(shownRecord, shownLive);
   });
 
+  function forgetLog() {
+    shownLines = [];
+    followedOnce = false;
+    followedLive = false;
+    keptFromBottom = 0;
+    moreButton.hidden = true;
+    logBox.replaceChildren();
+  }
+
+  function showErrorsOnly(on) {
+    errorsOnly = on;
+    forgetLog();
+    logNote.textContent = 'Loading…';
+    openTab = 'log';
+    drawTabs();
+    drawChips(chips, shownRecord, shownLive, errorChip, errorsOnly);
+    readLog(shownRecord, shownLive);
+  }
+
   const layOut = () => {
     if (laidOut) return;
     laidOut = true;
@@ -135,11 +159,13 @@ export function runPanel(node) {
       return;
     }
     logAsking = true;
-    const asked = tail;
+    const onlyErrors = errorsOnly;
+    // A tail of 0 asks for the whole log.
+    const asked = onlyErrors ? 0 : tail;
     try {
       const log = await api(`manager/runs/${encodeURIComponent(record.id)}/log`, { tail: asked });
-      if (record.id !== shownId) return;
-      shownTail = asked;
+      if (record.id !== shownId || onlyErrors !== errorsOnly) return;
+      if (!onlyErrors) shownTail = asked;
       if (!log || log.missing) {
         logNote.textContent = 'No log is available for this run.';
         moreButton.hidden = true;
@@ -147,8 +173,8 @@ export function runPanel(node) {
         shownLines = [];
         return;
       }
-      moreButton.hidden = !(log.total > (log.lines || []).length);
-      updateLog(log.lines || [], log.total || 0, live);
+      moreButton.hidden = onlyErrors || !(log.total > (log.lines || []).length);
+      updateLog(onlyErrors ? errorLines(log.lines || []) : log.lines || [], log.total || 0, live);
     } catch (err) {
       logNote.textContent = err.message;
     } finally {
@@ -162,9 +188,15 @@ export function runPanel(node) {
   // Keeps the log box on the page and only adds and removes lines, so the
   // reader's scroll position and selection survive each update.
   function updateLog(lines, total, live) {
-    logNote.textContent = lines.length
-      ? `Showing the last ${lines.length} of ${total} lines.`
-      : 'Nothing logged yet.';
+    if (errorsOnly) {
+      logNote.textContent = lines.length
+        ? `Showing ${lines.length} error ${lines.length === 1 ? 'line' : 'lines'} of ${total} lines.`
+        : 'No lines in this log are marked as errors.';
+    } else {
+      logNote.textContent = lines.length
+        ? `Showing the last ${lines.length} of ${total} lines.`
+        : 'Nothing logged yet.';
+    }
     const fromBottom = logOnScreen() ? fromBottomNow() : keptFromBottom;
     const dropped = linesDroppedFromTop(shownLines, lines);
     for (let i = 0; i < dropped && logBox.firstChild; i++) logBox.firstChild.remove();
@@ -203,15 +235,11 @@ export function runPanel(node) {
       const waiting = !live && record.state === 'queued';
       if (record.id !== shownId) {
         shownId = record.id;
-        shownLines = [];
-        followedOnce = false;
-        followedLive = false;
-        keptFromBottom = 0;
+        errorsOnly = false;
+        forgetLog();
         tail = LOG_TAIL;
         shownTail = LOG_TAIL;
         readAgain = null;
-        moreButton.hidden = true;
-        logBox.replaceChildren();
         logNote.textContent = waiting ? 'Waiting in the queue. Nothing logged yet.' : 'Loading…';
         if (!waiting) readLog(record, !!live);
       } else if (waiting) {
@@ -224,7 +252,7 @@ export function runPanel(node) {
       shownRecord = record;
       drawHead(head, record, live);
       drawMeter(meter, live);
-      drawChips(chips, record, live);
+      drawChips(chips, record, live, errorChip, errorsOnly);
       const changedKey = `${record.id}:${!!live}:${record.state}`;
       if (changedKey !== changedFor) {
         changedFor = changedKey;
@@ -281,14 +309,21 @@ function chip(label, value, kind = '') {
   return el('span', { class: `chip ${kind}` }, [el('b', { text: String(value) }), ` ${label}`]);
 }
 
-function drawChips(node, record, live) {
+function drawChips(node, record, live, errorChip, errorsOnly) {
   const c = record.counters || {};
+  const errorWord = c.errors === 1 ? 'error' : 'errors';
+  errorChip.replaceChildren(el('b', { text: String(c.errors || 0) }), ` ${errorWord}`);
+  errorChip.classList.toggle('on', errorsOnly);
+  errorChip.setAttribute('aria-pressed', String(errorsOnly));
+  errorChip.title = errorsOnly ? 'Show the whole log' : 'Show only error lines';
+  // Redrawing the chips takes the button off the page for a moment.
+  const hadFocus = document.activeElement === errorChip;
   const items = [
     live
       ? chip('elapsed', duration(record.startedAt, null) || '—')
       : el('span', { class: 'chip' }, ['Took ', el('b', { text: (startedAt(record) && duration(record.startedAt, record.finishedAt)) || '—' })]),
     chip(c.llmCalls === 1 ? 'LLM call' : 'LLM calls', c.llmCalls || 0),
-    chip(c.errors === 1 ? 'error' : 'errors', c.errors || 0, c.errors ? 'bad' : ''),
+    c.errors ? errorChip : chip(errorWord, 0),
   ];
   if (!live && c.itemsTotal) items.push(chip(`of ${c.itemsTotal} done`, c.itemsDone || 0));
   if (record.guardrailStop) {
@@ -296,6 +331,7 @@ function drawChips(node, record, live) {
   }
   items.push(el('span', { class: 'chip id', text: record.id }));
   node.replaceChildren(...items);
+  if (hadFocus) errorChip.focus();
 }
 
 /// How many changed mods or topics the What changed tab shows before
@@ -416,7 +452,7 @@ function drawRecord(node, record) {
 }
 
 function logLine(text) {
-  const level = /\b(ERROR|SEVERE)\b/.test(text) ? 'error' : /\bWARN(ING)?\b/.test(text) ? 'warn' : '';
+  const level = logLevel(text);
   return el('div', { class: level ? `log-line ${level}` : 'log-line', text });
 }
 

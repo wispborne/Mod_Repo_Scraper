@@ -1,0 +1,68 @@
+{
+  "topicId": 36191,
+  "title": "[0.98a] PatchLib",
+  "gameVersion": "0.98a",
+  "author": "Lukas04",
+  "authorTitle": "Admiral",
+  "authorPostCount": 913,
+  "postDate": "October 22, 2026, 11:10:42 AM",
+  "lastEditDate": "October 28, 2026, 02:40:38 AM by Lukas04",
+  "contentHtml": "\n\t\t\t\t\t\t\t\t\t<div class=\"centertext\"><br><img src=\"https://imgur.com/VOkhFKZ.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"><br><br>PatchLib is a library mod that enables bytecode patching at runtime for starsector.<br>To install it, simply drop the mod in to your mods folder like other mods. Only install it if a mod requires it.<br><br><a href=\"https://github.com/Lukas22041/PatchLib/releases/latest/download/PatchLib.zip\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener\"><img src=\"https://img.shields.io/github/downloads/Lukas22041/PatchLib/total?label=Download%20PatchLib&amp;style=for-the-badge\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></a> <a href=\"https://github.com/Lukas22041/PatchLib/releases\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener\"><img src=\"https://img.shields.io/github/v/release/Lukas22041/PatchLib?label=Changelog%20/%20Older%20Versions&amp;style=for-the-badge\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></a><br><a href=\"https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FPatchLib%2Frefs%2Fheads%2Fmaster%2FPatchLib.version%22%2C%22id%22%3A%22patchlib%22%7D\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener\"><img src=\"https://trilink.wispborne.com/badges/install-badge-forthebadge-gray-blue.svg\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"></a><br><br><span style=\"color: red;\" class=\"bbc_color\"><span style=\"font-size: 1em;\" class=\"bbc_size\">[Incompatibility Warning] This mod is currently not compatible with mods that upgrade the games java version from 17 to 25+ (like <a href=\"https://fractalsoftworks.com/forum/index.php?topic=35977.0\" class=\"bbc_link\" target=\"_blank\" rel=\"noopener\">Mikohime 28</a>). <br>However, the \"Fast Rendering\" mod fixes the issue that causes this incompatibility, so you can use that to prevent this issue.</span></span><br><br><hr><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><b>For mod authors</b></span><br><br>PatchLib allows modifying and redirecting existing code at runtime. This means that it can change the behaviour of starsector and mod code.<br>If you come from games with C# modding, it can be somewhat compared to the Harmony library, or Mixins if you are more involved with minecraft modding.<br>This capability is useful, as you may often find yourself in situations where you need a hook to modify some game behaviour, but there just is no API for it.<br><br>PatchLib provides an annotation based API for other mods. With it you register your patches and patch handlers.<br>The example patch below hooks in to the <u>addPostDescriptionSection</u> and <u>applyEffectsBeforeShipCreation</u> methods from the Automated hullmod.<br>Both hooks insert code after the original methods ran, allowing us to add additional effects and tooltip descriptions.<br><br><img src=\"https://imgur.com/PcHaBAO.png\" alt=\"\" class=\"bbc_img\" loading=\"lazy\"><br><br>Unlike other ways to replace code, this doesnt require fully overwriting the plugin, which now allows multiple mods to insert their changes in to a single hullmod.<br>There are also countless examples where the game does not provide any way to replace the code, but with PatchLib you can insert hooks in to most of them.<br><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><b>Wiki</b></span><br><br>PatchLib has its own wiki which explains and documents most of the details that you will need.<br>The wiki asumes that you have basic starsector modding and programming knowledge.<br>https://github.com/Lukas22041/PatchLib/wiki<br><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><b>When should you use PatchLib?</b></span><br><br>PatchLib has a lot of utility, but it should generaly be the last resort to choose as your solution.<br>The game has a relatively vast API, which allows quite a lot of things if you stay within the scope of the base game.<br>Patches should only be used if there are no other options, or if the other options require much worse solutions than a patch.<br><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><b>AI generated content disclaimer</b></span><br><br>The libraries code has been co-developed with the help of Claude Code and the models Claude Fable 5, Claude Fable 5.1 and Claude Opus 5.5. <br>The generated pieces of code have been heavily tested and are understood decently well by me. No visual assets were created with generative AI.<br>All documentation is written by hand, but has had grammatical corrections applied through AI tools.<br><br><span style=\"font-size: 16pt;\" class=\"bbc_size\"><b>Credits</b></span><br><br><b>Alex</b>: For making the game, and for allowing the release of this library.<br><b>Raphw</b>: For creating the ByteBuddy java library, which PatchLib heavily relies on.<br><b>Unofficial Starsector Discord</b>: For the users and mod authors that helped in testing the library.<br><br></div>\n\t\t\t\t\t\t\t\t",
+  "images": [
+    {
+      "originalUrl": "https://imgur.com/VOkhFKZ.png",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://img.shields.io/github/downloads/Lukas22041/PatchLib/total?label=Download%20PatchLib&style=for-the-badge",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://img.shields.io/github/v/release/Lukas22041/PatchLib?label=Changelog%20/%20Older%20Versions&style=for-the-badge",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://trilink.wispborne.com/badges/install-badge-forthebadge-gray-blue.svg",
+      "alt": ""
+    },
+    {
+      "originalUrl": "https://imgur.com/PcHaBAO.png",
+      "alt": ""
+    }
+  ],
+  "links": [
+    {
+      "url": "https://github.com/Lukas22041/PatchLib/releases/latest/download/PatchLib.zip",
+      "text": "",
+      "isExternal": true,
+      "isDownloadable": true
+    },
+    {
+      "url": "https://github.com/Lukas22041/PatchLib/releases",
+      "text": "",
+      "isExternal": true,
+      "isDownloadable": false
+    },
+    {
+      "url": "https://trilink.wispborne.com/open.html?mod=%7B%22url%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FLukas22041%2FPatchLib%2Frefs%2Fheads%2Fmaster%2FPatchLib.version%22%2C%22id%22%3A%22patchlib%22%7D",
+      "text": "",
+      "isExternal": true,
+      "isDownloadable": false
+    },
+    {
+      "url": "https://fractalsoftworks.com/forum/index.php?topic=35977.0",
+      "text": "Mikohime 28",
+      "isExternal": false,
+      "isDownloadable": false
+    }
+  ],
+  "extraPosts": [
+    {
+      "contentHtml": "\n\t\t\t\t\t\t\t\t\t[Reserved]\n\t\t\t\t\t\t\t\t",
+      "images": [],
+      "links": [],
+      "postDate": "October 22, 2026, 11:10:52 AM"
+    }
+  ],
+  "isPlaceholderDetail": false
+}

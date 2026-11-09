@@ -11,8 +11,8 @@ import 'post_reducer.dart';
 class ExtractionPrompt {
   ExtractionPrompt._();
 
-  static const int promptVersion = 33;
-  static const int discordPromptVersion = 11;
+  static const int promptVersion = 34;
+  static const int discordPromptVersion = 12;
 
   /// Cache version for [kind]. Nexus extraction is not supported yet.
   static int promptVersionFor(SourceKind kind) =>
@@ -453,8 +453,10 @@ Guidance:
     as "needs".
   - "quote" is the post's own words about the conflict, copied exactly: the
     sentence or line that names the mod, and the next sentence when it says
-    how bad the problem is or when it happens. Keep the author's conditions,
-    such as a version or "only in very large battles".
+    how bad the problem is, when it happens, or how to avoid it (a fix,
+    another mod to install or a setting to change). Keep the author's
+    conditions, such as a version or "only in very large battles", and
+    keep a "However, ..." sentence that follows.
   - "kind" is what sort of conflict the post describes:
     - "technical": the two are incompatible because using both, the way most
       players use them, breaks something: the game crashes or will not start,
@@ -472,7 +474,7 @@ Guidance:
     - "withNotes": the two work together, and the post mentions something to
       know: a problem that is rare or safe to ignore, one that only happens
       with one option, setting, version or graphics card, or a setting to
-      change so they work together.
+      change or another mod to install so they work together.
     - "other": the post is unsure whether the two work together, or the
       problem is not about playing the game, such as how to install it.
     - Examples: "Particle Engine may rarely crash in very large battles. The
@@ -482,8 +484,10 @@ Guidance:
       "Does not work with Nexerelin random sector" is withNotes, because
       random sector is one of Nexerelin's options and most players do not use
       it. "Earlier versions will crash with PAGSM 1.11+" is withNotes, because
-      it only happens with some versions. "Not compatible with X" with no
-      condition is technical.
+      it only happens with some versions. "Not compatible with X. However,
+      the Y mod fixes the issue, so you can use that" is withNotes, because
+      installing Y lets the two work together. "Not compatible with X" with
+      no condition is technical.
       "Compatible with all mods except for Nomadic Survival, which already
       includes the ability from this mod" is gameplay.
   - Not a mod the post only says this one IS compatible with, works with, or

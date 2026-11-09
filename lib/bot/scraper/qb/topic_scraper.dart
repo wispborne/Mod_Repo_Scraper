@@ -68,7 +68,7 @@ class QbTopicScraper {
     try {
       final response = await _client.get(Uri.parse(url));
       if (response.statusCode != 200) {
-        _log.warning('Topic $topicId returned ${response.statusCode}');
+        _log.severe('Topic $topicId returned ${response.statusCode}');
         return null;
       }
 
@@ -79,7 +79,7 @@ class QbTopicScraper {
 
       final posts = _postElements(doc);
       if (posts.isEmpty) {
-        _log.warning('No posts found on topic $topicId');
+        _log.severe('No posts found on topic $topicId');
         return null;
       }
       final firstPost = posts.first;

@@ -23,6 +23,10 @@ abstract class RunReporter {
 
   /// A line worth showing to whoever is watching.
   void log(String line);
+
+  /// The reason for something counted in the run's errors. It is logged as an
+  /// error, which is how the viewer finds it when the error count is pressed.
+  void error(String line);
 }
 
 /// Draws progress as a console bar and sends log lines to the normal log.
@@ -51,6 +55,9 @@ class ConsoleRunReporter implements RunReporter {
   @override
   void log(String line) => timber.i(message: () => line);
 
+  @override
+  void error(String line) => timber.e(message: () => line);
+
   /// Takes the bar off the console. Call when the job ends.
   void finish() {
     _bar?.finish();
@@ -78,6 +85,9 @@ class LogRunReporter implements RunReporter {
 
   @override
   void log(String line) => timber.i(message: () => line);
+
+  @override
+  void error(String line) => timber.e(message: () => line);
 }
 
 /// Keeps everything it is told, for tests.
@@ -103,6 +113,9 @@ class RecordingRunReporter implements RunReporter {
 
   @override
   void log(String line) => logs.add(line);
+
+  @override
+  void error(String line) => logs.add(line);
 }
 
 /// Throws everything away. Handy when a caller doesn't want to watch.
@@ -118,4 +131,7 @@ class SilentRunReporter implements RunReporter {
 
   @override
   void log(String line) {}
+
+  @override
+  void error(String line) {}
 }

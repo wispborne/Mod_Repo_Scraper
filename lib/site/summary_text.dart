@@ -60,8 +60,13 @@ String? summaryOfExcerpt(String? excerpt) {
     kept = firstLine;
   }
   final copied = kept.trim();
-  return copied.isEmpty ? null : copied;
+  return copied.isEmpty || _oneWordHeading.hasMatch(copied) ? null : copied;
 }
+
+/// A single word, with or without a colon: "Features", "Featuring:". Only
+/// letters A to Z count, because Chinese and Japanese write whole sentences
+/// without spaces.
+final RegExp _oneWordHeading = RegExp(r'^[A-Za-z]+:?$');
 
 /// The excerpt's first line, with the lines after it that carry on from it,
 /// as one line.
@@ -145,6 +150,10 @@ String? summaryOfDiscordPost(String? post) {
 /// How many of a Discord post's paragraphs [summaryOfDiscordPost] reads.
 const int _paragraphsToRead = 4;
 
+/// A version such as "v1.3.6" standing alone after the last finished sentence.
+final RegExp _versionAfterSentence =
+    RegExp(r'(?<=[.!?])\s+v\.?\d+(?:\.\d+)+[a-z]?$', caseSensitive: false);
+
 /// [summary] tidied, or null when it is not a description at all.
 ///
 /// Read a line at a time first: a heading and a line that only points at a
@@ -160,8 +169,12 @@ String? usableSummary(String? summary) {
       // ends in its colon.
       .map((line) => line.replaceFirst(_lineMarks, '').replaceAll(_emphasis, '').trim())
       .where((line) => line.isNotEmpty && !_onlyALabelledLink(line));
-  final tidied =
-      lines.join(' ').replaceAll(_emphasis, '').replaceAll(_spaces, ' ').trim();
+  final tidied = lines
+      .join(' ')
+      .replaceAll(_emphasis, '')
+      .replaceAll(_spaces, ' ')
+      .trim()
+      .replaceFirst(_versionAfterSentence, '');
   if (tidied.isEmpty) return null;
 
   // A summary that is only a list of requirements says nothing about the mod.

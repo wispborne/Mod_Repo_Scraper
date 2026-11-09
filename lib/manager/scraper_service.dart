@@ -431,7 +431,7 @@ class ScraperService implements JobRunner {
       final detail = await store.loadDetail(id);
       if (detail == null) {
         errors++;
-        reporter.log('Topic $id has no saved post; skipping.');
+        reporter.error('Topic $id has no saved post; skipping.');
       } else {
         probeCache.dropUrls(detail.allLinks.map((l) => l.url));
         await resolver.resolveForTopic(id, detail.allLinks);
@@ -500,7 +500,7 @@ class ScraperService implements JobRunner {
         final detail = await store.loadDetail(id);
         if (detail == null) {
           errors++;
-          reporter.log('Topic $id has no saved post; skipping.');
+          reporter.error('Topic $id has no saved post; skipping.');
         } else {
           await llm.extractor
               .extractForTopic(detail, resolver.getCachedCandidates(id) ?? []);
@@ -553,7 +553,7 @@ class ScraperService implements JobRunner {
       saved = DiscordPostsFile.read(
           io.File(p.join(environment.dataPath, DiscordPostsFile.fileName)));
     } catch (e) {
-      reporter.log('Could not read the saved Discord posts, so no Discord '
+      reporter.error('Could not read the saved Discord posts, so no Discord '
           'thread was read again: $e');
       return const [];
     }
@@ -561,7 +561,7 @@ class ScraperService implements JobRunner {
     for (final id in threadIds) {
       final thread = saved.threads[id];
       if (thread == null) {
-        reporter.log('Discord thread $id is not in ${DiscordPostsFile.fileName}; '
+        reporter.error('Discord thread $id is not in ${DiscordPostsFile.fileName}; '
             'skipping. The next Discord scrape may save it.');
       } else {
         threads.add(thread);
@@ -713,7 +713,7 @@ class ScraperService implements JobRunner {
         final detail = await store.loadDetail(id);
         if (detail == null && redo) {
           errors++;
-          reporter.log('Skipping topic $id. No saved post.');
+          reporter.error('Skipping topic $id. No saved post.');
         }
         await describe(
             detail == null ? null : SourcePost.fromForumDetail(detail),

@@ -164,6 +164,27 @@ void main() {
           reason: 'the BoxUtil conflict happens only on some graphics cards\n$why');
     });
 
+    test('PatchLib (36191): a conflict another mod fixes keeps the fix and is withNotes',
+        () async {
+      final answer = await read(36191);
+      if (answer == null) return;
+      final why = describe(answer);
+
+      final mod = answer.mods.firstWhere((m) => m.role == 'main');
+      // "[Incompatibility Warning] This mod is currently not compatible with
+      // mods that upgrade the games java version from 17 to 25+ (like Mikohime
+      // 28). However, the "Fast Rendering" mod fixes the issue that causes this
+      // incompatibility, so you can use that to prevent this issue."
+      final conflicts = mod.extras?.conflicts ?? const <LlmConflict>[];
+      final miko =
+          conflicts.where((c) => flatten(c.name).contains('mikohime')).toList();
+      expect(miko, hasLength(1), reason: why);
+      expect(flatten(miko.single.quote), contains('fastrendering'),
+          reason: 'the quote must keep the sentence that says how to avoid it\n$why');
+      expect(miko.single.kind, ConflictKind.withNotes,
+          reason: 'installing Fast Rendering lets the two work together\n$why');
+    });
+
     test('Orion-Friedberg Union (33745): one option of the other mod is withNotes',
         () async {
       final answer = await read(33745);

@@ -374,7 +374,7 @@ class QbScraperEngine {
             onTopicSaved: onTopicSaved,
           ));
         } catch (e) {
-          _log.warning(
+          _log.severe(
               'Failed to process topic ${summary.topicId}: $e');
           currentJob.errors++;
           currentJob.processedTopics++;
@@ -391,7 +391,7 @@ class QbScraperEngine {
         try {
           await Future.any(pending);
         } catch (e) {
-          _log.warning('Pending topic future failed: $e');
+          _log.severe('Pending topic future failed: $e');
           currentJob.errors++;
         }
       }

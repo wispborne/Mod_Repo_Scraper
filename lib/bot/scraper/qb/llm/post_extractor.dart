@@ -1303,7 +1303,8 @@ class PostExtractor {
       needs: needs,
       // A mod in both lists is required because the post says it is.
       optionalNeeds: optionalNeeds,
-      conflicts: _groundConflicts(where, mod.conflicts, corpus, mod.name,
+      conflicts: _groundConflicts(
+          where, mod.conflicts, corpus, authorWords, mod.name,
           leaveOut: [...needs, ...optionalNeeds],
           changelog: changelogEntries.values),
       descriptionAnchors:
@@ -1527,6 +1528,7 @@ class PostExtractor {
     String where,
     List<LlmConflict> conflicts,
     String corpus,
+    String authorWords,
     String ownName, {
     List<String> leaveOut = const [],
     Iterable<String> changelog = const [],
@@ -1539,7 +1541,10 @@ class PostExtractor {
       final key = _lettersAndDigits(name);
       if (key.length < 2 || key == _lettersAndDigits(ownName)) continue;
       if (!seen.add(key)) continue;
-      if (!_wordsInPost(quote, corpus)) {
+      // [authorWords] has our `[link: …]` notes taken out. A quote that runs
+      // past a linked name needs it: PatchLib (topic 36191) links "Mikohime
+      // 28" in the middle of its warning.
+      if (!_wordsInPost(quote, corpus) && !_wordsInPost(quote, authorWords)) {
         _log.warning('Dropped a conflict: quote not found in the post '
             '($where): $name — $quote');
       } else if (!_wordsInPost(name, quote)) {

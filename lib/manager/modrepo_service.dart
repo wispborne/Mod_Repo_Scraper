@@ -258,7 +258,7 @@ class ModRepoService implements JobRunner {
       }
       return (mods: scraped, failed: false);
     } catch (e) {
-      reporter.log('$name went wrong: $e');
+      reporter.error('$name went wrong: $e');
       final saved = await _loadSaved(source, reporter);
       if (saved.isNotEmpty) {
         reporter.log('Using the last saved $name results instead '

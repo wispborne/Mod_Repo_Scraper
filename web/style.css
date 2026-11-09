@@ -450,6 +450,8 @@ a.row:hover { background: var(--panel); text-decoration: none; }
 }
 .chip b { color: var(--text); font-weight: 600; }
 .chip.bad b { color: var(--failed); }
+button.chip { cursor: pointer; }
+button.chip:hover, button.chip.on { border-color: var(--failed); color: var(--text); }
 .chip.warn { color: var(--warning); border-color: var(--warning); background: none; }
 .chip.id { color: var(--faint); background: none; }
 

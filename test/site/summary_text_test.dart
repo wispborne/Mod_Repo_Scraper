@@ -65,10 +65,24 @@ void main() {
           'It keeps everything the original does.');
     });
 
+    test('a one-word heading is not a summary', () {
+      // Topics 36049 and 29124, whose cards read "Features" and "Featuring:".
+      expect(summaryOfExcerpt('Features\n• New ship variants'), isNull);
+      expect(summaryOfExcerpt('Featuring:\nHand-crafted star systems!'), isNull);
+    });
+
     test('an empty excerpt has no summary', () {
       expect(summaryOfExcerpt(null), isNull);
       expect(summaryOfExcerpt('  '), isNull);
     });
+  });
+
+  test('takes a version off the end of a summary', () {
+    // The Knights of Ludd's Discord post has its version on the second line.
+    expect(usableSummary('**An ambitious expansion.**\nv1.3.6'),
+        'An ambitious expansion.');
+    expect(usableSummary('Adds ships built for v2 of the mod'),
+        'Adds ships built for v2 of the mod');
   });
 
   test('keeps a real description', () {

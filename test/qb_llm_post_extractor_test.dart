@@ -410,6 +410,31 @@ void main() {
               'The post never says GraphicsLib breaks.');
     });
 
+    test('a conflict quote may run past a linked mod name', () async {
+      // PatchLib (topic 36191) links "Mikohime 28" in the middle of its
+      // warning. Our [link: …] note after the name must not stop the quote
+      // from matching.
+      const url = 'https://fractalsoftworks.com/forum/index.php?topic=35977.0';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"My Mod","role":"main","conflicts":['
+            '{"name":"Mikohime 28","quote":"Not compatible with Java 25 mods '
+            '(like Mikohime 28). However, Fast Rendering fixes the issue.",'
+            '"kind":"withNotes"}'
+            ']}]}'),
+      ]);
+      final extractor = makeExtractor(client);
+      await extractor.extractForTopic(
+        _detail(155,
+            'My cool mod. Not compatible with Java 25 mods (like '
+            '<a href="$url">Mikohime 28</a>). <br>However, Fast Rendering '
+            'fixes the issue.',
+            links: [LinkRef(url: url, text: 'Mikohime 28', isExternal: true)]),
+        [],
+      );
+      expect(extrasOf(155)?.conflicts?.map((c) => (c.name, c.kind)),
+          [('Mikohime 28', ConflictKind.withNotes)]);
+    });
+
     test('a conflict keeps a known kind and drops an unknown one',
         () async {
       final client = _FakeLlmClient([

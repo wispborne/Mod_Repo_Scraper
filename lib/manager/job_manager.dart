@@ -296,4 +296,7 @@ class _HistoryReporter implements RunReporter {
 
   @override
   void log(String line) => _inner.log(line);
+
+  @override
+  void error(String line) => _inner.error(line);
 }
