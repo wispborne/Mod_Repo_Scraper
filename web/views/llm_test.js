@@ -1,7 +1,7 @@
 // LLM test report: llm-test-output.json as a readable report, and the only
 // button that starts an LLM test job.
 
-import { el, api } from '../lib.js';
+import { el, api, foldArrow } from '../lib.js';
 import { pageLayout } from '../frame.js';
 import { subscribe, status } from '../status.js';
 import { confirmAndStart } from '../actions.js';
@@ -10,7 +10,7 @@ import { expandAllButton } from '../diff_parts.js';
 
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
-  if (s && s.offline) return 'The server could not be reached. The LLM test cannot be started.';
+  if (s && s.offline) return 'Unable to reach the server. The LLM test cannot be started.';
   return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
     + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
 }
@@ -29,6 +29,7 @@ export async function render({ content, toolbar, onLeave }) {
     const button = el('button', {
       type: 'button',
       class: 'button primary',
+      icon: 'llm',
       text: 'Run LLM test',
       title: 'Test the LLM prompt on a few topics and save a report.',
       onclick: async () => {
@@ -122,6 +123,7 @@ function topicBlock(t) {
 
   return el('details', { class: 'lt-topic' }, [
     el('summary', {}, [
+      foldArrow(),
       el('span', { class: 'mono', text: `#${t.topicId}` }),
       el('span', { class: 'lt-title', text: t.title || '' }),
       t.error ? badge('Failed', 'bad') : null,

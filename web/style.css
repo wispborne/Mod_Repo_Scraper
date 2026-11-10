@@ -76,6 +76,14 @@ p { margin: 0; }
 .error-text { color: var(--failed); padding: var(--pad); }
 .gap { flex: 1; }
 .icon { flex: none; display: block; }
+/* An icon inside a line of words, where the line cannot be a flex row. */
+.icon-inline { display: inline-block; margin: 0 6px; vertical-align: -2px; color: var(--faint); }
+
+/* Every fold has the same arrow: right when shut, down when open. */
+summary { list-style: none; }
+summary::-webkit-details-marker { display: none; }
+.fold-arrow { flex: none; display: flex; color: var(--dim); }
+details[open] > summary > .fold-arrow .icon { transform: rotate(90deg); }
 
 .skip-link {
   position: absolute; left: 8px; top: -40px; z-index: 50;
@@ -186,10 +194,15 @@ p { margin: 0; }
   background: var(--background); border: 1px solid var(--line); color: var(--faint);
 }
 .search:focus-within { border-color: var(--action); }
-/* When centred, the icon sits half a pixel above the middle of the capital letters.
-   Moving it down one whole pixel puts it half a pixel below that middle.
-   It looks better there. */
-.search > .icon { transform: translateY(1px); }
+/* Beside 13px words, a centred icon sits half a pixel above the middle of the
+   capital letters. Moving it down one whole pixel puts it half a pixel below
+   that middle. It looks better there. */
+.search > .icon,
+.crumb-sep > .icon,
+.change-arrow > .icon,
+.ph-arrow > .icon,
+.link-button > .icon,
+.button:is(.aa-small, .dn-small, .md-small, .td-small) > .icon { transform: translateY(1px); }
 .search-input {
   flex: 1; min-width: 0; border: 0; background: none; outline: none;
   color: var(--text); font: inherit;
@@ -235,6 +248,7 @@ p { margin: 0; }
   font: inherit; cursor: pointer;
 }
 .link-button:hover { text-decoration: underline; }
+.link-button:has(> .icon) { display: inline-flex; align-items: center; gap: 6px; }
 
 /* A 20px line centres the 14px icon on a whole pixel, level with the capitals. */
 .out-link { display: inline-flex; align-items: center; gap: 6px; line-height: 20px; }
@@ -316,6 +330,8 @@ p { margin: 0; }
   padding: 4px var(--pad); color: var(--text);
 }
 a.row:hover { background: var(--panel); text-decoration: none; }
+.queue-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding-right: 8px; }
+.queue-row:hover { background: var(--panel); }
 .row-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-time { font: var(--small)/var(--small-line-height) var(--mono); color: var(--faint); }
 .empty { padding: 6px var(--pad); color: var(--faint); }
@@ -422,7 +438,7 @@ a.row:hover { background: var(--panel); text-decoration: none; }
   font: inherit; cursor: pointer;
 }
 .menu-item:hover, .menu-item:focus-visible { background: var(--raised); }
-.menu-item-name { color: var(--action); }
+.menu-item-name { display: flex; align-items: center; gap: 6px; color: var(--action); }
 
 /* --- Run panel (Control) ---------------------------------------------- */
 
@@ -523,11 +539,12 @@ button.chip:hover, button.chip.on { border-color: var(--failed); color: var(--te
   padding: 10px 20px; border-bottom: 1px solid var(--line);
   font-size: var(--small); line-height: var(--small-line-height);
 }
-.crumb-sep { color: var(--faint); }
+.crumb-sep { display: flex; color: var(--faint); }
 .crumb-here { color: var(--dim); }
 
 .raw-slot { padding: 12px 20px 20px; }
 .raw-fold summary {
+  display: flex; align-items: center; gap: 6px;
   cursor: pointer; color: var(--action);
   font: 600 var(--label)/16px var(--mono); letter-spacing: .08em; text-transform: uppercase;
 }
@@ -569,7 +586,7 @@ button.chip:hover, button.chip.on { border-color: var(--failed); color: var(--te
 .change-list li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: var(--small); line-height: var(--small-line-height); }
 .change-list code { font-family: var(--mono); color: var(--heading); margin-right: 4px; }
 .change-old { color: var(--dim); text-decoration: line-through; overflow-wrap: anywhere; }
-.change-arrow { color: var(--faint); }
+.change-arrow { display: flex; align-self: center; color: var(--faint); }
 .change-new { color: var(--text); overflow-wrap: anywhere; }
 
 /* --- Narrow screens ---------------------------------------------------- */

@@ -4,6 +4,7 @@
 // history and the mod page's history, so a change is worded the same way on
 // all three.
 
+import { icon } from './icons.js';
 import { el } from './lib.js';
 import { fieldLabel, changedInside, wordChanges } from './diff_words.js';
 
@@ -19,7 +20,7 @@ export function expandAllButton(container, selector) {
   const folds = () => [...container.querySelectorAll(selector)];
   const refresh = () => {
     const anyShut = folds().some((f) => !f.open);
-    button.textContent = anyShut ? 'Expand all' : 'Collapse all';
+    button.replaceChildren(icon(anyShut ? 'expand-all' : 'collapse-all'), anyShut ? 'Expand all' : 'Collapse all');
   };
   button.addEventListener('click', () => {
     const open = folds().some((f) => !f.open);
@@ -131,11 +132,13 @@ function markedText(pieces) {
   });
 }
 
+const CHANGE_MARKS = { added: 'plus', removed: 'minus', changed: 'pencil' };
+
 /// Changed entries, nested where an entry has its own (downloads under a mod).
 function itemList(items) {
   return el('ul', { class: 'ph-items' }, items.map((item) => {
     const row = el('li', { class: `ph-item-${item.change}` }, [
-      el('span', { class: 'ph-mark', text: { added: '+', removed: '−', changed: '~' }[item.change] || '·' }),
+      el('span', { class: 'ph-mark' }, CHANGE_MARKS[item.change] ? [icon(CHANGE_MARKS[item.change])] : []),
       el('span', { class: 'ph-label', text: item.label || '' }),
     ]);
     if ('before' in item || 'after' in item) row.append(valueLine(item));
@@ -178,13 +181,17 @@ function valueChange(name, before, after, { only = null } = {}) {
   const beforeText = only === 'after' ? '' : diffText(before);
   const afterText = only === 'before' ? '' : diffText(after);
   const stacked = marked || beforeText.length + afterText.length > 80;
-  const side = (cls, value, pieces) => (pieces
-    ? el('span', { class: `${cls} ph-marked` }, markedText(pieces))
-    : el('span', { class: cls, text: diffText(value) }));
+  const side = (cls, value, pieces, mark) => {
+    const words = pieces
+      ? el('span', { class: `${cls} ph-marked` }, markedText(pieces))
+      : el('span', { class: cls, text: diffText(value) });
+    // A long value gets a line each: a mark says which line is old and which is new.
+    return stacked ? el('div', { class: `ph-line ph-line-${mark}` }, [icon(mark), words]) : words;
+  };
   const parts = [];
-  if (only !== 'after') parts.push(side('ph-before', before, marked && marked.before));
-  if (!only && !stacked) parts.push(el('span', { class: 'ph-arrow', text: '→' }));
-  if (only !== 'before') parts.push(side('ph-after', after, marked && marked.after));
+  if (only !== 'after') parts.push(side('ph-before', before, marked && marked.before, 'minus'));
+  if (!only && !stacked) parts.push(el('span', { class: 'ph-arrow' }, [icon('arrow-right')]));
+  if (only !== 'before') parts.push(side('ph-after', after, marked && marked.after, 'plus'));
   return el('div', { class: `ph-part${stacked ? ' ph-stacked' : ''}` }, [label, ...parts]);
 }
 

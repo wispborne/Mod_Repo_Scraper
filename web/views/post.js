@@ -13,8 +13,7 @@ import { previewAndAdd } from './takedowns.js';
 import {
   badge, section, subhead, emptyLine, outLink, fold, fieldList, when, forumTime, postFrame, linkList,
   imageList, discordImage, downloadRowFromCandidate, normUrl, assumedTable, llmModsBlock,
-  llmDetails, topicJobButtons, discordJobButtons, topicStaleness, stalenessBanner,
-} from '../post_parts.js';
+  llmDetails, topicJobButtons, discordJobButtons, topicStaleness, stalenessBanner, openLink } from '../post_parts.js';
 
 const KINDS = { topic: 'Forum topic', discord: 'Discord thread' };
 
@@ -24,7 +23,7 @@ const BOARDS = { 8: 'Main mods board', 3: 'Lesser mods board', 9: 'Libraries boa
 
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
-  if (s && s.offline) return 'The server could not be reached. Jobs cannot be started.';
+  if (s && s.offline) return 'Unable to reach the server. Jobs cannot be started.';
   return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
     + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
 }
@@ -87,10 +86,10 @@ export async function render({ content, parts, toolbar, onLeave }) {
   if (!body) {
     page.push(el('div', { class: 'pp-sections' }, [
       kind === 'topic'
-        ? emptyLine('Could not load this topic.')
+        ? emptyLine('Unable to load this topic.')
         : el('div', { class: 'pp-missing' }, [
           el('p', {}, [
-            'Could not load this Discord thread. ',
+            'Unable to load this Discord thread. ',
             infoButton('Error details', 'Error details', [
               el('p', { text: 'To save this thread, run “Fetch and update” with Discord selected.' }),
             ]),
@@ -166,23 +165,21 @@ function headLinks(kind, id, body) {
   const links = [];
   if (kind === 'topic') {
     const url = body && body.index && body.index.topicUrl;
-    if (url) links.push(openLink(url, 'Open on forum'));
+    if (url) links.push(openHere(url, 'Open on forum'));
     links.push(el('a', {
       href: `#/posts/topic/${encodeURIComponent(id)}/history`,
       text: 'History',
       title: 'View changes to this topic.',
     }));
   } else if (body && body.thread && body.thread.url) {
-    links.push(openLink(body.thread.url, 'Open on Discord'));
+    links.push(openHere(body.thread.url, 'Open on Discord'));
   }
   return links;
 }
 
-/// A link that opens in a new tab, marked with the external-link icon.
-function openLink(url, words) {
-  const link = outLink(url, words, { title: url });
-  if (link.tagName === 'A') link.append(icon('external-link', 14));
-  return link;
+/// A link to another site, with the whole address on hover.
+function openHere(url, words) {
+  return openLink(url, words, { title: url });
 }
 
 const OUTCOME_MARKS = {
@@ -284,6 +281,7 @@ function takeDownButton(mods) {
   return el('button', {
     type: 'button',
     class: 'button danger',
+    icon: 'take-down',
     text: 'Take down',
     title: 'Exclude this mod from all published files at its owner’s request.',
     onclick: async () => {
@@ -302,7 +300,7 @@ function pickMod(mods) {
         el('span', { class: 'td-row-name', text: mod.name }),
         el('code', { class: 'td-id', text: mod.id }),
       ]),
-      el('span', { class: 'pp-pick-arrow', 'aria-hidden': 'true' }, [icon('chevron-right', 14)]),
+      el('span', { class: 'pp-pick-arrow', 'aria-hidden': 'true' }, [icon('chevron-right')]),
     ]));
     const box = el('dialog', { class: 'dialog td-dialog' }, [
       el('h2', { text: 'Take down' }),
@@ -536,8 +534,8 @@ function discordFacts(body) {
   return [sidePanel({ name: 'Thread', body: el('div', { class: 'pp-side-body' }, [fieldList([
     ['Thread ID', body.threadId || thread.threadId],
     ['Author', thread.author],
-    ['Link', thread.url, thread.url ? openLink(thread.url, 'Open on Discord') : null],
-    ['Forum link', thread.forumUrl, thread.forumUrl ? openLink(thread.forumUrl, 'Open on forum') : null],
+    ['Link', thread.url, thread.url ? openHere(thread.url, 'Open on Discord') : null],
+    ['Forum link', thread.forumUrl, thread.forumUrl ? openHere(thread.forumUrl, 'Open on forum') : null],
     ['Forum topic', null, topic ? el('a', { href: `#/posts/topic/${topic[1]}`, text: `Topic ${topic[1]}` }) : null],
   ])]) })];
 }
@@ -591,7 +589,7 @@ function messagesSection(thread, captions) {
     const files = message.files || [];
     if (files.length) {
       children.push(el('ul', { class: 'pp-files' }, files.map((file) => el('li', {}, [
-        el('span', { class: 'pp-file-icon', role: 'img', 'aria-label': 'Attachment' }, [icon('paperclip', 14)]),
+        el('span', { class: 'pp-file-icon', role: 'img', 'aria-label': 'Attachment' }, [icon('paperclip')]),
         outLink(file.url, file.filename || 'Open attachment', { title: file.url }),
         file.size ? ` (${Math.round(file.size / 1024)} KB)` : '',
       ]))));

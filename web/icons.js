@@ -26,23 +26,100 @@ const PATHS = {
   inbox: ['M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z', 'M4 13h3l3 3h4l3 -3h3'],
   'chevron-down': ['M6 9l6 6l6 -6'],
   'chevron-right': ['M9 6l6 6l-6 6'],
+  'chevron-left': ['M15 6l-6 6l6 6'],
+  'chevron-up': ['M6 15l6 -6l6 6'],
+  'chevrons-down': ['M7 7l5 5l5 -5', 'M7 13l5 5l5 -5'],
+  'chevrons-up': ['M7 11l5 -5l5 5', 'M7 17l5 -5l5 5'],
+  'chevrons-left': ['M11 7l-5 5l5 5', 'M17 7l-5 5l5 5'],
+  'chevrons-right': ['M7 7l5 5l-5 5', 'M13 7l5 5l-5 5'],
   clock: ['M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M12 7v5l3 3'],
   'external-link': ['M12 6h-6a2 2 0 0 0 -2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-6', 'M11 13l9 -9', 'M15 4h5v5'],
   upload: ['M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2', 'M7 9l5 -5l5 5', 'M12 4l0 12'],
   download: ['M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2', 'M7 11l5 5l5 -5', 'M12 4l0 12'],
   refresh: ['M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4', 'M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4'],
+  repeat: ['M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3', 'M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3'],
+  restore: ['M3.06 13a9 9 0 1 0 .49 -4.087', 'M3 4.001v5h5', 'M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0'],
   stop: ['M6 6h12v12h-12z'],
   x: ['M18 6l-12 12', 'M6 6l12 12'],
+  plus: ['M12 5l0 14', 'M5 12l14 0'],
+  minus: ['M5 12l14 0'],
+  check: ['M5 12l5 5l10 -10'],
+  checks: ['M7 12l5 5l10 -10', 'M2 12l5 5m5 -5l5 -5'],
+  pencil: ['M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4', 'M13.5 6.5l4 4'],
+  trash: ['M4 7l16 0', 'M10 11l0 6', 'M14 11l0 6', 'M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12', 'M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3'],
+  ban: ['M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M5.7 5.7l12.6 12.6'],
+  eye: ['M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0', 'M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6'],
+  photo: ['M15 8h.01', 'M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z', 'M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5', 'M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3'],
+  hammer: ['M11.414 10l-7.383 7.418a2.091 2.091 0 0 0 0 2.967a2.11 2.11 0 0 0 2.976 0l7.407 -7.385', 'M18.121 15.293l2.586 -2.586a1 1 0 0 0 0 -1.414l-7.586 -7.586a1 1 0 0 0 -1.414 0l-2.586 2.586a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0z'],
+  'file-check': ['M14 3v4a1 1 0 0 0 1 1h4', 'M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z', 'M9 15l2 2l4 -4'],
+  'device-floppy': ['M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2', 'M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0', 'M14 4l0 4l-6 0l0 -4'],
+  'user-x': ['M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0', 'M6 21v-2a4 4 0 0 1 4 -4h3.5', 'M22 22l-5 -5', 'M17 22l5 -5'],
+  'circle-arrow-up': ['M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M16 12l-4 -4l-4 4', 'M12 16v-8'],
+  'arrow-right': ['M5 12l14 0', 'M13 18l6 -6', 'M13 6l6 6'],
+  'arrow-back-up': ['M9 14l-4 -4l4 -4', 'M5 10h11a4 4 0 1 1 0 8h-1'],
+  'arrows-exchange': ['M7 10h14l-4 -4', 'M17 14h-14l4 4'],
+  'arrows-left-right': ['M21 17l-18 0', 'M6 10l-3 -3l3 -3', 'M3 7l18 0', 'M18 20l3 -3l-3 -3'],
   'info-circle': ['M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0', 'M12 9h.01', 'M11 12h1v4h1'],
   paperclip: ['M15 7l-6.5 6.5a1.5 1.5 0 0 0 3 3l6.5 -6.5a3 3 0 0 0 -6 -6l-6.5 6.5a4.5 4.5 0 0 0 9 9l6.5 -6.5'],
   sparkles: ['M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z'],
 };
 
+// Which icon each action uses, so an action looks the same on every page.
+// A new button should use one of these names, or add one here.
+const ACTIONS = {
+  // Jobs.
+  fetch: 'download',
+  llm: 'sparkles',
+  'recheck-downloads': 'file-check',
+  'scan-images': 'photo',
+  match: 'link',
+  rebuild: 'hammer',
+  publish: 'upload',
+  'run-again': 'repeat',
+  update: 'circle-arrow-up',
+  // Corrections.
+  'take-down': 'eye-off',
+  restore: 'restore',
+  reset: 'restore',
+  undo: 'arrow-back-up',
+  'same-person': 'users',
+  'different-people': 'user-x',
+  'not-in-catalog': 'ban',
+  // On a page.
+  save: 'device-floppy',
+  discard: 'trash',
+  clear: 'x',
+  remove: 'x',
+  add: 'plus',
+  preview: 'eye',
+  swap: 'arrows-exchange',
+  'mark-read': 'checks',
+  more: 'chevron-down',
+  'expand-all': 'chevrons-down',
+  'collapse-all': 'chevrons-up',
+  'first-page': 'chevrons-left',
+  'previous-page': 'chevron-left',
+  'next-page': 'chevron-right',
+  'last-page': 'chevrons-right',
+};
+
 const SVG = 'http://www.w3.org/2000/svg';
 
-/// An outline icon as an <svg> element, hidden from screen readers. Drawn at
-/// a whole number of pixels so its lines stay sharp.
-export function icon(name, size = 16) {
+/// Whether `name` is an icon or an action that has one.
+export function hasIcon(name) {
+  return !!PATHS[ACTIONS[name] || name];
+}
+
+/// Every action's icon exists. Checked by a test.
+export function actionsWithoutIcon() {
+  return Object.keys(ACTIONS).filter((action) => !PATHS[ACTIONS[action]]);
+}
+
+/// An outline icon as an <svg> element, hidden from screen readers. `name` is
+/// an action or an icon. There are three sizes, all a whole number of pixels
+/// so the lines stay sharp: 14 beside words (the default), 16 alone in a
+/// button, 20 in the nav rail.
+export function icon(name, size = 14) {
   const svg = document.createElementNS(SVG, 'svg');
   svg.setAttribute('class', 'icon');
   svg.setAttribute('width', String(size));
@@ -54,7 +131,7 @@ export function icon(name, size = 16) {
   svg.setAttribute('stroke-linecap', 'round');
   svg.setAttribute('stroke-linejoin', 'round');
   svg.setAttribute('aria-hidden', 'true');
-  for (const d of PATHS[name] || []) {
+  for (const d of PATHS[ACTIONS[name] || name] || []) {
     const path = document.createElementNS(SVG, 'path');
     path.setAttribute('d', d);
     svg.append(path);

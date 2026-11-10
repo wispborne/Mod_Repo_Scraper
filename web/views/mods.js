@@ -1,6 +1,7 @@
 // Mods: every mod in the last build, from `GET /api/mods`. Search, filters,
 // sort and page are kept in the address. Each row opens the mod's page.
 
+import { icon } from '../icons.js';
 import { el, clear, api, pager, pageSizePreference, infoButton } from '../lib.js';
 import { pageLayout } from '../frame.js';
 import { hashQuery, buildHash } from '../routes.js';
@@ -104,6 +105,7 @@ export function render({ content, onLeave }) {
       filterBar.append(el('button', {
         type: 'button',
         class: 'link-button pl-clear',
+        icon: 'clear',
         text: 'Clear filters',
         onclick: () => {
           view.filters = new Set();
@@ -203,9 +205,9 @@ export function render({ content, onLeave }) {
 function modTable(items, view, onSort) {
   const sortHead = (key, label, cls = '') => {
     const active = view.sort === key;
-    const arrow = active ? (view.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    const arrow = active ? icon(view.dir === 'asc' ? 'chevron-up' : 'chevron-down') : null;
     return el('th', { class: cls, 'aria-sort': active ? (view.dir === 'asc' ? 'ascending' : 'descending') : null }, [
-      el('button', { type: 'button', class: 'pl-sort', onclick: () => onSort(key) }, [label + arrow]),
+      el('button', { type: 'button', class: 'pl-sort', onclick: () => onSort(key) }, [label, arrow]),
     ]);
   };
   const head = el('tr', {}, [

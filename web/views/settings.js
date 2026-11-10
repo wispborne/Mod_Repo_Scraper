@@ -3,6 +3,7 @@
 // first and lists each change. Secrets are never sent to the browser: the
 // page only knows whether each one is set.
 
+import { icon } from '../icons.js';
 import { el, clear, api, noticeDialog, showDialog } from '../lib.js';
 import { refresh, notificationsWanted, setNotificationsWanted } from '../status.js';
 import { pageLayout } from '../frame.js';
@@ -19,13 +20,13 @@ export async function render({ content, toolbar, guardLeave, gone = () => false 
   let resultNote = null;
 
   const saveButton = el('button', { type: 'button', class: 'button primary', disabled: true });
-  const discardButton = el('button', { type: 'button', class: 'button', text: 'Discard', disabled: true });
+  const discardButton = el('button', { type: 'button', class: 'button', icon: 'discard', text: 'Discard', disabled: true });
   toolbar.actions.append(saveButton, discardButton);
 
   guardLeave(() => (edits.size ? 'Discard unsaved changes?' : null));
 
   const drawButtons = () => {
-    saveButton.replaceChildren(edits.size ? `Save changes (${edits.size})` : 'Save changes');
+    saveButton.replaceChildren(icon('save'), edits.size ? `Save changes (${edits.size})` : 'Save changes');
     saveButton.disabled = edits.size === 0;
     discardButton.disabled = edits.size === 0;
   };
@@ -88,6 +89,7 @@ export async function render({ content, toolbar, guardLeave, gone = () => false 
         parts.push(el('button', {
           type: 'button',
           class: 'link-button',
+          icon: 'reset',
           text: 'Reset to default',
           title: `The default is ${s.default || 'empty'}.`,
           onclick: () => {
@@ -101,6 +103,7 @@ export async function render({ content, toolbar, guardLeave, gone = () => false 
         parts.push(el('button', {
           type: 'button',
           class: 'link-button',
+          icon: 'undo',
           text: 'Undo',
           onclick: () => {
             edits.delete(s.key);
@@ -157,7 +160,7 @@ export async function render({ content, toolbar, guardLeave, gone = () => false 
       return el('div', { class: 'secret' }, [
         el('span', { class: s.isSet ? 'secret-state' : 'secret-state dim', text: s.isSet ? 'Set' : 'Not set' }),
         box,
-        s.isSet ? el('button', { type: 'button', class: 'button quiet', text: 'Clear', onclick: onClear }) : null,
+        s.isSet ? el('button', { type: 'button', class: 'button quiet', icon: 'clear', text: 'Clear', onclick: onClear }) : null,
       ]);
     }
     if (s.kind === 'bool') {
@@ -263,7 +266,7 @@ export async function render({ content, toolbar, guardLeave, gone = () => false 
       answer = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(answer.error || `Server returned ${res.status} ${res.statusText}.`);
     } catch (err) {
-      await noticeDialog('Could not save settings', err.message);
+      await noticeDialog('Unable to save settings', err.message);
       return;
     }
     edits.clear();
@@ -301,7 +304,7 @@ function confirmChanges(data, edits) {
       return el('li', {}, [
         el('code', { text: key }),
         el('span', { class: 'change-old', text: old }),
-        el('span', { class: 'change-arrow', 'aria-hidden': 'true', text: '→' }),
+        el('span', { class: 'change-arrow', 'aria-hidden': 'true' }, [icon('arrow-right')]),
         el('span', { class: 'change-new', text: next }),
       ]);
     });

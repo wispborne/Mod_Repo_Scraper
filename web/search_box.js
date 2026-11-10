@@ -39,7 +39,7 @@ export function searchBox() {
   // Announce the result count without moving focus.
   const said = el('div', { class: 'search-said', role: 'status', 'aria-live': 'polite' });
   const form = el('form', { class: 'search', role: 'search' }, [
-    icon('search', 14),
+    icon('search'),
     input,
     el('kbd', { class: 'search-key', text: '/', title: 'Press / to search', 'aria-hidden': 'true' }),
     panel,

@@ -25,7 +25,7 @@ function pendingList(onAction = () => {}) {
       'aria-label': `Remove "${item.label}"`,
       title: 'Remove',
       onclick: () => removePending(item.id),
-    }, [icon('x', 14)]),
+    }, [icon('x', 16)]),
   ])));
 
   const box = el('input', { type: 'checkbox' });
@@ -41,6 +41,7 @@ function pendingList(onAction = () => {}) {
       el('button', {
         type: 'button',
         class: 'button primary',
+        icon: 'save',
         text: 'Save all',
         disabled: off,
         onclick: () => { onAction(); saveAll(); },
@@ -48,6 +49,7 @@ function pendingList(onAction = () => {}) {
       el('button', {
         type: 'button',
         class: 'button quiet',
+        icon: 'discard',
         text: 'Discard all',
         onclick: () => { onAction(); discardAll(); },
       }),
@@ -97,7 +99,7 @@ export function mountPendingButton(host) {
   const draw = () => {
     const n = pendingItems().length;
     button.hidden = n === 0;
-    button.replaceChildren(icon('inbox', 14), `${n} pending`);
+    button.replaceChildren(icon('inbox'), `${n} pending`);
     button.title = n === 1 ? '1 unsaved change.' : `${n} unsaved changes.`;
     if (n === 0) close();
     else if (!panel.hidden) drawPanel();
@@ -190,7 +192,7 @@ async function saveAll() {
     record = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(record.error || `Server returned ${res.status} ${res.statusText}.`);
   } catch (err) {
-    await noticeDialog('Could not start job', err.message);
+    await noticeDialog('Unable to start job', err.message);
     return;
   }
   // Remove only the items sent to the server. Keep any added since then.

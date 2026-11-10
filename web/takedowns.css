@@ -95,6 +95,7 @@
   font-size: var(--small); line-height: 22px;
 }
 .td-chip-remove {
+  display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; padding: 0; border: 0; background: none;
   color: var(--faint); font: inherit; cursor: pointer;
 }
@@ -135,8 +136,8 @@
 .td-pill.info { color: var(--text); background: none; }
 .td-pill.check { color: var(--warning); border-color: var(--warning); background: none; }
 .td-applies { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; }
-.td-applies li { display: inline-flex; align-items: baseline; gap: 6px; }
-.td-applies-mark { font-family: var(--mono); font-weight: 600; }
+.td-applies li { display: inline-flex; align-items: center; gap: 6px; }
+.td-applies-mark { display: flex; }
 .td-applies-yes .td-applies-mark { color: var(--done); }
 .td-applies-partial { color: var(--warning); }
 .td-applies-skip { color: var(--faint); }

@@ -72,6 +72,7 @@ class ManagerApi {
     r.get('/status', _status);
     r.post('/jobs', _submitJob);
     r.post('/jobs/cancel', _cancelJob);
+    r.post('/jobs/remove', _removeQueuedJob);
     r.get('/runs', _runs);
     r.get('/runs/<id>', _run);
     r.get('/runs/<id>/log', _runLog);
@@ -351,6 +352,28 @@ class ManagerApi {
       'message': 'Asked run ${current.id} to stop. It stops between topics and '
           'keeps everything it has already saved.',
     });
+  }
+
+  Future<Response> _removeQueuedJob(Request req) async {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(await req.readAsString());
+    } catch (_) {
+      return _error('The remove request could not be read: the body is not JSON.',
+          status: HttpStatus.badRequest);
+    }
+    final runId = decoded is Map<String, dynamic> ? decoded['runId'] : null;
+    if (runId is! String || runId.isEmpty) {
+      return _error('Send the "runId" of the job to remove.',
+          status: HttpStatus.badRequest);
+    }
+
+    final removed = await manager.removeQueued(runId);
+    if (removed == null) {
+      return _error('Run $runId is no longer waiting, so nothing was removed.',
+          status: HttpStatus.conflict);
+    }
+    return _json(removed.toMap());
   }
 
   // --- Run history ---

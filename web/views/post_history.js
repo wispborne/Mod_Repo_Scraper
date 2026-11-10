@@ -2,7 +2,7 @@
 // saved mod details changed the topic, newest first, along a vertical line.
 // Saved data that is not published yet appears first.
 
-import { el, api, breadcrumbs, rawJson } from '../lib.js';
+import { el, api, breadcrumbs, rawJson, foldArrow } from '../lib.js';
 import { pageLayout } from '../frame.js';
 import { icon } from '../icons.js';
 import { subscribe } from '../status.js';
@@ -40,7 +40,7 @@ export async function render({ content, parts, toolbar, onLeave }) {
   const head = el('header', { class: 'pp-head' }, [el('h2', { class: 'pp-title', text: title })]);
 
   if (!history || history.error) {
-    main.replaceChildren(crumbs, head, el('p', { class: 'error-text', text: (history && history.error) || 'Could not read the history.' }));
+    main.replaceChildren(crumbs, head, el('p', { class: 'error-text', text: (history && history.error) || 'Unable to read the history.' }));
     return;
   }
 
@@ -108,7 +108,7 @@ function historyEndsHere(history) {
     ? `History starts ${from}. Earlier snapshots are unavailable.`
     : 'Earlier snapshots are unavailable.'];
   if (read < total) {
-    lines.push(`${total - read} of the ${total} saved snapshots could not be read and were skipped.`);
+    lines.push(`Unable to read ${total - read} of the ${total} saved snapshots. They were skipped.`);
   }
   return el('div', { class: 'ph-entry ph-tail' }, [
     el('div', { class: 'ph-rail' }, el('span', { class: 'ph-cap' })),
@@ -161,11 +161,10 @@ function logEntry(entry, title, topicId) {
   const [word, tone] = KIND_WORDS[entry.kind] || [entry.kind, ''];
   const card = el('details', { class: 'ph-card' });
   card.append(el('summary', {}, [
+    foldArrow(),
     badge(word, tone),
     el('span', { class: 'ph-name', text: when(entry.savedAt) || entry.runId }),
     el('span', { class: 'ph-job', text: jobWord(entry.runId) }),
-    el('span', { class: 'ph-chev', 'aria-hidden': 'true' }, [icon('chevron-right', 14)]),
-    // After the chevron, so it wraps to its own line under the date.
     // First-seen and removed entries name no fields.
     changes.length ? el('span', { class: 'ph-hint', text: changedFieldsLine(changes), title: changedFieldsTitle(changes) }) : null,
   ]));

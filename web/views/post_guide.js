@@ -72,6 +72,7 @@ export async function render({ content, onLeave }) {
   const readAll = el('button', {
     type: 'button',
     class: 'button quiet',
+    icon: 'mark-read',
     text: 'Mark all as read',
     onclick: () => {
       if (!data) return;
@@ -150,7 +151,7 @@ export async function render({ content, onLeave }) {
       },
     }, [
       el('span', { class: 'pl-number-count', text: String(counts[key] ?? 0) }),
-      el('span', { class: `pl-number-label pg-label pg-${key}` }, [icon(iconName, 14), label]),
+      el('span', { class: `pl-number-label pg-label pg-${key}` }, [icon(iconName), label]),
     ]);
     numbers.replaceChildren(
       ...OWN_SHOWS.map(button),
@@ -207,12 +208,13 @@ export async function render({ content, onLeave }) {
           else view.missing.add(item.id);
           draw();
         },
-      }, [icon(item.required ? 'circle-x' : 'alert-triangle', 14), item.reason]);
+      }, [icon(item.required ? 'circle-x' : 'alert-triangle'), item.reason]);
     }));
     if (view.missing.size) {
       filterBar.append(el('button', {
         type: 'button',
         class: 'link-button pl-clear',
+        icon: 'clear',
         text: 'Clear filters',
         onclick: () => {
           view.missing = new Set();
@@ -302,7 +304,7 @@ function table(rows, {
     let preview = null;
     const toggle = el('button', { type: 'button', class: 'pg-toggle' });
     const show = (isOpen) => {
-      toggle.replaceChildren(icon(isOpen ? 'chevron-down' : 'chevron-right', 16));
+      toggle.replaceChildren(icon(isOpen ? 'chevron-down' : 'chevron-right'));
       toggle.setAttribute('aria-expanded', String(isOpen));
       toggle.title = isOpen ? 'Hide post' : 'Show post';
       toggle.setAttribute('aria-label', toggle.title);
@@ -355,13 +357,13 @@ function threadRow(row, { published, read, onMark }) {
     el('td', { class: 'pl-title' }, [...(published
       ? [el('a', { href: row.url, target: '_blank', rel: 'noopener', text: row.title }),
         ' ',
-        el('span', { class: 'pg-out', 'aria-hidden': 'true' }, [icon('external-link', 14)])]
+        el('span', { class: 'pg-out', 'aria-hidden': 'true' }, [icon('external-link')])]
       : [el('a', { href: `#/posts/topic/${encodeURIComponent(row.topicId)}`, text: row.title }),
         ' ',
         el('a', {
           href: row.url, target: '_blank', rel: 'noopener', class: 'pg-out',
           title: 'Open thread', 'aria-label': 'Open thread',
-        }, [icon('external-link', 14)])]), readTag(row, read)]),
+        }, [icon('external-link')])]), readTag(row, read)]),
     el('td', { class: 'pl-author', text: row.author || '' }),
     el('td', { class: 'pg-missing-cell' }, missingCell(row)),
     actionCell(row, onMark),
@@ -418,7 +420,7 @@ function markNote(mark) {
     title: mark.due === 'time'
       ? `Not fixed ${FOLLOW_UP_DAYS} days after ${shortTime(mark.on)}`
       : `More is missing since ${shortTime(mark.on)}`,
-  }, [icon('clock', 14), 'Follow up']);
+  }, [icon('clock'), 'Follow up']);
 }
 
 /// A missing required item has the Failed group's icon, a missing
@@ -426,11 +428,11 @@ function markNote(mark) {
 function missingCell(row) {
   if (row.status === 'unknown') return [el('span', { class: 'pl-dim', text: 'Unknown' })];
   if (!row.missing.length) {
-    return [el('span', { class: 'pg-label pg-follows pg-inline' }, [icon('circle-check', 14), 'Following guide']),
+    return [el('span', { class: 'pg-label pg-follows pg-inline' }, [icon('circle-check'), 'Following guide']),
       row.unanswered ? el('span', { class: 'pl-dim', text: ` (${row.unanswered} unknown)` }) : null];
   }
   return [el('ul', { class: 'pg-missing' }, row.missing.map((m) => el('li', {
     class: `pg-label ${m.required ? 'pg-failed' : 'pg-imperfect'}`,
     title: m.required ? 'Required' : 'Recommended',
-  }, [icon(m.required ? 'circle-x' : 'alert-triangle', 14), m.reason])))];
+  }, [icon(m.required ? 'circle-x' : 'alert-triangle'), m.reason])))];
 }

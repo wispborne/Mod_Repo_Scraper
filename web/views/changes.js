@@ -9,7 +9,7 @@
 // The tab, both sides, the search, the filter, the page and the open rows are
 // kept in the address.
 
-import { el, clear, api, pager, pageSizePreference, infoButton } from '../lib.js';
+import { el, clear, api, pager, pageSizePreference, infoButton, foldArrow } from '../lib.js';
 import { pageLayout } from '../frame.js';
 import { hashQuery, buildHash } from '../routes.js';
 import { icon } from '../icons.js';
@@ -163,6 +163,7 @@ export async function render({ content, onLeave }) {
   const refresh = el('button', {
     type: 'button',
     class: 'button',
+    icon: 'refresh',
     text: 'Refresh',
     title: 'Reload current data and update the comparison.',
     onclick: () => load({ keepPlace: true }),
@@ -238,6 +239,7 @@ export async function render({ content, onLeave }) {
     const swap = el('button', {
       type: 'button',
       class: 'button',
+      icon: 'swap',
       text: 'Swap',
       disabled: live,
       title: live ? 'Current local data can only be the newer side.' : 'Swap older and newer snapshots.',
@@ -348,7 +350,7 @@ export async function render({ content, onLeave }) {
     saveAddress();
     if (keepPlace) {
       refresh.disabled = true;
-      refresh.textContent = 'Refreshing…';
+      refresh.replaceChildren(icon('refresh'), 'Refreshing…');
     } else {
       clear(counts);
       clear(pagerSlot);
@@ -369,7 +371,7 @@ export async function render({ content, onLeave }) {
     } catch (err) {
       if (mine !== ticket) return;
       refresh.disabled = false;
-      refresh.textContent = 'Refresh';
+      refresh.replaceChildren(icon('refresh'), 'Refresh');
       clear(counts);
       clear(pagerSlot);
       results.replaceChildren(el('p', { class: 'error-text ch-message', text: err.message }));
@@ -378,7 +380,7 @@ export async function render({ content, onLeave }) {
     }
     if (mine !== ticket) return;
     refresh.disabled = false;
-    refresh.textContent = 'Refresh';
+    refresh.replaceChildren(icon('refresh'), 'Refresh');
 
     // Show the server's error when a snapshot cannot be read.
     if (answer.missing) {
@@ -405,6 +407,7 @@ export async function render({ content, onLeave }) {
         el('button', {
           type: 'button',
           class: 'link-button',
+          icon: 'clear',
           text: 'Clear filter',
           onclick: () => {
             view.kind = '';
@@ -478,12 +481,12 @@ function cardSummary(row, fallbackName) {
   const changes = row.changes || [];
   const [, , tone] = KINDS.find(([k]) => k === row.kind) || [];
   return el('summary', {}, [
+    foldArrow(),
     badge(kindWord(row.kind), tone || ''),
     el('span', { class: 'ph-name ch-name', text: row.name || fallbackName }),
     el('span', { class: 'ch-author', text: row.authors || '' }),
     // Added and removed rows name no fields.
     changes.length ? el('span', { class: 'ch-fields', text: changedFieldsLine(changes), title: changedFieldsTitle(changes) }) : null,
-    el('span', { class: 'ph-chev', 'aria-hidden': 'true' }, [icon('chevron-right', 14)]),
   ]);
 }
 

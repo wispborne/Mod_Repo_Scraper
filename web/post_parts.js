@@ -3,10 +3,10 @@
 // mods with their downloads and extras, the per-post job buttons, and the
 // check for whether the published mod details are behind the saved data.
 
-import { el, api, shortTime, infoButton } from './lib.js';
+import { el, api, shortTime, infoButton, foldArrow } from './lib.js';
 import { icon } from './icons.js';
 import { confirmAndStart } from './actions.js';
-import { rebuildRequest } from './jobs.js';
+import { POST_JOBS, rebuildRequest } from './jobs.js';
 import { webAddress, shortAddress } from './mod_words.js';
 
 // --- Small shapes ---
@@ -46,8 +46,15 @@ export function outLink(href, text, attrs = {}) {
   return el('a', { ...attrs, href: link, target: '_blank', rel: 'noopener', text });
 }
 
+/// A link that opens in a new tab, with the external-link icon after its words.
+export function openLink(href, text, attrs = {}) {
+  const link = outLink(href, text, { ...attrs, class: ['out-link', attrs.class].filter(Boolean).join(' ') });
+  if (link.tagName === 'A') link.append(icon('external-link'));
+  return link;
+}
+
 export function fold(label, content) {
-  return el('details', { class: 'pp-fold' }, [el('summary', { text: label }), content]);
+  return el('details', { class: 'pp-fold' }, [el('summary', {}, [foldArrow(), label]), content]);
 }
 
 /// Label and value pairs; empty values are left out. A pair may carry a third
@@ -189,7 +196,7 @@ function pictureSeen(seen) {
     ].filter((part) => part != null));
   } else if (seen.unreadable) {
     line.append(el('span', {
-      class: 'pp-badge bad', title: `Error: ${seen.unreadable}`, text: 'Could not describe image.',
+      class: 'pp-badge bad', title: `Error: ${seen.unreadable}`, text: 'Unable to describe image.',
     }));
   }
   return el('div', { class: 'pp-seen' }, [line]);
@@ -503,18 +510,13 @@ async function start(request) {
 
 /// The job buttons for one forum topic. Drawn only when the manager is on.
 export function topicJobButtons(topicId) {
-  const job = (text, kind) => el('button', {
+  return POST_JOBS.map((job) => el('button', {
     type: 'button',
     class: 'button',
-    text,
-    onclick: () => start({ kind, topicIds: [topicId], runLlm: true }),
-  });
-  return [
-    job('Re-scrape', 'rescrapeTopics'),
-    job('Re-run LLM', 'extractLlm'),
-    job('Recheck downloads', 'resolveDownloads'),
-    job('Scan images', 'describePictures'),
-  ];
+    icon: job.icon,
+    text: job.label,
+    onclick: () => start({ kind: job.kind, topicIds: [topicId], runLlm: true }),
+  }));
 }
 
 /// The job button for one Discord thread. Drawn only when the manager is on.
@@ -522,6 +524,7 @@ export function discordJobButtons(threadId) {
   return [el('button', {
     type: 'button',
     class: 'button',
+    icon: 'llm',
     text: 'Re-run LLM',
     onclick: () => start({ kind: 'extractLlm', discordThreadIds: [threadId], runLlm: true }),
   })];
@@ -533,6 +536,7 @@ export function rebuildButton() {
   return el('button', {
     type: 'button',
     class: 'button primary',
+    icon: 'rebuild',
     text: 'Rebuild from saved',
     title: 'Include the saved changes in the build.',
     onclick: () => start(rebuildRequest()),

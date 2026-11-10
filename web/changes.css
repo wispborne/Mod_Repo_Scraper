@@ -69,7 +69,6 @@ button.ch-count:hover { border-color: var(--action); border-left-color: var(--ac
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--faint); font-size: var(--small); line-height: var(--small-line-height);
 }
-.ch-fields + .ph-chev { margin-left: 0; }
 .ch-mod-links { display: inline-flex; flex-wrap: wrap; gap: 6px 16px; }
 .ch-mod-links:empty { display: none; }
 .ch-facts {
@@ -86,9 +85,8 @@ button.ch-count:hover { border-color: var(--action); border-left-color: var(--ac
   .ch-side { flex: 1 1 100%; max-width: none; }
   .ch-search { max-width: none; }
   .ch-count { min-width: 0; flex: 1 1 40%; }
-  /* The fields wrap to a line of their own under the name, after the arrow. */
+  /* The fields wrap to a line of their own under the name. */
   .ch-fields { order: 1; max-width: none; flex-basis: 100%; white-space: normal; }
-  .ch-fields + .ph-chev { margin-left: auto; }
   .run-changed { padding-left: 12px; padding-right: 12px; }
 }
 

@@ -74,10 +74,10 @@ export function matchNamesRequest() {
 /// The jobs the Source posts list can run on its ticked posts. A job with
 /// `topicsOnly` acts on the ticked forum topics and leaves Discord threads out.
 export const POST_JOBS = [
-  { kind: 'rescrapeTopics', label: 'Re-scrape', topicsOnly: true },
-  { kind: 'extractLlm', label: 'Re-run LLM', topicsOnly: false },
-  { kind: 'resolveDownloads', label: 'Recheck downloads', topicsOnly: true },
-  { kind: 'describePictures', label: 'Scan images', topicsOnly: true },
+  { kind: 'rescrapeTopics', label: 'Re-scrape', icon: 'fetch', topicsOnly: true },
+  { kind: 'extractLlm', label: 'Re-run LLM', icon: 'llm', topicsOnly: false },
+  { kind: 'resolveDownloads', label: 'Recheck downloads', icon: 'recheck-downloads', topicsOnly: true },
+  { kind: 'describePictures', label: 'Scan images', icon: 'scan-images', topicsOnly: true },
 ];
 
 /// Splits ticked post keys (`topic:<id>`, `discord:<id>`) into topic ids

@@ -7,7 +7,8 @@
 // The address stores the picked merge as `run`; none means the newest. Group
 // numbers belong to one merge, so a link to a group always names its merge.
 
-import { el, api, pager, pageSizePreference, breadcrumbs, rawJson } from '../lib.js';
+import { icon } from '../icons.js';
+import { el, api, pager, pageSizePreference, breadcrumbs, rawJson, foldArrow } from '../lib.js';
 import { pageLayout, sidePanel } from '../frame.js';
 import { hashQuery, buildHash, kindLabel } from '../routes.js';
 import { badge, section, emptyLine, fieldList } from '../post_parts.js';
@@ -326,6 +327,7 @@ function groupFold(g, run) {
   const matches = g.matchEntries || [];
   return el('details', { class: 'ex-group' }, [
     el('summary', {}, [
+      foldArrow(),
       el('a', { class: 'mono', href, text: `Group #${g.groupIndex}` }),
       el('span', { class: 'ex-group-name', text: primary }),
       badge(`${g.memberCount} members`),
@@ -338,12 +340,17 @@ function groupFold(g, run) {
   ]);
 }
 
+/// The arrow between two things that were compared, inside a line of words.
+function matchArrow() {
+  return el('span', { class: 'icon-inline', 'aria-hidden': 'true' }, [icon('arrows-left-right')]);
+}
+
 /// Why two entries matched: the reason labels and the scores behind them.
 function matchReason(mm) {
   const reasons = mm.reasons || [];
   const parts = [
     el('strong', { text: (mm.outerMod && mm.outerMod.name) || '?' }),
-    ' ↔ ',
+    matchArrow(),
     el('strong', { text: (mm.innerMod && mm.innerMod.name) || '?' }),
     ': ',
   ];
@@ -362,7 +369,7 @@ function matchReason(mm) {
   if (reasons.includes('strippedNameAndAuthor')) {
     parts.push(badge('Name+Author (version stripped)', 'strong'));
     if (mm.outerStrippedName != null) {
-      parts.push(el('span', { class: 'dim', text: ` "${mm.outerStrippedName}" ↔ "${mm.innerStrippedName}"` }));
+      parts.push(el('span', { class: 'dim' }, [` "${mm.outerStrippedName}"`, matchArrow(), `"${mm.innerStrippedName}"`]));
     }
     scores(
       ['name', mm.strippedNameScore],
@@ -716,7 +723,7 @@ function fromCell(row, members) {
 
 function fieldsSection(data) {
   if (!data || data.error) {
-    return section('Before and after', null, [el('p', { class: 'failed-text', text: (data && data.error) || 'Could not load the fields.' })]);
+    return section('Before and after', null, [el('p', { class: 'failed-text', text: (data && data.error) || 'Unable to load the fields.' })]);
   }
   if (data.missing) return section('Before and after', null, [missingNote(data)]);
   const members = data.members || [];

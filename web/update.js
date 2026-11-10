@@ -33,6 +33,7 @@ export function mountUpdateLink(node) {
       node.append(el('button', {
         type: 'button',
         class: 'link-button',
+        icon: 'update',
         text: 'Updating…',
         onclick: () => watch(s.installed, s.latest),
       }));
@@ -42,6 +43,7 @@ export function mountUpdateLink(node) {
     node.append(el('button', {
       type: 'button',
       class: 'link-button',
+      icon: 'update',
       text: `Update to v${s.latest}`,
       title: `Installed: v${s.installed}. Available: v${s.latest}.`,
       onclick: offer,

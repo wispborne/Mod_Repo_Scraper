@@ -3,6 +3,7 @@
 // pending change; nothing is written until the pending changes are saved,
 // which runs one job for all of them.
 
+import { icon } from '../icons.js';
 import { el, clear, api, noticeDialog, showDialog, shortTime, infoButton } from '../lib.js';
 import { pageLayout, sidePanel, statusMark } from '../frame.js';
 import { subscribe, status } from '../status.js';
@@ -16,7 +17,7 @@ const SUGGESTION_COUNT = 8;
 
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
-  if (s && s.offline) return 'The server could not be reached. Takedowns cannot be changed.';
+  if (s && s.offline) return 'Unable to reach the server. Takedowns cannot be changed.';
   return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
     + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
 }
@@ -264,6 +265,7 @@ function entryRow(item, state) {
     action = el('button', {
       type: 'button',
       class: 'button quiet',
+      icon: 'undo',
       text: 'Undo',
       title: 'Undo this unsaved change.',
       onclick: () => {
@@ -272,7 +274,7 @@ function entryRow(item, state) {
       },
     });
   } else if (state.on) {
-    action = el('button', { type: 'button', class: 'button', text: 'Restore', onclick: () => restore(item) });
+    action = el('button', { type: 'button', class: 'button', icon: 'restore', text: 'Restore', onclick: () => restore(item) });
   }
 
   const mark = warn ? 'warning' : match ? 'done' : 'idle';
@@ -352,6 +354,7 @@ function takeDownLink(modId) {
   return el('button', {
     type: 'button',
     class: 'button danger td-small',
+    icon: 'take-down',
     text: 'Take down',
     onclick: () => previewAndAdd({ modId }),
   });
@@ -566,7 +569,7 @@ function modForm(state) {
         items = ranked.map(([, mod]) => mod);
       }
       const empty = !state.catalog
-        ? 'The catalog could not be read. Build the catalog first.'
+        ? 'Unable to read the catalog. Build the catalog first.'
         : post ? `No mod in the catalog comes from ${post}.` : 'No mod or Collection page in the catalog matches.';
       return { items, empty };
     },
@@ -616,7 +619,7 @@ function authorForm(state) {
   });
 
   const chips = el('div', { class: 'td-chips' });
-  const preview = el('button', { type: 'submit', class: 'button primary', text: 'Preview', disabled: true });
+  const preview = el('button', { type: 'submit', class: 'button primary', icon: 'preview', text: 'Preview', disabled: true });
 
   const add = (name) => {
     const clean = name.trim();
@@ -685,7 +688,7 @@ function authorForm(state) {
       chips.append(el('span', { class: 'td-chip' }, [
         el('span', { text: name }),
         el('button', {
-          type: 'button', class: 'td-chip-remove', 'aria-label': `Remove ${name}`, text: '×',
+          type: 'button', class: 'td-chip-remove', 'aria-label': `Remove ${name}`, icon: 'x',
           onclick: () => { names.splice(names.indexOf(name), 1); drawChips(); box.input.focus(); },
         }),
       ]));
@@ -759,11 +762,11 @@ export async function previewAndAdd({ modId = null, authors = [] }) {
     preview = await res.json().catch(() => null);
     if (!preview) throw new Error(`Server returned ${res.status} ${res.statusText}.`);
   } catch (err) {
-    await noticeDialog('Could not preview the takedown', err.message);
+    await noticeDialog('Unable to preview the takedown', err.message);
     return false;
   }
   if (preview.error) {
-    await noticeDialog('Could not preview the takedown', preview.error);
+    await noticeDialog('Unable to preview the takedown', preview.error);
     return false;
   }
 
@@ -915,7 +918,7 @@ function alsoAffected(collections = [], describe, oldIds = []) {
 /// Which outputs the takedown affects. `modRepo` is 'yes', 'partial' or 'skip'.
 function appliesTo({ modRepo }) {
   const item = (label, state, note) => el('li', { class: `td-applies-${state}`, title: note || null }, [
-    el('span', { class: 'td-applies-mark', 'aria-hidden': 'true', text: state === 'yes' ? '✓' : state === 'partial' ? '!' : '–' }),
+    el('span', { class: 'td-applies-mark', 'aria-hidden': 'true' }, [icon(state === 'yes' ? 'check' : state === 'partial' ? 'alert-triangle' : 'minus')]),
     label,
   ]);
   return section('Applies to', el('ul', { class: 'td-applies' }, [

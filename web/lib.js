@@ -2,8 +2,9 @@
 
 import { icon } from './icons.js';
 
-/// Builds an element. `attrs` may hold `class`, `text`, an `on<event>`
-/// function, or any other attribute. `children` is a list of nodes or strings.
+/// Builds an element. `attrs` may hold `class`, `text`, `icon` (the name of an
+/// icon to put first), an `on<event>` function, or any other attribute.
+/// `children` is a list of nodes or strings.
 /// There is no way to set HTML from text, so data can never become markup.
 export function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
@@ -11,6 +12,7 @@ export function el(tag, attrs = {}, children = []) {
     if (v == null || v === false) continue;
     if (k === 'class') node.className = v;
     else if (k === 'text') node.textContent = v;
+    else if (k === 'icon') continue;
     else if (k.startsWith('on') && typeof v === 'function') {
       node.addEventListener(k.slice(2), v);
     } else node.setAttribute(k, v === true ? '' : v);
@@ -19,7 +21,13 @@ export function el(tag, attrs = {}, children = []) {
     if (c == null || c === false) continue;
     node.append(c.nodeType ? c : document.createTextNode(String(c)));
   }
+  if (attrs.icon) node.prepend(icon(attrs.icon));
   return node;
+}
+
+/// The arrow at the start of a fold's heading: right when shut, down when open.
+export function foldArrow() {
+  return el('span', { class: 'fold-arrow', 'aria-hidden': 'true' }, [icon('chevron-right')]);
 }
 
 export function clear(node) {
@@ -179,20 +187,20 @@ export function pager(page, pageSize, total, onPage, onPageSize) {
   const pages = showingAll ? 1 : Math.max(1, Math.ceil(total / pageSize));
   const current = showingAll ? 1 : page + 1;
   const row = el('div', { class: 'pager' });
-  const button = (text, target, disabled) => el('button', {
+  // Each arrow sits on the side it points to.
+  const button = (text, target, disabled, before, after) => el('button', {
     type: 'button',
     class: 'button quiet',
-    text,
     disabled,
     onclick: () => onPage(target),
-  });
+  }, [before ? icon(before) : null, text, after ? icon(after) : null]);
 
-  if (!showingAll) row.append(button('« First', 0, page <= 0), button('‹ Previous', page - 1, page <= 0));
+  if (!showingAll) row.append(button('First', 0, page <= 0, 'first-page'), button('Previous', page - 1, page <= 0, 'previous-page'));
   row.append(el('span', {
     class: 'pager-info',
     text: showingAll ? `All ${total} on one page` : `Page ${current} of ${pages} (${total} total)`,
   }));
-  if (!showingAll) row.append(button('Next ›', page + 1, current >= pages), button('Last »', pages - 1, current >= pages));
+  if (!showingAll) row.append(button('Next', page + 1, current >= pages, null, 'next-page'), button('Last', pages - 1, current >= pages, null, 'last-page'));
 
   const select = el('select', { class: 'select', 'aria-label': 'Rows per page' });
   for (const size of PAGE_SIZES) select.append(el('option', { value: String(size), text: pageSizeLabel(size) }));
@@ -211,7 +219,7 @@ export function pager(page, pageSize, total, onPage, onPageSize) {
 export function breadcrumbs(trail) {
   const nav = el('nav', { class: 'breadcrumbs', 'aria-label': 'Breadcrumbs' });
   trail.forEach((item, i) => {
-    if (i > 0) nav.append(el('span', { class: 'crumb-sep', 'aria-hidden': 'true', text: '›' }));
+    if (i > 0) nav.append(el('span', { class: 'crumb-sep', 'aria-hidden': 'true' }, [icon('chevron-right')]));
     const last = i === trail.length - 1;
     nav.append(last
       ? el('span', { class: 'crumb-here', 'aria-current': 'page', text: item.label })
@@ -224,7 +232,7 @@ export function breadcrumbs(trail) {
 /// detail page.
 export function rawJson(value, label = 'Raw data (JSON)') {
   return el('details', { class: 'raw-fold' }, [
-    el('summary', { text: label }),
+    el('summary', {}, [foldArrow(), label]),
     el('pre', { class: 'log raw', text: JSON.stringify(value, null, 2) }),
   ]);
 }

@@ -99,7 +99,7 @@ export function sidePanel({ name, count = null, body }) {
     class: 'side-head',
     'aria-expanded': String(!folded),
   }, [
-    icon('chevron-down', 14),
+    icon('chevron-down'),
     el('span', { text: name }),
     count == null ? null : el('span', { class: 'side-count', text: String(count) }),
   ]);

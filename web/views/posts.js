@@ -3,6 +3,7 @@
 // the address. While the manager is on, posts can be ticked across pages and
 // searches, and the per-post jobs run on the ticked posts.
 
+import { icon } from '../icons.js';
 import { el, clear, api, pager, pageSizePreference, infoButton } from '../lib.js';
 import { pageLayout, sidePanel } from '../frame.js';
 import { subscribe, status } from '../status.js';
@@ -65,7 +66,7 @@ function saveTicked(ticked) {
 
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
-  if (s && s.offline) return 'The server could not be reached. Jobs cannot be started.';
+  if (s && s.offline) return 'Unable to reach the server. Jobs cannot be started.';
   return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
     + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
 }
@@ -201,6 +202,7 @@ export function render({ content, onLeave }) {
       filterBar.append(el('button', {
         type: 'button',
         class: 'link-button pl-clear',
+        icon: 'clear',
         text: 'Clear filters',
         onclick: () => {
           view.filters = new Set();
@@ -226,7 +228,7 @@ export function render({ content, onLeave }) {
         disabled: n === 0,
         title: job.topicsOnly && keys.length && !topics ? 'Works on forum topics only.' : null,
         onclick: () => start(job.kind),
-      }, [job.label, partial ? el('span', { class: 'choice', text: ` ${n} of ${keys.length}` }) : null]);
+      }, [icon(job.icon), job.label, partial ? el('span', { class: 'choice', text: ` ${n} of ${keys.length}` }) : null]);
     });
     selectionSlot.append(el('div', { class: 'pl-selection' }, [
       el('span', {
@@ -237,6 +239,7 @@ export function render({ content, onLeave }) {
       el('button', {
         type: 'button',
         class: 'button quiet',
+        icon: 'clear',
         text: 'Clear selection',
         disabled: !keys.length,
         onclick: () => {
@@ -428,9 +431,9 @@ function lastPostDay(text) {
 function postTable(items, { view, canTick, ticked, toggle, onSort }) {
   const sortHead = (key, label, cls = '') => {
     const active = view.sort === key;
-    const arrow = active ? (view.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    const arrow = active ? icon(view.dir === 'asc' ? 'chevron-up' : 'chevron-down') : null;
     return el('th', { class: cls, 'aria-sort': active ? (view.dir === 'asc' ? 'ascending' : 'descending') : null }, [
-      el('button', { type: 'button', class: 'pl-sort', onclick: () => onSort(key) }, [label + arrow]),
+      el('button', { type: 'button', class: 'pl-sort', onclick: () => onSort(key) }, [label, arrow]),
     ]);
   };
 

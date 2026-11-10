@@ -25,7 +25,7 @@ const AUTHOR_KINDS = new Set(['sameAuthor', 'differentAuthors', 'removeAuthorNam
 
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
-  if (s && s.offline) return 'The server could not be reached. Author aliases cannot be changed.';
+  if (s && s.offline) return 'Unable to reach the server. Author aliases cannot be changed.';
   return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
     + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
 }
@@ -153,6 +153,7 @@ function undoButton(item) {
   return el('button', {
     type: 'button',
     class: 'button quiet aa-small',
+    icon: 'undo',
     text: 'Undo',
     title: 'Undo this unsaved change.',
     onclick: () => removePending(item.id),
@@ -263,6 +264,7 @@ function suggestionsSection(ctx) {
     section.append(el('div', { class: 'aa-more' }, [el('button', {
       type: 'button',
       class: 'button',
+      icon: 'more',
       text: `Show all ${all.length}`,
       onclick: () => { state.showAll = true; ctx.saveAddress(); ctx.redraw(); },
     })]));
@@ -298,6 +300,7 @@ function suggestionRow(s, ctx) {
       el('button', {
         type: 'button',
         class: 'button',
+        icon: 'same-person',
         text: 'These are the same person',
         title: `Add "${s.discord}" as another name for "${s.forum}".`,
         onclick: () => addSame(body, s.forum, s.discord),
@@ -305,6 +308,7 @@ function suggestionRow(s, ctx) {
       el('button', {
         type: 'button',
         class: 'button quiet',
+        icon: 'different-people',
         text: 'Different people',
         title: 'Stop suggesting this pair.',
         onclick: () => addPending({
@@ -459,7 +463,7 @@ function nameChip(name, row, ctx, pending, held) {
       ? el('button', {
         type: 'button',
         class: 'aa-remove',
-        text: '×',
+        icon: 'x',
         title: takeOffTitle,
         'aria-label': takeOffLabel(name),
         onclick: () => addPending({
@@ -506,7 +510,7 @@ function addNameBox(row, ctx) {
     });
     box.replaceChildren(
       input,
-      el('button', { type: 'button', class: 'button aa-small', text: 'Add', onclick: add }),
+      el('button', { type: 'button', class: 'button aa-small', icon: 'add', text: 'Add', onclick: add }),
       el('button', {
         type: 'button', class: 'button quiet aa-small', text: 'Cancel',
         onclick: () => { state.adding = null; close(); },
@@ -519,7 +523,8 @@ function addNameBox(row, ctx) {
     box.replaceChildren(el('button', {
       type: 'button',
       class: 'link-button aa-add-open',
-      text: '+ Add name',
+      icon: 'add',
+      text: 'Add name',
       title: 'Add another name this person uses.',
       onclick: open,
     }));
@@ -564,6 +569,7 @@ function differentRow(a, b, ctx) {
     action = el('button', {
       type: 'button',
       class: 'button quiet',
+      icon: 'same-person',
       text: 'These are the same person',
       title: `Add "${b}" as another name for "${a}". This also removes the mark.`,
       onclick: () => addSame(body, a, b),
@@ -604,7 +610,7 @@ function joinForm(ctx) {
     first,
     second,
     message,
-    el('div', {}, [el('button', { type: 'submit', class: 'button primary', text: 'These are the same person' })]),
+    el('div', {}, [el('button', { type: 'submit', class: 'button primary', icon: 'same-person', text: 'These are the same person' })]),
   ]);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

@@ -6,7 +6,7 @@
 // mod's posts and Take down, and the page offers "These are the same person"
 // and "Match…", which add pending changes.
 
-import { el, api, breadcrumbs, rawJson, showDialog, noticeDialog } from '../lib.js';
+import { el, api, breadcrumbs, rawJson, showDialog, noticeDialog, foldArrow } from '../lib.js';
 import { pageLayout, sidePanel, statusMark } from '../frame.js';
 import { icon } from '../icons.js';
 import { subscribe, status } from '../status.js';
@@ -18,7 +18,7 @@ import { pendingPanel } from '../pending_view.js';
 import { looseKey, modChooser } from '../mod_picker.js';
 import { previewAndAdd } from './takedowns.js';
 import {
-  badge, section, emptyLine, outLink, fold, fieldList, when,
+  badge, section, emptyLine, outLink, openLink, fold, fieldList, when,
 } from '../post_parts.js';
 import {
   diffTable, changedFieldsLine, changedFieldsTitle, expandAllButton, jobWord, isImported,
@@ -31,7 +31,7 @@ import {
 
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
-  if (s && s.offline) return 'The server could not be reached. Jobs cannot be started.';
+  if (s && s.offline) return 'Unable to reach the server. Jobs cannot be started.';
   return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
     + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
 }
@@ -73,7 +73,7 @@ export async function render({ content, parts, toolbar, onLeave }) {
       main.replaceChildren(crumbs, el('div', { class: 'md-note' }, [
         el('p', {}, [
           el('code', { text: id }), ' is an old id. It leads to ',
-          el('a', { href: modHref(answer.movedTo), text: answer.movedTo }), ', which could not be loaded.',
+          el('a', { href: modHref(answer.movedTo), text: answer.movedTo }), '. Unable to load it.',
         ]),
         target.error ? el('p', { class: 'error-text', text: target.error }) : null,
       ]), el('div', { class: 'raw-slot' }, [rawJson(answer, 'Raw mod data (JSON)')]));
@@ -159,13 +159,14 @@ function drawActions(ctx) {
         disabled: n === 0,
         title: job.topicsOnly && !n ? 'Works on forum topics only. This mod has none.' : `Runs on this mod's ${n === 1 ? 'post' : `${n} posts`}.`,
         onclick: () => startJob(postJobRequest(job.kind, keys)),
-      }, [job.label, partial ? el('span', { class: 'choice', text: ` ${n} of ${keys.length}` }) : null]));
+      }, [icon(job.icon), job.label, partial ? el('span', { class: 'choice', text: ` ${n} of ${keys.length}` }) : null]));
     }
   }
   if (on && (answer.kind === 'mod' || answer.kind === 'collection')) {
     buttons.push(el('button', {
       type: 'button',
       class: 'button danger',
+      icon: 'take-down',
       text: 'Take down',
       title: answer.kind === 'collection'
         ? 'Remove this Collection page from Starmodder. The mods it lists stay published.'
@@ -235,8 +236,8 @@ function modHead(ctx) {
     el('h2', { class: 'pp-title', text: name }),
     el('div', { class: 'pp-meta' }, meta),
     el('div', { class: 'pp-head-links' }, [
-      outLink(answer.starmodderUrl || starmodderPage(answer.id), 'Open on Starmodder ↗'),
-      outLink(answer.publishedFileUrl || starmodderFile(answer.id), 'Published file ↗'),
+      openLink(answer.starmodderUrl || starmodderPage(answer.id), 'Open on Starmodder'),
+      openLink(answer.publishedFileUrl || starmodderFile(answer.id), 'Published file'),
     ]),
   ]);
   const oldIds = (answer.oldIds || []).filter((old) => old !== movedFrom);
@@ -257,7 +258,7 @@ function modHead(ctx) {
 
 function movedNote(oldId, newId) {
   return el('div', { class: 'md-note' }, [
-    icon('chevron-right', 14),
+    icon('info-circle'),
     el('span', {}, [
       'You opened ', el('code', { text: oldId }), ', an old id. It now leads to ',
       el('code', { text: newId }), '.',
@@ -456,7 +457,7 @@ function shortLink(url) {
 function sameNameChip(m) {
   const title = m.title || m.id || m.url || '';
   if (m.id) return el('a', { class: 'chip', href: modHref(m.id), text: title });
-  if (m.url) return outLink(m.url, `${title} ↗`, { class: 'chip', title: 'Open on the forum' });
+  if (m.url) return openLink(m.url, title, { class: 'chip', title: 'Open on the forum' });
   return el('span', { class: 'chip', text: title });
 }
 
@@ -503,6 +504,7 @@ function sameAuthorButton(authors) {
   return el('button', {
     type: 'button',
     class: 'button md-small',
+    icon: 'same-person',
     text: 'These are the same person',
     title: 'Pick two of these names that belong to one person.',
     onclick: () => pickSamePerson(authors),
@@ -583,6 +585,7 @@ function unmatchedNeed(ctx, written, unmatched, key = null) {
       parts.push(el('button', {
         type: 'button',
         class: 'button quiet md-small',
+        icon: 'undo',
         text: 'Undo',
         title: 'Undo this unsaved change.',
         onclick: () => { for (const item of pending) removePending(item.id); },
@@ -591,6 +594,7 @@ function unmatchedNeed(ctx, written, unmatched, key = null) {
       parts.push(el('button', {
         type: 'button',
         class: 'button md-small',
+        icon: 'match',
         text: 'Match…',
         title: 'Select a matching mod.',
         onclick: async () => {
@@ -757,7 +761,7 @@ function historyTail(history) {
     const read = walk.read || 0;
     const kept = `${total} saved ${what} snapshot${total === 1 ? '' : 's'}`;
     lines.push(from ? `${kept}, from ${from}. Earlier snapshots are unavailable.` : `${kept}.`);
-    if (read < total) lines.push(`${total - read} of the ${what} snapshots could not be read and were skipped.`);
+    if (read < total) lines.push(`Unable to read ${total - read} of the ${what} snapshots. They were skipped.`);
   }
   if (!lines.length) return null;
   return el('div', { class: 'ph-entry ph-tail' }, [
@@ -777,11 +781,10 @@ function historyEntry(entry, name, forumTopic) {
   const [word, tone] = KIND_WORDS[entry.kind] || KIND_WORDS.changed;
   const card = el('details', { class: 'ph-card' });
   card.append(el('summary', {}, [
+    foldArrow(),
     badge(word, tone),
     el('span', { class: 'ph-name', text: when(entry.at || entry.savedAt) || entry.runId }),
     el('span', { class: 'ph-job', text: [jobWord(entry.runId), sourceWord(entry.source)].filter(Boolean).join(' · ') }),
-    el('span', { class: 'ph-chev', 'aria-hidden': 'true' }, [icon('chevron-right', 14)]),
-    // After the chevron, so it wraps to its own line under the date.
     named.length ? el('span', { class: 'ph-hint', text: changedFieldsLine(named), title: changedFieldsTitle(named) }) : null,
   ]));
 
@@ -862,8 +865,8 @@ function collectionPage(ctx) {
         ...answer.oldIds.flatMap((old, i) => [i ? ', ' : null, el('code', { class: 'md-old-id', text: old })]),
       ]) : null,
       el('div', { class: 'pp-head-links' }, [
-        outLink(starmodderPage(answer.id), 'Open on Starmodder ↗'),
-        outLink(starmodderFile(answer.id), 'Published file ↗'),
+        openLink(starmodderPage(answer.id), 'Open on Starmodder'),
+        openLink(starmodderFile(answer.id), 'Published file'),
       ]),
     ]),
     el('div', { class: 'pp-sections' }, [

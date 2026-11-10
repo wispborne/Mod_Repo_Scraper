@@ -7,7 +7,7 @@ import { icon } from './icons.js';
 import { kindLabel, percent, buildHash } from './routes.js';
 import { progressBar, setProgress, statusMark } from './frame.js';
 import { describeJob, duration } from './jobs.js';
-import { confirmAndStart, confirmAndStop } from './actions.js';
+import { confirmAndStart, confirmAndStop, confirmAndRemove } from './actions.js';
 import { queuedAt, startedAt, runTime } from './run_record.js';
 import { WORKING } from './change_sides.js';
 import { modCard, topicCard } from './views/changes.js';
@@ -45,7 +45,7 @@ export function runPanel(node) {
   const tabs = el('div', { class: 'tabs', role: 'tablist' });
   const logBox = el('div', { class: 'log-box', tabindex: '0', 'aria-label': 'Run log' });
   const logNote = el('span', { class: 'log-note' });
-  const moreButton = el('button', { type: 'button', class: 'button quiet', text: 'Show more', hidden: true });
+  const moreButton = el('button', { type: 'button', class: 'button quiet', icon: 'more', text: 'Show more', hidden: true });
   const logPane = el('div', { class: 'tab-pane log-pane' }, [
     el('div', { class: 'log-bar' }, [logNote, moreButton]),
     logBox,
@@ -214,7 +214,7 @@ export function runPanel(node) {
         el('h2', { class: 'panel-heading', text: 'Viewing only' }),
         el('p', {
           text: s.offline
-            ? 'The server could not be reached. Job controls are unavailable.'
+            ? 'Unable to reach the server. Job controls are unavailable.'
             : `${s.reason || 'Job management is disabled on this server.'} Start the viewer with a readable config.properties file (or specify it with --config) and omit --no-manager to enable jobs.`,
         }),
       ]));
@@ -272,14 +272,16 @@ function drawHead(node, record, live) {
     : waiting
       ? `Queued ${shortTime(queuedAt(record)) || 'at an unknown time'}`
       : `Finished ${shortTime(record.finishedAt) || 'at an unknown time'}`;
-  const action = waiting ? null : live
-    ? el('button', { type: 'button', class: 'button danger', onclick: () => confirmAndStop(record) }, [icon('stop', 12), 'Stop'])
+  const action = waiting
+    ? el('button', { type: 'button', class: 'button', onclick: () => confirmAndRemove(record) }, [icon('remove'), 'Remove'])
+    : live
+    ? el('button', { type: 'button', class: 'button danger', onclick: () => confirmAndStop(record) }, [icon('stop'), 'Stop'])
     : el('button', {
       type: 'button',
       class: 'button',
       title: 'Start a new job with the same settings.',
       onclick: () => confirmAndStart({ ...(record.request || {}), replayAllowed: false }),
-    }, [icon('refresh', 14), 'Run again']);
+    }, [icon('run-again'), 'Run again']);
   node.replaceChildren(
     el('span', { class: `tag tag-${MARK_FOR_STATE[state] || 'idle'}`, text: STATE_WORDS[state] || state }),
     el('div', { class: 'run-title' }, [
@@ -385,6 +387,7 @@ async function drawChanged(node, record, live, stillWanted) {
   const refresh = live ? el('button', {
     type: 'button',
     class: 'button',
+    icon: 'refresh',
     text: 'Refresh',
     onclick: () => drawChanged(node, record, live, stillWanted),
   }) : null;

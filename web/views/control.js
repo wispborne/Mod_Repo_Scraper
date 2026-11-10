@@ -9,7 +9,8 @@ import {
   SCOPES, BOARDS, SOURCES, defaultFetchOptions, fetchHasWork, fetchRequest, llmRequest,
   rebuildRequest, publishRequest, scanImagesRequest, matchNamesRequest, describeJob,
 } from '../jobs.js';
-import { confirmAndStart } from '../actions.js';
+import { kindLabel } from '../routes.js';
+import { confirmAndStart, confirmAndRemove } from '../actions.js';
 import { runPanel, runRow } from '../run_panel.js';
 import { pendingPanel } from '../pending_view.js';
 
@@ -102,10 +103,25 @@ export function render({ content, toolbar, onLeave }) {
     if (key === lastQueueKey) return;
     lastQueueKey = key;
     const queueBody = el('div', { class: 'rows' }, queued.length
-      ? queued.map(runRow)
+      ? queued.map(queueRow)
       : [el('p', { class: 'empty', text: s.on ? 'Queue is empty.' : 'Jobs are off.' })]);
     queuePanel.replaceChildren(sidePanel({ name: 'Queue', count: queued.length, body: queueBody }));
   }));
+}
+
+/// A waiting job: its row, then a button that takes it off the queue. The row
+/// is a link, so the button sits beside it rather than inside it.
+function queueRow(record) {
+  return el('div', { class: 'queue-row' }, [
+    runRow(record),
+    el('button', {
+      type: 'button',
+      class: 'icon-button',
+      title: 'Remove',
+      'aria-label': `Remove ${kindLabel(record.request && record.request.kind)} from the queue`,
+      onclick: () => confirmAndRemove(record),
+    }, [icon('remove', 16)]),
+  ]);
 }
 
 // --- Toolbar job buttons ---
@@ -130,7 +146,7 @@ function drawJobButtons(node) {
     type: 'button',
     class: 'button primary split-main',
     onclick: () => confirmAndStart(fetchRequest(fetchOptions)),
-  }, [icon('download', 14), 'Fetch and update']);
+  }, [icon('fetch'), 'Fetch and update']);
   const updateFetch = () => {
     const ok = fetchHasWork(fetchOptions);
     fetchMain.disabled = !ok;
@@ -152,7 +168,7 @@ function drawJobButtons(node) {
     onclick: () => confirmAndStart(llmRequest(llmAll)),
   });
   const updateLlm = () => {
-    llmMain.replaceChildren(icon('sparkles', 14), 'Run LLM', el('span', {
+    llmMain.replaceChildren(icon('llm'), 'Run LLM', el('span', {
       class: llmAll ? 'choice warn-text' : 'choice',
       text: llmAll ? '· All' : '· Only changed',
     }));
@@ -171,21 +187,21 @@ function drawJobButtons(node) {
     class: 'button',
     title: describeJob(rebuildRequest()),
     onclick: () => confirmAndStart(rebuildRequest()),
-  }, [icon('refresh', 14), 'Rebuild from saved']);
+  }, [icon('rebuild'), 'Rebuild from saved']);
   const publish = el('button', {
     type: 'button',
     class: 'button',
     title: describeJob(publishRequest()),
     onclick: () => confirmAndStart(publishRequest()),
-  }, [icon('upload', 14), 'Publish']);
+  }, [icon('publish'), 'Publish']);
 
   const more = menuButton({
     label: 'More jobs',
     text: 'More',
     quiet: true,
     body: (close) => el('div', { class: 'menu-list', role: 'menu' }, [
-      menuItem('Scan images', describeJob(scanImagesRequest()), () => { close(); confirmAndStart(scanImagesRequest()); }),
-      menuItem('Match dependencies', describeJob(matchNamesRequest()), () => { close(); confirmAndStart(matchNamesRequest()); }),
+      menuItem('scan-images', 'Scan images', describeJob(scanImagesRequest()), () => { close(); confirmAndStart(scanImagesRequest()); }),
+      menuItem('match', 'Match dependencies', describeJob(matchNamesRequest()), () => { close(); confirmAndStart(matchNamesRequest()); }),
     ]),
     onOpen: (m) => closeAll(m),
   });
@@ -214,7 +230,7 @@ function menuButton({ label, main = null, text = null, primary = false, quiet = 
     'aria-expanded': 'false',
     'aria-label': label,
     title: label,
-  }, [text ? el('span', { text }) : null, icon('chevron-down', 14)]);
+  }, [text ? el('span', { text }) : null, icon('chevron-down')]);
   const panel = el('div', { class: 'menu', hidden: true });
 
   const menu = {
@@ -239,9 +255,9 @@ function menuButton({ label, main = null, text = null, primary = false, quiet = 
   return menu;
 }
 
-function menuItem(text, hint, onclick) {
+function menuItem(iconName, text, hint, onclick) {
   return el('button', { type: 'button', class: 'menu-item', role: 'menuitem', onclick }, [
-    el('span', { class: 'menu-item-name', text }),
+    el('span', { class: 'menu-item-name', icon: iconName, text }),
     el('span', { class: 'menu-hint', text: hint }),
   ]);
 }
@@ -378,7 +394,7 @@ async function loadAttention(node, lastRun, stillWanted) {
     }, [
       el('span', { class: 'attention-count', text: String(item.count) }),
       el('span', { class: 'row-main', text: item.label }),
-      icon('chevron-right', 14),
+      icon('chevron-right'),
     ]))),
   }));
 }

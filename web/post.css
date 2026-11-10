@@ -63,7 +63,7 @@
 .pp-fields dt { color: var(--dim); }
 .pp-fields dd { margin: 0; overflow-wrap: anywhere; }
 
-.pp-fold summary { cursor: pointer; color: var(--action); }
+.pp-fold summary { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--action); }
 .pp-fold[open] summary { margin-bottom: 6px; }
 .pp-pre {
   margin: 0; padding: 8px 10px; max-height: 50vh; overflow: auto;
@@ -161,12 +161,9 @@
 .ph-card { border: 1px solid var(--line); }
 .ph-card > summary {
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
-  padding: 6px 10px; cursor: pointer; list-style: none;
+  padding: 6px 10px; cursor: pointer;
 }
-.ph-card > summary::-webkit-details-marker { display: none; }
 .ph-card > summary:hover { background: var(--panel); }
-.ph-chev { margin-left: auto; color: var(--dim); }
-.ph-card[open] > summary .ph-chev .icon { transform: rotate(90deg); }
 .ph-hint { flex-basis: 100%; color: var(--dim); font-size: var(--small); line-height: var(--small-line-height); }
 .ph-card-body { display: grid; gap: 8px; padding: 8px 10px 10px; border-top: 1px solid var(--line); min-width: 0; }
 
@@ -189,7 +186,7 @@
 .ph-items .ph-items { margin: 2px 0 0 20px; }
 .ph-items > li { display: grid; grid-template-columns: 14px minmax(0, 1fr); column-gap: 6px; }
 .ph-items > li > :not(.ph-mark):not(.ph-label) { grid-column: 2; }
-.ph-mark { font-family: var(--mono); color: var(--dim); }
+.ph-mark { display: flex; align-items: center; height: 20px; color: var(--dim); }
 .ph-item-added > .ph-mark { color: var(--done); }
 .ph-item-removed > .ph-mark { color: var(--failed); }
 .ph-item-changed > .ph-mark { color: var(--warning); }
@@ -200,11 +197,13 @@
 .ph-part.ph-stacked > * { white-space: pre-wrap; overflow-wrap: anywhere; }
 /* A minus and a plus say which line is old and which is new, since a line
    with no marked words is all dim. */
-.ph-part.ph-stacked > .ph-before::before { content: '− '; color: var(--failed); font-family: var(--mono); }
-.ph-part.ph-stacked > .ph-after::before { content: '+ '; color: var(--done); font-family: var(--mono); }
+.ph-line { display: grid; grid-template-columns: 14px minmax(0, 1fr); column-gap: 6px; }
+.ph-line .icon { margin-top: 3px; }
+.ph-line-minus .icon { color: var(--failed); }
+.ph-line-plus .icon { color: var(--done); }
 /* The keys that changed inside one part, under the part's name. */
 .ph-inside { display: grid; gap: 2px; padding-left: 12px; border-left: 1px solid var(--line); }
-.ph-arrow { color: var(--faint); }
+.ph-arrow { display: flex; align-items: center; height: var(--small-line-height); color: var(--faint); }
 
 @media (max-width: 640px) {
   .pp-head, .pp-section-head, .pp-section-body, .ph-log { padding-left: 12px; padding-right: 12px; }
@@ -225,4 +224,4 @@
 .pp-subhead .info-button, .pp-banner-text .info-button, .pp-mod-head .info-button { vertical-align: middle; }
 /* Whole pixels only: centred on the small capitals of a sub-heading. */
 .pp-subhead .info-button { transform: translateY(-1px); }
-.pp-head-links a { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.pp-head-links a { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }

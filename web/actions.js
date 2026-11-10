@@ -31,7 +31,7 @@ export async function confirmAndStart(request) {
     refresh();
     return record;
   } catch (err) {
-    await noticeDialog('Could not start job', err.message);
+    await noticeDialog('Unable to start job', err.message);
     return null;
   }
 }
@@ -48,6 +48,22 @@ export async function confirmAndStop(record) {
     await post('/jobs/cancel', { runId: record.id });
     refresh();
   } catch (err) {
-    await noticeDialog('Could not stop run', err.message);
+    await noticeDialog('Unable to stop run', err.message);
+  }
+}
+
+/// Confirms before taking a waiting job off the queue.
+export async function confirmAndRemove(record) {
+  const yes = await askDialog({
+    title: `Remove ${kindLabel(record.request && record.request.kind)} from the queue?`,
+    message: describeJob(record.request || {}),
+    confirmLabel: 'Remove',
+  });
+  if (!yes) return;
+  try {
+    await post('/jobs/remove', { runId: record.id });
+    refresh();
+  } catch (err) {
+    await noticeDialog('Unable to remove job', err.message);
   }
 }

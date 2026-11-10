@@ -135,6 +135,22 @@ class JobManager {
   /// has already saved, and its record says it was cancelled.
   void cancelCurrent() => _current?.cancel.cancel();
 
+  /// Takes a waiting job off the queue, so it never runs. Its record says it
+  /// was cancelled. Returns null when [runId] is not waiting, because it has
+  /// already started or ended.
+  Future<RunRecord?> removeQueued(String runId) async {
+    final at = _queue.indexWhere((job) => job.record.id == runId);
+    if (at < 0) return null;
+    // Taken off before anything is awaited, so it cannot be picked to run.
+    final job = _queue.removeAt(at);
+    job.record = await history.update(job.record.copyWith(
+      state: RunState.cancelled,
+      finishedAt: DateTime.now().toUtc(),
+    ));
+    job.done.complete(job.record);
+    return job.record;
+  }
+
   Future<_QueuedJob> _enqueue(JobRequest request) async {
     final record = await history.startRun(request);
     final job = _QueuedJob(request, record.copyWith(state: RunState.queued));

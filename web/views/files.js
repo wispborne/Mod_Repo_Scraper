@@ -5,6 +5,7 @@
 //                    that fits in one part is shown whole, as formatted JSON
 //                    when it is JSON. The address stores the part's start.
 
+import { icon } from '../icons.js';
 import { el, api, breadcrumbs, rawJson } from '../lib.js';
 import { pageLayout } from '../frame.js';
 import { hashQuery, buildHash } from '../routes.js';
@@ -149,17 +150,16 @@ async function viewer({ content }, id) {
 
     status.textContent = `${fmtBytes(data.totalSize)} · ${data.length} bytes from offset ${data.offset} · plain text`;
     showText(data.content || '');
-    const button = (text, disabled, target) => el('button', {
+    const button = (text, disabled, target, before, after) => el('button', {
       type: 'button',
       class: 'button quiet',
-      text,
       disabled,
       onclick: () => goTo(target),
-    });
+    }, [before ? icon(before) : null, text, after ? icon(after) : null]);
     nav.replaceChildren(el('div', { class: 'pager' }, [
-      button('‹ Previous', data.offset <= 0, Math.max(0, data.offset - SLICE)),
+      button('Previous', data.offset <= 0, Math.max(0, data.offset - SLICE), 'previous-page'),
       el('span', { class: 'pager-info', text: `Byte offset ${data.offset}` }),
-      button('Next ›', data.eof, data.offset + data.length),
+      button('Next', data.eof, data.offset + data.length, null, 'next-page'),
     ]));
   };
 

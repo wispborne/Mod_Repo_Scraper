@@ -227,6 +227,67 @@ void main() {
     service.release();
   });
 
+  test('a waiting job can be removed: it never runs, and the rest still do',
+      () async {
+    service.holdUntilReleased();
+    final running = await json('POST', 'jobs', body: {'kind': 'rebuildBundle'});
+    await service.started.future;
+    final removed = await json('POST', 'jobs', body: {'kind': 'mergeModRepo'});
+    final kept = await json('POST', 'jobs', body: {'kind': 'publishOutputs'});
+
+    final answer =
+        await json('POST', 'jobs/remove', body: {'runId': removed['id']});
+    expect(answer['id'], removed['id']);
+    expect(answer['state'], 'cancelled');
+    expect(answer['finishedAt'], isNotNull);
+
+    final status = await json('GET', 'status');
+    expect([for (final r in status['queued'] as List) r['id']], [kept['id']]);
+
+    await waitForIdle();
+    for (var i = 0; i < 200 && manager.queuedRuns.isNotEmpty; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    await waitForIdle();
+    expect([for (final r in service.ran) r.kind],
+        [JobKind.rebuildBundle, JobKind.publishOutputs]);
+    expect((await json('GET', 'runs/${running['id']}'))['state'], 'completed');
+    expect((await json('GET', 'runs/${removed['id']}'))['state'], 'cancelled');
+  });
+
+  test('anyone waiting on a removed job is told how it ended', () async {
+    service.holdUntilReleased();
+    final running = manager.submit(JobRequest.rebuildBundle());
+    await service.started.future;
+    final waiting = manager.submit(JobRequest.rebuildBundle());
+    for (var i = 0; i < 200 && manager.queuedRuns.isEmpty; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+
+    await manager.removeQueued(manager.queuedRuns.single.id);
+
+    expect((await waiting).state, RunState.cancelled);
+    service.release();
+    expect((await running).state, RunState.completed);
+  });
+
+  test('only a waiting job can be removed', () async {
+    service.holdUntilReleased();
+    final running = await json('POST', 'jobs', body: {'kind': 'rebuildBundle'});
+    await service.started.future;
+
+    final response =
+        await call('POST', 'jobs/remove', body: {'runId': running['id']});
+    expect(response.statusCode, HttpStatus.conflict);
+    final answer =
+        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+    expect(answer['error'], contains('is no longer waiting'));
+    expect(manager.currentRun?.id, running['id']);
+
+    final noId = await call('POST', 'jobs/remove', body: {});
+    expect(noId.statusCode, HttpStatus.badRequest);
+  });
+
   test('the runs list is newest first and pages', () async {
     for (var i = 0; i < 3; i++) {
       await manager.submit(JobRequest.rebuildBundle());

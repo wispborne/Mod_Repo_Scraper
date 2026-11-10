@@ -178,7 +178,7 @@ export function modChooser({ written, mods = [], selected = [], anyOne = false, 
         'aria-label': `Remove ${mod.name}`,
         title: 'Remove',
         onclick: () => toggle(mod),
-      }, [icon('x', 12)]),
+      }, [icon('x')]),
     ])));
     choice.hidden = chosen.length < 2;
     const radio = (value, label) => el('label', { class: 'dn-radio' }, [

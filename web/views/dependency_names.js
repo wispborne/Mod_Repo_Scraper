@@ -48,7 +48,7 @@ const USE_LABELS = [
 
 /// The sentence the other pages use when jobs are off.
 function managerOffText(s) {
-  if (s && s.offline) return 'The server could not be reached. Editing is disabled.';
+  if (s && s.offline) return 'Unable to reach the server. Editing is disabled.';
   return `${(s && s.reason) || 'Job management is disabled on this server.'} Start the viewer with a readable `
     + 'config.properties file (or specify it with --config) and omit --no-manager to enable jobs.';
 }
@@ -435,7 +435,7 @@ function rowView(row, pending, state, actions, redraw) {
         else state.open.add(row.key);
         redraw();
       },
-    }, [String(row.count), icon(open ? 'chevron-down' : 'chevron-right', 14)]);
+    }, [String(row.count), icon(open ? 'chevron-down' : 'chevron-right')]);
   } else {
     count = el('span', { text: String(row.count) });
   }
@@ -497,6 +497,7 @@ function actionsView(row, pending, state, redraw) {
     return el('button', {
       type: 'button',
       class: 'button quiet dn-small',
+      icon: 'undo',
       text: 'Undo',
       title: 'Undo this unsaved change.',
       onclick: () => { for (const item of pending) removePending(item.id); },
@@ -508,6 +509,7 @@ function actionsView(row, pending, state, redraw) {
     el('button', {
       type: 'button',
       class: 'button dn-small',
+      icon: 'match',
       text: 'Match…',
       title: 'Select a matching mod.',
       onclick: () => startMatching(row, state, redraw),
@@ -515,6 +517,7 @@ function actionsView(row, pending, state, redraw) {
     alreadyNone ? null : el('button', {
       type: 'button',
       class: 'button dn-small',
+      icon: 'not-in-catalog',
       text: 'Not in catalog',
       title: 'Mark this name as not referring to a catalog mod.',
       onclick: () => addNone(row),
@@ -522,6 +525,7 @@ function actionsView(row, pending, state, redraw) {
     row.saved ? el('button', {
       type: 'button',
       class: 'button quiet dn-small',
+      icon: 'reset',
       text: 'Reset',
       title: 'Delete the saved answer. Rules apply after saving. A future dependency matching job may ask the LLM again.',
       onclick: () => addForget(row),
@@ -563,6 +567,7 @@ function suggestionView(row, state, redraw) {
       el('button', {
         type: 'button',
         class: 'button dn-small',
+        icon: 'match',
         text: 'Match',
         title: `Match this name to ${mod.name}.`,
         onclick: () => addMatch(row, [mod]),
@@ -570,6 +575,7 @@ function suggestionView(row, state, redraw) {
       found.length > 1 ? el('button', {
         type: 'button',
         class: 'button quiet dn-small',
+        icon: 'more',
         text: `${found.length - 1} more`,
         title: 'Choose another mod.',
         onclick: () => startMatching(row, state, redraw),

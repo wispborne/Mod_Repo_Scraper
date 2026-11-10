@@ -74,6 +74,7 @@
 button.aa-name-text { cursor: pointer; }
 button.aa-name-text:hover { color: var(--action); text-decoration: underline; }
 .aa-remove {
+  display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; padding: 0; border: 0; background: none;
   color: var(--faint); font: inherit; cursor: pointer;
 }
