@@ -63,7 +63,7 @@ test('the AI facts about a picture follow both AI preferences', () => {
       const allowed = mode !== 'never' && visibility !== 'hide';
       assert.equal(imageAiFacts(seen), allowed ? 'AI: Banner, good for a mod card' : '');
       assert.equal(imageAiFacts({ aiUnreadable: true }),
-        allowed ? 'AI: could not read this picture' : '');
+        allowed ? 'AI: unable to read this picture' : '');
       assert.equal(imageAiFacts({}), '');
     }
   }
