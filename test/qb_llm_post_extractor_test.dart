@@ -267,6 +267,75 @@ void main() {
       expect(extrasOf(60)!.license, 'CC BY-NC');
     });
 
+    test('keeps an AI-use statement with &nbsp; in the post', () async {
+      // Topic 33697: the post's "except&nbsp; the" is "except the" to the
+      // model, and the whole answer used to be dropped for it.
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","license":"MIT","aiUse":{'
+            '"startsWith":"Some or all assets and code in this",'
+            '"endsWith":"except the code and ship stats are ai",'
+            '"usesAi":true,"uses":[{"area":"sprites","how":"edited"}]}}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(
+        _detail(
+            62,
+            'Some or all assets and code in this mod were created using AI '
+            'tools:<br>everything except&nbsp; the code and ship stats are ai'
+            '<br>License: MIT'),
+        [],
+      );
+      final aiUse = extrasOf(62)!.aiUse!;
+      expect(aiUse.usesAi, isTrue);
+      expect(aiUse.quote, contains('everything except the code'));
+      expect(aiUse.quote, isNot(contains('nbsp')));
+    });
+
+    test('keeps description anchors with &nbsp; in the post', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","license":"MIT",'
+            '"descriptionAnchors":{'
+            '"startsWith":"A faction for those who",'
+            '"endsWith":"with a love of freedom"}}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(
+        _detail(63, 'A faction&nbsp;for those who like it, with a love&nbsp;of '
+            'freedom. License: MIT'),
+        [],
+      );
+      expect(modsOf(63).single.descriptionAnchors, isNotNull);
+    });
+
+    test('stores no &nbsp; the model copied from the post', () async {
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main","license":"MIT","aiUse":{'
+            '"quote":"Art made with&nbsp;AI tools&nbsp;","usesAi":true}}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(
+        _detail(64, 'Art made with&nbsp;AI tools&nbsp;<br>License: MIT'),
+        [],
+      );
+      expect(extrasOf(64)!.aiUse!.quote, 'Art made with AI tools');
+    });
+
+    test('stores no &nbsp; in a label taken from the list of links', () async {
+      const url = 'https://x.example/mod.zip';
+      final client = _FakeLlmClient([
+        _json('{"mods":[{"name":"m","role":"main",'
+            '"downloads":[{"link":1}]}]}'),
+      ]);
+      await makeExtractor(client).extractForTopic(
+        _detail(65, '<a href="$url">==&nbsp; DOWNLOAD&nbsp; ==</a>',
+            links: [
+              LinkRef(
+                  url: url,
+                  text: '==&nbsp; DOWNLOAD&nbsp; ==',
+                  isExternal: true),
+            ]),
+        [],
+      );
+      expect(downloadsOf(65).single.label, '== DOWNLOAD ==');
+    });
+
     test('license from an alt-text badge grounds', () async {
       final client = _FakeLlmClient([
         _json('{"mods":[{"name":"m","role":"main","license":"MIT"}]}'),

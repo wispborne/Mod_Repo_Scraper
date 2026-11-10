@@ -7,17 +7,20 @@
 /// else. So both sides are compared on their letters and numbers only.
 library;
 
+import '../plain_spaces.dart';
+
 /// How short an anchor may be before it is thrown out. A very short one matches
 /// almost anywhere, and a wrong cut is worse than none.
 const int shortestAnchor = 8;
 
 /// A piece of writing with everything but its letters and numbers taken out,
-/// lower case.
+/// lower case. A non-breaking space written out as `&nbsp;` is a space, not
+/// four letters.
 ///
 /// Letters in any alphabet count, so a post in Russian or Chinese anchors the
 /// same way an English one does.
 String anchorKey(String text) =>
-    text.toLowerCase().replaceAll(_notLetterOrNumber, '');
+    plainSpaces(text).toLowerCase().replaceAll(_notLetterOrNumber, '');
 
 /// True when the post holds both anchors, the start at or before the end.
 ///
@@ -44,14 +47,20 @@ bool anchorsFoundIn(String postText, String startsWith, String endsWith) {
 ({String key, List<int> at}) anchorKeyWithPlaces(String text) {
   final key = StringBuffer();
   final at = <int>[];
+  final inSpace = {
+    for (final m in nonBreakingSpace.allMatches(text))
+      for (var p = m.start; p < m.end; p++) p,
+  };
   var i = 0;
   for (final rune in text.runes) {
     final char = String.fromCharCode(rune);
-    final kept = anchorKey(char);
-    for (var k = 0; k < kept.length; k++) {
-      at.add(i);
+    if (!inSpace.contains(i)) {
+      final kept = anchorKey(char);
+      for (var k = 0; k < kept.length; k++) {
+        at.add(i);
+      }
+      key.write(kept);
     }
-    key.write(kept);
     i += char.length;
   }
   return (key: key.toString(), at: at);

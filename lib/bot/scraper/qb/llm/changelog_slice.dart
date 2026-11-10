@@ -7,6 +7,7 @@
 /// is stored is the author's own text or nothing.
 library;
 
+import '../plain_spaces.dart';
 import 'anchor_key.dart';
 
 /// Why an entry could not be cut.
@@ -146,7 +147,7 @@ ChangelogCut cutChangelogEntry(
 /// taken out. The space before a note or mark goes with it, so no double
 /// space is left behind.
 String _plain(String text) =>
-    text.replaceAll(_markers, '').replaceAll(_nbsp, ' ');
+    plainSpaces(text.replaceAll(_markers, ''));
 
 /// Finds [version] standing on its own, with an optional "v", "v." or
 /// "version" before it. The model's spelling is tried, and so is the version
@@ -220,8 +221,6 @@ String _tidy(String notes) => notes
     .trim();
 
 final RegExp _markers = RegExp(r' ?(?:\[link: [^\]]*\]|\[close\])');
-final RegExp _nbsp = RegExp(r'&nbsp;|&#0*160;|&#x0*a0;| ',
-    caseSensitive: false);
 final RegExp _leadingV = RegExp(r'^[vV]\.?\s*(?=\d)');
 final RegExp _partBreak = RegExp(r'[-_ ]+');
 final RegExp _letterOrNumber = RegExp(r'[\p{L}\p{N}]', unicode: true);

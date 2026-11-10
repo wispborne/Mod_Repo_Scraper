@@ -12,6 +12,7 @@ import '../models/assumed_download.dart';
 import '../models/mod_detail.dart';
 import '../../../../catalog/source_post.dart';
 import '../models/post_extraction.dart';
+import '../plain_spaces.dart';
 import '../url_normalizer.dart';
 import 'anchor_key.dart';
 import 'changelog_slice.dart';
@@ -778,7 +779,8 @@ class PostExtractor {
 
   _LlmAnswer _parseAnswer(String content) {
     final cleaned = _extractJsonObject(content);
-    final decoded = jsonDecode(cleaned);
+    // The model sometimes copies a post's `&nbsp;` along with its words.
+    final decoded = withoutNonBreakingSpacesInside(jsonDecode(cleaned));
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Answer is not a JSON object');
     }
@@ -1934,12 +1936,6 @@ class PostExtractor {
 
   static bool _isDownloadLink(String url) => _downloadUrlHint.hasMatch(url);
 
-  // A non-breaking space in any form the post or the model might use: the
-  // literal `&nbsp;` entity, its numeric forms (`&#160;` / `&#xa0;`), or the
-  // raw U+00A0 character. All become a plain space so checking treats them the
-  // same — the model often reads `&nbsp;` back as a normal space.
-  static final RegExp _nbsp = RegExp(r'&nbsp;|&#0*160;|&#x0*a0;',
-      caseSensitive: false);
   static final RegExp _whitespace = RegExp(r'\s+');
 
   /// [named] with its address and label filled in from the prompt's list of
@@ -1954,7 +1950,8 @@ class PostExtractor {
     if (number != null) {
       if (number >= 1 && number <= links.length) {
         final link = links[number - 1];
-        return _RawDownload(link.url, link.text.trim(), named.kind);
+        return _RawDownload(
+            link.url, withoutNonBreakingSpaces(link.text).trim(), named.kind);
       }
       if (named.url.isEmpty) {
         _log.warning('Dropped download with link number $number, which the '
@@ -1966,7 +1963,8 @@ class PostExtractor {
     final key = PostReducer.normalizeForMatching(named.url);
     for (final link in links) {
       if (PostReducer.normalizeForMatching(link.url) == key) {
-        return _RawDownload(named.url, link.text.trim(), named.kind);
+        return _RawDownload(
+            named.url, withoutNonBreakingSpaces(link.text).trim(), named.kind);
       }
     }
     return named;
@@ -2049,15 +2047,13 @@ class PostExtractor {
     return words.isNotEmpty && ' ${_wordsOnly(postText)} '.contains(' $words ');
   }
 
-  static String _wordsOnly(String s) => s
-      .replaceAll(_nbsp, ' ')
+  static String _wordsOnly(String s) => plainSpaces(s)
       .toLowerCase()
       .replaceAll(_notLetterOrDigit, ' ')
       .replaceAll(_whitespace, ' ')
       .trim();
 
-  static String _norm(String s) => s
-      .replaceAll(_nbsp, ' ')
+  static String _norm(String s) => plainSpaces(s)
       .toLowerCase()
       .replaceAll(_whitespace, ' ')
       .trim();

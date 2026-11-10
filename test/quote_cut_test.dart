@@ -29,6 +29,20 @@ void main() {
       );
     });
 
+    test('reads a non-breaking space as a space, and stores none', () {
+      // Topic 33697, as the post reducer gives it.
+      expect(
+        cutQuote(
+          'Some or all assets and code in this mod were created using AI '
+              'tools:\neverything except&nbsp; the code and ship stats are ai',
+          'Some or all assets and code in this',
+          'everything except the code and ship stats are ai',
+        ),
+        'Some or all assets and code in this mod were created using AI '
+        'tools:\neverything except the code and ship stats are ai',
+      );
+    });
+
     test('keeps line breaks and tidies spaces inside lines', () {
       expect(
         cutQuote(

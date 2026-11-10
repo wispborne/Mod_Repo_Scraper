@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:synchronized/synchronized.dart';
 
 import '../models/post_extraction.dart';
+import '../plain_spaces.dart';
 import 'llm_client.dart';
 
 /// One finished per-thread LLM result: the list of mods found on the thread,
@@ -153,7 +154,10 @@ class LlmExtractionStore {
             ? entry.key.substring(discordKeyPrefix.length)
             : null;
         if (topicId == null && threadId == null) continue;
-        final stored = LlmStoreEntry.fromJson(entry.value as Map<String, dynamic>);
+        // Older saved answers still have the post's `&nbsp;` in them.
+        final stored = LlmStoreEntry.fromJson(
+            withoutNonBreakingSpacesInside(entry.value)
+                as Map<String, dynamic>);
         if (stored.schemaVersion != schemaVersion) continue;
         if (topicId != null) {
           _entries[topicId] = stored;

@@ -7,6 +7,7 @@
 /// is always the author's own text, never the model's copy of it.
 library;
 
+import '../plain_spaces.dart';
 import 'anchor_key.dart';
 
 /// The longest statement kept. Two anchors make it cheap to point at half a
@@ -20,14 +21,15 @@ const int longestCutQuote = 2000;
 /// is longer than [longestCutQuote].
 ///
 /// [postText] is one post's plain text. Our `[link: <url>]` notes are taken
-/// out first, so an anchor never has to copy one. The two anchors are matched
+/// out first, so an anchor never has to copy one, and `&nbsp;` becomes a space,
+/// so the stored quote holds none. The two anchors are matched
 /// on letters and numbers only, the same as description anchors, so
 /// punctuation and spacing in the model's copy do not matter. The cut is
 /// widened to whole words at both ends and keeps the post's line breaks, so a
 /// statement written as a list still reads as one. Spaces inside each line are
 /// tidied.
 String? cutQuote(String postText, String startsWith, String endsWith) {
-  final text = postText.replaceAll(_linkNote, '');
+  final text = plainSpaces(postText.replaceAll(_linkNote, ''));
   // Also turns away an anchor too short to point at one place.
   if (!anchorsFoundIn(text, startsWith, endsWith)) return null;
   final start = anchorKey(startsWith);

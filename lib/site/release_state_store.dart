@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../bot/scraper/qb/plain_spaces.dart';
+
 /// What we currently believe about one thread's mod version.
 ///
 /// [believed] is the version we are willing to say the mod is on. [reading] is
@@ -109,7 +111,11 @@ class ThreadRelease {
         oldVersion: map['oldVersion'] as String?,
         newVersion: map['newVersion'] as String? ?? '',
         gameVersion: map['gameVersion'] as String?,
-        changelogNotes: map['changelogNotes'] as String?,
+        // Older saved notes still have the post's `&nbsp;` in them.
+        changelogNotes: switch (map['changelogNotes']) {
+          final String notes => withoutNonBreakingSpaces(notes),
+          _ => null,
+        },
       );
 }
 

@@ -11,6 +11,7 @@ import 'downloadable_probe_cache.dart';
 import 'forum_constants.dart';
 import 'html_processor.dart';
 import 'models/mod_detail.dart';
+import 'plain_spaces.dart';
 import 'url_normalizer.dart';
 
 /// Confidence level for a resolved download candidate.
@@ -31,8 +32,8 @@ class DownloadCandidate {
     this.archiveFilename,
     this.confidence = DownloadConfidence.medium,
     this.requiresManualStep = false,
-    this.linkText = '',
-  });
+    String linkText = '',
+  }) : linkText = withoutNonBreakingSpaces(linkText);
 
   Map<String, dynamic> toJson() => {
         'sourceUrl': sourceUrl,

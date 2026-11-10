@@ -1,5 +1,6 @@
 import '../bot/scraper/qb/forum_constants.dart';
 import '../bot/scraper/qb/models/post_extraction.dart';
+import '../bot/scraper/qb/plain_spaces.dart';
 import '../bot/scraper/scraped_mod.dart';
 import '../site/mod_name_match.dart';
 import '../site/post_html.dart';
@@ -241,7 +242,7 @@ class SourcePostListings {
   /// counts as a space, capitals do not matter, and runs of space are one.
   static bool postNames(String name, String? postWords) {
     if (postWords == null || postWords.isEmpty) return false;
-    String tidy(String s) => s.replaceAll(_nbsp, ' ').toLowerCase().replaceAll(_spaces, ' ').trim();
+    String tidy(String s) => plainSpaces(s).toLowerCase().replaceAll(_spaces, ' ').trim();
     final wanted = tidy(name);
     return wanted.isNotEmpty && tidy(postWords).contains(wanted);
   }
@@ -254,7 +255,7 @@ class SourcePostListings {
   /// bracket, so "[0.97a] Lost.Sector Extended" says nothing about Lost.Sector.
   static String? gameVersionBefore(LlmMod llmMod, String? postWords) {
     if (postWords == null || postWords.isEmpty) return null;
-    final words = postWords.replaceAll(_nbsp, ' ');
+    final words = plainSpaces(postWords);
     for (final name in [llmMod.name, ...?llmMod.nicknames]) {
       if (name.trim().isEmpty) continue;
       final heading = RegExp(
@@ -273,7 +274,6 @@ class SourcePostListings {
     return null;
   }
 
-  static final RegExp _nbsp = RegExp(r'&nbsp;|&#0*160;|&#x0*a0;', caseSensitive: false);
   static final RegExp _spaces = RegExp(r'\s+');
 
   /// The rules listing with one LLM mod's reading joined on. The name and
